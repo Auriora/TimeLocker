@@ -1,0 +1,3154 @@
+[
+  {
+    "DESCRIPTION": "The \"stats\" command walks one or multiple snapshots in a repository\nand accumulates statistics about the data stored therein. It reports\non the number of unique files and their sizes, according to one of\nthe counting modes as given by the --mode flag.\n\n.PP\nIt operates on all snapshots matching the selection criteria or all\nsnapshots if nothing is specified. The special snapshot ID \"latest\"\nis also supported. Some modes make more sense over\njust a single snapshot, while others are useful across all snapshots,\ndepending on what you are trying to calculate.\n\n.PP\nThe modes are:\n.IP \\(bu 2\nrestore-size: (default) Counts the size of the restored files.\n.IP \\(bu 2\nfiles-by-contents: Counts total size of unique files, where a file is\nconsidered unique if it has unique contents.\n.IP \\(bu 2\nraw-data: Counts the size of blobs in the repository, regardless of\nhow many files reference them.\n.IP \\(bu 2\nblobs-per-file: A combination of files-by-contents and raw-data.\n\n.PP\nRefer to the online manual for more details about each mode.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-stats",
+      "description": "Scan the repository and show basic statistics"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for stats",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": "$RESTIC_HOST",
+        "description": "only consider snapshots for this host (can be specified multiple times)",
+        "long_flag": "--host",
+        "short_flag": "-H",
+        "value_type": "list"
+      },
+      {
+        "default": "restore-size",
+        "default_value": null,
+        "description": "counting mode: restore-size (default), files-by-contents, blobs-per-file or raw-data",
+        "long_flag": "--mode",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including this (absolute) path (can be specified multiple times, snapshots must include all specified paths)",
+        "long_flag": "--path",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including tag[,tag,...] (can be specified multiple times)",
+        "long_flag": "--tag",
+        "short_flag": null,
+        "value_type": "list"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "stats",
+      "executable": "restic",
+      "parameters": [
+        "[flags]",
+        "[snapshot ID]",
+        "[...]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"find\" command searches for files or directories in snapshots stored in the\nrepo.\nIt can also be used to search for restic blobs or trees for troubleshooting.\nThe default sort option for the snapshots is youngest to oldest. To sort the\noutput from oldest to youngest specify --reverse.",
+    "NAME": {
+      "command": "restic-find",
+      "description": "Find a file, a directory or restic IDs"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "pattern is a blob-ID",
+        "long_flag": "--blob",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for find",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": "$RESTIC_HOST",
+        "description": "only consider snapshots for this host (can be specified multiple times)",
+        "long_flag": "--host",
+        "short_flag": "-H",
+        "value_type": "list"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "print sizes in human readable format",
+        "long_flag": "--human-readable",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "ignore case for pattern",
+        "long_flag": "--ignore-case",
+        "short_flag": "-i",
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "use a long listing format showing size and mode",
+        "long_flag": "--long",
+        "short_flag": "-l",
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "newest modification date/time",
+        "long_flag": "--newest",
+        "short_flag": "-N",
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "oldest modification date/time",
+        "long_flag": "--oldest",
+        "short_flag": "-O",
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "pattern is a pack-ID",
+        "long_flag": "--pack",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including this (absolute) path (can be specified multiple times, snapshots must include all specified paths)",
+        "long_flag": "--path",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "reverse sort order oldest to newest",
+        "long_flag": "--reverse",
+        "short_flag": "-R",
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "display the pack-ID the blobs belong to (with --blob or --tree)",
+        "long_flag": "--show-pack-id",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "snapshot id to search in (can be given multiple times)",
+        "long_flag": "--snapshot",
+        "short_flag": "-s",
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including tag[,tag,...] (can be specified multiple times)",
+        "long_flag": "--tag",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "pattern is a tree-ID",
+        "long_flag": "--tree",
+        "short_flag": null,
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "find",
+      "executable": "restic",
+      "parameters": [
+        "[flags]",
+        "PATTERN..."
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"generate\" command writes automatically generated files (like the man pages\nand the auto-completion files for bash, fish and zsh).",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      }
+    ],
+    "NAME": {
+      "command": "restic-generate",
+      "description": "Generate manual pages and auto-completion files (bash, fish, zsh, powershell)"
+    },
+    "OPTIONS": [
+      {
+        "default": "",
+        "default_value": null,
+        "description": "write bash completion file (- for stdout)",
+        "long_flag": "--bash-completion",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "write fish completion file (- for stdout)",
+        "long_flag": "--fish-completion",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for generate",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "write man pages to directory",
+        "long_flag": "--man",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "write powershell completion file (- for stdout)",
+        "long_flag": "--powershell-completion",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "write zsh completion file (- for stdout)",
+        "long_flag": "--zsh-completion",
+        "short_flag": null,
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "generate",
+      "executable": "restic",
+      "parameters": [
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"cache\" command allows listing and cleaning local cache directories.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      }
+    ],
+    "NAME": {
+      "command": "restic-cache",
+      "description": "Operate on local cache directories"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "remove old cache directories",
+        "long_flag": "--cleanup",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for cache",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "max age in days for cache directories to be considered old",
+        "long_flag": "--max-age",
+        "short_flag": null,
+        "value_type": null
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "do not output the size of the cache directories",
+        "long_flag": "--no-size",
+        "short_flag": null,
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "cache",
+      "executable": "restic",
+      "parameters": [
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "restic is a backup program which allows saving multiple revisions of files and\ndirectories in an encrypted repository stored on different backends.\n\n.PP\nThe full documentation can be found at https://restic.readthedocs.io/ .",
+    "NAME": {
+      "command": "restic",
+      "description": "Backup and restore files"
+    },
+    "OPTIONS": [
+      {
+        "default": [],
+        "default_value": "use system certificates or $RESTIC_CACERT",
+        "description": "file to load root certificates from",
+        "long_flag": "--cacert",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "",
+        "default_value": "use system default cache directory",
+        "description": "set the cache directory\\",
+        "long_flag": "--cache-dir",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "auto remove old cache directories",
+        "long_flag": "--cleanup-cache",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "auto",
+        "default_value": "$RESTIC_COMPRESSION",
+        "description": "compression mode (only available for repository format version 2), one of (auto|off|max)",
+        "long_flag": "--compression",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for restic",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "set a http user agent for outgoing http requests",
+        "long_flag": "--http-user-agent",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "use an empty password for the repository, must be passed to every restic command (insecure)",
+        "long_flag": "--insecure-no-password",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "skip TLS certificate verification when connecting to the repository (insecure)",
+        "long_flag": "--insecure-tls",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "set output mode to JSON for commands that support it",
+        "long_flag": "--json",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": "$RESTIC_KEY_HINT",
+        "description": "key ID of key to try decrypting first",
+        "long_flag": "--key-hint",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": null,
+        "default_value": "unlimited",
+        "description": "limits downloads to a maximum rate in KiB/s.",
+        "long_flag": "--limit-download",
+        "short_flag": null,
+        "value_type": null
+      },
+      {
+        "default": null,
+        "default_value": "unlimited",
+        "description": "limits uploads to a maximum rate in KiB/s.",
+        "long_flag": "--limit-upload",
+        "short_flag": null,
+        "value_type": null
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "do not use a local cache",
+        "long_flag": "--no-cache",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "skip additional verification of data before upload (see documentation)",
+        "long_flag": "--no-extra-verify",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "do not lock the repository, this allows some operations on read-only repositories",
+        "long_flag": "--no-lock",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "set extended option (key=value, can be specified multiple times)",
+        "long_flag": "--option",
+        "short_flag": "-o",
+        "value_type": "list"
+      },
+      {
+        "default": null,
+        "default_value": "$RESTIC_PACK_SIZE",
+        "description": "set target pack size in MiB, created pack files may be larger",
+        "long_flag": "--pack-size",
+        "short_flag": null,
+        "value_type": null
+      },
+      {
+        "default": "",
+        "default_value": "$RESTIC_PASSWORD_COMMAND",
+        "description": "shell command to obtain the repository password from",
+        "long_flag": "--password-command",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": "$RESTIC_PASSWORD_FILE",
+        "description": "file to read the repository password from",
+        "long_flag": "--password-file",
+        "short_flag": "-p",
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "do not output comprehensive progress report",
+        "long_flag": "--quiet",
+        "short_flag": "-q",
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": "$RESTIC_REPOSITORY",
+        "description": "repository to backup to or restore from",
+        "long_flag": "--repo",
+        "short_flag": "-r",
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": "$RESTIC_REPOSITORY_FILE",
+        "description": "file to read the repository location from",
+        "long_flag": "--repository-file",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": null,
+        "default_value": "no retries",
+        "description": "retry to lock the repository if it is already locked, takes a value like 5m or 2h",
+        "long_flag": "--retry-lock",
+        "short_flag": null,
+        "value_type": null
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "duration after which to retry stuck requests",
+        "long_flag": "--stuck-request-timeout",
+        "short_flag": null,
+        "value_type": null
+      },
+      {
+        "default": "",
+        "default_value": "$RESTIC_TLS_CLIENT_CERT",
+        "description": "path to a file containing PEM encoded TLS client certificate and private key",
+        "long_flag": "--tls-client-cert",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "be verbose (specify multiple times or a level using --verbose=n``, max level/times is 2)",
+        "long_flag": "--verbose",
+        "short_flag": "-v",
+        "value_type": null
+      }
+    ],
+    "SYNOPSIS": {
+      "command": null,
+      "executable": "restic",
+      "parameters": [
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"mount\" command mounts the repository via fuse to a directory. This is a\nread-only mount.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-mount",
+      "description": "Mount the repository"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "allow other users to access the data in the mounted directory",
+        "long_flag": "--allow-other",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for mount",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": "$RESTIC_HOST",
+        "description": "only consider snapshots for this host (can be specified multiple times)",
+        "long_flag": "--host",
+        "short_flag": "-H",
+        "value_type": "list"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "for 'allow-other', ignore Unix permissions and allow users to read all snapshot files",
+        "long_flag": "--no-default-permissions",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "use 'root' as the owner of files and dirs",
+        "long_flag": "--owner-root",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including this (absolute) path (can be specified multiple times, snapshots must include all specified paths)",
+        "long_flag": "--path",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "set template for path names (can be specified multiple times)",
+        "long_flag": "--path-template",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including tag[,tag,...] (can be specified multiple times)",
+        "long_flag": "--tag",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "2006-01-02T15:04:05Z07:00",
+        "default_value": null,
+        "description": "set template to use for times",
+        "long_flag": "--time-template",
+        "short_flag": null,
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "mount",
+      "executable": "restic",
+      "parameters": [
+        "[flags]",
+        "mountpoint"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"forget\" command removes snapshots according to a policy. All snapshots are\nfirst divided into groups according to \"--group-by\", and after that the policy\nspecified by the \"--keep-\\fI\" options is applied to each group individually.\nIf there are not enough snapshots to keep one for each duration related\n\"--keep-{within-,}\\fP\" option, the oldest snapshot in the group is kept\nadditionally.\n\n.PP\nPlease note that this command really only deletes the snapshot object in the\nrepository, which is a reference to data stored there. In order to remove the\nunreferenced data after \"forget\" was run successfully, see the \"prune\" command.\n\n.PP\nPlease also read the documentation for \"forget\" to learn about some important\nsecurity considerations.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-forget",
+      "description": "Remove snapshots from the repository"
+    },
+    "OPTIONS": [
+      {
+        "default": null,
+        "default_value": null,
+        "description": "keep the last n snapshots (use 'unlimited' to keep all snapshots)",
+        "long_flag": "--keep-last",
+        "short_flag": "-l",
+        "value_type": null
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "keep the last n hourly snapshots (use 'unlimited' to keep all hourly snapshots)",
+        "long_flag": "--keep-hourly",
+        "short_flag": "-H",
+        "value_type": null
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "keep the last n daily snapshots (use 'unlimited' to keep all daily snapshots)",
+        "long_flag": "--keep-daily",
+        "short_flag": "-d",
+        "value_type": null
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "keep the last n weekly snapshots (use 'unlimited' to keep all weekly snapshots)",
+        "long_flag": "--keep-weekly",
+        "short_flag": "-w",
+        "value_type": null
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "keep the last n monthly snapshots (use 'unlimited' to keep all monthly snapshots)",
+        "long_flag": "--keep-monthly",
+        "short_flag": "-m",
+        "value_type": null
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "keep the last n yearly snapshots (use 'unlimited' to keep all yearly snapshots)",
+        "long_flag": "--keep-yearly",
+        "short_flag": "-y",
+        "value_type": null
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "keep snapshots that are newer than duration (eg. 1y5m7d2h) relative to the latest snapshot",
+        "long_flag": "--keep-within",
+        "short_flag": null,
+        "value_type": null
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "keep hourly snapshots that are newer than duration (eg. 1y5m7d2h) relative to the latest snapshot",
+        "long_flag": "--keep-within-hourly",
+        "short_flag": null,
+        "value_type": null
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "keep daily snapshots that are newer than duration (eg. 1y5m7d2h) relative to the latest snapshot",
+        "long_flag": "--keep-within-daily",
+        "short_flag": null,
+        "value_type": null
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "keep weekly snapshots that are newer than duration (eg. 1y5m7d2h) relative to the latest snapshot",
+        "long_flag": "--keep-within-weekly",
+        "short_flag": null,
+        "value_type": null
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "keep monthly snapshots that are newer than duration (eg. 1y5m7d2h) relative to the latest snapshot",
+        "long_flag": "--keep-within-monthly",
+        "short_flag": null,
+        "value_type": null
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "keep yearly snapshots that are newer than duration (eg. 1y5m7d2h) relative to the latest snapshot",
+        "long_flag": "--keep-within-yearly",
+        "short_flag": null,
+        "value_type": null
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "keep snapshots with this taglist (can be specified multiple times)",
+        "long_flag": "--keep-tag",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "allow deleting all snapshots of a snapshot group",
+        "long_flag": "--unsafe-allow-remove-all",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": "$RESTIC_HOST",
+        "description": "only consider snapshots for this host (can be specified multiple times)",
+        "long_flag": "--host",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including tag[,tag,...] (can be specified multiple times)",
+        "long_flag": "--tag",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including this (absolute) path (can be specified multiple times, snapshots must include all specified paths)",
+        "long_flag": "--path",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "use compact output format",
+        "long_flag": "--compact",
+        "short_flag": "-c",
+        "value_type": "string"
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "group snapshots by host, paths and/or tags, separated by comma (disable grouping with '')",
+        "long_flag": "--group-by",
+        "short_flag": "-g",
+        "value_type": null
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "do not delete anything, just print what would be done",
+        "long_flag": "--dry-run",
+        "short_flag": "-n",
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "automatically run the 'prune' command if snapshots have been removed",
+        "long_flag": "--prune",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "5%",
+        "default_value": null,
+        "description": "tolerate given limit of unused data (absolute value in bytes with suffixes k/K, m/M, g/G, t/T, a value in % or the word 'unlimited')",
+        "long_flag": "--max-unused",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "stop after repacking this much data in total (allowed suffixes for size: k/K, m/M, g/G, t/T)",
+        "long_flag": "--max-repack-size",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "only repack packs which are cacheable",
+        "long_flag": "--repack-cacheable-only",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "repack pack files below 80% of target pack size",
+        "long_flag": "--repack-small",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "repack all uncompressed data",
+        "long_flag": "--repack-uncompressed",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "pack below-limit packfiles (allowed suffixes: k/K, m/M)",
+        "long_flag": "--repack-smaller-than",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for forget",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "forget",
+      "executable": "restic",
+      "parameters": [
+        "[flags]",
+        "[snapshot ID]",
+        "[...]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"version\" command prints detailed information about the build environment\nand the version of this software.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      }
+    ],
+    "NAME": {
+      "command": "restic-version",
+      "description": "Print version information"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for version",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "version",
+      "executable": "restic",
+      "parameters": [
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"passwd\" sub-command creates a new key, validates the key and remove the old key ID.\nReturns the new key ID.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-key-passwd",
+      "description": "Change key (password); creates a new key ID and removes the old key ID, returns new key ID"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for passwd",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "the hostname for new key",
+        "long_flag": "--host",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "add an empty password for the repository (insecure)",
+        "long_flag": "--new-insecure-no-password",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "file from which to read the new password",
+        "long_flag": "--new-password-file",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "the username for new key",
+        "long_flag": "--user",
+        "short_flag": null,
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "key",
+      "executable": "restic",
+      "parameters": [
+        "passwd",
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"ls\" command lists files and directories in a snapshot.\n\n.PP\nThe special snapshot ID \"latest\" can be used to list files and\ndirectories of the latest snapshot in the repository. The\n--host flag can be used in conjunction to select the latest\nsnapshot originating from a certain host only.\n\n.PP\nFile listings can optionally be filtered by directories. Any\npositional arguments after the snapshot ID are interpreted as\nabsolute directory paths, and only files inside those directories\nwill be listed. If the --recursive flag is used, then the filter\nwill allow traversing into matching directories' subfolders.\nAny directory paths specified must be absolute (starting with\na path separator); paths use the forward slash '/' as separator.\n\n.PP\nFile listings can be sorted by specifying --sort followed by one of the\nsort specifiers '(name|size|time=mtime|atime|ctime|extension)'.\nThe sorting can be reversed by specifying --reverse.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-ls",
+      "description": "List files in a snapshot"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for ls",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": "$RESTIC_HOST",
+        "description": "only consider snapshots for this host, when snapshot ID \"latest\" is given (can be specified multiple times)",
+        "long_flag": "--host",
+        "short_flag": "-H",
+        "value_type": "list"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "print sizes in human readable format",
+        "long_flag": "--human-readable",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "use a long listing format showing size and mode",
+        "long_flag": "--long",
+        "short_flag": "-l",
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "output NCDU export format (pipe into 'ncdu -f -')",
+        "long_flag": "--ncdu",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including this (absolute) path, when snapshot ID \"latest\" is given (can be specified multiple times, snapshots must include all specified paths)",
+        "long_flag": "--path",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "include files in subfolders of the listed directories",
+        "long_flag": "--recursive",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "reverse sorted output",
+        "long_flag": "--reverse",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "sort output by (name|size|time=mtime|atime|ctime|extension)",
+        "long_flag": "--sort",
+        "short_flag": "-s",
+        "value_type": null
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including tag[,tag,...], when snapshot ID \"latest\" is given (can be specified multiple times)",
+        "long_flag": "--tag",
+        "short_flag": null,
+        "value_type": "list"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "ls",
+      "executable": "restic",
+      "parameters": [
+        "[flags]",
+        "snapshotID",
+        "[dir...]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"unlock\" command removes stale locks that have been created by other restic processes.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      }
+    ],
+    "NAME": {
+      "command": "restic-unlock",
+      "description": "Remove locks other processes created"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for unlock",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "remove all locks, even non-stale ones",
+        "long_flag": "--remove-all",
+        "short_flag": null,
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "unlock",
+      "executable": "restic",
+      "parameters": [
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"backup\" command creates a new snapshot and saves the files and directories\ngiven as the arguments.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was a fatal error (no snapshot created)"
+      },
+      {
+        "3": "some source data could not be read (incomplete snapshot created)"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-backup",
+      "description": "Create a new backup of files and/or directories"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "do not upload or write any data, just show what would be done",
+        "long_flag": "--dry-run",
+        "short_flag": "-n",
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "exclude a pattern (can be specified multiple times)",
+        "long_flag": "--exclude",
+        "short_flag": "-e",
+        "value_type": "list"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "excludes cache directories that are marked with a CACHEDIR.TAG file. See https://bford.info/cachedir/ for the Cache Directory Tagging Standard",
+        "long_flag": "--exclude-caches",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "read exclude patterns from a file (can be specified multiple times)",
+        "long_flag": "--exclude-file",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "takes filename[:header], exclude contents of directories containing filename (except filename itself) if header of that file is as provided (can be specified multiple times)",
+        "long_flag": "--exclude-if-present",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "max size of the files to be backed up (allowed suffixes: k/K, m/M, g/G, t/T)",
+        "long_flag": "--exclude-larger-than",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "read the files to backup from file (can be combined with file args; can be specified multiple times)",
+        "long_flag": "--files-from",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "read the files to backup from file (can be combined with file args; can be specified multiple times)",
+        "long_flag": "--files-from-raw",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "read the files to backup from file (can be combined with file args; can be specified multiple times)",
+        "long_flag": "--files-from-verbatim",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "force re-reading the source files/directories (overrides the \"parent\" flag)",
+        "long_flag": "--force",
+        "short_flag": "-f",
+        "value_type": "string"
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "group snapshots by host, paths and/or tags, separated by comma (disable grouping with '')",
+        "long_flag": "--group-by",
+        "short_flag": "-g",
+        "value_type": null
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for backup",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": "$RESTIC_HOST",
+        "description": "set the hostname for the snapshot manually. To prevent an expensive rescan use the \"parent\" flag",
+        "long_flag": "--host",
+        "short_flag": "-H",
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "same as --exclude pattern but ignores the casing of filenames",
+        "long_flag": "--iexclude",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "same as --exclude-file but ignores casing of filenames in patterns",
+        "long_flag": "--iexclude-file",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "ignore ctime changes when checking for modified files",
+        "long_flag": "--ignore-ctime",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "ignore inode number and ctime changes when checking for modified files",
+        "long_flag": "--ignore-inode",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "do not run scanner to estimate size of backup",
+        "long_flag": "--no-scan",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "exclude other file systems, don't cross filesystem boundaries and subvolumes",
+        "long_flag": "--one-file-system",
+        "short_flag": "-x",
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": "latest snapshot in the group determined by --group-by and not newer than the timestamp determined by --time",
+        "description": "use this parent snapshot",
+        "long_flag": "--parent",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": null,
+        "default_value": "$RESTIC_READ_CONCURRENCY or 2",
+        "description": "read n files concurrently",
+        "long_flag": "--read-concurrency",
+        "short_flag": null,
+        "value_type": null
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "skip snapshot creation if identical to parent snapshot",
+        "long_flag": "--skip-if-unchanged",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "read backup from stdin",
+        "long_flag": "--stdin",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "stdin",
+        "default_value": null,
+        "description": "filename to use when reading from stdin",
+        "long_flag": "--stdin-filename",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "interpret arguments as command to execute and store its stdout",
+        "long_flag": "--stdin-from-command",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "add tags for the new snapshot in the format tag[,tag,...] (can be specified multiple times)",
+        "long_flag": "--tag",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "",
+        "default_value": "now",
+        "description": "time of the backup (ex. '2012-11-01 22:08:41')",
+        "long_flag": "--time",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "store the atime for all files and directories",
+        "long_flag": "--with-atime",
+        "short_flag": null,
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "backup",
+      "executable": "restic",
+      "parameters": [
+        "[flags]",
+        "[FILE/DIR]",
+        "..."
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"copy\" command copies one or more snapshots from one repository to another.\n\n.PP\nNOTE: This process will have to both download (read) and upload (write) the\nentire snapshot(s) due to the different encryption keys used in the source and\ndestination repositories. This /may incur higher bandwidth usage and costs/ than\nexpected during normal backup runs.\n\n.PP\nNOTE: The copying process does not re-chunk files, which may break deduplication\nbetween the files copied and files already stored in the destination repository.\nThis means that copied files, which existed in both the source and destination\nrepository, /may occupy up to twice their space/ in the destination repository.\nThis can be mitigated by the \"--copy-chunker-params\" option when initializing a\nnew destination repository using the \"init\" command.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-copy",
+      "description": "Copy snapshots from one repository to another"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "use an empty password for the source repository (insecure)",
+        "long_flag": "--from-insecure-no-password",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": "$RESTIC_FROM_KEY_HINT",
+        "description": "key ID of key to try decrypting the source repository first",
+        "long_flag": "--from-key-hint",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": "$RESTIC_FROM_PASSWORD_COMMAND",
+        "description": "shell command to obtain the source repository password from",
+        "long_flag": "--from-password-command",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": "$RESTIC_FROM_PASSWORD_FILE",
+        "description": "file to read the source repository password from",
+        "long_flag": "--from-password-file",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": "$RESTIC_FROM_REPOSITORY",
+        "description": "source repository to copy snapshots from",
+        "long_flag": "--from-repo",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": "$RESTIC_FROM_REPOSITORY_FILE",
+        "description": "file from which to read the source repository location to copy snapshots from",
+        "long_flag": "--from-repository-file",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for copy",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": "$RESTIC_HOST",
+        "description": "only consider snapshots for this host (can be specified multiple times)",
+        "long_flag": "--host",
+        "short_flag": "-H",
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including this (absolute) path (can be specified multiple times, snapshots must include all specified paths)",
+        "long_flag": "--path",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including tag[,tag,...] (can be specified multiple times)",
+        "long_flag": "--tag",
+        "short_flag": null,
+        "value_type": "list"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "copy",
+      "executable": "restic",
+      "parameters": [
+        "[flags]",
+        "[snapshotID ...]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"repair packs\" command extracts intact blobs from the specified pack files, rebuilds\nthe index to remove the damaged pack files and removes the pack files from the repository.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-repair-packs",
+      "description": "Salvage damaged pack files"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for packs",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "repair",
+      "executable": "restic",
+      "parameters": [
+        "packs",
+        "[packIDs...]",
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"remove\" sub-command removes the selected key ID. The \"remove\" command does not allow\nremoving the current key being used to access the repository.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-key-remove",
+      "description": "Remove key ID (password) from the repository."
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for remove",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "key",
+      "executable": "restic",
+      "parameters": [
+        "remove",
+        "[ID]",
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"check\" command tests the repository for errors and reports any errors it\nfinds. It can also be used to read all data and therefore simulate a restore.\n\n.PP\nBy default, the \"check\" command will always load all data directly from the\nrepository and not use a local cache.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-check",
+      "description": "Check the repository for errors"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for check",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "read all data blobs",
+        "long_flag": "--read-data",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "read a subset of data packs, specified as 'n/t' for specific part, or either 'x%' or 'x.y%' or a size in bytes with suffixes k/K, m/M, g/G, t/T for a random subset",
+        "long_flag": "--read-data-subset",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "use existing cache, only read uncached data from repository",
+        "long_flag": "--with-cache",
+        "short_flag": null,
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "check",
+      "executable": "restic",
+      "parameters": [
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"options\" command prints a list of extended options.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      }
+    ],
+    "NAME": {
+      "command": "restic-options",
+      "description": "Print list of extended options"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for options",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "options",
+      "executable": "restic",
+      "parameters": [
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The command \"self-update\" downloads the latest stable release of restic from\nGitHub and replaces the currently running binary. After download, the\nauthenticity of the binary is verified using the GPG signature on the release\nfiles.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-self-update",
+      "description": "Update the restic binary"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for self-update",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": "running binary itself",
+        "description": "Save the downloaded file as filename",
+        "long_flag": "--output",
+        "short_flag": null,
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": null,
+      "executable": "restic",
+      "parameters": [
+        "self-update",
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"tag\" command allows you to modify tags on exiting snapshots.\n\n.PP\nYou can either set/replace the entire set of tags on a snapshot, or\nadd tags to/remove tags from the existing set.\n\n.PP\nWhen no snapshotID is given, all snapshots matching the host, tag and path filter criteria are modified.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-tag",
+      "description": "Modify tags on snapshots"
+    },
+    "OPTIONS": [
+      {
+        "default": [],
+        "default_value": null,
+        "description": "tags which will be added to the existing tags in the format tag[,tag,...] (can be given multiple times)",
+        "long_flag": "--add",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for tag",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": "$RESTIC_HOST",
+        "description": "only consider snapshots for this host (can be specified multiple times)",
+        "long_flag": "--host",
+        "short_flag": "-H",
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including this (absolute) path (can be specified multiple times, snapshots must include all specified paths)",
+        "long_flag": "--path",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "tags which will be removed from the existing tags in the format tag[,tag,...] (can be given multiple times)",
+        "long_flag": "--remove",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "tags which will replace the existing tags in the format tag[,tag,...] (can be given multiple times)",
+        "long_flag": "--set",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including tag[,tag,...] (can be specified multiple times)",
+        "long_flag": "--tag",
+        "short_flag": null,
+        "value_type": "list"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "tag",
+      "executable": "restic",
+      "parameters": [
+        "[flags]",
+        "[snapshotID ...]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"init\" command initializes a new repository.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      }
+    ],
+    "NAME": {
+      "command": "restic-init",
+      "description": "Initialize a new repository"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "copy chunker parameters from the secondary repository (useful with the copy command)",
+        "long_flag": "--copy-chunker-params",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "use an empty password for the source repository (insecure)",
+        "long_flag": "--from-insecure-no-password",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": "$RESTIC_FROM_KEY_HINT",
+        "description": "key ID of key to try decrypting the source repository first",
+        "long_flag": "--from-key-hint",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": "$RESTIC_FROM_PASSWORD_COMMAND",
+        "description": "shell command to obtain the source repository password from",
+        "long_flag": "--from-password-command",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": "$RESTIC_FROM_PASSWORD_FILE",
+        "description": "file to read the source repository password from",
+        "long_flag": "--from-password-file",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": "$RESTIC_FROM_REPOSITORY",
+        "description": "source repository to copy chunker parameters from",
+        "long_flag": "--from-repo",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": "$RESTIC_FROM_REPOSITORY_FILE",
+        "description": "file from which to read the source repository location to copy chunker parameters from",
+        "long_flag": "--from-repository-file",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for init",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": "stable",
+        "default_value": null,
+        "description": "repository format version to use, allowed values are a format version, 'latest' and 'stable'",
+        "long_flag": "--repository-version",
+        "short_flag": null,
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "init",
+      "executable": "restic",
+      "parameters": [
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"migrate\" command checks which migrations can be applied for a repository\nand prints a list with available migration names. If one or more migration\nnames are specified, these migrations are applied.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-migrate",
+      "description": "Apply migrations"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "apply a migration a second time",
+        "long_flag": "--force",
+        "short_flag": "-f",
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for migrate",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "migrate",
+      "executable": "restic",
+      "parameters": [
+        "[flags]",
+        "[migration name]",
+        "[...]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"dump\" command extracts files from a snapshot from the repository. If a\nsingle file is selected, it prints its contents to stdout. Folders are output\nas a tar (default) or zip file containing the contents of the specified folder.\nPass \"/\" as file name to dump the whole snapshot as an archive file.\n\n.PP\nThe special snapshotID \"latest\" can be used to use the latest snapshot in the\nrepository.\n\n.PP\nTo include the folder content at the root of the archive, you can use the\n\"snapshotID:subfolder\" syntax, where \"subfolder\" is a path within the\nsnapshot.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-dump",
+      "description": "Print a backed-up file to stdout"
+    },
+    "OPTIONS": [
+      {
+        "default": "tar",
+        "default_value": null,
+        "description": "set archive format as \"tar\" or \"zip\"",
+        "long_flag": "--archive",
+        "short_flag": "-a",
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for dump",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": "$RESTIC_HOST",
+        "description": "only consider snapshots for this host, when snapshot ID \"latest\" is given (can be specified multiple times)",
+        "long_flag": "--host",
+        "short_flag": "-H",
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including this (absolute) path, when snapshot ID \"latest\" is given (can be specified multiple times, snapshots must include all specified paths)",
+        "long_flag": "--path",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including tag[,tag,...], when snapshot ID \"latest\" is given (can be specified multiple times)",
+        "long_flag": "--tag",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "write the output to target path",
+        "long_flag": "--target",
+        "short_flag": "-t",
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "dump",
+      "executable": "restic",
+      "parameters": [
+        "[flags]",
+        "snapshotID",
+        "file"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"restore\" command extracts the data from a snapshot from the repository to\na directory.\n\n.PP\nThe special snapshotID \"latest\" can be used to restore the latest snapshot in the\nrepository.\n\n.PP\nTo only restore a specific subfolder, you can use the \"snapshotID:subfolder\"\nsyntax, where \"subfolder\" is a path within the snapshot.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-restore",
+      "description": "Extract the data from a snapshot"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "delete files from target directory if they do not exist in snapshot. Use '--dry-run -vv' to check what would be deleted",
+        "long_flag": "--delete",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "do not write any data, just show what would be done",
+        "long_flag": "--dry-run",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "exclude a pattern (can be specified multiple times)",
+        "long_flag": "--exclude",
+        "short_flag": "-e",
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "read exclude patterns from a file (can be specified multiple times)",
+        "long_flag": "--exclude-file",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "exclude xattr by pattern (can be specified multiple times)",
+        "long_flag": "--exclude-xattr",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for restore",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": "$RESTIC_HOST",
+        "description": "only consider snapshots for this host, when snapshot ID \"latest\" is given (can be specified multiple times)",
+        "long_flag": "--host",
+        "short_flag": "-H",
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "same as --exclude pattern but ignores the casing of filenames",
+        "long_flag": "--iexclude",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "same as --exclude-file but ignores casing of filenames in patterns",
+        "long_flag": "--iexclude-file",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "same as --include pattern but ignores the casing of filenames",
+        "long_flag": "--iinclude",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "same as --include-file but ignores casing of filenames in patterns",
+        "long_flag": "--iinclude-file",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "include a pattern (can be specified multiple times)",
+        "long_flag": "--include",
+        "short_flag": "-i",
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "read include patterns from a file (can be specified multiple times)",
+        "long_flag": "--include-file",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "include xattr by pattern (can be specified multiple times)",
+        "long_flag": "--include-xattr",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "overwrite behavior, one of (always|if-changed|if-newer|never)",
+        "long_flag": "--overwrite",
+        "short_flag": null,
+        "value_type": null
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including this (absolute) path, when snapshot ID \"latest\" is given (can be specified multiple times, snapshots must include all specified paths)",
+        "long_flag": "--path",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "restore files as sparse",
+        "long_flag": "--sparse",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including tag[,tag,...], when snapshot ID \"latest\" is given (can be specified multiple times)",
+        "long_flag": "--tag",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "directory to extract data to",
+        "long_flag": "--target",
+        "short_flag": "-t",
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "verify restored files content",
+        "long_flag": "--verify",
+        "short_flag": null,
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "restore",
+      "executable": "restic",
+      "parameters": [
+        "[flags]",
+        "snapshotID"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"list\" sub-command lists all the keys (passwords) associated with the repository.\nReturns the key ID, username, hostname, created time and if it's the current key being\nused to access the repository.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-key-list",
+      "description": "List keys (passwords)"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for list",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "key",
+      "executable": "restic",
+      "parameters": [
+        "list",
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"cat\" command is used to print internal objects to stdout.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-cat",
+      "description": "Print internal objects to stdout"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for cat",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "cat",
+      "executable": "restic",
+      "parameters": [
+        "[flags]",
+        "[masterkey|config|pack ID|blob ID|snapshot ID|index ID|key ID|lock ID|tree snapshot:subfolder]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "Repair the repository",
+    "NAME": {
+      "command": "restic-repair",
+      "description": "Repair the repository"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for repair",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "repair",
+      "executable": "restic",
+      "parameters": [
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"recover\" command builds a new snapshot from all directories it can find in\nthe raw data of the repository which are not referenced in an existing snapshot.\nIt can be used if, for example, a snapshot has been removed by accident with \"forget\".",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-recover",
+      "description": "Recover data from the repository not referenced by snapshots"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for recover",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "recover",
+      "executable": "restic",
+      "parameters": [
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"add\" sub-command creates a new key and validates the key. Returns the new key ID.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-key-add",
+      "description": "Add a new key (password) to the repository; returns the new key ID"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for add",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "the hostname for new key",
+        "long_flag": "--host",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "add an empty password for the repository (insecure)",
+        "long_flag": "--new-insecure-no-password",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "file from which to read the new password",
+        "long_flag": "--new-password-file",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "the username for new key",
+        "long_flag": "--user",
+        "short_flag": null,
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "key",
+      "executable": "restic",
+      "parameters": [
+        "add",
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"rewrite\" command excludes files from existing snapshots. It creates new\nsnapshots containing the same data as the original ones, but without the files\nyou specify to exclude. All metadata (time, host, tags) will be preserved.\n\n.PP\nThe snapshots to rewrite are specified using the --host, --tag and --path options,\nor by providing a list of snapshot IDs. Please note that specifying neither any of\nthese options nor a snapshot ID will cause the command to rewrite all snapshots.\n\n.PP\nThe special tag 'rewrite' will be added to the new snapshots to distinguish\nthem from the original ones, unless --forget is used. If the --forget option is\nused, the original snapshots will instead be directly removed from the repository.\n\n.PP\nPlease note that the --forget option only removes the snapshots and not the actual\ndata stored in the repository. In order to delete the no longer referenced data,\nuse the \"prune\" command.\n\n.PP\nWhen rewrite is used with the --snapshot-summary option, a new snapshot is\ncreated containing statistics summary data. Only two fields in the summary will\nbe non-zero: TotalFilesProcessed and TotalBytesProcessed.\n\n.PP\nWhen rewrite is called with one of the --exclude options, TotalFilesProcessed\nand TotalBytesProcessed will be updated in the snapshot summary.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-rewrite",
+      "description": "Rewrite snapshots to exclude unwanted files"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "do not do anything, just print what would be done",
+        "long_flag": "--dry-run",
+        "short_flag": "-n",
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "exclude a pattern (can be specified multiple times)",
+        "long_flag": "--exclude",
+        "short_flag": "-e",
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "read exclude patterns from a file (can be specified multiple times)",
+        "long_flag": "--exclude-file",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "remove original snapshots after creating new ones",
+        "long_flag": "--forget",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for rewrite",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": "$RESTIC_HOST",
+        "description": "only consider snapshots for this host (can be specified multiple times)",
+        "long_flag": "--host",
+        "short_flag": "-H",
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "same as --exclude pattern but ignores the casing of filenames",
+        "long_flag": "--iexclude",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "same as --exclude-file but ignores casing of filenames in patterns",
+        "long_flag": "--iexclude-file",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "replace hostname",
+        "long_flag": "--new-host",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "replace time of the backup",
+        "long_flag": "--new-time",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including this (absolute) path (can be specified multiple times, snapshots must include all specified paths)",
+        "long_flag": "--path",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "create snapshot summary record if it does not exist",
+        "long_flag": "--snapshot-summary",
+        "short_flag": "-s",
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including tag[,tag,...] (can be specified multiple times)",
+        "long_flag": "--tag",
+        "short_flag": null,
+        "value_type": "list"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "rewrite",
+      "executable": "restic",
+      "parameters": [
+        "[flags]",
+        "[snapshotID ...]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"list\" command allows listing objects in the repository based on type.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-list",
+      "description": "List objects in the repository"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for list",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "list",
+      "executable": "restic",
+      "parameters": [
+        "[flags]",
+        "[blobs|packs|index|snapshots|keys|locks]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"features\" command prints a list of supported feature flags.\n\n.PP\nTo pass feature flags to restic, set the RESTIC_FEATURES environment variable\nto \"featureA=true,featureB=false\". Specifying an unknown feature flag is an error.\n\n.PP\nA feature can either be in alpha, beta, stable or deprecated state.\nAn \\fIalpha\\fP feature is disabled by default and may change in arbitrary ways between restic versions or be removed.\nA \\fIbeta\\fP feature is enabled by default, but still can change in minor ways or be removed.\nA \\fIstable\\fP feature is always enabled and cannot be disabled. The flag will be removed in a future restic version.\nA \\fIdeprecated\\fP feature is always disabled and cannot be enabled. The flag will be removed in a future restic version.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      }
+    ],
+    "NAME": {
+      "command": "restic-features",
+      "description": "Print list of feature flags"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for features",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "features",
+      "executable": "restic",
+      "parameters": [
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"repair index\" command creates a new index based on the pack files in the\nrepository.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-repair-index",
+      "description": "Build a new index"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for index",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "read all pack files to generate new index from scratch",
+        "long_flag": "--read-all-packs",
+        "short_flag": null,
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "repair",
+      "executable": "restic",
+      "parameters": [
+        "index",
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"snapshots\" command lists all snapshots stored in the repository.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-snapshots",
+      "description": "List all snapshots"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "use compact output format",
+        "long_flag": "--compact",
+        "short_flag": "-c",
+        "value_type": "string"
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "group snapshots by host, paths and/or tags, separated by comma",
+        "long_flag": "--group-by",
+        "short_flag": "-g",
+        "value_type": null
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for snapshots",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": "$RESTIC_HOST",
+        "description": "only consider snapshots for this host (can be specified multiple times)",
+        "long_flag": "--host",
+        "short_flag": "-H",
+        "value_type": "list"
+      },
+      {
+        "default": null,
+        "default_value": null,
+        "description": "only show the last n snapshots for each host and path",
+        "long_flag": "--latest",
+        "short_flag": null,
+        "value_type": null
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including this (absolute) path (can be specified multiple times, snapshots must include all specified paths)",
+        "long_flag": "--path",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including tag[,tag,...] (can be specified multiple times)",
+        "long_flag": "--tag",
+        "short_flag": null,
+        "value_type": "list"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "snapshots",
+      "executable": "restic",
+      "parameters": [
+        "[flags]",
+        "[snapshotID ...]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"repair snapshots\" command repairs broken snapshots. It scans the given\nsnapshots and generates new ones with damaged directories and file contents\nremoved. If the broken snapshots are deleted, a prune run will be able to\nclean up the repository.\n\n.PP\nThe command depends on a correct index, thus make sure to run \"repair index\"\nfirst!",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-repair-snapshots",
+      "description": "Repair snapshots"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "do not do anything, just print what would be done",
+        "long_flag": "--dry-run",
+        "short_flag": "-n",
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "remove original snapshots after creating new ones",
+        "long_flag": "--forget",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for snapshots",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": [],
+        "default_value": "$RESTIC_HOST",
+        "description": "only consider snapshots for this host (can be specified multiple times)",
+        "long_flag": "--host",
+        "short_flag": "-H",
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including this (absolute) path (can be specified multiple times, snapshots must include all specified paths)",
+        "long_flag": "--path",
+        "short_flag": null,
+        "value_type": "list"
+      },
+      {
+        "default": [],
+        "default_value": null,
+        "description": "only consider snapshots including tag[,tag,...] (can be specified multiple times)",
+        "long_flag": "--tag",
+        "short_flag": null,
+        "value_type": "list"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "repair",
+      "executable": "restic",
+      "parameters": [
+        "snapshots",
+        "[flags]",
+        "[snapshot ID]",
+        "[...]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"prune\" command checks the repository and removes data that is not\nreferenced and therefore not needed any more.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-prune",
+      "description": "Remove unneeded data from the repository"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "do not modify the repository, just print what would be done",
+        "long_flag": "--dry-run",
+        "short_flag": "-n",
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for prune",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "stop after repacking this much data in total (allowed suffixes for size: k/K, m/M, g/G, t/T)",
+        "long_flag": "--max-repack-size",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "5%",
+        "default_value": null,
+        "description": "tolerate given limit of unused data (absolute value in bytes with suffixes k/K, m/M, g/G, t/T, a value in % or the word 'unlimited')",
+        "long_flag": "--max-unused",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "only repack packs which are cacheable",
+        "long_flag": "--repack-cacheable-only",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "repack pack files below 80% of target pack size",
+        "long_flag": "--repack-small",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "pack below-limit packfiles (allowed suffixes: k/K, m/M)",
+        "long_flag": "--repack-smaller-than",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "repack all uncompressed data",
+        "long_flag": "--repack-uncompressed",
+        "short_flag": null,
+        "value_type": "string"
+      },
+      {
+        "default": "",
+        "default_value": null,
+        "description": "UNSAFE, READ THE DOCUMENTATION BEFORE USING! Try to recover a repository stuck with no free space. Do not use without trying out 'prune --max-repack-size 0' first.",
+        "long_flag": "--unsafe-recover-no-free-space",
+        "short_flag": null,
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "prune",
+      "executable": "restic",
+      "parameters": [
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"key\" command allows you to set multiple access keys or passwords\nper repository.",
+    "NAME": {
+      "command": "restic-key",
+      "description": "Manage keys (passwords)"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for key",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "key",
+      "executable": "restic",
+      "parameters": [
+        "[flags]"
+      ]
+    }
+  },
+  {
+    "DESCRIPTION": "The \"diff\" command shows differences from the first to the second snapshot. The\nfirst characters in each line display what has happened to a particular file or\ndirectory:\n.IP \\(bu 2\n+  The item was added\n.IP \\(bu 2\n-  The item was removed\n.IP \\(bu 2\nU  The metadata (access mode, timestamps, ...) for the item was updated\n.IP \\(bu 2\nM  The file's content was modified\n.IP \\(bu 2\nT  The type was changed, e.g. a file was made a symlink\n.IP \\(bu 2\n?  Bitrot detected: The file's content has changed but all metadata is the same\n\n.PP\nMetadata comparison will likely not work if a backup was created using the\n\\&'--ignore-inode' or '--ignore-ctime' option.\n\n.PP\nTo only compare files in specific subfolders, you can use the\n\"snapshotID:subfolder\" syntax, where \"subfolder\" is a path within the\nsnapshot.",
+    "EXIT STATUS": [
+      {
+        "0": "the command was successful"
+      },
+      {
+        "1": "there was any error"
+      },
+      {
+        "10": "the repository does not exist"
+      },
+      {
+        "11": "the repository is already locked"
+      },
+      {
+        "12": "the password is incorrect"
+      }
+    ],
+    "NAME": {
+      "command": "restic-diff",
+      "description": "Show differences between two snapshots"
+    },
+    "OPTIONS": [
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "help for diff",
+        "long_flag": "--help",
+        "short_flag": "-h",
+        "value_type": "string"
+      },
+      {
+        "default": "false",
+        "default_value": null,
+        "description": "print changes in metadata",
+        "long_flag": "--metadata",
+        "short_flag": null,
+        "value_type": "string"
+      }
+    ],
+    "SYNOPSIS": {
+      "command": "diff",
+      "executable": "restic",
+      "parameters": [
+        "[flags]",
+        "snapshotID",
+        "snapshotID"
+      ]
+    }
+  }
+]
