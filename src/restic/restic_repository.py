@@ -40,28 +40,3 @@ class ResticRepository(BackupRepository):
     def validate(self):
         pass
 
-    @classmethod
-    def from_uri(cls, uri: str, password: Optional[str] = None) -> 'ResticRepository':
-        logger.info(f"Parsing repository URI: {cls.redact_sensitive_info(uri)}")
-        parsed = urlparse(uri)
-        scheme = parsed.scheme.lower()
-
-        # TODO Refactor this code to create a repo factory class which Repository child classes can register with indicating which repo class they handle.
-        repo_classes = {
-            # 's3': S3Repository,
-            # 'b2': B2Repository,
-            # 'local': LocalRepository,
-            # '': LocalRepository
-        }
-
-        if scheme not in repo_classes:
-            raise UnsupportedSchemeError(f"Unsupported repository scheme: {scheme}") # Implement UnsupportedSchemeError
-
-        repo_class = repo_classes[scheme]
-        return repo_class.from_parsed_uri(parsed, password)
-
-    @staticmethod
-    def redact_sensitive_info(uri: str) -> str:
-        parsed = urlparse(uri)
-        redacted_netloc = f"{parsed.hostname}[:*****]" if parsed.username else parsed.netloc
-        return parsed._replace(netloc=redacted_netloc).geturl()
