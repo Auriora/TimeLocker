@@ -4,10 +4,10 @@ import boto3
 from typing import Dict, Optional
 from urllib.parse import parse_qs
 
-from restic.repository import Repository, RepositoryError
+from restic.restic_repository import ResticRepository, RepositoryError
 from restic.restic_client import logger
 
-class S3Repository(Repository):
+class S3ResticRepository(ResticRepository):
     def __init__(self, location: str, password: Optional[str] = None,
                  aws_access_key_id: Optional[str] = None,
                  aws_secret_access_key: Optional[str] = None,
@@ -18,7 +18,7 @@ class S3Repository(Repository):
         self.aws_default_region = aws_default_region or os.getenv("AWS_DEFAULT_REGION")
 
     @classmethod
-    def from_parsed_uri(cls, parsed_uri, password: Optional[str] = None) -> 'S3Repository':
+    def from_parsed_uri(cls, parsed_uri, password: Optional[str] = None) -> 'S3ResticRepository':
         bucket = parsed_uri.netloc
         path = parsed_uri.path.lstrip('/')
         location = f"s3:{bucket}/{path}"

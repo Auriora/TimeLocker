@@ -2,12 +2,12 @@ import os
 
 from typing import Dict, Optional
 
-from restic.repository import Repository, RepositoryError
+from restic.restic_repository import ResticRepository, RepositoryError
 from restic.restic_client import logger
 
-class LocalRepository(Repository):
+class LocalResticRepository(ResticRepository):
     @classmethod
-    def from_parsed_uri(cls, parsed_uri, password: Optional[str] = None) -> 'LocalRepository':
+    def from_parsed_uri(cls, parsed_uri, password: Optional[str] = None) -> 'LocalResticRepository':
         if hasattr(parsed_uri, "netloc") and parsed_uri.netloc:
             raise ValueError("parsed_uri must not have a 'netloc' attribute value for a local repository.")
 

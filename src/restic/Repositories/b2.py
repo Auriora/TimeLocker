@@ -4,10 +4,10 @@ from typing import Dict, Optional
 from urllib.parse import parse_qs
 from b2sdk.v2 import InMemoryAccountInfo, B2Api
 
-from restic.repository import Repository, RepositoryError
+from restic.restic_repository import ResticRepository, RepositoryError
 from restic.restic_client import logger
 
-class B2Repository(Repository):
+class B2ResticRepository(ResticRepository):
     def __init__(self, location: str, password: Optional[str] = None,
                  b2_account_id: Optional[str] = None,
                  b2_account_key: Optional[str] = None):
@@ -16,7 +16,7 @@ class B2Repository(Repository):
         self.b2_account_key = b2_account_key or os.getenv("B2_ACCOUNT_KEY")
 
     @classmethod
-    def from_parsed_uri(cls, parsed_uri, password: Optional[str] = None) -> 'B2Repository':
+    def from_parsed_uri(cls, parsed_uri, password: Optional[str] = None) -> 'B2ResticRepository':
         bucket = parsed_uri.netloc
         path = parsed_uri.path.lstrip('/')
         location = f"b2:{bucket}/{path}"

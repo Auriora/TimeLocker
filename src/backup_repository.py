@@ -1,9 +1,14 @@
-from typing import Dict, List, Optional, Protocol, Union
+from typing import Dict, List, Optional
 from dataclasses import dataclass
+from abc import ABC, abstractmethod
 
-from snapshot import BackupSnapshot
-from target import BackupTarget
+from backup_snapshot import BackupSnapshot
+from backup_target import BackupTarget
 
+
+class BackupError(Exception):
+    """Base exception class for backup operations"""
+    pass
 
 @dataclass
 class RetentionPolicy:
@@ -24,25 +29,44 @@ class RetentionPolicy:
         )
 
 
-class BackupRepository(Protocol):
+class BackupRepository(ABC):
     """Interface for backup repositories"""
 
+    @abstractmethod
     def initialize(self) -> bool:
         """Initialize the backup repository"""
         ...
 
-    def create_backup(self,
+    @abstractmethod
+    def check(self) -> bool:
+        """Check if the backup repository is available"""
+        ...
+
+    @abstractmethod
+    def backup_target(self,
                       targets: List[BackupTarget],
                       tags: Optional[List[str]] = None) -> Dict:
         """Create a new backup"""
         ...
 
-    def list_snapshots(self,
+    @abstractmethod
+    def get_snapshots(self,
                        tags: Optional[List[str]] = None) -> List[BackupSnapshot]:
         """List available snapshots"""
         ...
 
-    def forget(self, policy: RetentionPolicy, prune: bool = False) -> bool:
+    @abstractmethod
+    def get_stats(self) -> dict:
+        """Get snapshot stats"""
+        ...
+
+    @abstractmethod
+    def get_location(self) -> str:
+        """Get repository location"""
+        pass
+
+    @abstractmethod
+    def forget_snapshots(self, policy: RetentionPolicy, prune: bool = False) -> bool:
         """
         Remove snapshots according to retention policy.
         At least one retention period must be specified.
@@ -53,14 +77,15 @@ class BackupRepository(Protocol):
         """
         ...
 
-    def prune(self) -> bool:
+    @abstractmethod
+    def prune_data(self) -> bool:
         """
         Remove unreferenced data from the repository.
         This removes file chunks that are no longer used by any snapshot.
         """
         ...
 
-
-class BackupError(Exception):
-    """Base exception class for backup operations"""
-    pass
+    @abstractmethod
+    def validate(self) -> bool:
+        """Validate repository configuration"""
+        pass

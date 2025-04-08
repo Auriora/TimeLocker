@@ -1,13 +1,14 @@
 import os
+from abc import abstractmethod
 
-from abc import ABC, abstractmethod
 from typing import Optional, Dict
 from urllib.parse import urlparse
+from backup_repository import BackupRepository
 
 from restic.errors import RepositoryError, UnsupportedSchemeError
 from restic.logging import logger
 
-class Repository(ABC):
+class ResticRepository(BackupRepository):
     def __init__(self, location: str, password: Optional[str] = None):
         logger.info(f"Initializing repository at location: {location}")
         self.location = location
@@ -31,7 +32,7 @@ class Repository(ABC):
         self._cached_env = env
         return env
 
-    @abstractmethod
+    @-abstractmethod
     def backend_env(self) -> Dict[str, str]:
         pass
 
@@ -40,7 +41,7 @@ class Repository(ABC):
         pass
 
     @classmethod
-    def from_uri(cls, uri: str, password: Optional[str] = None) -> 'Repository':
+    def from_uri(cls, uri: str, password: Optional[str] = None) -> 'ResticRepository':
         logger.info(f"Parsing repository URI: {cls.redact_sensitive_info(uri)}")
         parsed = urlparse(uri)
         scheme = parsed.scheme.lower()

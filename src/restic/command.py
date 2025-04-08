@@ -5,7 +5,7 @@ from typing import Dict, List
 
 from packaging import version
 
-from target import BackupTarget
+from backup_target import BackupTarget
 
 from restic.errors import CommandExecutionError
 

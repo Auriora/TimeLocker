@@ -7,9 +7,9 @@ from packaging import version
 from restic.logging import logger
 from restic.errors import ResticError, CommandExecutionError
 from restic.command import ResticCommand, CommandBuilder
-from restic.repository import Repository
-from target import Target
-from snapshot import BackupSnapshot
+from restic.restic_repository import ResticRepository
+from backup_target import BackupTarget
+from backup_snapshot import BackupSnapshot
 
 RESTIC_COMMAND = "restic"
 RESTIC_VERSION_COMMAND = f"{RESTIC_COMMAND} version --json"
@@ -36,7 +36,7 @@ def _verify_restic_executable(min_version: str) -> str | None:
         raise ResticError("restic executable not found. Please ensure it is installed and in the PATH.")
 
 class Restic:
-    def __init__(self, repo: Repository, min_version: str = RESTIC_MIN_VERSION):
+    def __init__(self, repo: ResticRepository, min_version: str = RESTIC_MIN_VERSION):
         logger.info("Initializing ResticClient...")
         self.command_builder = CommandBuilder(min_version)
         self.restic_version = _verify_restic_executable(min_version)
@@ -84,7 +84,7 @@ class Restic:
         # Placeholder for event handling logic
         print(f"Backup Status: {status}")
 
-    def backup(self, target: Target):
+    def backup(self, target: BackupTarget):
         cmd = self.command_builder.build_backup_command(target)
         try:
             result = subprocess.run(
