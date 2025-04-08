@@ -1,23 +1,25 @@
 import os
 import re
 import json
+import traceback
 
+# Precompile the regular expression pattern
+section_pattern = re.compile(r'\.SH\s+"?([^"\n]+)"?\n((?:(?!\.SH\s+).|\n)*)')
 
-def parse_man_sections(man_text, section_handlers):
+def parse_man_sections(man_text: str, section_handlers: dict) -> dict:
     """
     Parse man page sections based on provided handler mapping.
 
     Args:
         man_text (str): The complete man page text
         section_handlers (dict): Mapping of section names to handler functions
+
+    Returns:
+        dict: Parsed sections with their corresponding results
     """
 
-    # Regular expression to split on .SH sections
-    # Captures the section name and content
-    section_pattern = r'\.SH\s+"?([^"\n]+)"?\n((?:(?!\.SH\s+).|\n)*)'
-
     # Find all sections
-    sections = re.finditer(section_pattern, man_text)
+    sections = section_pattern.finditer(man_text)
 
     results = {}
 
@@ -49,30 +51,39 @@ def parse_command_line_simple(text):
     # Split into words
     parts = clean_text.split()
 
+    # Check if we have enough parts
+    if len(parts) < 2:
+        return {
+            'executable': parts[0] if parts else None,
+            'command': None,
+            'parameters': []
+        }
+
     return {
         'executable': parts[0],
         'command': parts[1],
         'parameters': parts[2:]
     }
 
-
 def parse_command_line(text):
-    # Remove man page formatting characters
-    clean_text = re.sub(r'\\fB|\\fP', '', text)
-
-    # Regular expression to match the components
-    # Group 1: executable
-    # Group 2: command (if exists)
-    # Group 3: remaining parameters
-    pattern = r'^(\w+)(?:\s+(\w+))?\s+(.+)$'
-
-    match = re.match(pattern, clean_text)
+    clean_text = remove_formatting(text)
+    match = match_command_pattern(clean_text)
     if not match:
         return None
 
-    # Extract parameters, cleaning up and splitting
     params = match.group(3).strip()
-    # Split parameters but preserve [...] groups
+    param_list = split_parameters(params)
+
+    return create_result_dict(match, param_list)
+
+def remove_formatting(text):
+    return re.sub(r'\\fB|\\fP', '', text)
+
+def match_command_pattern(text):
+    pattern = r'^(\w+)(?:\s+(\w+))?\s+(.+)$'
+    return re.match(pattern, text)
+
+def split_parameters(params):
     param_list = []
     current_param = ''
     bracket_count = 0
@@ -94,18 +105,17 @@ def parse_command_line(text):
         else:
             current_param += char
 
-    # Add the last parameter if exists
     if current_param.strip():
         param_list.append(current_param.strip())
 
-    # Create result dictionary
-    result = {
+    return param_list
+
+def create_result_dict(match, param_list):
+    return {
         'executable': match.group(1),
         'command': match.group(2),
         'parameters': param_list
     }
-
-    return result
 
 def parse_synopsis_section(content):
     """Parse the SYNOPSIS section."""
@@ -138,76 +148,73 @@ def parse_exit_status_section(content):
     """Parse the EXIT STATUS section."""
     status_pattern = r"Exit status is (\d+) if (.*?)\."
     matches = re.finditer(status_pattern, content)
-    return [{status: desc} for status, desc in
-            [(m.group(1), m.group(2)) for m in matches]]
+    result = []
+    for match in matches:
+        status = match.group(1)
+        desc = match.group(2)
+        result.append({status: desc})
+    return result
 
 def parse_man_page_lines(text):
     # Split the text into individual option blocks
     blocks = text.strip().split('\n.PP\n')
+    return [parse_option_block(block) for block in blocks if block.strip()]
 
-    options = []
+def parse_option_block(block):
+    lines = block.strip().split('\n')
+    option_dict = {
+        'short_flag': None,
+        'long_flag': None,
+        'value_type': None,
+        'default': None,
+        'description': None,
+        'default_value': None
+    }
 
-    for block in blocks:
-        lines = block.strip().split('\n')
-        if not lines:
-            continue
-
-        # Initialize dictionary for this option
-        option_dict = {
-            'short_flag': None,
-            'long_flag': None,
-            'value_type': None,
-            'default': None,
-            'description': None,
-            'default_value': None  # New field for defaults from description
-        }
-
-        # Parse the flag line
-        flag_line = lines[0]
-
-        # Extract short and long flags
-        short_flag_match = re.search(r'\\fB-(\w)\\fP', flag_line)
-        if short_flag_match:
-            option_dict['short_flag'] = f"-{short_flag_match.group(1)}"
-
-        long_flag_match = re.search(r'\\fB--([\w-]+)\\fP', flag_line)
-        if long_flag_match:
-            option_dict['long_flag'] = f"--{long_flag_match.group(1)}"
-
-        # Extract default value from flag line
-        default_match = re.search(r'=(\[.*?\]|".*?"|auto|false)', flag_line)
-        if default_match:
-            default_value = default_match.group(1)
-            # Clean up the default value
-            if default_value == '[]':
-                option_dict['value_type'] = 'list'
-                option_dict['default'] = []
-            elif default_value.startswith('"'):
-                option_dict['value_type'] = 'string'
-                option_dict['default'] = default_value.strip('"')
-            else:
-                option_dict['value_type'] = 'string'
-                option_dict['default'] = default_value
-
-        # Parse description
+    if lines:
+        parse_flag_line(lines[0], option_dict)
         if len(lines) > 1:
-            # Join all description lines and clean up formatting
-            description = ' '.join(lines[1:]).strip()
-            # Remove man page formatting
-            description = re.sub(r'\\fB|\\fR|\\fP|\&\.', '', description)
+            parse_description(lines[1:], option_dict)
 
-            # Extract default value from description
-            default_in_desc = re.search(r'\(default:\s*([^)]+)\)', description)
-            if default_in_desc:
-                option_dict['default_value'] = default_in_desc.group(1).strip()
-                # Remove the default value from description (optional)
-                description = re.sub(r'\s*\(default:[^)]+\)', '', description)
+    return option_dict
 
-            option_dict['description'] = description.strip()
+def parse_flag_line(flag_line, option_dict):
+    option_dict['short_flag'] = parse_short_flag(flag_line)
+    option_dict['long_flag'] = parse_long_flag(flag_line)
+    parse_default_value(flag_line, option_dict)
 
-        options.append(option_dict)
+def parse_short_flag(flag_line):
+    short_flag_match = re.search(r'\\fB-(\w)\\fP', flag_line)
+    return f"-{short_flag_match.group(1)}" if short_flag_match else None
 
-    return options
+def parse_long_flag(flag_line):
+    long_flag_match = re.search(r'\\fB--([\w-]+)\\fP', flag_line)
+    return f"--{long_flag_match.group(1)}" if long_flag_match else None
+
+def parse_default_value(flag_line, option_dict):
+    default_match = re.search(r'=(\[.*?\]|".*?"|auto|false)', flag_line)
+    if default_match:
+        default_value = default_match.group(1)
+        if default_value == '[]':
+            option_dict['value_type'] = 'list'
+            option_dict['default'] = []
+        elif default_value.startswith('"'):
+            option_dict['value_type'] = 'string'
+            option_dict['default'] = default_value.strip('"')
+        else:
+            option_dict['value_type'] = 'string'
+            option_dict['default'] = default_value
+
+def parse_description(description_lines, option_dict):
+    description = ' '.join(description_lines).strip()
+    description = re.sub(r'\\fB|\\fR|\\fP|\&\.', '', description)
+
+    default_in_desc = re.search(r'\(default:\s*([^)]+)\)', description)
+    if default_in_desc:
+        option_dict['default_value'] = default_in_desc.group(1).strip()
+        description = re.sub(r'\s*\(default:[^)]+\)', '', description)
+
+    option_dict['description'] = description.strip()
 
 def parse_options_section(content):
     """Parse the OPTIONS section."""
@@ -253,7 +260,7 @@ def parse_man_file(file_path):
     return result
 
 def process_man_files():
-    man_dir = "../input/restic/man"
+    man_dir = "../sandbox/input/restic/man"
     all_commands = []
 
     # Walk through the man directory
@@ -265,7 +272,8 @@ def process_man_files():
                     command_data = parse_man_file(file_path)
                     all_commands.append(command_data)
                 except Exception as e:
-                    print(f"Error processing {file}: {str(e)}")
+                    print(f"Error processing {file}:")
+                    print(traceback.format_exc())
 
     # Write to JSON file
     with open('restic_commands.json', 'w', encoding='utf-8') as f:
