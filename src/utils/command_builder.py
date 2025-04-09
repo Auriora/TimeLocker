@@ -312,7 +312,12 @@ class CommandBuilder:
             if isinstance(value, list):
                 # List values are always handled as separate name/value pairs
                 for item in value:
-                    result.extend([param_str, str(item)])
+                    if param.style == ParameterStyle.JOINED:
+                        # Joined parameters combine name and value with =
+                        result.append(f"{param_str}={str(item)}")
+                    else:
+                        # All other styles separate name and value
+                        result.extend([param_str, str(item)])
             else:
                 if value is None and not param.value_required:
                     # Flag parameter without value

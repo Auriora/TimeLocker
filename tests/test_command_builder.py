@@ -80,7 +80,7 @@ class TestCommandBuilder(unittest.TestCase):
                  .build())
         self.assertEqual(result, ["test-cmd", "-v", "-output", "file.txt"])
     
-    def test_list_parameters(self):
+    def test_list_positional_parameters(self):
         """Test parameters with list values"""
         result = (self.builder
                  .with_parameter("tags", ["tag1", "tag2", "tag3"], style=ParameterStyle.POSITIONAL)
@@ -88,6 +88,26 @@ class TestCommandBuilder(unittest.TestCase):
         self.assertEqual(
             result,
             ["test-cmd", "tags", "tag1", "tags", "tag2", "tags", "tag3"]
+        )
+
+    def test_list_separate_parameters(self):
+        result = (self.builder
+                 .reset()
+                 .with_parameter("tags", ["tag1", "tag2", "tag3"], style=ParameterStyle.SEPARATE)
+                 .build())
+        self.assertEqual(
+            result,
+            ["test-cmd", "--tags", "tag1", "--tags", "tag2", "--tags", "tag3"]
+        )
+
+    def test_list_joined_parameters(self):
+        result = (self.builder
+                 .reset()
+                 .with_parameter("tags", ["tag1", "tag2", "tag3"], style=ParameterStyle.JOINED)
+                 .build())
+        self.assertEqual(
+            result,
+            ["test-cmd", "--tags=tag1", "--tags=tag2", "--tags=tag3"]
         )
 
 if __name__ == '__main__':
