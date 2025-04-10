@@ -25,23 +25,15 @@ class TestCommandShortForm(unittest.TestCase):
     def test_short_form_parameters(self):
         """Test building command with short form parameters"""
         result = (self.builder
-                 .with_parameter("help")
-                 .with_parameter("output", "file.txt")
+                 .param("help")
+                 .param("output", "file.txt")
                  .build(use_short_form=True))
-        self.assertEqual(result, ["test-cmd", "-h", "-o", "file.txt"])
+        self.assertEqual(["test-cmd", "-h", "-o", "file.txt"], result)
 
     def test_long_form_parameters(self):
         """Test building command with long form parameters"""
         result = (self.builder
-                 .with_parameter("help")
-                 .with_parameter("output", "file.txt")
+                 .param("help")
+                 .param("output", "file.txt")
                  .build(use_short_form=False))
-        self.assertEqual(result, ["test-cmd", "--help", "--output=file.txt"])
-
-    def test_mixed_form_parameters(self):
-        """Test building command with a mix of short and long form parameters"""
-        result = (self.builder
-                 .with_parameter("help", use_short_form=True)
-                 .with_parameter("output", "file.txt", use_short_form=False)
-                 .build())
-        self.assertEqual(result, ["test-cmd", "-h", "--output=file.txt"])
+        self.assertEqual(["test-cmd", "--help", "--output=file.txt"], result)

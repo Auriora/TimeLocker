@@ -35,20 +35,20 @@ class TestCommandBuilder(unittest.TestCase):
     
     def test_with_parameter_no_value(self):
         """Test parameter without value (flag-style)"""
-        result = self.builder.with_parameter("verbose").build()
+        result = self.builder.param("verbose").build()
         self.assertEqual(result, ["test-cmd", "--verbose"])
     
     def test_with_parameter_with_value(self):
         """Test parameter with value"""
-        result = self.builder.with_parameter("output", "file.txt").build()
+        result = self.builder.param("output", "file.txt").build()
         self.assertEqual(result, ["test-cmd", "--output", "file.txt"])
     
     def test_parameter_chaining(self):
         """Test chaining multiple parameters"""
         result = (self.builder
-                 .with_parameter("verbose")
-                 .with_parameter("output", "file.txt")
-                 .with_parameter("format", "json")
+                 .param("verbose")
+                 .param("output", "file.txt")
+                 .param("format", "json")
                  .build())
         self.assertEqual(
             result,
@@ -57,15 +57,15 @@ class TestCommandBuilder(unittest.TestCase):
     
     def test_subcommand(self):
         """Test adding a subcommand"""
-        result = self.builder.with_subcommand("backup").build()
+        result = self.builder.command("backup").build()
         self.assertEqual(result, ["test-cmd", "backup"])
     
     def test_subcommand_with_parameters(self):
         """Test subcommand with parameters"""
         result = (self.builder
-                 .with_subcommand("backup")
-                 .with_parameter("source", "/path")
-                 .with_parameter("verbose")
+                 .command("backup")
+                 .param("source", "/path")
+                 .param("verbose")
                  .build())
         self.assertEqual(
             result,
@@ -74,8 +74,8 @@ class TestCommandBuilder(unittest.TestCase):
     
     def test_reset(self):
         """Test resetting the builder"""
-        self.builder.with_parameter("verbose")
-        self.builder.reset()
+        self.builder.param("verbose")
+        self.builder.clear()
         result = self.builder.build()
         self.assertEqual(result, ["test-cmd"])
     
@@ -92,8 +92,8 @@ class TestCommandBuilder(unittest.TestCase):
         builder = CommandBuilder(cmd_def)
         
         result = (builder
-                 .with_parameter("v")
-                 .with_parameter("output", "file.txt")
+                 .param("v")
+                 .param("output", "file.txt")
                  .build())
         self.assertEqual(result, ["test-cmd", "-v", "-output", "file.txt"])
     
@@ -107,7 +107,7 @@ class TestCommandBuilder(unittest.TestCase):
         )
         builder = CommandBuilder(cmd_def)
         result = (builder
-                 .with_parameter("tags", ["tag1", "tag2", "tag3"])
+                 .param("tags", ["tag1", "tag2", "tag3"])
                  .build())
         self.assertEqual(
             result,
@@ -117,7 +117,7 @@ class TestCommandBuilder(unittest.TestCase):
     def test_list_separate_parameters(self):
         """Test parameters with list values using separate style"""
         result = (self.builder
-                 .with_parameter("tags", ["tag1", "tag2", "tag3"])
+                 .param("tags", ["tag1", "tag2", "tag3"])
                  .build())
         self.assertEqual(
             result,
@@ -134,7 +134,7 @@ class TestCommandBuilder(unittest.TestCase):
         )
         builder = CommandBuilder(cmd_def)
         result = (builder
-                 .with_parameter("tags", ["tag1", "tag2", "tag3"])
+                 .param("tags", ["tag1", "tag2", "tag3"])
                  .build())
         self.assertEqual(
             result,

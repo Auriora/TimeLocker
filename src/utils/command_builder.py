@@ -49,15 +49,16 @@ class CommandParameter:
             name = self.name
             style = self.style
 
+        parameter = f"--{name}"
         if style == ParameterStyle.POSITIONAL:
-            return name
-        if style == ParameterStyle.SINGLE_DASH:
-            return f"-{name}"
-        if style == ParameterStyle.DOUBLE_DASH:
-            return f"--{name}"
-        if style == ParameterStyle.SEPARATE:
-            return f"--{name}" if not use_short_form else f"-{name}"
-        return f"--{name}"  # Default to double dash
+            parameter = name
+        elif style == ParameterStyle.SINGLE_DASH:
+            parameter = f"-{name}"
+        elif style == ParameterStyle.DOUBLE_DASH:
+            parameter = f"--{name}"
+        elif style == ParameterStyle.SEPARATE:
+            parameter = f"--{name}" if not use_short_form else f"-{name}"
+        return (parameter, style)  # Default to double dash
     
     @staticmethod
     def _convert_style(style: Union[str, 'ParameterStyle', None]) -> 'ParameterStyle':
@@ -139,43 +140,22 @@ class CommandDefinition:
 
 
 class CommandBuilder:
-    """A flexible command builder for constructing command line arguments.
-    
-    This class can be used to build command line arguments for any executable
-    based on a provided command definition that specifies the structure and
-    rules for the command.
-    
-    Example:
-        # Define a command structure
-        git_command = CommandDefinition(
-            name="git",
-            parameters=[
-                CommandParameter("verbose", prefix="-", required=False),
-                CommandParameter("config", required=False),
-            ],
-            subcommands={
-                "commit": CommandDefinition(
-                    name="commit",
-                    parameters=[
-                        CommandParameter("message", prefix="-", required=True),
-                        CommandParameter("amend", prefix="--", value_required=False),
-                    ]
-                )
-            }
-        )
-        
-        # Create a builder
-        builder = CommandBuilder(git_command)
-        
-        # Build a command
-        cmd = (builder
-               .with_parameter("verbose")
-               .with_parameter("config", "user.name=John")
-               .with_subcommand("commit")
-               .with_parameter("message", "Initial commit")
-               .build())
-        
-        # Result: ['git', '-v', '--config', 'user.name=John', 'commit', '-m', 'Initial commit']
+    """
+    Builds and manages a command structure according to a predefined definition.
+
+    This class is used to construct command-line style arguments based on a predefined
+    command definition structure. It supports chaining methods to dynamically build and
+    configure commands, parameters, and subcommands. The definition enables validation
+    and ensures proper structure for commands and output.
+
+    :ivar _command_def: The primary `CommandDefinition` instance used for command structure.
+    :type _command_def: CommandDefinition
+    :ivar _current_def: The current `CommandDefinition` context being processed.
+    :type _current_def: CommandDefinition
+    :ivar _parameters: Dictionary containing user-provided parameter values.
+    :type _parameters: Dict[str, Any]
+    :ivar _command_chain: List representing the sequence of subcommands in the command.
+    :type _command_chain: List[str]
     """
 
     def __init__(self, command_def: CommandDefinition):
@@ -214,15 +194,14 @@ class CommandBuilder:
         self._parameters: Dict[str, Any] = {}
         self._command_chain: List[str] = [command_def.name]
     
-    def with_parameter(self, name: str, value: Any = None, use_short_form: bool = False, **kwargs) -> 'CommandBuilder':
+    def param(self, name: str, value: Any = None, **kwargs) -> 'CommandBuilder':
         """Add a parameter to the command.
         
         Args:
             name: Name of the parameter to add. The parameter will be created with default
                 style if it doesn't exist.
             value: Value for the parameter, if any. Can be a single value or a list of values.
-            use_short_form: If True, use short form of parameter if available.
-            
+
         Returns:
             Self for method chaining.
             
@@ -244,10 +223,9 @@ class CommandBuilder:
             raise ValueError(f"Parameter '{name}' requires a value")
 
         self._parameters[name] = value
-        self._use_short_forms[name] = use_short_form
         return self
     
-    def with_subcommand(self, name: str) -> 'CommandBuilder':
+    def command(self, name: str) -> 'CommandBuilder':
         """Add a subcommand to the command chain.
         
         Args:
@@ -306,14 +284,13 @@ class CommandBuilder:
             value = self._parameters[param.name]
             
             # Get formatted parameter name with appropriate form
-            use_short = self._use_short_forms.get(param.name, use_short_form)
-            param_str = param.format_param_name(use_short_form=use_short)
+            param_str, param_style   = param.format_param_name(use_short_form=use_short_form)
             
             # Handle different value types
             if isinstance(value, list):
                 # List values are always handled as separate name/value pairs
                 for item in value:
-                    if param.style == ParameterStyle.JOINED:
+                    if param_style == ParameterStyle.JOINED:
                         # Joined parameters combine name and value with =
                         result.append(f"{param_str}={str(item)}")
                     else:
@@ -324,7 +301,7 @@ class CommandBuilder:
                     # Flag parameter without value
                     result.append(param_str)
                 elif value is not None:
-                    if param.style == ParameterStyle.JOINED:
+                    if param_style == ParameterStyle.JOINED:
                         # Joined parameters combine name and value with =
                         result.append(f"{param_str}={value}")
                     else:
@@ -333,8 +310,8 @@ class CommandBuilder:
         
         return result
     
-    def reset(self) -> 'CommandBuilder':
-        """Reset the builder to its initial state.
+    def clear(self) -> 'CommandBuilder':
+        """Reset the builder to its initial state by clearing all commands and parameters
         
         Returns:
             Self for method chaining.

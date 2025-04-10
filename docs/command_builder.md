@@ -48,10 +48,10 @@ builder = CommandBuilder(git_command)
 
 # Build a command
 cmd = (builder
-       .with_parameter("verbose")
-       .with_parameter("config", "user.name=John")
-       .with_subcommand("commit")
-       .with_parameter("message", "Initial commit")
+       .param("verbose")
+       .param("config", "user.name=John")
+       .command("commit")
+       .param("message", "Initial commit")
        .build())
 
 # Result: ['git', '-v', '--config', 'user.name=John', 'commit', '-m', 'Initial commit']
@@ -108,8 +108,9 @@ CommandParameter("source", position=0, style=ParameterStyle.POSITIONAL)
 ```
 
 4. **Reset Between Commands**: Call reset() when reusing a builder:
+
 ```python
-builder.reset().with_parameter("verbose").build()
+builder.clear().param("verbose").build()
 ```
 
 ## Error Handling
@@ -126,5 +127,5 @@ The command builder supports type hints and chain-able methods:
 
 ```python
 builder: CommandBuilder
-result: List[str] = builder.with_parameter("verbose").build()
+result: List[str] = builder.param("verbose").build()
 ```
