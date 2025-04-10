@@ -33,21 +33,31 @@ class ParameterStyle(Enum):
 class CommandParameter:
     """Represents a command parameter configuration."""
 
-    def format_param_name(self) -> str:
+    def format_param_name(self, use_short_form: bool = False) -> str:
         """Format the parameter name according to its style.
+        
+        Args:
+            use_short_form: If True, use short form of parameter if available.
         
         Returns:
             Formatted parameter string based on style.
         """
-        if self.style == ParameterStyle.POSITIONAL:
-            return self.name
-        if self.style == ParameterStyle.SINGLE_DASH:
-            return f"-{self.name}"
-        if self.style == ParameterStyle.DOUBLE_DASH:
-            return f"--{self.name}"
-        if self.style == ParameterStyle.SEPARATE:
-            return f"--{self.name}"
-        return f"--{self.name}"  # Default to double dash
+        if use_short_form and hasattr(self, 'short_name') and self.short_name:
+            name = self.short_name
+            style = self.short_style if hasattr(self, 'short_style') and self.short_style else ParameterStyle.SINGLE_DASH
+        else:
+            name = self.name
+            style = self.style
+
+        if style == ParameterStyle.POSITIONAL:
+            return name
+        if style == ParameterStyle.SINGLE_DASH:
+            return f"-{name}"
+        if style == ParameterStyle.DOUBLE_DASH:
+            return f"--{name}"
+        if style == ParameterStyle.SEPARATE:
+            return f"--{name}" if not use_short_form else f"-{name}"
+        return f"--{name}"  # Default to double dash
     
     @staticmethod
     def _convert_style(style: Union[str, 'ParameterStyle', None]) -> 'ParameterStyle':
@@ -76,6 +86,8 @@ class CommandParameter:
     
     name: str
     style: Union[str, ParameterStyle] = ParameterStyle.SEPARATE
+    short_name: Optional[str] = None
+    short_style: Optional[Union[str, ParameterStyle]] = None
     prefix: Optional[str] = None
     required: bool = False
     position: Optional[int] = None
@@ -202,13 +214,14 @@ class CommandBuilder:
         self._parameters: Dict[str, Any] = {}
         self._command_chain: List[str] = [command_def.name]
     
-    def with_parameter(self, name: str, value: Any = None, **kwargs) -> 'CommandBuilder':
+    def with_parameter(self, name: str, value: Any = None, use_short_form: bool = False, **kwargs) -> 'CommandBuilder':
         """Add a parameter to the command.
         
         Args:
             name: Name of the parameter to add. The parameter will be created with default
                 style if it doesn't exist.
             value: Value for the parameter, if any. Can be a single value or a list of values.
+            use_short_form: If True, use short form of parameter if available.
             
         Returns:
             Self for method chaining.
@@ -216,39 +229,22 @@ class CommandBuilder:
         Raises:
             ValueError: If required value is missing.
         """
-        # Get existing parameter or create new one
+        # Validate parameter exists in command definition
         if name not in self._current_def.parameters:
-            param = CommandParameter(name=name, style=self._current_def.default_param_style)
-            self._current_def.parameters[name] = param
-        else:
-            param = self._current_def.parameters[name]
-
+            raise ValueError(f"Parameter '{name}' is not defined in command definition")
+            
+        param = self._current_def.parameters[name]
+        
+        # Style updates through kwargs are no longer allowed - parameters must be pre-defined
         if 'style' in kwargs:
-                # Update style if explicitly provided
-                print(f"[with_parameter] Setting style for {name} to {kwargs['style']!r}")  # Debug
-                param.style = kwargs['style']
-                param.__post_init__()  # Re-initialize after style change
-        else:
-            # Create new parameter
-            if 'style' in kwargs:
-                # Explicitly provided style takes precedence
-                style_val = kwargs['style']
-                print(f"Creating parameter with style: {style_val!r}, type={type(style_val)}")  # Debug
-                param = CommandParameter(name=name, style=style_val)
-            else:
-                # Use default styles
-                if len(name) == 1:  # Single letter parameters default to flag style
-                    param = CommandParameter(name=name, style=ParameterStyle.SINGLE_DASH)
-                else:
-                    param = CommandParameter(name=name, style=self._current_def.default_param_style)
-            param.__post_init__()
-            self._current_def.parameters[name] = param
+            raise ValueError("Parameter style cannot be modified after definition")
             
         # Check if value is required but missing
         if value is None and param.value_required:
             raise ValueError(f"Parameter '{name}' requires a value")
 
         self._parameters[name] = value
+        self._use_short_forms[name] = use_short_form
         return self
     
     def with_subcommand(self, name: str) -> 'CommandBuilder':
@@ -270,9 +266,13 @@ class CommandBuilder:
         self._command_chain.append(name)
         return self
     
-    def build(self) -> List[str]:
+    def build(self, use_short_form: bool = False) -> List[str]:
         """Build the final command line arguments list.
         
+        Args:
+            use_short_form: If True, use short form for all parameters where available,
+                unless overridden by individual parameter settings.
+
         Returns:
             List of command line arguments.
             
@@ -305,8 +305,9 @@ class CommandBuilder:
                 
             value = self._parameters[param.name]
             
-            # Get formatted parameter name
-            param_str = param.format_param_name()
+            # Get formatted parameter name with appropriate form
+            use_short = self._use_short_forms.get(param.name, use_short_form)
+            param_str = param.format_param_name(use_short_form=use_short)
             
             # Handle different value types
             if isinstance(value, list):

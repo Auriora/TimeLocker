@@ -1,3 +1,5 @@
+            # if param.prefix:
+            #     result.append(f"{indent_str_inner}        prefix=\"{param.prefix}\",\n")
 import json
 from typing import List
 
@@ -58,19 +60,19 @@ def determine_parameter_style(option: dict) -> ParameterStyle:
 def convert_option_to_parameter(option: dict) -> CommandParameter:
     """Convert a JSON option object to a CommandParameter."""
     # Extract the parameter name from the long flag
-    name = option['long_flag'].replace('--', '') if option['long_flag'] else None
-    if not name and option['short_flag']:
-        name = option['short_flag'].replace('-', '')
-
-    # Determine prefix based on long_flag or short_flag
-    prefix = None
     if option['long_flag']:
-        prefix = '--'
-    elif option['short_flag']:
-        prefix = '-'
+        name = option['long_flag'].replace('--', '')
+        style = ParameterStyle.DOUBLE_DASH
+    else:
+        name = None
+        style = None
 
-    # Determine parameter style
-    style = determine_parameter_style(option)
+    if option['short_flag']:
+        short_name = option['short_flag'].replace('-', '')
+        short_style = ParameterStyle.SINGLE_DASH
+    else:
+        short_name = None
+        short_style = None
 
     # Determine if a value is required
     value_required = option['value_type'] != 'string' or option['default'] != 'false'
@@ -78,7 +80,8 @@ def convert_option_to_parameter(option: dict) -> CommandParameter:
     return CommandParameter(
         name=name,
         style=style,
-        prefix=prefix,
+        short_name=short_name,
+        short_style=short_style,
         required=False,  # Default to False as most CLI options are optional
         value_required=value_required,
         description=option['description'] or ""
@@ -93,39 +96,41 @@ def format_parameter_style(style: ParameterStyle) -> str:
 def format_command_definition(cmd_def: CommandDefinition, indent: int = 0) -> str:
     """Format a CommandDefinition as a Python code string."""
     indent_str = " " * indent
-    result = f"{indent_str}CommandDefinition(\n"
+    result = ["CommandDefinition(\n"]
     indent_str_inner = " " * (indent + 4)
 
-    result += f"{indent_str_inner}name=\"{cmd_def.name}\",\n"
+    result.append(f"{indent_str_inner}name=\"{cmd_def.name}\",\n")
 
     # Format parameters
     if cmd_def.parameters:
-        result += f"{indent_str_inner}parameters={{\n"
+        result.append(f"{indent_str_inner}parameters={{\n")
         for param_name, param in cmd_def.parameters.items():
-            result += f"{indent_str_inner}    \"{param_name}\": CommandParameter(\n"
-            result += f"{indent_str_inner}        name=\"{param.name}\",\n"
-            result += f"{indent_str_inner}        style={format_parameter_style(param.style)},\n"
-            if param.prefix:
-                result += f"{indent_str_inner}        prefix=\"{param.prefix}\",\n"
+            result.append(f"{indent_str_inner}    \"{param_name}\": CommandParameter(\n")
+            if param.name:
+                result.append(f"{indent_str_inner}        name=\"{param.name}\",\n")
+                result.append(f"{indent_str_inner}        style={format_parameter_style(param.style)},\n")
+            if param.short_name:
+                result.append(f"{indent_str_inner}        short_name=\"{param.short_name}\",\n")
+                result.append(f"{indent_str_inner}        short_style={format_parameter_style(param.short_style)},\n")
             if param.required:
-                result += f"{indent_str_inner}        required={param.required},\n"
+                result.append(f"{indent_str_inner}        required={param.required},\n")
             if param.value_required:
-                result += f"{indent_str_inner}        value_required={param.value_required},\n"
+                result.append(f"{indent_str_inner}        value_required={param.value_required},\n")
             if param.description:
-                result += f"{indent_str_inner}        description={repr(param.description)},\n"
-            result += f"{indent_str_inner}    ),\n"
-        result += f"{indent_str_inner}}},\n"
+                result.append(f"{indent_str_inner}        description={repr(param.description)},\n")
+            result.append(f"{indent_str_inner}    ),\n")
+        result.append(f"{indent_str_inner}}},\n")
 
     # Format subcommands
     if cmd_def.subcommands:
-        result += f"{indent_str_inner}subcommands={{\n"
+        result.append(f"{indent_str_inner}subcommands={{\n")
         for subcmd_name, subcmd in cmd_def.subcommands.items():
-            result += f"{indent_str_inner}    \"{subcmd_name}\": {format_command_definition(subcmd, indent + 8)},\n"
-        result += f"{indent_str_inner}}},\n"
+            result.append(f"{indent_str_inner}    \"{subcmd_name}\": {format_command_definition(subcmd, indent + 8)},\n")
+        result.append(f"{indent_str_inner}}},\n")
 
-    result += f"{indent_str_inner}default_param_style=ParameterStyle.SEPARATE\n"
-    result += f"{indent_str})"
-    return result
+    result.append(f"{indent_str_inner}default_param_style=ParameterStyle.SEPARATE\n")
+    result.append(f"{indent_str})")
+    return "".join(result)
 
 def main():
     # Read the JSON file

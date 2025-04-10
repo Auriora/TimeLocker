@@ -8,7 +8,6 @@ from backup_target import BackupTarget
 from restic.errors import CommandExecutionError
 
 
-
 class ResticCommand:
     @staticmethod
     def run(command: List[str], env: Dict[str, str]) -> str:

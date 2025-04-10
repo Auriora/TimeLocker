@@ -1,16 +1,30 @@
 import unittest
-from src.utils.command_builder import CommandBuilder, CommandDefinition, ParameterStyle
+from src.utils.command_builder import CommandBuilder, CommandDefinition, ParameterStyle, CommandParameter
+
 
 class TestCommandBuilder(unittest.TestCase):
     def setUp(self):
         # Basic command definition for testing
+        # Define complete command structure with all parameters upfront
         self.cmd_def = CommandDefinition(
             "test-cmd",
-            parameters={"description": "A test command"}, default_param_style=ParameterStyle.JOINED,
-            subcommands={"backup": CommandDefinition(
-                "backup"
-                # parameters={"description": "Backup command"}
-            )}
+            parameters={
+                "verbose": CommandParameter(name="verbose", style=ParameterStyle.DOUBLE_DASH),
+                "output": CommandParameter(name="output", style=ParameterStyle.SEPARATE),
+                "format": CommandParameter(name="format", style=ParameterStyle.SEPARATE),
+                "tags": CommandParameter(name="tags", style=ParameterStyle.SEPARATE),
+                "v": CommandParameter(name="v", style=ParameterStyle.SINGLE_DASH)
+            },
+            default_param_style=ParameterStyle.JOINED,
+            subcommands={
+                "backup": CommandDefinition(
+                    "backup",
+                    parameters={
+                        "source": CommandParameter(name="source", style=ParameterStyle.SEPARATE),
+                        "verbose": CommandParameter(name="verbose", style=ParameterStyle.DOUBLE_DASH)
+                    }
+                )
+            }
         )
         self.builder = CommandBuilder(self.cmd_def)
     
@@ -21,20 +35,20 @@ class TestCommandBuilder(unittest.TestCase):
     
     def test_with_parameter_no_value(self):
         """Test parameter without value (flag-style)"""
-        result = self.builder.with_parameter("verbose", style=ParameterStyle.DOUBLE_DASH).build()
+        result = self.builder.with_parameter("verbose").build()
         self.assertEqual(result, ["test-cmd", "--verbose"])
     
     def test_with_parameter_with_value(self):
         """Test parameter with value"""
-        result = self.builder.with_parameter("output", "file.txt", style=ParameterStyle.SEPARATE).build()
+        result = self.builder.with_parameter("output", "file.txt").build()
         self.assertEqual(result, ["test-cmd", "--output", "file.txt"])
     
     def test_parameter_chaining(self):
         """Test chaining multiple parameters"""
         result = (self.builder
-                 .with_parameter("verbose", style=ParameterStyle.DOUBLE_DASH)
-                 .with_parameter("output", "file.txt", style=ParameterStyle.SEPARATE)
-                 .with_parameter("format", "json", style=ParameterStyle.SEPARATE)
+                 .with_parameter("verbose")
+                 .with_parameter("output", "file.txt")
+                 .with_parameter("format", "json")
                  .build())
         self.assertEqual(
             result,
@@ -51,7 +65,7 @@ class TestCommandBuilder(unittest.TestCase):
         result = (self.builder
                  .with_subcommand("backup")
                  .with_parameter("source", "/path")
-                 .with_parameter("verbose", style=ParameterStyle.DOUBLE_DASH)
+                 .with_parameter("verbose")
                  .build())
         self.assertEqual(
             result,
@@ -60,7 +74,7 @@ class TestCommandBuilder(unittest.TestCase):
     
     def test_reset(self):
         """Test resetting the builder"""
-        self.builder.with_parameter("verbose", style=ParameterStyle.DOUBLE_DASH)
+        self.builder.with_parameter("verbose")
         self.builder.reset()
         result = self.builder.build()
         self.assertEqual(result, ["test-cmd"])
@@ -69,7 +83,10 @@ class TestCommandBuilder(unittest.TestCase):
         """Test different parameter styles"""
         cmd_def = CommandDefinition(
             "test-cmd",
-            parameters={"description": "Test command with different styles"},
+            parameters={
+                "v": CommandParameter(name="v", style=ParameterStyle.SINGLE_DASH),
+                "output": CommandParameter(name="output", style=ParameterStyle.SINGLE_DASH)
+            },
             default_param_style=ParameterStyle.SINGLE_DASH
         )
         builder = CommandBuilder(cmd_def)
@@ -82,8 +99,15 @@ class TestCommandBuilder(unittest.TestCase):
     
     def test_list_positional_parameters(self):
         """Test parameters with list values"""
-        result = (self.builder
-                 .with_parameter("tags", ["tag1", "tag2", "tag3"], style=ParameterStyle.POSITIONAL)
+        cmd_def = CommandDefinition(
+            "test-cmd",
+            parameters={
+                "tags": CommandParameter(name="tags", style=ParameterStyle.POSITIONAL)
+            }
+        )
+        builder = CommandBuilder(cmd_def)
+        result = (builder
+                 .with_parameter("tags", ["tag1", "tag2", "tag3"])
                  .build())
         self.assertEqual(
             result,
@@ -91,9 +115,9 @@ class TestCommandBuilder(unittest.TestCase):
         )
 
     def test_list_separate_parameters(self):
+        """Test parameters with list values using separate style"""
         result = (self.builder
-                 .reset()
-                 .with_parameter("tags", ["tag1", "tag2", "tag3"], style=ParameterStyle.SEPARATE)
+                 .with_parameter("tags", ["tag1", "tag2", "tag3"])
                  .build())
         self.assertEqual(
             result,
@@ -101,9 +125,16 @@ class TestCommandBuilder(unittest.TestCase):
         )
 
     def test_list_joined_parameters(self):
-        result = (self.builder
-                 .reset()
-                 .with_parameter("tags", ["tag1", "tag2", "tag3"], style=ParameterStyle.JOINED)
+        """Test parameters with list values using joined style"""
+        cmd_def = CommandDefinition(
+            "test-cmd",
+            parameters={
+                "tags": CommandParameter(name="tags", style=ParameterStyle.JOINED)
+            }
+        )
+        builder = CommandBuilder(cmd_def)
+        result = (builder
+                 .with_parameter("tags", ["tag1", "tag2", "tag3"])
                  .build())
         self.assertEqual(
             result,
