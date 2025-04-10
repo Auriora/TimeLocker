@@ -147,7 +147,7 @@ def main():
     )
 
     # Write to a Python file
-    with open('restic_commands_definition.py', 'w') as f:
+    with open('restic_command_definition.py', 'w') as f:
         f.write(formatted_output)
 
 if __name__ == "__main__":

@@ -2,13 +2,13 @@ import os
 from subprocess import run, Popen, PIPE, STDOUT, SubprocessError, CalledProcessError  # from subprocess import run, CompletedProcess
 
 from typing import Callable, Dict, List
-from packaging import version
 
-from backup_target import BackupTarget
-from restic.errors import CommandExecutionError
+class CommandExecutionError(Exception):
+    def __init__(self, message, stderr=None):
+        super().__init__(message)
+        self.stderr = stderr
 
-
-class ResticCommand:
+class ExecuteCommand:
     @staticmethod
     def run(command: List[str], env: Dict[str, str]) -> str:
         try:
@@ -82,30 +82,3 @@ class ResticCommand:
                 f"Command failed: {' '.join(command)}",
                 stderr="Process failed with non-zero exit code"
             )
-
-
-class CommandBuilder:
-    def __init__(self, restic_version: str):
-        self.restic_version = version.parse(restic_version)
-
-    def build_backup_command(self, target: BackupTarget) -> list:
-        if not isinstance(target.selection.paths, list):
-            raise TypeError("target.selection.paths must be a list")
-        cmd = ["restic", "backup"] + target.selection.paths + ["--json"]
-
-        # Include tags if available
-        for tag in target.tags:
-            cmd += ["--tag", tag]
-
-        # Handle excludes based on the restic version
-        if self.restic_version >= version.parse("0.9.0"):
-            for pattern in target.exclusion.patterns:
-                cmd += ["--exclude", pattern]
-        else:
-            # TODO: Implement alternative exclude handling for older restic versions
-            # For versions < 0.9.0, consider using --exclude-file option or other appropriate methods
-            pass
-
-        return cmd
-
-    # Additional methods for other commands can be implemented similarly
