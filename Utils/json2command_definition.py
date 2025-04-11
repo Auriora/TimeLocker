@@ -1,9 +1,6 @@
-            # if param.prefix:
-            #     result.append(f"{indent_str_inner}        prefix=\"{param.prefix}\",\n")
 import json
-import os
 from pathlib import Path
-from typing import List
+from typing import List, Dict, Any
 
 from utils.command_builder import CommandParameter, ParameterStyle, CommandDefinition
 
@@ -11,75 +8,58 @@ from utils.command_builder import CommandParameter, ParameterStyle, CommandDefin
 PROJECT_ROOT = Path(__file__).parent.parent
 DOCS_DIR = PROJECT_ROOT / 'docs'
 
+
 def convert_json_to_command_definition(json_data: List[dict]) -> CommandDefinition:
     """Convert the JSON data to a CommandDefinition structure."""
-    # First pass: find main command definition
-    main_command = None
+    main_command = find_main_command(json_data)
+    process_subcommands(json_data, main_command)
+    return main_command
+
+def find_main_command(json_data: List[dict]) -> CommandDefinition:
+    """Find and create the main command definition."""
     for command_data in json_data:
         if 'SYNOPSIS' in command_data and command_data['SYNOPSIS']['command'] is None:
-            # Create main command using executable from SYNOPSIS
-            main_command = CommandDefinition(
-                name=command_data['SYNOPSIS']['executable'],
-                default_param_style=ParameterStyle.DOUBLE_DASH
-            )
-            
-            # Add main command parameters
-            if 'OPTIONS' in command_data:
-                main_command.parameters = {
-                    option['long_flag'].replace('--', '') if option['long_flag'] else option['short_flag'].replace('-', ''):
-                    convert_option_to_parameter(option)
-                    for option in command_data['OPTIONS']
-                }
-            
-            # Add synopsis parameters for main command
-            if 'parameters' in command_data['SYNOPSIS']:
-                main_command.synopsis_params = [
-                    param for param in command_data['SYNOPSIS']['parameters']
-                    if not param.startswith('[flags]')  # Skip flags parameter as it's handled by OPTIONS
-                ]
-            break
-    
-    if main_command is None:
-        # Fallback if no main command found
-        main_command = CommandDefinition(
-            name="restic",
-            default_param_style=ParameterStyle.DOUBLE_DASH
-        )
+            return create_command_definition(command_data, is_main=True)
 
-    # Second pass: process subcommands
+    return CommandDefinition(
+        name="restic",
+        default_param_style=ParameterStyle.DOUBLE_DASH
+    )
+
+def create_command_definition(command_data: dict, is_main: bool = False) -> CommandDefinition:
+    """Create a CommandDefinition from command data."""
+    name = command_data['SYNOPSIS']['executable'] if is_main else command_data['SYNOPSIS']['command']
+    parameters = create_parameters(command_data.get('OPTIONS', []))
+    synopsis_params = extract_synopsis_params(command_data['SYNOPSIS'])
+
+    return CommandDefinition(
+        name=name,
+        parameters=parameters,
+        default_param_style=ParameterStyle.DOUBLE_DASH,
+        synopsis_params=synopsis_params
+    )
+
+def create_parameters(options: List[dict]) -> Dict[str, Any]:
+    """Create parameters dictionary from options."""
+    return {
+        option['long_flag'].replace('--', '') if option['long_flag'] else option['short_flag'].replace('-', ''):
+        convert_option_to_parameter(option)
+        for option in options
+    }
+
+def extract_synopsis_params(synopsis: dict) -> List[str]:
+    """Extract synopsis parameters."""
+    return [
+        param for param in synopsis.get('parameters', [])
+        if not param.startswith('[flags]')
+    ]
+
+def process_subcommands(json_data: List[dict], main_command: CommandDefinition) -> None:
+    """Process subcommands and add them to the main command."""
     for command_data in json_data:
-        if 'SYNOPSIS' in command_data:
-            command_name = command_data['SYNOPSIS']['command']
-            if command_name is None:
-                continue  # Skip the main command definition
-
-            # Convert options to parameters dictionary
-            parameters = {}
-            if 'OPTIONS' in command_data:
-                for option in command_data['OPTIONS']:
-                    param = convert_option_to_parameter(option)
-                    parameters[param.name] = param
-
-            # Extract synopsis parameters
-            synopsis_params = []
-            if 'parameters' in command_data['SYNOPSIS']:
-                synopsis_params = [
-                    param for param in command_data['SYNOPSIS']['parameters']
-                    if not param.startswith('[flags]')  # Skip flags parameter as it's handled by OPTIONS
-                ]
-
-            # Create the command definition
-            command_def = CommandDefinition(
-                name=command_name,
-                parameters=parameters,
-                default_param_style=ParameterStyle.DOUBLE_DASH,
-                synopsis_params=synopsis_params
-            )
-
-            # Add to main command's subcommands
-            main_command.subcommands[command_name] = command_def
-
-    return main_command
+        if 'SYNOPSIS' in command_data and command_data['SYNOPSIS']['command'] is not None:
+            subcommand = create_command_definition(command_data)
+            main_command.subcommands[subcommand.name] = subcommand
 
 def determine_parameter_style(option: dict) -> ParameterStyle:
     """Determine the parameter style based on the option configuration."""
@@ -118,8 +98,6 @@ def convert_option_to_parameter(option: dict) -> CommandParameter:
         value_required=value_required,
         description=option['description'] or ""
     )
-
-# [Previous imports and class definitions remain the same]
 
 def format_parameter_style(style: ParameterStyle) -> str:
     """Convert ParameterStyle enum to string representation."""
