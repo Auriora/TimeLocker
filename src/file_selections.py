@@ -70,11 +70,11 @@ class FileSelection:
 
     def __init__(self):
         """Initialize empty file selection"""
+        self._pattern_groups: Dict[str, PatternGroup] = {}  # Named pattern groups
         self._includes: Set[Path] = set()  # Explicit path includes
         self._excludes: Set[Path] = set()  # Explicit path excludes
         self._include_patterns: Set[str] = set()  # Pattern includes
         self._exclude_patterns: Set[str] = set()  # Pattern excludes
-        self._pattern_groups: Dict[str, PatternGroup] = {}  # Named pattern groups
 
     def add_path(self, path: Union[str, Path], selection_type: SelectionType = SelectionType.INCLUDE):
         """
@@ -199,5 +199,6 @@ class FileSelection:
                 f"excludes={self._excludes}, "
                 f"include_patterns={self._include_patterns}, "
                 f"exclude_patterns={self._exclude_patterns}>")
+
 
 
