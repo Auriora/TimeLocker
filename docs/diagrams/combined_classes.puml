@@ -5,10 +5,6 @@ hide empty members
 
 ' Project classes
 
-class Enum
-
-class Exception
-
 class DataProtector.backup_manager.BackupManager {
     + __init__()
     + from_uri(cls, uri: str, password: Optional[str])
@@ -203,12 +199,6 @@ DataProtector.restic.errors.ResticError <|-- DataProtector.restic.errors.ResticV
 DataProtector.restic.restic_repository.ResticRepository <|-- DataProtector.restic.Repositories.b2.B2ResticRepository
 DataProtector.restic.restic_repository.ResticRepository <|-- DataProtector.restic.Repositories.local.LocalResticRepository
 DataProtector.restic.restic_repository.ResticRepository <|-- DataProtector.restic.Repositories.s3.S3ResticRepository
-Enum <|-- DataProtector.file_selections.SelectionType
-Enum <|-- DataProtector.utils.command_builder.ParameterStyle
-Exception <|-- DataProtector.backup_manager.BackupManagerError
-Exception <|-- DataProtector.backup_repository.BackupError
-Exception <|-- DataProtector.restic.errors.ResticError
-Exception <|-- DataProtector.utils.command_builder.CommandExecutionError
 
 ' Compositions
 DataProtector.backup_snapshot.BackupSnapshot *-- DataProtector.backup_repository.BackupRepository

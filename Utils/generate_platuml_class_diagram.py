@@ -103,12 +103,10 @@ class ClassRelationshipVisitor(NodeVisitor):
                     has_only_abstract_methods = False
                     break
         
-        # Check for abstract class first (has ABC)
+        # Check for interface first (has ABC and all methods are abstract)
         if is_abc:
-            # A class is an interface if:
-            # 1. It has at least one method and all methods are abstract
-            # 2. Or if it's named Interface
-            if (has_methods and has_only_abstract_methods) or node.name == 'Interface':
+            # Only consider it an interface if the class name contains "Interface" or has "interface" in a comment
+            if "Interface" in node.name:
                 self.element_types[node.name] = ElementType.INTERFACE
             else:
                 self.element_types[node.name] = ElementType.ABSTRACT_CLASS
@@ -156,14 +154,22 @@ class ClassRelationshipVisitor(NodeVisitor):
             # Check type annotations for composition and other relationships
             if isinstance(item, AnnAssign) and isinstance(item.target, Name):
                 if isinstance(item.annotation, Name):
-                    # Check for relationship type based on comments or naming
-                    if any(c.value.value.strip().lower().startswith('weak whole-part') for c in node.body if isinstance(c, Expr) and isinstance(c.value, Constant)):
+                    # Check for relationship type based on comments
+                    comment_before = None
+                    for stmt in node.body:
+                        if isinstance(stmt, Expr) and isinstance(stmt.value, Constant):
+                            comment_before = stmt.value.value.strip().lower()
+                        elif stmt == item:
+                            break
+                            
+                    if comment_before and 'weak whole-part' in comment_before:
                         self.aggregation_relations.add((self.current_class, item.annotation.id))
-                    elif any(c.value.value.strip().lower().startswith('weak dependency') for c in node.body if isinstance(c, Expr) and isinstance(c.value, Constant)):
+                    elif comment_before and 'weak dependency' in comment_before:
                         self.weak_dependency_relations.add((self.current_class, item.annotation.id))
-                    elif any(c.value.value.strip().lower().startswith('strong dependency') for c in node.body if isinstance(c, Expr) and isinstance(c.value, Constant)):
+                    elif comment_before and 'strong dependency' in comment_before:
                         self.dependency_relations.add((self.current_class, item.annotation.id))
                     else:
+                        # Default to composition if no specific relationship type is indicated
                         self.composition_relations.add((self.current_class, item.annotation.id))
                 elif isinstance(item.annotation, Subscript) and isinstance(item.annotation.value, Name):
                     if isinstance(item.annotation.slice, Name):
@@ -176,14 +182,22 @@ class ClassRelationshipVisitor(NodeVisitor):
                 for target in item.targets:
                     if isinstance(target, Name):
                         if isinstance(item.value, Call) and isinstance(item.value.func, Name):
-                            # Check for relationship type based on comments or naming
-                            if any(c.value.value.strip().lower().startswith('weak whole-part') for c in node.body if isinstance(c, Expr) and isinstance(c.value, Constant)):
+                            # Check for relationship type based on comments
+                            comment_before = None
+                            for stmt in node.body:
+                                if isinstance(stmt, Expr) and isinstance(stmt.value, Constant):
+                                    comment_before = stmt.value.value.strip().lower()
+                                elif stmt == item:
+                                    break
+                                    
+                            if comment_before and 'weak whole-part' in comment_before:
                                 self.aggregation_relations.add((self.current_class, item.value.func.id))
-                            elif any(c.value.value.strip().lower().startswith('weak dependency') for c in node.body if isinstance(c, Expr) and isinstance(c.value, Constant)):
+                            elif comment_before and 'weak dependency' in comment_before:
                                 self.weak_dependency_relations.add((self.current_class, item.value.func.id))
-                            elif any(c.value.value.strip().lower().startswith('strong dependency') for c in node.body if isinstance(c, Expr) and isinstance(c.value, Constant)):
+                            elif comment_before and 'strong dependency' in comment_before:
                                 self.dependency_relations.add((self.current_class, item.value.func.id))
                             else:
+                                # Default to composition if no specific relationship type is indicated
                                 self.composition_relations.add((self.current_class, item.value.func.id))
                         elif isinstance(item.value, Name):
                             # Handle direct assignments of type references
@@ -403,10 +417,8 @@ def collect_class_info(tree: AST, module_path: str = "") -> Dict[str, ClassInfo]
             for base_id in base_classes:
                 if base_id == 'ABC':
                     continue  # Skip ABC as it's an implementation detail
-                if base_id in visitor.classes and visitor.element_types.get(base_id) == ElementType.INTERFACE:
-                    class_info.implemented_interfaces.append(base_id)
-                else:
-                    class_info.base_classes.append(base_id)
+                # Add all non-ABC bases to base_classes initially
+                class_info.base_classes.append(base_id)
             
             # Extract methods and attributes
             class_info.methods = extract_methods(node)
@@ -435,7 +447,7 @@ def collect_class_info(tree: AST, module_path: str = "") -> Dict[str, ClassInfo]
     for class_name, class_info in classes.items():
         # Check for interface implementations
         for base in class_info.base_classes[:]:  # Create a copy to modify during iteration
-            if base in classes and classes[base].element_type == ElementType.INTERFACE:
+            if base in classes and visitor.element_types.get(base) == ElementType.INTERFACE:
                 class_info.base_classes.remove(base)
                 if base not in class_info.implemented_interfaces:
                     class_info.implemented_interfaces.append(base)
@@ -599,11 +611,8 @@ def generate_class_diagram(project_config: ProjectConfig, plantuml_config: Plant
     used_bases = sorted(base for base in base_classes
                        if any(base in c.base_classes for c in all_classes.values()))
 
-    # Output used base classes
-    for base in used_bases:
-        class_lines.append(f"class {base}")
-        class_lines.append("")
-
+    # Skip outputting base classes since they don't add value
+    
     # Output all other classes alphabetically
     sorted_classes = sorted(all_classes.values(), key=lambda x: x.full_name)
     for class_info in sorted_classes:
@@ -629,36 +638,41 @@ def generate_class_diagram(project_config: ProjectConfig, plantuml_config: Plant
     # Generate relationships
     all_relationships = []
     for class_info in all_classes.values():
+        # Skip base classes in relationships
+        if class_info.name in base_classes:
+            continue
+
         # Extension relationships (inheritance)
         for base in class_info.base_classes:
+            # Skip base classes in relationships
             if base in base_classes:
-                all_relationships.append(f"{base} {RelationType.EXTENSION} {class_info.full_name}")
-            elif base in all_classes:
+                continue
+            if base in all_classes:
                 all_relationships.append(f"{all_classes[base].full_name} {RelationType.EXTENSION} {class_info.full_name}")
 
         # Implementation relationships (interfaces)
         for interface in class_info.implemented_interfaces:
-            if interface in all_classes:
+            if interface in all_classes and interface not in base_classes:
                 all_relationships.append(f"{all_classes[interface].full_name} {RelationType.IMPLEMENTATION} {class_info.full_name}")
 
         # Composition relationships (strong whole-part)
         for composed_class in class_info.composition_relationships:
-            if composed_class in all_classes:
+            if composed_class in all_classes and composed_class not in base_classes:
                 all_relationships.append(f"{class_info.full_name} {RelationType.COMPOSITION} {all_classes[composed_class].full_name}")
 
         # Aggregation relationships (weak whole-part)
         for aggregated_class in class_info.aggregation_relationships:
-            if aggregated_class in all_classes:
+            if aggregated_class in all_classes and aggregated_class not in base_classes:
                 all_relationships.append(f"{class_info.full_name} {RelationType.AGGREGATION} {all_classes[aggregated_class].full_name}")
 
         # Dependencies
         for dependent in class_info.dependencies:
-            if dependent in all_classes:
+            if dependent in all_classes and dependent not in base_classes:
                 all_relationships.append(f"{class_info.full_name} {RelationType.DEPENDENCY} {all_classes[dependent].full_name}")
 
         # Weak dependencies
         for dependent in class_info.weak_dependencies:
-            if dependent in all_classes:
+            if dependent in all_classes and dependent not in base_classes:
                 all_relationships.append(f"{class_info.full_name} {RelationType.WEAK_DEPENDENCY} {all_classes[dependent].full_name}")
 
     # Sort and add relationships by type
@@ -766,6 +780,16 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+
+
+
+
+
+
+
+
 
 
 
