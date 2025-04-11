@@ -194,7 +194,45 @@ class TestCommandBuilder(unittest.TestCase):
             ["test-cmd", "restore", "--target", "/path/to/restore", "abc123"]
         )
 
+class TestParameterStyle(unittest.TestCase):
+    """Test cases for ParameterStyle equality and inequality comparisons."""
+    
+    def test_equality_with_same_style(self):
+        """Test equality between two ParameterStyle instances with same value."""
+        style1 = ParameterStyle.SEPARATE
+        style2 = ParameterStyle.SEPARATE
+        self.assertEqual(style1, style2)
+        self.assertFalse(style1 != style2)
+    
+    def test_equality_with_string(self):
+        """Test equality between ParameterStyle and string."""
+        style = ParameterStyle.JOINED
+        self.assertEqual(style, "joined")
+        self.assertEqual(style, "JOINED")  # Case insensitive
+        self.assertFalse(style != "joined")
+        self.assertFalse(style != "JOINED")
+    
+    def test_inequality_with_different_style(self):
+        """Test inequality between different ParameterStyle values."""
+        style1 = ParameterStyle.SEPARATE
+        style2 = ParameterStyle.JOINED
+        self.assertNotEqual(style1, style2)
+        self.assertTrue(style1 != style2)
+    
+    def test_inequality_with_none(self):
+        """Test inequality with None value."""
+        style = ParameterStyle.SEPARATE
+        self.assertNotEqual(style, None)
+        self.assertTrue(style != None)
+    
+    def test_inequality_with_other_types(self):
+        """Test inequality with other types."""
+        style = ParameterStyle.SEPARATE
+        self.assertNotEqual(style, 42)
+        self.assertNotEqual(style, True)
+        self.assertTrue(style != 42)
+        self.assertTrue(style != True)
+
 if __name__ == '__main__':
     unittest.main()
-
 

@@ -27,8 +27,8 @@ class ParameterStyle(Enum):
             return False
         if isinstance(other, str):
             return self.value.lower() == other.lower()
-        if isinstance(other, ParameterStyle):
-            return self.value.lower() == other.value.lower()  # Compare values instead of identity
+        if isinstance(other, Enum):
+            return self.value is other.value  # Compare values instead of identity
         return False
     
     def __str__(self):
@@ -36,6 +36,10 @@ class ParameterStyle(Enum):
     
     def __hash__(self):
         return hash(self.value.lower())
+        
+    def __ne__(self, other):
+        """Implement != operator by negating the result of __eq__."""
+        return not self.__eq__(other)
 
 
 @dataclass
@@ -408,6 +412,8 @@ class CommandBuilder:
 
         if process.returncode != 0:
             raise CommandExecutionError(f"Command failed: {' '.join(command)}", stderr="Process failed with non-zero exit code")
+
+
 
 
 
