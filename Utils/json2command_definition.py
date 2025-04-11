@@ -157,7 +157,7 @@ def main():
     # Format and write the output
     formatted_output = (
         "from utils.command_builder import CommandParameter, ParameterStyle, CommandDefinition\n\n"
-        f"restic_command = {format_command_definition(command_def)}\n"
+        f"restic_command_def = {format_command_definition(command_def)}\n"
     )
 
     # Write to a Python file in the same directory as the input file
