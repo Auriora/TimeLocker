@@ -2,6 +2,7 @@ from ast import NodeVisitor, ClassDef, Name, AST, Subscript, AnnAssign, Index, F
 import os
 import sys
 from os.path import abspath
+from traceback import format_exc
 from typing import Dict, List, Set, Tuple
 from plantuml import PlantUML
 
@@ -111,6 +112,8 @@ def collect_class_info(tree: AST) -> Dict[str, ClassInfo]:
     for class_name, composed_class in visitor.composition_relations:
         if class_name in classes:
             classes[class_name].composition_relationships.add(composed_class)
+            
+    return classes
 
 def extract_base_classes(node: ClassDef) -> List[str]:
     return [base.id for base in node.bases if isinstance(base, Name)]
@@ -152,7 +155,7 @@ def add_composition_relationships(tree: AST, classes: Dict[str, ClassInfo]) -> N
     # Add discovered composition relationships to the class info
     for source, target in visitor.composition_relations:
         if source in classes and target in classes:
-            classes[source].relationships.append(f"{source} *-- {target}")
+            classes[source].composition_relationships.add(target)
 
 # Create a PlantUML server instance
 server = PlantUML(url='http://www.plantuml.com/plantuml/svg/',  # Using SVG format for better quality
@@ -193,6 +196,7 @@ try:
                     all_classes.update(file_classes)
                 except Exception as e:
                     print(f"Error processing file {file_path}: {str(e)}")
+                    print(format_exc())
                     continue
 
 except Exception as e:
@@ -294,3 +298,5 @@ except Exception as e:
     print(f"Error generating PlantUML diagram: {str(e)}")
     print("Make sure the PlantUML server is running and accessible.")
     sys.exit(1)
+
+
