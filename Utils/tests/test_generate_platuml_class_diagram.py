@@ -1,14 +1,14 @@
 import unittest
 from ast import parse
-from Utils.generate_platuml_class_diagram import (
+from Utils.puml_generator import (
     parse_class_definitions,
-    collect_class_info,
-    add_composition_relationships,
     ClassInfo,
     PlantUMLConfig,
     ProjectConfig,
     ElementType
 )
+from Utils.puml_generator.class_parser import collect_class_info, add_composition_relationships
+
 
 class TestPlantUMLGenerator(unittest.TestCase):
     def test_parse_simple_class(self):

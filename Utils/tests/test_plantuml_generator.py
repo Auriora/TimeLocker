@@ -1,6 +1,6 @@
 import unittest
 import textwrap
-from Utils.generate_platuml_class_diagram import (
+from Utils.puml_generator import (
     parse_class_definitions,
     ClassInfo,
 )
