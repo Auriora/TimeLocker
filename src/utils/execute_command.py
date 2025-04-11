@@ -10,28 +10,17 @@ class CommandExecutionError(Exception):
 
 class ExecuteCommand:
     @staticmethod
-    def run(command: List[str], env: Dict[str, str]) -> str:
-        try:
-            result = run(
-                command,
-                check=True,
-                capture_output=True,
-                env={**env, **os.environ},
-                text=True
-            )
-            return result.stdout.strip()
-        except CalledProcessError as e:
-            raise CommandExecutionError(f"Command failed: {' '.join(command)}", stderr=e.stderr.strip())
+    def _merge_envs(env1: Dict[str, str], env2: Dict[str, str]) -> Dict[str, str]:
+        if env1 is None:
+            env1 = {}
+        merged_env = {**os.environ, **env2}
+        return merged_env
 
     @staticmethod
-    def run_with_callback(
-        command: List[str],
-        env: Dict[str, str],
-        callback: Callable[[str], None]
-    ) -> str:
+    def run(command: List[str], callback: Callable[[str], None] = None, env: Dict[str, str] = None) -> str:
         process = Popen(
             command,
-            env={**env, **os.environ},
+            env=ExecuteCommand._merge_envs(env, dict(os.environ)),
             stdout=PIPE,
             stderr=STDOUT,
             text=True,
@@ -41,15 +30,14 @@ class ExecuteCommand:
         output = []
         for line in process.stdout:
             output.append(line)
-            callback(line.strip())
+            if callback:
+                callback(line.strip())
 
         process.communicate()
         return_code = process.returncode
         if return_code != 0:
             raise CommandExecutionError(
-                f"Command failed with return code {return_code}: {' '.join(command)}",
-                stderr=''.join(output)
-            )
+                f"Command failed with return code {return_code}: {' '.join(command)}", stderr=''.join(output))
 
         return ''.join(output)
 
@@ -58,7 +46,7 @@ class ExecuteCommand:
         try:
             process = Popen(
                 command,
-                env={**env, **os.environ},
+                env=ExecuteCommand._merge_envs(env, dict(os.environ)),
                 stdout=PIPE,
                 stderr=STDOUT,
                 text=True,
@@ -78,7 +66,4 @@ class ExecuteCommand:
                 raise CommandExecutionError(f"Error reading command output: {' '.join(command)}", stderr=str(e))
 
         if process.returncode != 0:
-            raise CommandExecutionError(
-                f"Command failed: {' '.join(command)}",
-                stderr="Process failed with non-zero exit code"
-            )
+            raise CommandExecutionError(f"Command failed: {' '.join(command)}", stderr="Process failed with non-zero exit code")
