@@ -1,4 +1,4 @@
-from ast import NodeVisitor, ClassDef, Name, AST, Subscript, AnnAssign, Index, FunctionDef, parse, walk, Assign, Call, Expr, Constant
+from ast import NodeVisitor, ClassDef, Name, AST, Subscript, AnnAssign, Index, FunctionDef, parse, walk, Assign, Call, Expr, Constant, Attribute
 import argparse
 import logging
 import os
@@ -103,12 +103,15 @@ class ClassRelationshipVisitor(NodeVisitor):
                     has_only_abstract_methods = False
                     break
         
-        # A class is an interface if:
-        # 1. It inherits from ABC and has only abstract methods
-        # 2. It has at least one method and all methods are abstract
-        # 3. Or if it's named Interface
-        if (is_abc and has_methods and has_only_abstract_methods) or node.name == 'Interface':
-            self.element_types[node.name] = ElementType.INTERFACE
+        # Check for abstract class first (has ABC)
+        if is_abc:
+            # A class is an interface if:
+            # 1. It has at least one method and all methods are abstract
+            # 2. Or if it's named Interface
+            if (has_methods and has_only_abstract_methods) or node.name == 'Interface':
+                self.element_types[node.name] = ElementType.INTERFACE
+            else:
+                self.element_types[node.name] = ElementType.ABSTRACT_CLASS
             return
 
         # Check for enum
@@ -121,24 +124,25 @@ class ClassRelationshipVisitor(NodeVisitor):
             self.element_types[node.name] = ElementType.STRUCT
             return
 
-        # Check for abstract class (has ABC but not all methods are abstract)
-        if is_abc:
-            self.element_types[node.name] = ElementType.ABSTRACT_CLASS
-            return
-
         # Default to regular class
         self.element_types[node.name] = ElementType.CLASS
 
     def _handle_inheritance(self, node: ClassDef):
         """Handle inheritance relationships for a class."""
+        # Initialize base_classes list if not present
+        if not hasattr(node, 'base_classes'):
+            node.base_classes = []
+            
         for base in node.bases:
             if isinstance(base, Name):
+                # Skip ABC as it's an implementation detail
+                if base.id == 'ABC':
+                    continue
+                    
                 # Add base class to inheritance relations
                 self.inheritance_relations.add((node.name, base.id))
                 
                 # Add base class to the node's base_classes list
-                if not hasattr(node, 'base_classes'):
-                    node.base_classes = []
                 if base.id not in node.base_classes:
                     node.base_classes.append(base.id)
 
@@ -184,6 +188,26 @@ class ClassRelationshipVisitor(NodeVisitor):
                         elif isinstance(item.value, Name):
                             # Handle direct assignments of type references
                             self.composition_relations.add((self.current_class, item.value.id))
+            
+            # Check for attribute assignments and annotations in __init__
+            elif isinstance(item, FunctionDef) and item.name == '__init__':
+                for stmt in item.body:
+                    # Handle assignments in __init__
+                    if isinstance(stmt, Assign):
+                        for target in stmt.targets:
+                            if isinstance(target, Attribute) and isinstance(target.value, Name) and target.value.id == 'self':
+                                if isinstance(stmt.value, Call) and isinstance(stmt.value.func, Name):
+                                    self.composition_relations.add((self.current_class, stmt.value.func.id))
+                    # Handle type annotations in __init__
+                    elif isinstance(stmt, AnnAssign) and isinstance(stmt.target, Attribute):
+                        if isinstance(stmt.target.value, Name) and stmt.target.value.id == 'self':
+                            if isinstance(stmt.annotation, Name):
+                                self.composition_relations.add((self.current_class, stmt.annotation.id))
+                            elif isinstance(stmt.annotation, Subscript) and isinstance(stmt.annotation.value, Name):
+                                if isinstance(stmt.annotation.slice, Name):
+                                    self.composition_relations.add((self.current_class, stmt.annotation.slice.id))
+                                elif isinstance(stmt.annotation.slice, Index) and isinstance(stmt.annotation.slice.value, Name):
+                                    self.composition_relations.add((self.current_class, stmt.annotation.slice.value.id))
         
         self.current_class = previous_class
 
@@ -377,6 +401,8 @@ def collect_class_info(tree: AST, module_path: str = "") -> Dict[str, ClassInfo]
             
             # Transfer base classes from AST node to ClassInfo
             for base_id in base_classes:
+                if base_id == 'ABC':
+                    continue  # Skip ABC as it's an implementation detail
                 if base_id in visitor.classes and visitor.element_types.get(base_id) == ElementType.INTERFACE:
                     class_info.implemented_interfaces.append(base_id)
                 else:
@@ -408,10 +434,11 @@ def collect_class_info(tree: AST, module_path: str = "") -> Dict[str, ClassInfo]
     # Process relationships after all classes are collected
     for class_name, class_info in classes.items():
         # Check for interface implementations
-        for interface in class_info.base_classes[:]:  # Create a copy to modify during iteration
-            if interface in classes and classes[interface].element_type == ElementType.INTERFACE:
-                class_info.base_classes.remove(interface)
-                class_info.implemented_interfaces.append(interface)
+        for base in class_info.base_classes[:]:  # Create a copy to modify during iteration
+            if base in classes and classes[base].element_type == ElementType.INTERFACE:
+                class_info.base_classes.remove(base)
+                if base not in class_info.implemented_interfaces:
+                    class_info.implemented_interfaces.append(base)
     
     return classes
 
@@ -739,6 +766,13 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+
+
+
+
+
 
 
 
