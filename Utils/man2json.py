@@ -265,19 +265,19 @@ def process_man_files():
 
     # Walk through the man directory
     for root, dirs, files in os.walk(man_dir):
-        for file in files:
-            if file.endswith('.1'):  # Man pages typically end with .1
-                file_path = os.path.join(root, file)
+        for man_file in files:
+            if man_file.endswith('.1'):  # Man pages typically end with .1
+                file_path = os.path.join(root, man_file)
                 try:
                     command_data = parse_man_file(file_path)
                     all_commands.append(command_data)
                 except Exception:
-                    print(f"Error processing {file}:")
+                    print(f"Error processing {man_file}:")
                     print(format_exc())
 
     # Write to JSON file
-    with open('restic_commands.json', 'w', encoding='utf-8') as f:
-        json.dump(all_commands, f, indent=2, sort_keys=True)
+    with open('restic_commands.json', 'w', encoding='utf-8') as output_file:
+        json.dump(all_commands, output_file, indent=2, sort_keys=True)
 
 
 if __name__ == "__main__":
