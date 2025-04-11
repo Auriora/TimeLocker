@@ -5,6 +5,12 @@ hide empty members
 
 ' Project classes
 
+class ABC
+
+class Enum
+
+class Exception
+
 class MyBackup.backup_manager.BackupManager {
     + __init__()
     + from_uri(cls, uri: str, password: Optional[str])
@@ -14,9 +20,9 @@ class MyBackup.backup_manager.BackupManager {
     + register_repository_factory(name: str, repo_type: str, repository_class: Type[BackupRepository])
 }
 
-interface MyBackup.backup_manager.BackupManagerError
+exception MyBackup.backup_manager.BackupManagerError
 
-interface MyBackup.backup_repository.BackupError
+exception MyBackup.backup_repository.BackupError
 
 abstract class MyBackup.backup_repository.BackupRepository {
     + apply_retention_policy(policy: RetentionPolicy, prune: bool)
@@ -61,25 +67,35 @@ class MyBackup.backup_snapshot.BackupSnapshot {
 }
 
 class MyBackup.backup_target.BackupTarget {
-    + __init__(selection: FileSelections, exclusion: Optional[FileExclusions], tags: List[str])
+    + __init__(selection: FileSelection, tags: List[str])
+    + validate()
 }
 
-class MyBackup.file_selections.FileExclusions {
-    + __init__(paths: List[Path], patterns: List[str])
-    + __iter__()
+class MyBackup.file_selections.FileSelection {
+    + __init__()
     + __repr__()
-    + add_pattern(pattern: str)
-    + remove_pattern(pattern: str)
+    + add_path(path: Any, selection_type: SelectionType)
+    + add_pattern(pattern: str, selection_type: SelectionType)
+    + add_pattern_group(group: Any, selection_type: SelectionType)
+    + exclude_patterns()
+    + excludes()
+    + include_patterns()
+    + includes()
+    + remove_path(path: Any, selection_type: SelectionType)
+    + remove_pattern(pattern: str, selection_type: SelectionType)
+    + remove_pattern_group(group_name: str, selection_type: SelectionType)
+    + validate()
 }
 
-class MyBackup.file_selections.FileSelections {
-    - files: List[str]
-    - paths: List[Path]
-    + __init__(paths: Any, files: List[str])
-    + __iter__()
-    + __repr__()
-    + add_path(path: Path)
-    + remove_path(path: Path)
+class MyBackup.file_selections.PatternGroup {
+    - COMMON_GROUPS: Any
+    + __init__(name: str, patterns: List[str])
+    + get_common_group(cls, group_name: str)
+}
+
+enum MyBackup.file_selections.SelectionType {
+    - EXCLUDE: Any
+    - INCLUDE: Any
 }
 
 class MyBackup.restic.Repositories.b2.B2ResticRepository {
@@ -102,13 +118,13 @@ class MyBackup.restic.Repositories.s3.S3ResticRepository {
     + validate()
 }
 
-interface MyBackup.restic.errors.RepositoryError
+exception MyBackup.restic.errors.RepositoryError
 
-interface MyBackup.restic.errors.ResticError
+exception MyBackup.restic.errors.ResticError
 
-interface MyBackup.restic.errors.ResticVersionError
+exception MyBackup.restic.errors.ResticVersionError
 
-interface MyBackup.restic.errors.UnsupportedSchemeError
+exception MyBackup.restic.errors.UnsupportedSchemeError
 
 class MyBackup.restic.restic_repository.ResticRepository {
     + __init__(location: str, tags: Any, password: Optional[str], min_version: str)
@@ -182,18 +198,23 @@ enum MyBackup.utils.command_builder.ParameterStyle {
 ' Relationships
 
 ' Extensions (inheritance)
+ABC <|-- MyBackup.backup_repository.BackupRepository
+Enum <|-- MyBackup.file_selections.SelectionType
+Enum <|-- MyBackup.utils.command_builder.ParameterStyle
+Exception <|-- MyBackup.backup_manager.BackupManagerError
+Exception <|-- MyBackup.backup_repository.BackupError
+Exception <|-- MyBackup.restic.errors.ResticError
+Exception <|-- MyBackup.utils.command_builder.CommandExecutionError
 MyBackup.backup_repository.BackupRepository <|-- MyBackup.restic.restic_repository.ResticRepository
+MyBackup.restic.errors.RepositoryError <|-- MyBackup.restic.errors.UnsupportedSchemeError
+MyBackup.restic.errors.ResticError <|-- MyBackup.restic.errors.RepositoryError
+MyBackup.restic.errors.ResticError <|-- MyBackup.restic.errors.ResticVersionError
 MyBackup.restic.restic_repository.ResticRepository <|-- MyBackup.restic.Repositories.b2.B2ResticRepository
 MyBackup.restic.restic_repository.ResticRepository <|-- MyBackup.restic.Repositories.local.LocalResticRepository
 MyBackup.restic.restic_repository.ResticRepository <|-- MyBackup.restic.Repositories.s3.S3ResticRepository
 
-' Implementations
-MyBackup.restic.errors.RepositoryError <|.. MyBackup.restic.errors.UnsupportedSchemeError
-MyBackup.restic.errors.ResticError <|.. MyBackup.restic.errors.RepositoryError
-MyBackup.restic.errors.ResticError <|.. MyBackup.restic.errors.ResticVersionError
-
-' Dependencies
-MyBackup.backup_snapshot.BackupSnapshot --> MyBackup.backup_repository.BackupRepository
+' Compositions
+MyBackup.backup_snapshot.BackupSnapshot *-- MyBackup.backup_repository.BackupRepository
 
 ' Packages
 package MyBackup <<Rectangle>> 
