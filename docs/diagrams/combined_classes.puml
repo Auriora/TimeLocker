@@ -1,10 +1,9 @@
 @startuml
+' PlantUML style configuration
 skinparam classAttributeIconSize 0
 hide empty members
 
-class ABC
-
-class Exception
+' Project classes
 
 class MyBackup.backup_manager.BackupManager {
     + __init__()
@@ -15,9 +14,9 @@ class MyBackup.backup_manager.BackupManager {
     + register_repository_factory(name: str, repo_type: str, repository_class: Type[BackupRepository])
 }
 
-class MyBackup.backup_manager.BackupManagerError
+interface MyBackup.backup_manager.BackupManagerError
 
-class MyBackup.backup_repository.BackupError
+interface MyBackup.backup_repository.BackupError
 
 abstract class MyBackup.backup_repository.BackupRepository {
     + apply_retention_policy(policy: RetentionPolicy, prune: bool)
@@ -33,7 +32,7 @@ abstract class MyBackup.backup_repository.BackupRepository {
     + validate()
 }
 
-class MyBackup.backup_repository.RetentionPolicy {
+struct MyBackup.backup_repository.RetentionPolicy {
     - daily: Optional[int]
     - hourly: Optional[int]
     - last: Optional[int]
@@ -65,7 +64,7 @@ class MyBackup.backup_target.BackupTarget {
     + __init__(selection: FileSelections, exclusion: Optional[FileExclusions], tags: List[str])
 }
 
-class MyBackup.file_exclusions.FileExclusions {
+class MyBackup.file_selections.FileExclusions {
     + __init__(paths: List[Path], patterns: List[str])
     + __iter__()
     + __repr__()
@@ -103,13 +102,13 @@ class MyBackup.restic.Repositories.s3.S3ResticRepository {
     + validate()
 }
 
-class MyBackup.restic.errors.RepositoryError
+interface MyBackup.restic.errors.RepositoryError
 
-class MyBackup.restic.errors.ResticError
+interface MyBackup.restic.errors.ResticError
 
-class MyBackup.restic.errors.ResticVersionError
+interface MyBackup.restic.errors.ResticVersionError
 
-class MyBackup.restic.errors.UnsupportedSchemeError
+interface MyBackup.restic.errors.UnsupportedSchemeError
 
 class MyBackup.restic.restic_repository.ResticRepository {
     + __init__(location: str, tags: Any, password: Optional[str], min_version: str)
@@ -149,11 +148,11 @@ class MyBackup.utils.command_builder.CommandDefinition {
     + __init__(name: str, parameters: Any, subcommands: Any, default_param_style: Any)
 }
 
-class MyBackup.utils.command_builder.CommandExecutionError {
+exception MyBackup.utils.command_builder.CommandExecutionError {
     + __init__(message, stderr)
 }
 
-class MyBackup.utils.command_builder.CommandParameter {
+struct MyBackup.utils.command_builder.CommandParameter {
     - description: str
     - name: str
     - position: Optional[int]
@@ -168,7 +167,7 @@ class MyBackup.utils.command_builder.CommandParameter {
     + format_param_name(use_short_form: bool)
 }
 
-class MyBackup.utils.command_builder.ParameterStyle {
+enum MyBackup.utils.command_builder.ParameterStyle {
     - DOUBLE_DASH: Any
     - JOINED: Any
     - POSITIONAL: Any
@@ -180,19 +179,26 @@ class MyBackup.utils.command_builder.ParameterStyle {
 }
 
 
-ABC <|-- MyBackup.backup_repository.BackupRepository
-Exception <|-- MyBackup.backup_manager.BackupManagerError
-Exception <|-- MyBackup.backup_repository.BackupError
-Exception <|-- MyBackup.restic.errors.ResticError
-Exception <|-- MyBackup.utils.command_builder.CommandExecutionError
+' Relationships
+
+' Extensions (inheritance)
 MyBackup.backup_repository.BackupRepository <|-- MyBackup.restic.restic_repository.ResticRepository
-MyBackup.restic.errors.RepositoryError <|-- MyBackup.restic.errors.UnsupportedSchemeError
-MyBackup.restic.errors.ResticError <|-- MyBackup.restic.errors.RepositoryError
-MyBackup.restic.errors.ResticError <|-- MyBackup.restic.errors.ResticVersionError
 MyBackup.restic.restic_repository.ResticRepository <|-- MyBackup.restic.Repositories.b2.B2ResticRepository
 MyBackup.restic.restic_repository.ResticRepository <|-- MyBackup.restic.Repositories.local.LocalResticRepository
 MyBackup.restic.restic_repository.ResticRepository <|-- MyBackup.restic.Repositories.s3.S3ResticRepository
 
-MyBackup.backup_snapshot.BackupSnapshot o-- MyBackup.backup_repository.BackupRepository
+' Implementations
+MyBackup.restic.errors.RepositoryError <|.. MyBackup.restic.errors.UnsupportedSchemeError
+MyBackup.restic.errors.ResticError <|.. MyBackup.restic.errors.RepositoryError
+MyBackup.restic.errors.ResticError <|.. MyBackup.restic.errors.ResticVersionError
+
+' Dependencies
+MyBackup.backup_snapshot.BackupSnapshot --> MyBackup.backup_repository.BackupRepository
+
+' Packages
+package MyBackup <<Rectangle>> 
+{
+}
+
 
 @enduml

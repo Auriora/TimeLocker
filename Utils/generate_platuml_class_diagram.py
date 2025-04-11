@@ -49,18 +49,70 @@ class ClassRelationshipVisitor(NodeVisitor):
     def __init__(self):
         self.classes: Dict[str, ClassDef] = {}
         self.inheritance_relations: Set[Tuple[str, str]] = set()
+        self.interface_relations: Set[Tuple[str, str]] = set()
         self.composition_relations: Set[Tuple[str, str]] = set()
+        self.aggregation_relations: Set[Tuple[str, str]] = set()
+        self.dependency_relations: Set[Tuple[str, str]] = set()
+        self.weak_dependency_relations: Set[Tuple[str, str]] = set()
         self.current_class: str = None
+        self.element_types: Dict[str, str] = {}  # Maps class name to element type
+        self.stereotypes: Dict[str, str] = {}  # Maps class name to stereotype
 
     def visit_ClassDef(self, node: ClassDef):
         self.classes[node.name] = node
         self._handle_inheritance(node)
         self._handle_composition(node)
+        self._determine_element_type(node)
+
+    def _determine_element_type(self, node: ClassDef):
+        """Determine the element type based on class definition and decorators."""
+        # Check for ABC (Abstract Base Class)
+        is_abc = any(base.id == 'ABC' for base in node.bases if isinstance(base, Name))
+        if is_abc:
+            self.element_types[node.name] = ElementType.ABSTRACT_CLASS
+            return
+
+        # Check for interface pattern (only abstract methods)
+        has_only_abstract_methods = True
+        for item in node.body:
+            if isinstance(item, FunctionDef):
+                if not any(d.id == 'abstractmethod' for d in item.decorator_list if isinstance(d, Name)):
+                    has_only_abstract_methods = False
+                    break
+        if has_only_abstract_methods and node.body:
+            self.element_types[node.name] = ElementType.INTERFACE
+            return
+
+        # Check for enum
+        if any(base.id == 'Enum' for base in node.bases if isinstance(base, Name)):
+            self.element_types[node.name] = ElementType.ENUM
+            return
+
+        # Check for exception by inheritance or name
+        is_exception = any(base.id == 'Exception' for base in node.bases if isinstance(base, Name))
+        is_error_base = any(base.id.endswith('Error') for base in node.bases if isinstance(base, Name))
+        has_error_name = 'Error' in node.name or 'Exception' in node.name
+        
+        if is_exception or is_error_base or has_error_name:
+            self.element_types[node.name] = ElementType.EXCEPTION
+            return
+
+        # Check for dataclass/struct-like classes
+        if any(d.id == 'dataclass' for d in node.decorator_list if isinstance(d, Name)):
+            self.element_types[node.name] = ElementType.STRUCT
+            return
+
+        # Default to regular class
+        self.element_types[node.name] = ElementType.CLASS
 
     def _handle_inheritance(self, node: ClassDef):
         for base in node.bases:
             if isinstance(base, Name):
-                self.inheritance_relations.add((node.name, base.id))
+                # Check if base is an interface
+                if base.id in self.classes and self.element_types.get(base.id) == ElementType.INTERFACE:
+                    self.interface_relations.add((node.name, base.id))
+                else:
+                    self.inheritance_relations.add((node.name, base.id))
 
     def _handle_composition(self, node: ClassDef):
         previous_class = self.current_class
@@ -68,17 +120,70 @@ class ClassRelationshipVisitor(NodeVisitor):
         self.generic_visit(node)
         self.current_class = previous_class
 
-    def _add_composition_relation(self, type_node: AST):
+    def _add_relationship(self, type_node: AST, relationship_type: str):
+        """Add a relationship based on type hints and usage patterns."""
         if isinstance(type_node, Name):
-            self.composition_relations.add((self.current_class, type_node.id))
+            target_class = type_node.id
         elif isinstance(type_node, Subscript) and isinstance(type_node.value, Name):
             if isinstance(type_node.slice, Name):
-                self.composition_relations.add((self.current_class, type_node.slice.id))
+                target_class = type_node.slice.id
+            else:
+                return
+        else:
+            return
+
+        if relationship_type == "composition":
+            self.composition_relations.add((self.current_class, target_class))
+        elif relationship_type == "aggregation":
+            self.aggregation_relations.add((self.current_class, target_class))
+        elif relationship_type == "dependency":
+            self.dependency_relations.add((self.current_class, target_class))
+        elif relationship_type == "weak_dependency":
+            self.weak_dependency_relations.add((self.current_class, target_class))
 
     def visit_AnnAssign(self, node: AnnAssign):
-        # Handle type annotations for composition
-        if self.current_class:
-            self._add_composition_relation(node.annotation)
+        """Handle type annotations for relationships."""
+        if not self.current_class:
+            return
+
+        # Check for composition (strong whole-part relationship)
+        if isinstance(node.annotation, Name) and node.annotation.id.startswith('Composed'):
+            self._add_relationship(node.annotation, "composition")
+        # Check for aggregation (weak whole-part relationship)
+        elif isinstance(node.annotation, Name) and node.annotation.id.startswith('Aggregated'):
+            self._add_relationship(node.annotation, "aggregation")
+        # Default to dependency for other type annotations
+        else:
+            self._add_relationship(node.annotation, "dependency")
+
+class ElementType:
+    """Supported PlantUML element types."""
+    ABSTRACT = "abstract"
+    ABSTRACT_CLASS = "abstract class"
+    ANNOTATION = "annotation"
+    CIRCLE = "circle"
+    CIRCLE_SHORT = "()"
+    CLASS = "class"
+    CLASS_STEREO = "class"  # Used with stereotype
+    DIAMOND = "diamond"
+    DIAMOND_SHORT = "<>"
+    ENTITY = "entity"
+    ENUM = "enum"
+    EXCEPTION = "exception"
+    INTERFACE = "interface"
+    METACLASS = "metaclass"
+    PROTOCOL = "protocol"
+    STEREOTYPE = "stereotype"
+    STRUCT = "struct"
+
+class RelationType:
+    """Supported PlantUML relationship types."""
+    EXTENSION = "<|--"  # Specialization/inheritance
+    IMPLEMENTATION = "<|.."  # Interface implementation
+    COMPOSITION = "*--"  # Strong whole-part relationship
+    AGGREGATION = "o--"  # Weak whole-part relationship
+    DEPENDENCY = "-->"  # Strong dependency
+    WEAK_DEPENDENCY = "..>"  # Weak dependency
 
 class ClassInfo:
     def __init__(self, name: str, module_path: str = ""):
@@ -87,18 +192,25 @@ class ClassInfo:
         self.methods: List[Tuple[str, str]] = []  # (name, parameters)
         self.attributes: List[Tuple[str, str]] = []  # (name, type)
         self.base_classes: List[str] = []
-        self.composition_relationships: Set[str] = set()
+        self.implemented_interfaces: List[str] = []  # For interface implementations
+        self.composition_relationships: Set[str] = set()  # Strong whole-part
+        self.aggregation_relationships: Set[str] = set()  # Weak whole-part
+        self.dependencies: Set[str] = set()  # Strong dependencies
+        self.weak_dependencies: Set[str] = set()  # Weak dependencies
+        self.element_type = ElementType.CLASS  # Default type
+        self.stereotype = None  # Optional stereotype
 
     @property
     def full_name(self) -> str:
-        """Get the full class name including module path."""
-        if self.module_path:
-            return f"{self.module_path}.{self.name}"
-        return self.name
+        """Get the full class name including module path and stereotype if present."""
+        base_name = f"{self.module_path}.{self.name}" if self.module_path else self.name
+        if self.stereotype:
+            return f'{base_name} <<{self.stereotype}>>'
+        return base_name
 
     def to_plantuml(self) -> str:
         """Convert class information to PlantUML syntax."""
-        puml = [f"class {self.full_name}"]
+        puml = [f"{self.element_type} {self.full_name}"]
         if self.attributes or self.methods:
             puml.append("{")
             puml.extend(f"    - {attr_name}: {attr_type}" for attr_name, attr_type in self.attributes)
@@ -108,8 +220,26 @@ class ClassInfo:
 
     def get_relationships(self) -> list[str]:
         """Get all relationships for this class."""
-        relationships = [f"{base} <|-- {self.full_name}" for base in self.base_classes]
-        relationships.extend([f"{self.full_name} o-- {composed_class}" for composed_class in self.composition_relationships])
+        relationships = []
+        
+        # Inheritance/extension relationships
+        relationships.extend([f"{base} {RelationType.EXTENSION} {self.full_name}" for base in self.base_classes])
+        
+        # Interface implementation relationships
+        relationships.extend([f"{interface} {RelationType.IMPLEMENTATION} {self.full_name}" for interface in self.implemented_interfaces])
+        
+        # Composition relationships (strong whole-part)
+        relationships.extend([f"{self.full_name} {RelationType.COMPOSITION} {composed_class}" for composed_class in self.composition_relationships])
+        
+        # Aggregation relationships (weak whole-part)
+        relationships.extend([f"{self.full_name} {RelationType.AGGREGATION} {aggregated_class}" for aggregated_class in self.aggregation_relationships])
+        
+        # Strong dependencies
+        relationships.extend([f"{self.full_name} {RelationType.DEPENDENCY} {dependent}" for dependent in self.dependencies])
+        
+        # Weak dependencies
+        relationships.extend([f"{self.full_name} {RelationType.WEAK_DEPENDENCY} {dependent}" for dependent in self.weak_dependencies])
+        
         return relationships
 
 
@@ -156,25 +286,52 @@ def parse_class_definitions(content: str, filename: str, package_base_name: Opti
     return classes
 
 def collect_class_info(tree: AST, module_path: str = "") -> Dict[str, ClassInfo]:
+    """Collect class information from AST, including element types and relationships."""
     classes: Dict[str, ClassInfo] = {}
     visitor = ClassRelationshipVisitor()
+    visitor.visit(tree)
     
     for node in walk(tree):
         if isinstance(node, ClassDef):
             class_info = ClassInfo(node.name, module_path)
             
-            class_info.base_classes = extract_base_classes(node)
+            # Set element type
+            class_info.element_type = visitor.element_types.get(node.name, ElementType.CLASS)
+            
+            # Set stereotype if present
+            if node.name in visitor.stereotypes:
+                class_info.stereotype = visitor.stereotypes[node.name]
+            
+            # Extract base classes and interfaces
+            for base in node.bases:
+                if isinstance(base, Name):
+                    if base.id in visitor.classes and visitor.element_types.get(base.id) == ElementType.INTERFACE:
+                        class_info.implemented_interfaces.append(base.id)
+                    else:
+                        class_info.base_classes.append(base.id)
+            
+            # Extract methods and attributes
             class_info.methods = extract_methods(node)
             class_info.attributes = extract_attributes(node)
-
+            
+            # Add relationships from visitor
+            for source, target in visitor.composition_relations:
+                if source == node.name:
+                    class_info.composition_relationships.add(target)
+            
+            for source, target in visitor.aggregation_relations:
+                if source == node.name:
+                    class_info.aggregation_relationships.add(target)
+            
+            for source, target in visitor.dependency_relations:
+                if source == node.name:
+                    class_info.dependencies.add(target)
+            
+            for source, target in visitor.weak_dependency_relations:
+                if source == node.name:
+                    class_info.weak_dependencies.add(target)
+            
             classes[node.name] = class_info
-
-    # Use ClassRelationshipVisitor to detect composition relationships
-    visitor.visit(tree)
-    
-    for class_name, composed_class in visitor.composition_relations:
-        if class_name in classes:
-            classes[class_name].composition_relationships.add(composed_class)
             
     return classes
 
@@ -264,15 +421,19 @@ def generate_class_diagram(project_config: ProjectConfig, plantuml_config: Plant
     # Initialize PlantUML content
     puml_lines = [
         "@startuml",
+        "' PlantUML style configuration",
         "skinparam classAttributeIconSize 0",
         "hide empty members",
+        "",
+        "' Project classes",
         ""
     ]
 
     # Generate class declarations
     class_lines = []
-    base_classes = {'Exception', 'ABC'}
-    used_bases = sorted(base for base in base_classes 
+    # base_classes = {'Exception', 'ABC', 'Enum', 'Interface'}
+    base_classes = {}
+    used_bases = sorted(base for base in base_classes
                        if any(base in c.base_classes for c in all_classes.values()))
 
     # Output used base classes
@@ -285,19 +446,19 @@ def generate_class_diagram(project_config: ProjectConfig, plantuml_config: Plant
     for class_info in sorted_classes:
         if class_info.name in base_classes:
             continue
-            
-        is_abstract = any(base == 'ABC' for base in class_info.base_classes)
-        keyword = "abstract class" if is_abstract else "class"
+
+        # Use the element type already stored in class_info
+        element_type = class_info.element_type
         
         if class_info.attributes or class_info.methods:
-            class_lines.append(f"{keyword} {class_info.full_name} {{")
+            class_lines.append(f"{element_type} {class_info.full_name} {{")
             for attr_name, attr_type in sorted(class_info.attributes):
                 class_lines.append(f"    - {attr_name}: {attr_type}")
             for method_name, params in sorted(class_info.methods):
                 class_lines.append(f"    + {method_name}({params})")
             class_lines.append("}")
         else:
-            class_lines.append(f"{keyword} {class_info.full_name}")
+            class_lines.append(f"{element_type} {class_info.full_name}")
         class_lines.append("")
 
     puml_lines.extend(class_lines)
@@ -305,30 +466,87 @@ def generate_class_diagram(project_config: ProjectConfig, plantuml_config: Plant
     # Generate relationships
     all_relationships = []
     for class_info in all_classes.values():
-        # Inheritance relationships
+        # Extension relationships (inheritance)
         for base in class_info.base_classes:
             if base in base_classes:
-                all_relationships.append(f"{base} <|-- {class_info.full_name}")
+                all_relationships.append(f"{base} {RelationType.EXTENSION} {class_info.full_name}")
             elif base in all_classes:
-                all_relationships.append(f"{all_classes[base].full_name} <|-- {class_info.full_name}")
+                all_relationships.append(f"{all_classes[base].full_name} {RelationType.EXTENSION} {class_info.full_name}")
 
-        # Composition relationships
+        # Implementation relationships (interfaces)
+        for interface in class_info.implemented_interfaces:
+            if interface in all_classes:
+                all_relationships.append(f"{all_classes[interface].full_name} {RelationType.IMPLEMENTATION} {class_info.full_name}")
+
+        # Composition relationships (strong whole-part)
         for composed_class in class_info.composition_relationships:
             if composed_class in all_classes:
-                all_relationships.append(f"{class_info.full_name} o-- {all_classes[composed_class].full_name}")
+                all_relationships.append(f"{class_info.full_name} {RelationType.COMPOSITION} {all_classes[composed_class].full_name}")
 
-    # Sort and add relationships
-    inheritance = sorted(r for r in set(all_relationships) if '<|--' in r)
-    composition = sorted(r for r in set(all_relationships) if 'o--' in r)
+        # Aggregation relationships (weak whole-part)
+        for aggregated_class in class_info.aggregation_relationships:
+            if aggregated_class in all_classes:
+                all_relationships.append(f"{class_info.full_name} {RelationType.AGGREGATION} {all_classes[aggregated_class].full_name}")
 
-    if inheritance or composition:
+        # Dependencies
+        for dependent in class_info.dependencies:
+            if dependent in all_classes:
+                all_relationships.append(f"{class_info.full_name} {RelationType.DEPENDENCY} {all_classes[dependent].full_name}")
+
+        # Weak dependencies
+        for dependent in class_info.weak_dependencies:
+            if dependent in all_classes:
+                all_relationships.append(f"{class_info.full_name} {RelationType.WEAK_DEPENDENCY} {all_classes[dependent].full_name}")
+
+    # Sort and add relationships by type
+    extensions = sorted(r for r in set(all_relationships) if RelationType.EXTENSION in r)
+    implementations = sorted(r for r in set(all_relationships) if RelationType.IMPLEMENTATION in r)
+    compositions = sorted(r for r in set(all_relationships) if RelationType.COMPOSITION in r)
+    aggregations = sorted(r for r in set(all_relationships) if RelationType.AGGREGATION in r)
+    dependencies = sorted(r for r in set(all_relationships) if RelationType.DEPENDENCY in r)
+    weak_dependencies = sorted(r for r in set(all_relationships) if RelationType.WEAK_DEPENDENCY in r)
+
+    # Add relationships with headers
+    if any([extensions, implementations, compositions, aggregations, dependencies, weak_dependencies]):
         puml_lines.append("")
-    if inheritance:
-        puml_lines.extend(inheritance)
-    if composition:
-        if inheritance:
-            puml_lines.append("")
-        puml_lines.extend(composition)
+        puml_lines.append("' Relationships")
+        puml_lines.append("")
+
+    if extensions:
+        puml_lines.append("' Extensions (inheritance)")
+        puml_lines.extend(extensions)
+        puml_lines.append("")
+
+    if implementations:
+        puml_lines.append("' Implementations")
+        puml_lines.extend(implementations)
+        puml_lines.append("")
+
+    if compositions:
+        puml_lines.append("' Compositions")
+        puml_lines.extend(compositions)
+        puml_lines.append("")
+
+    if aggregations:
+        puml_lines.append("' Aggregations")
+        puml_lines.extend(aggregations)
+        puml_lines.append("")
+
+    if dependencies:
+        puml_lines.append("' Dependencies")
+        puml_lines.extend(dependencies)
+        puml_lines.append("")
+
+    if weak_dependencies:
+        puml_lines.append("' Weak dependencies")
+        puml_lines.extend(weak_dependencies)
+        puml_lines.append("")
+
+    puml_lines.append("' Packages")
+    puml_lines.append(f"package {project_config.package_base_name} <<Rectangle>> ")
+    puml_lines.append("{")
+    puml_lines.append("}")
+    puml_lines.append("")
 
     puml_lines.extend(["", "@enduml"])
     combined_puml_content = "\n".join(puml_lines)
@@ -385,6 +603,12 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+
+
+
+
 
 
 

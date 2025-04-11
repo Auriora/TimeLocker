@@ -6,7 +6,8 @@ from Utils.generate_platuml_class_diagram import (
     add_composition_relationships,
     ClassInfo,
     PlantUMLConfig,
-    ProjectConfig
+    ProjectConfig,
+    ElementType
 )
 
 class TestPlantUMLGenerator(unittest.TestCase):
@@ -134,7 +135,51 @@ class TestClass:
         classes = parse_class_definitions(code, "src/test.py", "myproject")
         self.assertEqual(classes["TestClass"].full_name, "myproject.src.test.TestClass")
 
+    def test_exception_detection(self):
+        code = """
+class CustomException(Exception):
+    pass
+
+class DatabaseError:
+    pass
+
+class ValidationException:
+    pass
+
+class NetworkError(CustomException):
+    pass
+
+class NormalClass:
+    pass
+"""
+        classes = parse_class_definitions(code, "src/test.py")
+        
+        # Test direct inheritance from Exception
+        self.assertIn("CustomException", classes)
+        self.assertEqual(classes["CustomException"].element_type, ElementType.EXCEPTION)
+        
+        # Test class with Error in name
+        self.assertIn("DatabaseError", classes)
+        self.assertEqual(classes["DatabaseError"].element_type, ElementType.EXCEPTION)
+        
+        # Test class with Exception in name
+        self.assertIn("ValidationException", classes)
+        self.assertEqual(classes["ValidationException"].element_type, ElementType.EXCEPTION)
+        
+        # Test inheritance from another exception class
+        self.assertIn("NetworkError", classes)
+        self.assertEqual(classes["NetworkError"].element_type, ElementType.EXCEPTION)
+        
+        # Test normal class
+        self.assertIn("NormalClass", classes)
+        self.assertEqual(classes["NormalClass"].element_type, ElementType.CLASS)
+
 if __name__ == '__main__':
     unittest.main()
+
+
+
+
+
 
 
