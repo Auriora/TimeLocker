@@ -115,14 +115,32 @@ class ClassRelationshipVisitor(NodeVisitor):
         
         self.current_class = previous_class
 
+    def visit_FunctionDef(self, node: FunctionDef):
+        """Visit a function definition and collect dependency information."""
+        if self.current_class and node.name != '__init__':  # Skip __init__ as it's handled separately
+            # Visit the function body to collect dependencies
+            for stmt in node.body:
+                if isinstance(stmt, Assign):
+                    if isinstance(stmt.value, Call):
+                        if isinstance(stmt.value.func, Name):
+                            # Local variable instantiation indicates dependency
+                            self.dependency_relations.add((self.current_class, stmt.value.func.id))
+                        elif isinstance(stmt.value.func, Attribute):
+                            if isinstance(stmt.value.func.value, Name):
+                                self.dependency_relations.add((self.current_class, stmt.value.func.value.id))
+        self.generic_visit(node)
+
     def _handle_class_body_item(self, item: AST, node: ClassDef):
         """Handle a single item in the class body for relationships."""
         if isinstance(item, AnnAssign):
             self._handle_annotated_assign(item, node)
         elif isinstance(item, Assign):
             self._handle_regular_assign(item, node)
-        elif isinstance(item, FunctionDef) and item.name == '__init__':
-            self._handle_init_method(item)
+        elif isinstance(item, FunctionDef):
+            if item.name == '__init__':
+                self._handle_init_method(item)
+            else:
+                self.visit_FunctionDef(item)
 
     def _handle_annotated_assign(self, item: AnnAssign, node: ClassDef):
         """Handle annotated assignments for relationships."""
@@ -145,6 +163,12 @@ class ClassRelationshipVisitor(NodeVisitor):
 
     def _handle_init_method(self, init_node: FunctionDef):
         """Handle relationships in __init__ method."""
+        # Check constructor parameters for aggregation relationships
+        for arg in init_node.args.args:
+            if arg.name != 'self' and hasattr(arg, 'annotation') and isinstance(arg.annotation, Name):
+                self.aggregation_relations.add((self.current_class, arg.annotation.id))
+
+        # Check method body for assignments
         for stmt in init_node.body:
             if isinstance(stmt, Assign):
                 self._handle_init_assign(stmt)
@@ -216,3 +240,4 @@ class ClassRelationshipVisitor(NodeVisitor):
             elif stmt == item:
                 break
         return None
+
