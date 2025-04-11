@@ -28,7 +28,7 @@ class ParameterStyle(Enum):
         if isinstance(other, str):
             return self.value.lower() == other.lower()
         if isinstance(other, ParameterStyle):
-            return self.value.lower() == other.value.lower()  # Compare by value
+            return self.value.lower() == other.value.lower()  # Compare values instead of identity
         return False
     
     def __str__(self):
@@ -408,6 +408,10 @@ class CommandBuilder:
 
         if process.returncode != 0:
             raise CommandExecutionError(f"Command failed: {' '.join(command)}", stderr="Process failed with non-zero exit code")
+
+
+
+
 
 
 

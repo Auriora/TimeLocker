@@ -180,7 +180,7 @@ restic_command = CommandDefinition(
                     description='only consider snapshots including tag[,tag,...] (can be specified multiple times)',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "find": CommandDefinition(
             name="find",
@@ -277,7 +277,7 @@ restic_command = CommandDefinition(
                     description='pattern is a tree-ID',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "generate": CommandDefinition(
             name="generate",
@@ -315,7 +315,7 @@ restic_command = CommandDefinition(
                     description='write zsh completion file (- for stdout)',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "cache": CommandDefinition(
             name="cache",
@@ -343,7 +343,7 @@ restic_command = CommandDefinition(
                     description='do not output the size of the cache directories',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "mount": CommandDefinition(
             name="mount",
@@ -398,7 +398,7 @@ restic_command = CommandDefinition(
                     description='set template to use for times',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "forget": CommandDefinition(
             name="forget",
@@ -564,7 +564,7 @@ restic_command = CommandDefinition(
                     description='help for forget',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "version": CommandDefinition(
             name="version",
@@ -577,7 +577,7 @@ restic_command = CommandDefinition(
                     description='help for version',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "key": CommandDefinition(
             name="key",
@@ -590,7 +590,7 @@ restic_command = CommandDefinition(
                     description='help for key',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "ls": CommandDefinition(
             name="ls",
@@ -654,7 +654,7 @@ restic_command = CommandDefinition(
                     description='only consider snapshots including tag[,tag,...], when snapshot ID "latest" is given (can be specified multiple times)',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "unlock": CommandDefinition(
             name="unlock",
@@ -672,7 +672,7 @@ restic_command = CommandDefinition(
                     description='remove all locks, even non-stale ones',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "backup": CommandDefinition(
             name="backup",
@@ -832,7 +832,7 @@ restic_command = CommandDefinition(
                     description='store the atime for all files and directories',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "copy": CommandDefinition(
             name="copy",
@@ -892,7 +892,7 @@ restic_command = CommandDefinition(
                     description='only consider snapshots including tag[,tag,...] (can be specified multiple times)',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "repair": CommandDefinition(
             name="repair",
@@ -934,7 +934,7 @@ restic_command = CommandDefinition(
                     description='only consider snapshots including tag[,tag,...] (can be specified multiple times)',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "check": CommandDefinition(
             name="check",
@@ -962,7 +962,7 @@ restic_command = CommandDefinition(
                     description='use existing cache, only read uncached data from repository',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "options": CommandDefinition(
             name="options",
@@ -975,7 +975,7 @@ restic_command = CommandDefinition(
                     description='help for options',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "tag": CommandDefinition(
             name="tag",
@@ -1020,7 +1020,7 @@ restic_command = CommandDefinition(
                     description='only consider snapshots including tag[,tag,...] (can be specified multiple times)',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "init": CommandDefinition(
             name="init",
@@ -1073,7 +1073,7 @@ restic_command = CommandDefinition(
                     description="repository format version to use, allowed values are a format version, 'latest' and 'stable'",
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "migrate": CommandDefinition(
             name="migrate",
@@ -1093,7 +1093,7 @@ restic_command = CommandDefinition(
                     description='help for migrate',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "dump": CommandDefinition(
             name="dump",
@@ -1137,7 +1137,7 @@ restic_command = CommandDefinition(
                     description='write the output to target path',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "restore": CommandDefinition(
             name="restore",
@@ -1253,7 +1253,7 @@ restic_command = CommandDefinition(
                     description='verify restored files content',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "cat": CommandDefinition(
             name="cat",
@@ -1266,7 +1266,7 @@ restic_command = CommandDefinition(
                     description='help for cat',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "recover": CommandDefinition(
             name="recover",
@@ -1279,7 +1279,7 @@ restic_command = CommandDefinition(
                     description='help for recover',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "rewrite": CommandDefinition(
             name="rewrite",
@@ -1360,7 +1360,7 @@ restic_command = CommandDefinition(
                     description='only consider snapshots including tag[,tag,...] (can be specified multiple times)',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "list": CommandDefinition(
             name="list",
@@ -1373,7 +1373,7 @@ restic_command = CommandDefinition(
                     description='help for list',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "features": CommandDefinition(
             name="features",
@@ -1386,7 +1386,7 @@ restic_command = CommandDefinition(
                     description='help for features',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "snapshots": CommandDefinition(
             name="snapshots",
@@ -1435,7 +1435,7 @@ restic_command = CommandDefinition(
                     description='only consider snapshots including tag[,tag,...] (can be specified multiple times)',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "prune": CommandDefinition(
             name="prune",
@@ -1490,7 +1490,7 @@ restic_command = CommandDefinition(
                     description="UNSAFE, READ THE DOCUMENTATION BEFORE USING! Try to recover a repository stuck with no free space. Do not use without trying out 'prune --max-repack-size 0' first.",
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
         "diff": CommandDefinition(
             name="diff",
@@ -1508,8 +1508,8 @@ restic_command = CommandDefinition(
                     description='print changes in metadata',
                 ),
             },
-            default_param_style=ParameterStyle.SEPARATE
+            default_param_style=ParameterStyle.DOUBLE_DASH
         ),
     },
-    default_param_style=ParameterStyle.SEPARATE
+    default_param_style=ParameterStyle.DOUBLE_DASH
 )

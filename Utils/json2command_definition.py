@@ -13,21 +13,38 @@ DOCS_DIR = PROJECT_ROOT / 'docs'
 
 def convert_json_to_command_definition(json_data: List[dict]) -> CommandDefinition:
     """Convert the JSON data to a CommandDefinition structure."""
-    main_command = CommandDefinition(
-        name="restic",
-        default_param_style=ParameterStyle.DOUBLE_DASH
-    )
-
-    # First pass: find common parameters (where command is null)
+    # First pass: find main command definition
+    main_command = None
     for command_data in json_data:
         if 'SYNOPSIS' in command_data and command_data['SYNOPSIS']['command'] is None:
+            # Create main command using executable from SYNOPSIS
+            main_command = CommandDefinition(
+                name=command_data['SYNOPSIS']['executable'],
+                default_param_style=ParameterStyle.DOUBLE_DASH
+            )
+            
+            # Add main command parameters
             if 'OPTIONS' in command_data:
                 main_command.parameters = {
                     option['long_flag'].replace('--', '') if option['long_flag'] else option['short_flag'].replace('-', ''):
                     convert_option_to_parameter(option)
                     for option in command_data['OPTIONS']
                 }
+            
+            # Add synopsis parameters for main command
+            if 'parameters' in command_data['SYNOPSIS']:
+                main_command.synopsis_params = [
+                    param for param in command_data['SYNOPSIS']['parameters']
+                    if not param.startswith('[flags]')  # Skip flags parameter as it's handled by OPTIONS
+                ]
             break
+    
+    if main_command is None:
+        # Fallback if no main command found
+        main_command = CommandDefinition(
+            name="restic",
+            default_param_style=ParameterStyle.DOUBLE_DASH
+        )
 
     # Second pass: process subcommands
     for command_data in json_data:
@@ -143,7 +160,7 @@ def format_command_definition(cmd_def: CommandDefinition, indent: int = 0) -> st
             result.append(f"{indent_str_inner}    \"{subcmd_name}\": {format_command_definition(subcmd, indent + 8)},\n")
         result.append(f"{indent_str_inner}}},\n")
 
-    result.append(f"{indent_str_inner}default_param_style=ParameterStyle.SEPARATE\n")
+    result.append(f"{indent_str_inner}default_param_style={format_parameter_style(cmd_def.default_param_style)}\n")
     result.append(f"{indent_str})")
     return "".join(result)
 
@@ -173,6 +190,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
 
 
 
