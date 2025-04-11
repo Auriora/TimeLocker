@@ -1,0 +1,210 @@
+@startuml
+skinparam classAttributeIconSize 0
+hide empty members
+
+class ABC
+
+class Exception
+
+class B2ResticRepository {
+    + __init__(location: str, password: Optional[str], b2_account_id: Optional[str], b2_account_key: Optional[str])
+    + backend_env()
+    + from_parsed_uri(cls, parsed_uri, password: Optional[str])
+    + validate()
+}
+
+class BackupError
+
+class BackupManager {
+    + __init__()
+    + from_uri(cls, uri: str, password: Optional[str])
+    + get_repository_factory(name: str, repo_type: str)
+    + list_registered_backends()
+    + redact_sensitive_info(uri: str)
+    + register_repository_factory(name: str, repo_type: str, repository_class: Type[BackupRepository])
+}
+
+class BackupManagerError
+
+abstract class BackupRepository {
+    + apply_retention_policy(policy: RetentionPolicy, prune: bool)
+    + backup_target(targets: List[BackupTarget], tags: Any)
+    + check()
+    + forget_snapshot(snapshotid: str, prune: bool)
+    + initialize()
+    + location()
+    + prune_data()
+    + restore(snapshot_id: str, target_path: Optional[Path])
+    + snapshots(tags: Any)
+    + stats()
+    + validate()
+}
+
+class BackupSnapshot {
+    - id: str
+    - paths: list[Path]
+    - repo: BackupRepository
+    - size: int
+    - tags: List[str]
+    - timestamp: datetime
+    + __init__(repo: BackupRepository, snapshot_id: str, timestamp: datetime, paths: list[Path])
+    + delete(prune: bool)
+    + find(pattern: str)
+    + from_dict(cls, repository: Any, data: Dict)
+    + get_stats()
+    + list(dir: Optional[Path])
+    + restore(target_path: Optional[Path])
+    + restore_file(target_path: Optional[Path])
+    + verify()
+}
+
+class BackupTarget {
+    + __init__(selection: FileSelections, exclusion: Optional[FileExclusions], tags: List[str])
+}
+
+class CommandBuilder {
+    + __init__(command_def: CommandDefinition)
+    + _merge_envs(env1: Any, env2: Any)
+    + build(use_short_form: bool)
+    + clear()
+    + command(name: str)
+    + param(name: str, value: Any)
+    + run(callback: Any, env: Any)
+    + run_iter(env: Any)
+}
+
+class CommandDefinition {
+    + __init__(name: str, parameters: Any, subcommands: Any, default_param_style: Any)
+}
+
+class CommandExecutionError {
+    + __init__(message, stderr)
+}
+
+class CommandParameter {
+    - description: str
+    - name: str
+    - position: Optional[int]
+    - prefix: Optional[str]
+    - required: bool
+    - short_name: Optional[str]
+    - short_style: Any
+    - style: Any
+    - value_required: bool
+    + __post_init__()
+    + _convert_style(style: Any)
+    + format_param_name(use_short_form: bool)
+}
+
+class FileExclusions {
+    + __init__(paths: List[Path], patterns: List[str])
+    + __iter__()
+    + __repr__()
+    + add_pattern(pattern: str)
+    + remove_pattern(pattern: str)
+}
+
+class FileSelections {
+    - files: List[str]
+    - paths: List[Path]
+    + __init__(paths: Any, files: List[str])
+    + __iter__()
+    + __repr__()
+    + add_path(path: Path)
+    + remove_path(path: Path)
+}
+
+class LocalResticRepository {
+    + backend_env()
+    + from_parsed_uri(cls, parsed_uri, password: Optional[str])
+    + validate()
+}
+
+class ParameterStyle {
+    - DOUBLE_DASH: Any
+    - JOINED: Any
+    - POSITIONAL: Any
+    - SEPARATE: Any
+    - SINGLE_DASH: Any
+    + __eq__(other)
+    + __hash__()
+    + __str__()
+}
+
+class RepositoryError
+
+class ResticError
+
+class ResticRepository {
+    + __init__(location: str, tags: Any, password: Optional[str], min_version: str)
+    + _handle_restic_output(output: Dict)
+    + _on_backup_status(status: Dict)
+    + _on_backup_summary(summary: Dict)
+    + _verify_restic_executable(min_version: str)
+    + apply_retention_policy(policy: RetentionPolicy, prune: bool)
+    + backend_env()
+    + backup_target(targets: List[BackupTarget], tags: Any)
+    + check()
+    + forget_snapshot(snapshotid: str, prune: bool)
+    + initialize()
+    + location()
+    + password()
+    + prune_data()
+    + restore(snapshot_id: str, target_path: Optional[Path])
+    + snapshots(tags: Any)
+    + stats()
+    + to_env()
+    + uri()
+    + validate()
+}
+
+class ResticVersionError
+
+class RetentionPolicy {
+    - daily: Optional[int]
+    - hourly: Optional[int]
+    - last: Optional[int]
+    - monthly: Optional[int]
+    - weekly: Optional[int]
+    - yearly: Optional[int]
+    + is_valid()
+}
+
+class S3ResticRepository {
+    + __init__(location: str, password: Optional[str], aws_access_key_id: Optional[str], aws_secret_access_key: Optional[str], aws_default_region: Optional[str])
+    + backend_env()
+    + from_parsed_uri(cls, parsed_uri, password: Optional[str])
+    + validate()
+}
+
+class UnsupportedSchemeError
+
+
+ABC <|-- BackupRepository
+BackupRepository <|-- ResticRepository
+Enum <|-- ParameterStyle
+Exception <|-- BackupError
+Exception <|-- BackupManagerError
+Exception <|-- CommandExecutionError
+Exception <|-- ResticError
+RepositoryError <|-- UnsupportedSchemeError
+ResticError <|-- RepositoryError
+ResticError <|-- ResticVersionError
+ResticRepository <|-- B2ResticRepository
+ResticRepository <|-- LocalResticRepository
+ResticRepository <|-- S3ResticRepository
+
+BackupSnapshot o-- BackupRepository
+BackupSnapshot o-- Path
+BackupSnapshot o-- datetime
+BackupSnapshot o-- int
+BackupSnapshot o-- str
+CommandBuilder o-- str
+CommandParameter o-- bool
+CommandParameter o-- int
+CommandParameter o-- str
+FileSelections o-- Path
+FileSelections o-- str
+RetentionPolicy o-- int
+
+@enduml
