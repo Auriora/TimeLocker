@@ -30,7 +30,7 @@ class RetentionPolicy:
 
 
 class BackupRepository(ABC):
-    """Interface for backup repositories"""
+    """Abstract class for backup repository"""
 
     @abstractmethod
     def initialize(self) -> bool:
@@ -50,29 +50,39 @@ class BackupRepository(ABC):
         ...
 
     @abstractmethod
-    def get_snapshots(self,
+    def snapshots(self,
                        tags: Optional[List[str]] = None) -> List[BackupSnapshot]:
         """List available snapshots"""
         ...
 
     @abstractmethod
-    def get_stats(self) -> dict:
+    def stats(self) -> dict:
         """Get snapshot stats"""
         ...
 
     @abstractmethod
-    def get_location(self) -> str:
+    def location(self) -> str:
         """Get repository location"""
         pass
 
-    @abstractmethod
-    def forget_snapshots(self, policy: RetentionPolicy, prune: bool = False) -> bool:
+    def apply_retention_policy(self, policy: RetentionPolicy, prune: bool = False) -> bool:
         """
         Remove snapshots according to retention policy.
         At least one retention period must be specified.
 
         Args:
             policy: Retention policy specifying which snapshots to keep
+            prune: If True, automatically run prune after forgetting snapshots
+        """
+        ...
+
+    @abstractmethod
+    def forget_snapshot(self, snapshotid: str, prune: bool = False) -> bool:
+        """
+        Remove a snapshot by id.
+
+        Args:
+            snapshotid: ID of snapshot to be removed
             prune: If True, automatically run prune after forgetting snapshots
         """
         ...

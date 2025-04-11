@@ -3,7 +3,7 @@ import os
 from typing import Dict, Optional
 
 from restic.restic_repository import ResticRepository, RepositoryError
-from restic.restic_client import logger
+from restic.logging import logger
 
 class LocalResticRepository(ResticRepository):
     @classmethod
@@ -24,9 +24,9 @@ class LocalResticRepository(ResticRepository):
         return {}
 
     def validate(self):
-        logger.info(f"Validating local repository path: {self.location}")
+        logger.info(f"Validating local repository path: {self._location}")
         try:
-            if not os.path.isdir(self.location):
-                raise RepositoryError(f"Local path does not exist: {self.location}")
+            if not os.path.isdir(self._location):
+                raise RepositoryError(f"Local path does not exist: {self._location}")
         except OSError as e:
             raise RepositoryError(f"Error accessing local repository: {e}")

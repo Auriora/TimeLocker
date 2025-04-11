@@ -5,7 +5,7 @@ from urllib.parse import parse_qs
 from b2sdk.v2 import InMemoryAccountInfo, B2Api
 
 from restic.restic_repository import ResticRepository, RepositoryError
-from restic.restic_client import logger
+from restic.logging import logger
 
 class B2ResticRepository(ResticRepository):
     def __init__(self, location: str, password: Optional[str] = None,
@@ -50,7 +50,7 @@ class B2ResticRepository(ResticRepository):
             info = InMemoryAccountInfo()
             b2_api = B2Api(info)
             b2_api.authorize_account("production", self.b2_account_id, self.b2_account_key)
-            bucket_name = self.location.split(':')[1].split('/')[0]
+            bucket_name = self._location.split(':')[1].split('/')[0]
             bucket = b2_api.get_bucket_by_name(bucket_name)
             logger.info(f"Successfully validated B2 bucket: {bucket_name}")
         except Exception as e:

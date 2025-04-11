@@ -1,6 +1,6 @@
 from utils.command_builder import CommandParameter, ParameterStyle, CommandDefinition
 
-restic_command = CommandDefinition(
+restic_command_def = CommandDefinition(
     name="restic",
     parameters={
         "cacert": CommandParameter(

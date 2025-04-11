@@ -5,7 +5,7 @@ from typing import Dict, Optional
 from urllib.parse import parse_qs
 
 from restic.restic_repository import ResticRepository, RepositoryError
-from restic.restic_client import logger
+from restic.logging import logger
 
 class S3ResticRepository(ResticRepository):
     def __init__(self, location: str, password: Optional[str] = None,
@@ -51,7 +51,7 @@ class S3ResticRepository(ResticRepository):
         logger.info("Validating S3 repository configuration")
         try:
             s3 = boto3.client('s3')
-            bucket_name = self.location.split(':')[1].split('/')[0]
+            bucket_name = self._location.split(':')[1].split('/')[0]
             s3.head_bucket(Bucket=bucket_name)
             logger.info(f"Successfully validated S3 bucket: {bucket_name}")
         except ImportError:
