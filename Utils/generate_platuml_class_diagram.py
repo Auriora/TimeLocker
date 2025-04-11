@@ -42,16 +42,24 @@ class ClassRelationshipVisitor(NodeVisitor):
             self._add_composition_relation(node.annotation)
 
 class ClassInfo:
-    def __init__(self, name: str):
+    def __init__(self, name: str, module_path: str = ""):
         self.name = name
+        self.module_path = module_path
         self.methods: List[Tuple[str, str]] = []  # (name, parameters)
         self.attributes: List[Tuple[str, str]] = []  # (name, type)
         self.base_classes: List[str] = []
         self.composition_relationships: Set[str] = set()
 
+    @property
+    def full_name(self) -> str:
+        """Get the full class name including module path."""
+        if self.module_path:
+            return f"{self.module_path}.{self.name}"
+        return self.name
+
     def to_plantuml(self) -> str:
         """Convert class information to PlantUML syntax."""
-        puml = [f"class {self.name}"]
+        puml = [f"class {self.full_name}"]
         if self.attributes or self.methods:
             puml.append("{")
             puml.extend(f"    - {attr_name}: {attr_type}" for attr_name, attr_type in self.attributes)
@@ -61,8 +69,8 @@ class ClassInfo:
 
     def get_relationships(self) -> list[str]:
         """Get all relationships for this class."""
-        relationships = [f"{base} <|-- {self.name}" for base in self.base_classes]
-        relationships.extend([f"{self.name} o-- {composed_class}" for composed_class in self.composition_relationships])
+        relationships = [f"{base} <|-- {self.full_name}" for base in self.base_classes]
+        relationships.extend([f"{self.full_name} o-- {composed_class}" for composed_class in self.composition_relationships])
         return relationships
 
 
@@ -87,18 +95,24 @@ def parse_class_definitions(content: str, filename: str) -> Dict[str, ClassInfo]
         print(f"Error parsing {filename}: {str(e)}")
         raise  # Re-raise the exception after logging
 
-    classes = collect_class_info(tree)
+    # Extract module path from filename
+    module_path = os.path.splitext(filename)[0]  # Remove .py extension
+    if module_path.startswith("./") or module_path.startswith("../"):
+        module_path = module_path.split("/", 1)[1]  # Remove ./ or ../
+    module_path = module_path.replace("/", ".")  # Convert path separators to dots
+
+    classes = collect_class_info(tree, module_path)
     add_composition_relationships(tree, classes)
 
     return classes
 
-def collect_class_info(tree: AST) -> Dict[str, ClassInfo]:
+def collect_class_info(tree: AST, module_path: str = "") -> Dict[str, ClassInfo]:
     classes: Dict[str, ClassInfo] = {}
     visitor = ClassRelationshipVisitor()
     
     for node in walk(tree):
         if isinstance(node, ClassDef):
-            class_info = ClassInfo(node.name)
+            class_info = ClassInfo(node.name, module_path)
             
             class_info.base_classes = extract_base_classes(node)
             class_info.methods = extract_methods(node)
@@ -191,8 +205,10 @@ try:
                     with open(file_path, 'r') as f:
                         content = f.read()
 
-                    # Extract class definitions without file grouping
-                    file_classes = parse_class_definitions(content, file)
+                    # Get relative path from src directory for module path
+                    rel_path = os.path.relpath(file_path, src_dir)
+                    # Extract class definitions with module path
+                    file_classes = parse_class_definitions(content, rel_path)
                     all_classes.update(file_classes)
                 except Exception as e:
                     print(f"Error processing file {file_path}: {str(e)}")
@@ -231,7 +247,7 @@ for base in used_bases:
     class_lines.append("")
 
 # Then output all other classes alphabetically
-sorted_classes = sorted(all_classes.values(), key=lambda x: x.name)
+sorted_classes = sorted(all_classes.values(), key=lambda x: x.full_name)
 for class_info in sorted_classes:
     # Skip if this is one of our known base classes
     if class_info.name in base_classes:
@@ -243,7 +259,7 @@ for class_info in sorted_classes:
     
     # Output class declaration
     if class_info.attributes or class_info.methods:
-        class_lines.append(f"{keyword} {class_info.name} {{")
+        class_lines.append(f"{keyword} {class_info.full_name} {{")
         # Output sorted attributes
         for attr_name, attr_type in sorted(class_info.attributes):
             class_lines.append(f"    - {attr_name}: {attr_type}")
@@ -252,7 +268,7 @@ for class_info in sorted_classes:
             class_lines.append(f"    + {method_name}({params})")
         class_lines.append("}")
     else:
-        class_lines.append(f"{keyword} {class_info.name}")
+        class_lines.append(f"{keyword} {class_info.full_name}")
     class_lines.append("")  # Empty line after each class
 
 # First add all class declarations
@@ -261,7 +277,19 @@ puml_lines.extend(class_lines)
 # Then collect all relationships from all classes
 all_relationships = []
 for class_info in all_classes.values():
-    all_relationships.extend(class_info.get_relationships())
+    # Update base class relationships to use full names
+    for base in class_info.base_classes:
+        if base in base_classes:
+            # Built-in classes keep their simple names
+            all_relationships.append(f"{base} <|-- {class_info.full_name}")
+        elif base in all_classes:
+            # Use full name for project classes
+            all_relationships.append(f"{all_classes[base].full_name} <|-- {class_info.full_name}")
+
+    # Update composition relationships to use full names
+    for composed_class in class_info.composition_relationships:
+        if composed_class in all_classes:
+            all_relationships.append(f"{class_info.full_name} o-- {all_classes[composed_class].full_name}")
 
 # Sort relationships by type (inheritance first, then composition)
 inheritance = sorted(r for r in set(all_relationships) if '<|--' in r)
@@ -298,5 +326,11 @@ except Exception as e:
     print(f"Error generating PlantUML diagram: {str(e)}")
     print("Make sure the PlantUML server is running and accessible.")
     sys.exit(1)
+
+
+
+
+
+
 
 

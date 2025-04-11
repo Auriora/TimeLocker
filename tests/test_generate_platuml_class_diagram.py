@@ -14,9 +14,10 @@ class SimpleClass:
     def __init__(self):
         pass
 """
-        classes = parse_class_definitions(code, "test.py")
+        classes = parse_class_definitions(code, "src/test.py")
         self.assertIn("SimpleClass", classes)
         self.assertEqual(len(classes["SimpleClass"].methods), 1)
+        self.assertEqual(classes["SimpleClass"].full_name, "src.test.SimpleClass")
 
     def test_parse_class_with_composition(self):
         code = """
@@ -27,10 +28,12 @@ class Container:
 class Item:
     pass
 """
-        classes = parse_class_definitions(code, "test.py")
+        classes = parse_class_definitions(code, "src/models/test.py")
         self.assertIn("Container", classes)
         self.assertIn("Item", classes)
         self.assertTrue("Item" in classes["Container"].composition_relationships)
+        self.assertEqual(classes["Container"].full_name, "src.models.test.Container")
+        self.assertEqual(classes["Item"].full_name, "src.models.test.Item")
 
     def test_parse_class_with_inheritance(self):
         code = """
@@ -40,10 +43,12 @@ class Parent:
 class Child(Parent):
     pass
 """
-        classes = parse_class_definitions(code, "test.py")
+        classes = parse_class_definitions(code, "src/test.py")
         self.assertIn("Parent", classes)
         self.assertIn("Child", classes)
         self.assertEqual(classes["Child"].base_classes, ["Parent"])
+        self.assertEqual(classes["Parent"].full_name, "src.test.Parent")
+        self.assertEqual(classes["Child"].full_name, "src.test.Child")
 
     def test_parse_class_with_attributes(self):
         code = """
@@ -51,11 +56,12 @@ class TestClass:
     name: str
     age: int
 """
-        classes = parse_class_definitions(code, "test.py")
+        classes = parse_class_definitions(code, "src/models/test.py")
         self.assertIn("TestClass", classes)
         attrs = {name: type_ for name, type_ in classes["TestClass"].attributes}
         self.assertEqual(attrs["name"], "str")
         self.assertEqual(attrs["age"], "int")
+        self.assertEqual(classes["TestClass"].full_name, "src.models.test.TestClass")
 
     def test_collect_class_info_returns_dict(self):
         code = """
@@ -63,10 +69,11 @@ class TestClass:
     pass
 """
         tree = parse(code)
-        classes = collect_class_info(tree)
+        classes = collect_class_info(tree, "src.test")
         self.assertIsInstance(classes, dict)
         self.assertIn("TestClass", classes)
         self.assertIsInstance(classes["TestClass"], ClassInfo)
+        self.assertEqual(classes["TestClass"].full_name, "src.test.TestClass")
 
     def test_add_composition_relationships(self):
         code = """
@@ -77,9 +84,20 @@ class Item:
     pass
 """
         tree = parse(code)
-        classes = collect_class_info(tree)
+        classes = collect_class_info(tree, "src.models")
         add_composition_relationships(tree, classes)
         self.assertTrue("Item" in classes["Container"].composition_relationships)
+        self.assertEqual(classes["Container"].full_name, "src.models.Container")
+        self.assertEqual(classes["Item"].full_name, "src.models.Item")
+
+    def test_class_info_full_name(self):
+        # Test without module path
+        class_info = ClassInfo("TestClass")
+        self.assertEqual(class_info.full_name, "TestClass")
+
+        # Test with module path
+        class_info = ClassInfo("TestClass", "src.models")
+        self.assertEqual(class_info.full_name, "src.models.TestClass")
 
 if __name__ == '__main__':
     unittest.main()

@@ -6,16 +6,7 @@ class ABC
 
 class Exception
 
-class B2ResticRepository {
-    + __init__(location: str, password: Optional[str], b2_account_id: Optional[str], b2_account_key: Optional[str])
-    + backend_env()
-    + from_parsed_uri(cls, parsed_uri, password: Optional[str])
-    + validate()
-}
-
-class BackupError
-
-class BackupManager {
+class backup_manager.BackupManager {
     + __init__()
     + from_uri(cls, uri: str, password: Optional[str])
     + get_repository_factory(name: str, repo_type: str)
@@ -24,9 +15,11 @@ class BackupManager {
     + register_repository_factory(name: str, repo_type: str, repository_class: Type[BackupRepository])
 }
 
-class BackupManagerError
+class backup_manager.BackupManagerError
 
-abstract class BackupRepository {
+class backup_repository.BackupError
+
+abstract class backup_repository.BackupRepository {
     + apply_retention_policy(policy: RetentionPolicy, prune: bool)
     + backup_target(targets: List[BackupTarget], tags: Any)
     + check()
@@ -40,7 +33,17 @@ abstract class BackupRepository {
     + validate()
 }
 
-class BackupSnapshot {
+class backup_repository.RetentionPolicy {
+    - daily: Optional[int]
+    - hourly: Optional[int]
+    - last: Optional[int]
+    - monthly: Optional[int]
+    - weekly: Optional[int]
+    - yearly: Optional[int]
+    + is_valid()
+}
+
+class backup_snapshot.BackupSnapshot {
     - id: str
     - paths: list[Path]
     - repo: BackupRepository
@@ -58,45 +61,11 @@ class BackupSnapshot {
     + verify()
 }
 
-class BackupTarget {
+class backup_target.BackupTarget {
     + __init__(selection: FileSelections, exclusion: Optional[FileExclusions], tags: List[str])
 }
 
-class CommandBuilder {
-    + __init__(command_def: CommandDefinition)
-    + _merge_envs(env1: Any, env2: Any)
-    + build(use_short_form: bool)
-    + clear()
-    + command(name: str)
-    + param(name: str, value: Any)
-    + run(callback: Any, env: Any)
-    + run_iter(env: Any)
-}
-
-class CommandDefinition {
-    + __init__(name: str, parameters: Any, subcommands: Any, default_param_style: Any)
-}
-
-class CommandExecutionError {
-    + __init__(message, stderr)
-}
-
-class CommandParameter {
-    - description: str
-    - name: str
-    - position: Optional[int]
-    - prefix: Optional[str]
-    - required: bool
-    - short_name: Optional[str]
-    - short_style: Any
-    - style: Any
-    - value_required: bool
-    + __post_init__()
-    + _convert_style(style: Any)
-    + format_param_name(use_short_form: bool)
-}
-
-class FileExclusions {
+class file_exclusions.FileExclusions {
     + __init__(paths: List[Path], patterns: List[str])
     + __iter__()
     + __repr__()
@@ -104,7 +73,7 @@ class FileExclusions {
     + remove_pattern(pattern: str)
 }
 
-class FileSelections {
+class file_selections.FileSelections {
     - files: List[str]
     - paths: List[Path]
     + __init__(paths: Any, files: List[str])
@@ -114,28 +83,35 @@ class FileSelections {
     + remove_path(path: Path)
 }
 
-class LocalResticRepository {
+class restic.Repositories.b2.B2ResticRepository {
+    + __init__(location: str, password: Optional[str], b2_account_id: Optional[str], b2_account_key: Optional[str])
     + backend_env()
     + from_parsed_uri(cls, parsed_uri, password: Optional[str])
     + validate()
 }
 
-class ParameterStyle {
-    - DOUBLE_DASH: Any
-    - JOINED: Any
-    - POSITIONAL: Any
-    - SEPARATE: Any
-    - SINGLE_DASH: Any
-    + __eq__(other)
-    + __hash__()
-    + __str__()
+class restic.Repositories.local.LocalResticRepository {
+    + backend_env()
+    + from_parsed_uri(cls, parsed_uri, password: Optional[str])
+    + validate()
 }
 
-class RepositoryError
+class restic.Repositories.s3.S3ResticRepository {
+    + __init__(location: str, password: Optional[str], aws_access_key_id: Optional[str], aws_secret_access_key: Optional[str], aws_default_region: Optional[str])
+    + backend_env()
+    + from_parsed_uri(cls, parsed_uri, password: Optional[str])
+    + validate()
+}
 
-class ResticError
+class restic.errors.RepositoryError
 
-class ResticRepository {
+class restic.errors.ResticError
+
+class restic.errors.ResticVersionError
+
+class restic.errors.UnsupportedSchemeError
+
+class restic.restic_repository.ResticRepository {
     + __init__(location: str, tags: Any, password: Optional[str], min_version: str)
     + _handle_restic_output(output: Dict)
     + _on_backup_status(status: Dict)
@@ -158,53 +134,65 @@ class ResticRepository {
     + validate()
 }
 
-class ResticVersionError
-
-class RetentionPolicy {
-    - daily: Optional[int]
-    - hourly: Optional[int]
-    - last: Optional[int]
-    - monthly: Optional[int]
-    - weekly: Optional[int]
-    - yearly: Optional[int]
-    + is_valid()
+class utils.command_builder.CommandBuilder {
+    + __init__(command_def: CommandDefinition)
+    + _merge_envs(env1: Any, env2: Any)
+    + build(use_short_form: bool)
+    + clear()
+    + command(name: str)
+    + param(name: str, value: Any)
+    + run(callback: Any, env: Any)
+    + run_iter(env: Any)
 }
 
-class S3ResticRepository {
-    + __init__(location: str, password: Optional[str], aws_access_key_id: Optional[str], aws_secret_access_key: Optional[str], aws_default_region: Optional[str])
-    + backend_env()
-    + from_parsed_uri(cls, parsed_uri, password: Optional[str])
-    + validate()
+class utils.command_builder.CommandDefinition {
+    + __init__(name: str, parameters: Any, subcommands: Any, default_param_style: Any)
 }
 
-class UnsupportedSchemeError
+class utils.command_builder.CommandExecutionError {
+    + __init__(message, stderr)
+}
+
+class utils.command_builder.CommandParameter {
+    - description: str
+    - name: str
+    - position: Optional[int]
+    - prefix: Optional[str]
+    - required: bool
+    - short_name: Optional[str]
+    - short_style: Any
+    - style: Any
+    - value_required: bool
+    + __post_init__()
+    + _convert_style(style: Any)
+    + format_param_name(use_short_form: bool)
+}
+
+class utils.command_builder.ParameterStyle {
+    - DOUBLE_DASH: Any
+    - JOINED: Any
+    - POSITIONAL: Any
+    - SEPARATE: Any
+    - SINGLE_DASH: Any
+    + __eq__(other)
+    + __hash__()
+    + __str__()
+}
 
 
-ABC <|-- BackupRepository
-BackupRepository <|-- ResticRepository
-Enum <|-- ParameterStyle
-Exception <|-- BackupError
-Exception <|-- BackupManagerError
-Exception <|-- CommandExecutionError
-Exception <|-- ResticError
-RepositoryError <|-- UnsupportedSchemeError
-ResticError <|-- RepositoryError
-ResticError <|-- ResticVersionError
-ResticRepository <|-- B2ResticRepository
-ResticRepository <|-- LocalResticRepository
-ResticRepository <|-- S3ResticRepository
+ABC <|-- backup_repository.BackupRepository
+Exception <|-- backup_manager.BackupManagerError
+Exception <|-- backup_repository.BackupError
+Exception <|-- restic.errors.ResticError
+Exception <|-- utils.command_builder.CommandExecutionError
+backup_repository.BackupRepository <|-- restic.restic_repository.ResticRepository
+restic.errors.RepositoryError <|-- restic.errors.UnsupportedSchemeError
+restic.errors.ResticError <|-- restic.errors.RepositoryError
+restic.errors.ResticError <|-- restic.errors.ResticVersionError
+restic.restic_repository.ResticRepository <|-- restic.Repositories.b2.B2ResticRepository
+restic.restic_repository.ResticRepository <|-- restic.Repositories.local.LocalResticRepository
+restic.restic_repository.ResticRepository <|-- restic.Repositories.s3.S3ResticRepository
 
-BackupSnapshot o-- BackupRepository
-BackupSnapshot o-- Path
-BackupSnapshot o-- datetime
-BackupSnapshot o-- int
-BackupSnapshot o-- str
-CommandBuilder o-- str
-CommandParameter o-- bool
-CommandParameter o-- int
-CommandParameter o-- str
-FileSelections o-- Path
-FileSelections o-- str
-RetentionPolicy o-- int
+backup_snapshot.BackupSnapshot o-- backup_repository.BackupRepository
 
 @enduml
