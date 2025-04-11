@@ -130,7 +130,8 @@ class CommandDefinition:
     
     def __init__(self, name: str, parameters: Optional[Dict[str, Any]] = None,
                  subcommands: Optional[Dict[str, 'CommandDefinition']] = None,
-                 default_param_style: Union[str, ParameterStyle] = ParameterStyle.SEPARATE):
+                 default_param_style: Union[str, ParameterStyle] = ParameterStyle.SEPARATE,
+                 synopsis_params: Optional[List[str]] = None):
         """Initialize the command definition.
         
         Args:
@@ -138,12 +139,15 @@ class CommandDefinition:
             parameters: Dictionary mapping parameter names to their definitions.
             subcommands: Dictionary mapping subcommand names to their definitions.
             default_param_style: Default style for parameters that don't specify one.
+            synopsis_params: List of synopsis parameters from the command definition.
         """
         self.name = name
         # Always initialize parameters as empty dict if None
         self.parameters = parameters if parameters is not None else {}
         # Always initialize subcommands as empty dict if None  
         self.subcommands = subcommands if subcommands is not None else {}
+        # Store synopsis parameters
+        self.synopsis_params = synopsis_params if synopsis_params is not None else []
         
         self.default_param_style = default_param_style
 
@@ -253,12 +257,14 @@ class CommandBuilder:
         self._command_chain.append(name)
         return self
     
-    def build(self, use_short_form: bool = False) -> List[str]:
+    def build(self, use_short_form: bool = False, synopsis_values: Optional[Dict[str, str]] = None) -> List[str]:
         """Build the final command line arguments list.
         
         Args:
             use_short_form: If True, use short form for all parameters where available,
                 unless overridden by individual parameter settings.
+            synopsis_values: Dictionary mapping synopsis parameter names to their values.
+                For example: {"snapshot ID": "abc123", "dir": "/path/to/dir"}
 
         Returns:
             List of command line arguments.
@@ -317,6 +323,17 @@ class CommandBuilder:
                         # All other styles separate name and value
                         result.extend([param_str, str(value)])
         
+        # Add synopsis parameters in order and validate required ones
+        synopsis_values = synopsis_values or {}
+        for param in self._current_def.synopsis_params:
+            # Remove optional brackets and ... from parameter name
+            param_name = param.strip('[]').rstrip('...')
+            if param_name in synopsis_values:
+                # Add the value if provided, regardless of whether parameter is optional
+                result.append(synopsis_values[param_name])
+            elif not param.startswith('['):  # Required parameter
+                raise ValueError(f"Missing required synopsis parameter: {param_name}")
+        
         return result
     
     def clear(self) -> 'CommandBuilder':
@@ -337,8 +354,8 @@ class CommandBuilder:
         merged_env = {**env1, **env2}
         return merged_env
 
-    def run(self, callback: Callable[[str], None] = None, env: Dict[str, str] = None) -> str:
-        command = self.build()
+    def run(self, callback: Callable[[str], None] = None, env: Dict[str, str] = None, synopsis_values: Optional[Dict[str, str]] = None) -> str:
+        command = self.build(synopsis_values=synopsis_values)
         try:
             process = Popen(
                 command,
@@ -365,8 +382,8 @@ class CommandBuilder:
 
         return ''.join(output)
 
-    def run_iter(self, env: Dict[str, str]):
-        command = self.build()
+    def run_iter(self, env: Dict[str, str], synopsis_values: Optional[Dict[str, str]] = None):
+        command = self.build(synopsis_values=synopsis_values)
         try:
             process = Popen(
                 command,
@@ -391,3 +408,8 @@ class CommandBuilder:
 
         if process.returncode != 0:
             raise CommandExecutionError(f"Command failed: {' '.join(command)}", stderr="Process failed with non-zero exit code")
+
+
+
+
+

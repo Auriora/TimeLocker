@@ -141,5 +141,60 @@ class TestCommandBuilder(unittest.TestCase):
             ["test-cmd", "--tags=tag1", "--tags=tag2", "--tags=tag3"]
         )
 
+    def test_synopsis_parameters(self):
+        """Test handling of synopsis parameters"""
+        cmd_def = CommandDefinition(
+            "test-cmd",
+            parameters={
+                "verbose": CommandParameter(name="verbose", style=ParameterStyle.DOUBLE_DASH)
+            },
+            synopsis_params=["snapshotID", "[dir...]"]
+        )
+        builder = CommandBuilder(cmd_def)
+        
+        # Test with required synopsis parameter
+        result = builder.build(synopsis_values={"snapshotID": "abc123"})
+        self.assertEqual(result, ["test-cmd", "abc123"])
+        
+        # Test with optional synopsis parameter
+        result = builder.build(synopsis_values={"snapshotID": "abc123", "dir": "/path/to/dir"})
+        self.assertEqual(result, ["test-cmd", "abc123", "/path/to/dir"])  # Optional parameter should be included when provided
+        
+        # Test with flags and synopsis parameters
+        result = builder.param("verbose").build(synopsis_values={"snapshotID": "abc123"})
+        self.assertEqual(result, ["test-cmd", "--verbose", "abc123"])
+        
+        # Test missing required synopsis parameter
+        with self.assertRaises(ValueError):
+            builder.build(synopsis_values={})
+
+    def test_synopsis_parameters_with_subcommands(self):
+        """Test handling of synopsis parameters with subcommands"""
+        cmd_def = CommandDefinition(
+            "test-cmd",
+            subcommands={
+                "restore": CommandDefinition(
+                    "restore",
+                    parameters={
+                        "target": CommandParameter(name="target", style=ParameterStyle.DOUBLE_DASH)
+                    },
+                    synopsis_params=["snapshotID"]
+                )
+            }
+        )
+        builder = CommandBuilder(cmd_def)
+        
+        # Test subcommand with synopsis parameter
+        result = (builder
+                 .command("restore")
+                 .param("target", "/path/to/restore")
+                 .build(synopsis_values={"snapshotID": "abc123"}))
+        self.assertEqual(
+            result,
+            ["test-cmd", "restore", "--target", "/path/to/restore", "abc123"]
+        )
+
 if __name__ == '__main__':
     unittest.main()
+
+

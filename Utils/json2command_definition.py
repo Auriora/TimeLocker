@@ -1,9 +1,15 @@
             # if param.prefix:
             #     result.append(f"{indent_str_inner}        prefix=\"{param.prefix}\",\n")
 import json
+import os
+from pathlib import Path
 from typing import List
 
 from utils.command_builder import CommandParameter, ParameterStyle, CommandDefinition
+
+# Get the project root directory (two levels up from this script)
+PROJECT_ROOT = Path(__file__).parent.parent
+DOCS_DIR = PROJECT_ROOT / 'docs'
 
 def convert_json_to_command_definition(json_data: List[dict]) -> CommandDefinition:
     """Convert the JSON data to a CommandDefinition structure."""
@@ -37,11 +43,20 @@ def convert_json_to_command_definition(json_data: List[dict]) -> CommandDefiniti
                     param = convert_option_to_parameter(option)
                     parameters[param.name] = param
 
+            # Extract synopsis parameters
+            synopsis_params = []
+            if 'parameters' in command_data['SYNOPSIS']:
+                synopsis_params = [
+                    param for param in command_data['SYNOPSIS']['parameters']
+                    if not param.startswith('[flags]')  # Skip flags parameter as it's handled by OPTIONS
+                ]
+
             # Create the command definition
             command_def = CommandDefinition(
                 name=command_name,
                 parameters=parameters,
-                default_param_style=ParameterStyle.DOUBLE_DASH
+                default_param_style=ParameterStyle.DOUBLE_DASH,
+                synopsis_params=synopsis_params
             )
 
             # Add to main command's subcommands
@@ -133,8 +148,12 @@ def format_command_definition(cmd_def: CommandDefinition, indent: int = 0) -> st
     return "".join(result)
 
 def main():
-    # Read the JSON file
-    with open('restic_commands.json', 'r') as f:
+    # Read the JSON file from the docs directory
+    json_file_path = DOCS_DIR / 'restic_commands.json'
+    if not json_file_path.exists():
+        raise FileNotFoundError(f"Could not find restic_commands.json in {json_file_path}")
+
+    with json_file_path.open('r') as f:
         json_data = json.load(f)
 
     # Convert to CommandDefinition
@@ -146,9 +165,14 @@ def main():
         f"restic_command = {format_command_definition(command_def)}\n"
     )
 
-    # Write to a Python file
-    with open('restic_command_definition.py', 'w') as f:
+    # Write to a Python file in the same directory as the input file
+    output_file = DOCS_DIR / 'restic_command_definition.py'
+    with output_file.open('w') as f:
         f.write(formatted_output)
+    print(f"Command definition written to {output_file}")
 
 if __name__ == "__main__":
     main()
+
+
+
