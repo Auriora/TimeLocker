@@ -4,7 +4,9 @@ from Utils.generate_platuml_class_diagram import (
     parse_class_definitions,
     collect_class_info,
     add_composition_relationships,
-    ClassInfo
+    ClassInfo,
+    PlantUMLConfig,
+    ProjectConfig
 )
 
 class TestPlantUMLGenerator(unittest.TestCase):
@@ -99,5 +101,40 @@ class Item:
         class_info = ClassInfo("TestClass", "src.models")
         self.assertEqual(class_info.full_name, "src.models.TestClass")
 
+    def test_plantuml_config_defaults(self):
+        config = PlantUMLConfig()
+        self.assertEqual(config.server_url, 'http://www.plantuml.com/plantuml/svg/')
+        self.assertEqual(config.basic_auth, {})
+        self.assertEqual(config.form_auth, {})
+        self.assertEqual(config.http_opts, {})
+        self.assertEqual(config.request_opts, {})
+
+    def test_project_config(self):
+        config = ProjectConfig(
+            src_dir='src',
+            output_dir='docs/diagrams',
+            excluded_dirs=['__pycache__', 'tests'],
+            package_base_name='myproject'
+        )
+        self.assertTrue(config.src_dir.endswith('/src'))
+        self.assertTrue(config.output_dir.endswith('/docs/diagrams'))
+        self.assertEqual(config.excluded_dirs, ['__pycache__', 'tests'])
+        self.assertEqual(config.package_base_name, 'myproject')
+
+    def test_parse_class_with_package_base_name(self):
+        code = """
+class TestClass:
+    pass
+"""
+        # Test without package base name
+        classes = parse_class_definitions(code, "src/test.py")
+        self.assertEqual(classes["TestClass"].full_name, "src.test.TestClass")
+
+        # Test with package base name
+        classes = parse_class_definitions(code, "src/test.py", "myproject")
+        self.assertEqual(classes["TestClass"].full_name, "myproject.src.test.TestClass")
+
 if __name__ == '__main__':
     unittest.main()
+
+
