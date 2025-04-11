@@ -105,6 +105,16 @@ class Item:
     def test_plantuml_config_defaults(self):
         config = PlantUMLConfig()
         self.assertEqual(config.server_url, 'http://www.plantuml.com/plantuml/svg/')
+        self.assertEqual(config.output_format, 'svg')
+        self.assertEqual(config.basic_auth, {})
+        self.assertEqual(config.form_auth, {})
+        self.assertEqual(config.http_opts, {})
+        self.assertEqual(config.request_opts, {})
+
+    def test_plantuml_config_none_output(self):
+        config = PlantUMLConfig(output_format=None)
+        self.assertEqual(config.server_url, 'http://www.plantuml.com/plantuml/')
+        self.assertIsNone(config.output_format)
         self.assertEqual(config.basic_auth, {})
         self.assertEqual(config.form_auth, {})
         self.assertEqual(config.http_opts, {})
@@ -176,6 +186,7 @@ class NormalClass:
 
 if __name__ == '__main__':
     unittest.main()
+
 
 
 

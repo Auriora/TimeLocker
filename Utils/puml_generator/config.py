@@ -7,12 +7,20 @@ from os.path import abspath
 class PlantUMLConfig:
     """Configuration for PlantUML server and diagram settings."""
     def __init__(self, 
-                 server_url: str = 'http://www.plantuml.com/plantuml/svg/',
+                 server_url: str = 'http://www.plantuml.com/plantuml/',
+                 output_format: str = 'svg',
                  basic_auth: Optional[dict] = None,
                  form_auth: Optional[dict] = None,
                  http_opts: Optional[dict] = None,
                  request_opts: Optional[dict] = None):
-        self.server_url = server_url
+        # Ensure server URL ends with /
+        server_url = server_url.rstrip('/') + '/'
+        # Add format to server URL if output_format is specified
+        self.output_format = output_format
+        if output_format:
+            self.server_url = f"{server_url}{output_format}/"
+        else:
+            self.server_url = server_url
         self.basic_auth = basic_auth or {}
         self.form_auth = form_auth or {}
         self.http_opts = http_opts or {}
@@ -34,3 +42,4 @@ class ProjectConfig:
         """Ensure output directory exists."""
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
+

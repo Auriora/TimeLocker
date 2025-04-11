@@ -36,14 +36,17 @@ def generate_class_diagram(project_config: ProjectConfig, plantuml_config: Plant
     puml_content = generate_plantuml_content(all_classes, project_config.package_base_name)
 
     # Write and generate diagram
-    output_file = join(project_config.output_dir, "combined_classes.puml")
+    output_file = join(project_config.output_dir, f"{project_config.package_base_name or 'Project Class Diagram'}.puml")
     try:
         with open(output_file, 'w') as f:
             f.write(puml_content)
         logging.info(f"PlantUML file written to {output_file}")
         
-        server.processes_file(abspath(output_file))
-        logging.info("Class diagram generated successfully")
+        if plantuml_config.output_format:
+            server.processes_file(abspath(output_file))
+            logging.info(f"Class diagram generated successfully in {plantuml_config.output_format.upper()} format")
+        else:
+            logging.info("No diagram generated - only PUML file was created")
     except Exception as e:
         logging.error(f"Error generating PlantUML diagram: {str(e)}")
         logging.error("Make sure the PlantUML server is running and accessible.")
@@ -117,8 +120,6 @@ def generate_class_declarations(all_classes: Dict[str, ClassInfo]) -> List[str]:
     class_lines = []
     base_classes = {'Exception', 'ABC', 'Enum', 'Interface'}
     
-    # Skip outputting base classes since they don't add value
-    
     # Output all other classes alphabetically
     sorted_classes = sorted(all_classes.values(), key=lambda x: x.full_name)
     for class_info in sorted_classes:
@@ -179,3 +180,4 @@ def generate_relationship_declarations(all_classes: Dict[str, ClassInfo]) -> Lis
         relationship_lines.extend(["' Weak dependencies"] + weak_dependencies + [""])
 
     return relationship_lines
+

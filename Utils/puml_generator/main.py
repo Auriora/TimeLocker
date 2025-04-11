@@ -20,8 +20,10 @@ def main():
                        help='Source directory containing Python files (default: src)')
     parser.add_argument('--output-dir', default='docs/diagrams',
                        help='Output directory for diagrams (default: docs/diagrams)')
-    parser.add_argument('--plantuml-server', default='http://www.plantuml.com/plantuml/svg/',
-                       help='PlantUML server URL (default: http://www.plantuml.com/plantuml/svg/)')
+    parser.add_argument('--plantuml-server', default='http://www.plantuml.com/plantuml/',
+                       help='PlantUML server URL (default: http://www.plantuml.com/plantuml/)')
+    parser.add_argument('--output-format', choices=['svg', 'png', None], default=None,
+                       help='Output format for the diagram (default: None - only puml file is created)')
     parser.add_argument('--exclude-dirs', nargs='*', default=['__pycache__'],
                        help='Directories to exclude (default: __pycache__)')
     parser.add_argument('--package-base-name',
@@ -43,7 +45,8 @@ def main():
     )
 
     plantuml_config = PlantUMLConfig(
-        server_url=args.plantuml_server
+        server_url=args.plantuml_server,
+        output_format=args.output_format
     )
 
     # Generate diagram
@@ -51,3 +54,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
