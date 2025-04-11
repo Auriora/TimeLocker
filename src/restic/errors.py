@@ -6,8 +6,6 @@ class ResticError(Exception):
 class ResticVersionError(ResticError):
     pass
 
-
-
 class RepositoryError(ResticError):
     pass
 

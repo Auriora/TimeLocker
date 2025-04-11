@@ -42,7 +42,7 @@ class ParameterStyle(Enum):
 class CommandParameter:
     """Represents a command parameter configuration."""
 
-    def format_param_name(self, use_short_form: bool = False) -> str:
+    def format_param_name(self, use_short_form: bool = False) -> (str, str):
         """Format the parameter name according to its style.
         
         Args:
@@ -67,7 +67,7 @@ class CommandParameter:
             parameter = f"--{name}"
         elif style == ParameterStyle.SEPARATE:
             parameter = f"--{name}" if not use_short_form else f"-{name}"
-        return (parameter, style)  # Default to double dash
+        return parameter, style
     
     @staticmethod
     def _convert_style(style: Union[str, 'ParameterStyle', None]) -> 'ParameterStyle':
@@ -337,10 +337,9 @@ class CommandBuilder:
         merged_env = {**env1, **env2}
         return merged_env
 
-    @staticmethod
     def run(self, callback: Callable[[str], None] = None, env: Dict[str, str] = None) -> str:
+        command = self.build()
         try:
-            command = self.build()
             process = Popen(
                 command,
                 env=self._merge_envs(env, dict(os.environ)),
@@ -367,8 +366,8 @@ class CommandBuilder:
         return ''.join(output)
 
     def run_iter(self, env: Dict[str, str]):
+        command = self.build()
         try:
-            command = self.build()
             process = Popen(
                 command,
                 env=self._merge_envs(env, dict(os.environ)),

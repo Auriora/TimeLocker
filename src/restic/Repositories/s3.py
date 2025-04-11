@@ -1,5 +1,5 @@
 import os
-import boto3
+from boto3 import client
 
 from typing import Dict, Optional
 from urllib.parse import parse_qs
@@ -50,7 +50,7 @@ class S3ResticRepository(ResticRepository):
     def validate(self):
         logger.info("Validating S3 repository configuration")
         try:
-            s3 = boto3.client('s3')
+            s3 = client('s3')
             bucket_name = self._location.split(':')[1].split('/')[0]
             s3.head_bucket(Bucket=bucket_name)
             logger.info(f"Successfully validated S3 bucket: {bucket_name}")

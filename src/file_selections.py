@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional, List, Union
+from typing import List, Union
 
 class FileSelections:
     """Represents paths and files to include in backup"""
@@ -12,11 +12,11 @@ class FileSelections:
         # Files are filename patterns (e.g., "*.txt", "doc.*")
         self.files = files or []
 
-    def add_path(self, path: str):
+    def add_path(self, path: Path):
         if path not in self.paths:
             self.paths.append(path)
 
-    def remove_path(self, path: str):
+    def remove_path(self, path: Path):
         if path in self.paths:
             self.paths.remove(path)
 

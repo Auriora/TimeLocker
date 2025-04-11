@@ -2,6 +2,7 @@ import json
 import os
 
 from abc import abstractmethod
+from pathlib import Path
 from typing import Optional, Dict, List
 from packaging import version
 
@@ -25,12 +26,12 @@ class ResticRepository(BackupRepository):
         logger.info(f"Initializing repository at location: {location}")
         self._command = CommandBuilder(restic_command_def).param("json")
         self._restic_version = self._verify_restic_executable(min_version)
-        logger.info(f"Detected restic version: {self._restic_version}")
+        logger.info("Detected restic version: %s", self._restic_version)  # from logging import logger
         self._location = location
         self._explicit_password = password
         self._cached_env = None
         self.validate()
-        self._command = self._command.param("repo", self.repo.uri)
+        self._command = self._command.param("repo", self.uri)
 
     def _verify_restic_executable(self, min_version: str) -> str | None:
         try:
@@ -74,13 +75,13 @@ class ResticRepository(BackupRepository):
             return False
         return True
 
-    def check(self) -> bool:
+    def check(self) -> str:
         """Check if the backup repository is available"""
-        return self.command.param("check").run(self.to_env())
+        return self._command.param("check").run(self.to_env())
 
-    def backup_target(self, targets: List[BackupTarget], tags: Optional[List[str]] = None) -> Dict:
+    def backup_target(self, targets: List[BackupTarget], tags: Optional[List[str]] = None) -> str:
         """Create a new backup"""
-        return self.command.param("backup").run(self.to_env())
+        return self._command.param("backup").run(self.to_env())
 
     def snapshots(self, tags: Optional[List[str]] = None) -> List[BackupSnapshot]:
         """List available snapshots"""
@@ -88,7 +89,7 @@ class ResticRepository(BackupRepository):
         snapshots_data = json.loads(output)
         return [BackupSnapshot(repo=self, snapshot_id=s["short_id"], timestamp=s["time"], paths=s["paths"]) for s in snapshots_data]
 
-    def restore(self, snapshot_id: str, target_path: str) -> str:
+    def restore(self, snapshot_id: str, target_path: Optional[Path] = None) -> str:
         return self._command.param("restore").param(snapshot_id).param("target", target_path).run(self.to_env())
 
     def stats(self) -> dict:

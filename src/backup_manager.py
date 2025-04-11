@@ -42,7 +42,7 @@ class BackupManager:
 
     @classmethod
     def from_uri(cls, uri: str, password: Optional[str] = None) -> 'BackupRepository':
-        logger.info(f"Parsing repository URI: {cls.redact_sensitive_info(uri)}")
+        logger.info(f"Parsing repository URI: {cls.redact_sensitive_info(uri.replace('{', '{{').replace('}', '}}'))}")  # import re
         parsed = urlparse(uri)
         scheme = parsed.scheme.lower()
 

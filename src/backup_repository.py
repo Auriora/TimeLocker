@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
@@ -47,6 +48,24 @@ class BackupRepository(ABC):
                       targets: List[BackupTarget],
                       tags: Optional[List[str]] = None) -> Dict:
         """Create a new backup"""
+        ...
+
+    @abstractmethod
+    def restore(self, snapshot_id: str, target_path: Optional[Path] = None) -> str:
+        """
+        Restores a specific snapshot to the given target path.
+
+        This method is responsible for taking an identified snapshot
+        and restoring its data to a provided destination path. The
+        operation's result is returned as a string.
+
+        :param snapshot_id: The unique identifier of the snapshot to
+            restore.
+        :param target_path: The file system path where the snapshot
+            should be restored to.
+        :return: A string message indicating the result of the
+            restore operation.
+        """
         ...
 
     @abstractmethod

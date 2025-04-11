@@ -1,7 +1,7 @@
 import os
 import re
 import json
-import traceback
+from traceback import format_exc
 
 # Precompile the regular expression pattern
 section_pattern = re.compile(r'\.SH\s+"?([^"\n]+)"?\n((?:(?!\.SH\s+).|\n)*)')
@@ -271,9 +271,9 @@ def process_man_files():
                 try:
                     command_data = parse_man_file(file_path)
                     all_commands.append(command_data)
-                except Exception as e:
+                except Exception:
                     print(f"Error processing {file}:")
-                    print(traceback.format_exc())
+                    print(format_exc())
 
     # Write to JSON file
     with open('restic_commands.json', 'w', encoding='utf-8') as f:
