@@ -36,8 +36,8 @@ class TestPlantUMLGenerator(unittest.TestCase):
 
         expected_puml = textwrap.dedent("""\
             class src.test.TestClass {
-                - name: str
                 - age: int
+                - name: str
                 + __init__(self)
                 + get_name(self -> str)
             }""")
