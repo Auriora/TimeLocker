@@ -1,7 +1,6 @@
 """Configuration classes for PlantUML diagram generation."""
-
 import os
-from typing import Dict, List, Optional
+from typing import List, Optional
 from os.path import abspath
 
 class PlantUMLConfig:

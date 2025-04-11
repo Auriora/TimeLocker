@@ -53,15 +53,15 @@ class ClassRelationshipVisitor(NodeVisitor):
         # Check for ABC (Abstract Base Class)
         is_abc = any(base.id == 'ABC' for base in node.bases if isinstance(base, Name))
         
-        # Check for interface pattern (only abstract methods)
-        has_only_abstract_methods = True
-        has_methods = False
-        for item in node.body:
-            if isinstance(item, FunctionDef):
-                has_methods = True
-                if not any(d.id == 'abstractmethod' for d in item.decorator_list if isinstance(d, Name)):
-                    has_only_abstract_methods = False
-                    break
+        # # Check for interface pattern (only abstract methods)
+        # has_only_abstract_methods = True
+        # has_methods = False
+        # for item in node.body:
+        #     if isinstance(item, FunctionDef):
+        #         has_methods = True
+        #         if not any(d.id == 'abstractmethod' for d in item.decorator_list if isinstance(d, Name)):
+        #             has_only_abstract_methods = False
+        #             break
         
         # Check for interface first (has ABC and all methods are abstract)
         if is_abc:
