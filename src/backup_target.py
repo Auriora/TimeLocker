@@ -1,7 +1,6 @@
 from typing import Optional, List
 
-from file_exclusions import FileExclusions
-from file_selections import FileSelections
+from file_selections import FileSelections, FileExclusions
 
 
 class BackupTarget:
