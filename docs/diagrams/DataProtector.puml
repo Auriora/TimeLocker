@@ -185,6 +185,7 @@ enum DataProtector.utils.command_builder.ParameterStyle {
     - SINGLE_DASH: Any
     + __eq__(other)
     + __hash__()
+    + __ne__(other)
     + __str__()
 }
 
@@ -204,8 +205,40 @@ DataProtector.restic.restic_repository.ResticRepository <|-- DataProtector.resti
 DataProtector.backup_snapshot.BackupSnapshot *-- DataProtector.backup_repository.BackupRepository
 
 ' Packages
-package DataProtector <<Rectangle>> 
-{
+package DataProtector <<Rectangle>> {
+}
+
+package DataProtector.backup_manager <<Frame>> {
+}
+
+package DataProtector.backup_snapshot <<Frame>> {
+}
+
+package DataProtector.backup_repository <<Frame>> {
+}
+
+package DataProtector.file_selections <<Frame>> {
+}
+
+package DataProtector.utils.command_builder <<Frame>> {
+}
+
+package DataProtector.backup_target <<Frame>> {
+}
+
+package DataProtector.restic.errors <<Frame>> {
+}
+
+package DataProtector.restic.restic_repository <<Frame>> {
+}
+
+package DataProtector.restic.Repositories.s3 <<Frame>> {
+}
+
+package DataProtector.restic.Repositories.local <<Frame>> {
+}
+
+package DataProtector.restic.Repositories.b2 <<Frame>> {
 }
 
 @enduml
