@@ -88,10 +88,14 @@ def test_static_field_detection():
     """Test that static fields are correctly identified."""
     code = dedent('''
         class TestClass:
-            static_field: str = "test"
+            @classmethod
+            def get_static_field(cls):
+                return cls.static_field
+                
+            static_field: str = "test"  # This is a class variable
             
             def __init__(self):
-                self.instance_field = "test"
+                self.instance_field = "test"  # This is an instance variable
     ''')
     
     classes = parse_class_definitions(code, "test.py")
@@ -106,3 +110,4 @@ def test_static_field_detection():
     instance_field = next((a for a in test_class.attributes if a[0] == "instance_field"), None)
     assert instance_field is not None
     assert "static" not in instance_field[3]  # Check modifiers list
+

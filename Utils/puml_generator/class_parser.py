@@ -79,6 +79,9 @@ def extract_methods(node: ClassDef) -> List[tuple[str, str, str, List[str]]]:
 def extract_attributes(node: ClassDef) -> List[tuple[str, str, str, List[str]]]:
     """Extract attributes from a class definition.
     
+    Args:
+        node: The ClassDef AST node to extract attributes from
+        
     Returns:
         List of tuples containing (name, type, visibility, modifiers)
     """
@@ -105,23 +108,39 @@ def extract_attributes(node: ClassDef) -> List[tuple[str, str, str, List[str]]]:
             visibility = determine_visibility(item.target.id)
             modifiers = []
             
-            # If the attribute is not defined in __init__, it's static
+            # Add the attribute if it's not already defined in __init__
             if item.target.id not in init_attributes:
-                modifiers.append('static')
-                
-            attributes.append((item.target.id, type_hint, visibility, modifiers))
+                # Check if this is a static field by looking for cls.field_name in classmethods
+                if is_static_field(node, item.target.id):
+                    modifiers.append("static")
+                attributes.append((item.target.id, type_hint, visibility, modifiers))
         elif isinstance(item, Assign):
             for target in item.targets:
                 if isinstance(target, Name):
                     visibility = determine_visibility(target.id)
                     modifiers = []
                     
-                    # If the attribute is not defined in __init__, it's static
+                    # Add the attribute if it's not already defined in __init__
                     if target.id not in init_attributes:
-                        modifiers.append('static')
-                        
-                    attributes.append((target.id, "Any", visibility, modifiers))
+                        # Check if this is a static field by looking for cls.field_name in classmethods
+                        if is_static_field(node, target.id):
+                            modifiers.append("static")
+                        attributes.append((target.id, "Any", visibility, modifiers))
     return attributes
+
+def is_static_field(node: ClassDef, field_name: str) -> bool:
+    """Determine if a field is static by checking if it's referenced in a @classmethod."""
+    from ast import FunctionDef, Attribute, Name
+    
+    for item in node.body:
+        if isinstance(item, FunctionDef):
+            # Check if this is a classmethod
+            if any(isinstance(d, Name) and d.id == 'classmethod' for d in item.decorator_list):
+                # Look for cls.field_name in the method body
+                for node in walk(item):
+                    if isinstance(node, Attribute) and isinstance(node.value, Name) and node.value.id == 'cls' and node.attr == field_name:
+                        return True
+    return False
 
 def parse_class_definitions(content: str, filename: str, package_base_name: Optional[str] = None) -> Dict[str, ClassInfo]:
     """Parse Python file content and extract class information.
@@ -235,6 +254,25 @@ def add_composition_relationships(tree: AST, classes: Dict[str, ClassInfo]) -> N
     for source, target in visitor.weak_dependency_relations:
         if source in classes:
             classes[source].weak_dependencies.add(target)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
