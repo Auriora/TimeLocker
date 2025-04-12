@@ -31,13 +31,13 @@ class TestPlantUMLGenerator(unittest.TestCase):
         Test conversion of a ClassInfo instance to the expected PlantUML syntax.
         """
         class_info = ClassInfo("TestClass", "src.test")
-        class_info.attributes = [("name", "str"), ("age", "int")]
-        class_info.methods = [("__init__", "self"), ("get_name", "self -> str")]
+        class_info.attributes = [("name", "str", "-"), ("age", "int", "-")]
+        class_info.methods = [("__init__", "self", "+"), ("get_name", "self -> str", "+")]
 
         expected_puml = textwrap.dedent("""\
             class src.test.TestClass {
-                - age: int
                 - name: str
+                - age: int
                 + __init__(self)
                 + get_name(self -> str)
             }""")
@@ -48,3 +48,4 @@ class TestPlantUMLGenerator(unittest.TestCase):
 
     if __name__ == '__main__':
         unittest.main()
+

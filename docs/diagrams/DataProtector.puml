@@ -210,6 +210,9 @@ DataProtector.backup_snapshot.BackupSnapshot o-- DataProtector.backup_repository
 DataProtector.backup_target.BackupTarget o-- DataProtector.file_selections.FileSelection
 DataProtector.utils.command_builder.CommandBuilder o-- DataProtector.utils.command_builder.CommandDefinition
 
+' Weak dependencies
+DataProtector.file_selections.FileSelection ..> DataProtector.file_selections.PatternGroup
+
 ' Packages
 package DataProtector <<Rectangle>> 
 {

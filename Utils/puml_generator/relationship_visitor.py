@@ -119,16 +119,46 @@ class ClassRelationshipVisitor(NodeVisitor):
         """Visit a function definition and collect dependency information."""
         if self.current_class and node.name != '__init__':  # Skip __init__ as it's handled separately
             # Visit the function body to collect dependencies
-            for stmt in node.body:
-                if isinstance(stmt, Assign):
-                    if isinstance(stmt.value, Call):
-                        if isinstance(stmt.value.func, Name):
-                            # Local variable instantiation indicates dependency
-                            self.dependency_relations.add((self.current_class, stmt.value.func.id))
-                        elif isinstance(stmt.value.func, Attribute):
-                            if isinstance(stmt.value.func.value, Name):
-                                self.dependency_relations.add((self.current_class, stmt.value.func.value.id))
+            self._analyze_function_body(node.body)
         self.generic_visit(node)
+
+    def _analyze_function_body(self, body):
+        """Analyze function body for dependencies, handling conditional blocks."""
+        from ast import If
+        for stmt in body:
+            if isinstance(stmt, Assign):
+                if isinstance(stmt.value, Call):
+                    if isinstance(stmt.value.func, Name):
+                        # Local variable instantiation indicates dependency
+                        self.dependency_relations.add((self.current_class, stmt.value.func.id))
+                    elif isinstance(stmt.value.func, Attribute):
+                        if isinstance(stmt.value.func.value, Name):
+                            self.dependency_relations.add((self.current_class, stmt.value.func.value.id))
+            elif isinstance(stmt, If):
+                # If we find class usage inside a conditional block, it's a weak dependency
+                self._analyze_conditional_block(stmt)
+
+    def _analyze_conditional_block(self, node):
+        """Analyze a conditional block for class usage and mark as weak dependencies."""
+        from ast import Call, Name, Assign, Attribute
+        
+        # Helper function to check for class instantiation
+        def check_class_instantiation(stmt):
+            if isinstance(stmt, Assign) and isinstance(stmt.value, Call):
+                if isinstance(stmt.value.func, Name):
+                    # Found a class instantiation in conditional block - mark as weak dependency
+                    self.weak_dependency_relations.add((self.current_class, stmt.value.func.id))
+                elif isinstance(stmt.value.func, Attribute) and isinstance(stmt.value.func.value, Name):
+                    self.weak_dependency_relations.add((self.current_class, stmt.value.func.value.id))
+        
+        # Check the if block
+        for stmt in node.body:
+            check_class_instantiation(stmt)
+            
+        # Check the else block if it exists
+        if hasattr(node, 'orelse'):
+            for stmt in node.orelse:
+                check_class_instantiation(stmt)
 
     def _handle_class_body_item(self, item: AST, node: ClassDef):
         """Handle a single item in the class body for relationships."""
@@ -165,9 +195,16 @@ class ClassRelationshipVisitor(NodeVisitor):
         """Handle relationships in __init__ method."""
         # Check constructor parameters for aggregation relationships
         # Only add aggregation relationships for explicitly typed parameters
+        # and when they are stored as instance attributes
         for arg in init_node.args.args:
             if arg.arg != 'self' and hasattr(arg, 'annotation') and arg.annotation is not None and isinstance(arg.annotation, Name):
-                self.aggregation_relations.add((self.current_class, arg.annotation.id))
+                # Check if this parameter is stored as an instance attribute
+                for stmt in init_node.body:
+                    if isinstance(stmt, Assign) and isinstance(stmt.targets[0], Attribute) and \
+                       isinstance(stmt.targets[0].value, Name) and stmt.targets[0].value.id == 'self' and \
+                       isinstance(stmt.value, Name) and stmt.value.id == arg.arg:
+                        self.aggregation_relations.add((self.current_class, arg.annotation.id))
+                        break
 
         # Check method body for assignments
         for stmt in init_node.body:
@@ -235,12 +272,17 @@ class ClassRelationshipVisitor(NodeVisitor):
 
     def _get_comment_before(self, node: ClassDef, item: AST) -> Optional[str]:
         """Get the comment that appears before a node in the AST."""
+        last_comment = None
         for stmt in node.body:
             if isinstance(stmt, Expr) and isinstance(stmt.value, Constant):
-                comment = stmt.value.value.strip().lower()
+                last_comment = stmt.value.value.strip().lower()
             elif stmt == item:
-                break
+                return last_comment
         return None
+
+
+
+
 
 
 
