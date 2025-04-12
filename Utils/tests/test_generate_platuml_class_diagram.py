@@ -1,4 +1,3 @@
-import unittest
 from ast import parse
 from Utils.puml_generator import (
     parse_class_definitions,
@@ -10,20 +9,20 @@ from Utils.puml_generator import (
 from Utils.puml_generator.class_parser import collect_class_info, add_composition_relationships
 
 
-class TestPlantUMLGenerator(unittest.TestCase):
-    def test_parse_simple_class(self):
-        code = """
+def test_parse_simple_class():
+    code = """
 class SimpleClass:
     def __init__(self):
         pass
 """
-        classes = parse_class_definitions(code, "src/test.py")
-        self.assertIn("SimpleClass", classes)
-        self.assertEqual(len(classes["SimpleClass"].methods), 1)
-        self.assertEqual(classes["SimpleClass"].full_name, "src.test.SimpleClass")
+    classes = parse_class_definitions(code, "src/test.py")
+    assert "SimpleClass" in classes
+    assert len(classes["SimpleClass"].methods) == 1
+    assert classes["SimpleClass"].full_name == "src.test.SimpleClass"
 
-    def test_parse_class_with_composition(self):
-        code = """
+
+def test_parse_class_with_composition():
+    code = """
 class Container:
     def __init__(self):
         self.item: Item = Item()
@@ -31,43 +30,47 @@ class Container:
 class Item:
     pass
 """
-        classes = parse_class_definitions(code, "src/models/test.py")
-        self.assertIn("Container", classes)
-        self.assertIn("Item", classes)
-        self.assertTrue("Item" in classes["Container"].composition_relationships)
-        self.assertEqual(classes["Container"].full_name, "src.models.test.Container")
-        self.assertEqual(classes["Item"].full_name, "src.models.test.Item")
+    classes = parse_class_definitions(code, "src/models/test.py")
+    assert "Container" in classes
+    assert "Item" in classes
+    assert "Item" in classes["Container"].composition_relationships
+    assert classes["Container"].full_name == "src.models.test.Container"
+    assert classes["Item"].full_name == "src.models.test.Item"
 
-    def test_parse_class_with_inheritance(self):
-        code = """
+
+def test_parse_class_with_inheritance():
+    code = """
 class Parent:
     pass
 
 class Child(Parent):
     pass
 """
-        classes = parse_class_definitions(code, "src/test.py")
-        self.assertIn("Parent", classes)
-        self.assertIn("Child", classes)
-        self.assertEqual(classes["Child"].base_classes, ["Parent"])
-        self.assertEqual(classes["Parent"].full_name, "src.test.Parent")
-        self.assertEqual(classes["Child"].full_name, "src.test.Child")
+    classes = parse_class_definitions(code, "src/test.py")
+    assert "Parent" in classes
+    assert "Child" in classes
+    assert classes["Child"].base_classes == ["Parent"]
+    assert classes["Parent"].full_name == "src.test.Parent"
+    assert classes["Child"].full_name == "src.test.Child"
 
-    def test_parse_class_with_attributes(self):
-        code = """
+
+def test_parse_class_with_attributes():
+    code = """
 class TestClass:
     name: str
     _protected: int
     __private: bool
 """
-        classes = parse_class_definitions(code, "src/models/test.py")
-        self.assertIn("TestClass", classes)
-        attrs = {name: (type_, vis) for name, type_, vis, _ in classes["TestClass"].attributes}
-        self.assertEqual(attrs["name"], ("str", "+"))
-        self.assertEqual(attrs["_protected"], ("int", "#"))
-        self.assertEqual(attrs["__private"], ("bool", "-"))
-    def test_parse_class_with_methods(self):
-        code = """
+    classes = parse_class_definitions(code, "src/models/test.py")
+    assert "TestClass" in classes
+    attrs = {name: (type_, vis) for name, type_, vis, _ in classes["TestClass"].attributes}
+    assert attrs["name"] == ("str", "+")
+    assert attrs["_protected"] == ("int", "#")
+    assert attrs["__private"] == ("bool", "-")
+
+
+def test_parse_class_with_methods():
+    code = """
 class TestClass:
     def public_method(self):
         pass
@@ -78,95 +81,103 @@ class TestClass:
     def __private_method(self):
         pass
 """
-        classes = parse_class_definitions(code, "src/models/test.py")
-        self.assertIn("TestClass", classes)
-        methods = {name: (params, vis) for name, params, vis, _ in classes["TestClass"].methods}
-        self.assertEqual(methods["public_method"], ("", "+"))
-        self.assertEqual(methods["_protected_method"], ("", "#"))
-        self.assertEqual(methods["__private_method"], ("", "-"))
-        self.assertEqual(classes["TestClass"].full_name, "src.models.test.TestClass")
+    classes = parse_class_definitions(code, "src/models/test.py")
+    assert "TestClass" in classes
+    methods = {name: (params, vis) for name, params, vis, _ in classes["TestClass"].methods}
+    assert methods["public_method"] == ("", "+")
+    assert methods["_protected_method"] == ("", "#")
+    assert methods["__private_method"] == ("", "-")
+    assert classes["TestClass"].full_name == "src.models.test.TestClass"
 
-    def test_collect_class_info_returns_dict(self):
-        code = """
+
+def test_collect_class_info_returns_dict():
+    code = """
 class TestClass:
     pass
 """
-        tree = parse(code)
-        classes = collect_class_info(tree, "src.test")
-        self.assertIsInstance(classes, dict)
-        self.assertIn("TestClass", classes)
-        self.assertIsInstance(classes["TestClass"], ClassInfo)
-        self.assertEqual(classes["TestClass"].full_name, "src.test.TestClass")
+    tree = parse(code)
+    classes = collect_class_info(tree, "src.test")
+    assert isinstance(classes, dict)
+    assert "TestClass" in classes
+    assert isinstance(classes["TestClass"], ClassInfo)
+    assert classes["TestClass"].full_name == "src.test.TestClass"
 
-    def test_add_composition_relationships(self):
-        code = """
+
+def test_add_composition_relationships():
+    code = """
 class Container:
     item: Item
 
 class Item:
     pass
 """
-        tree = parse(code)
-        classes = collect_class_info(tree, "src.models")
-        add_composition_relationships(tree, classes)
-        self.assertTrue("Item" in classes["Container"].composition_relationships)
-        self.assertEqual(classes["Container"].full_name, "src.models.Container")
-        self.assertEqual(classes["Item"].full_name, "src.models.Item")
+    tree = parse(code)
+    classes = collect_class_info(tree, "src.models")
+    add_composition_relationships(tree, classes)
+    assert "Item" in classes["Container"].composition_relationships
+    assert classes["Container"].full_name == "src.models.Container"
+    assert classes["Item"].full_name == "src.models.Item"
 
-    def test_class_info_full_name(self):
-        # Test without module path
-        class_info = ClassInfo("TestClass")
-        self.assertEqual(class_info.full_name, "TestClass")
 
-        # Test with module path
-        class_info = ClassInfo("TestClass", "src.models")
-        self.assertEqual(class_info.full_name, "src.models.TestClass")
+def test_class_info_full_name():
+    # Test without module path
+    class_info = ClassInfo("TestClass")
+    assert class_info.full_name == "TestClass"
 
-    def test_plantuml_config_defaults(self):
-        config = PlantUMLConfig()
-        self.assertEqual(config.server_url, 'http://www.plantuml.com/plantuml/svg/')
-        self.assertEqual(config.output_format, 'svg')
-        self.assertEqual(config.basic_auth, {})
-        self.assertEqual(config.form_auth, {})
-        self.assertEqual(config.http_opts, {})
-        self.assertEqual(config.request_opts, {})
+    # Test with module path
+    class_info = ClassInfo("TestClass", "src.models")
+    assert class_info.full_name == "src.models.TestClass"
 
-    def test_plantuml_config_none_output(self):
-        config = PlantUMLConfig(output_format=None)
-        self.assertEqual(config.server_url, 'http://www.plantuml.com/plantuml/')
-        self.assertIsNone(config.output_format)
-        self.assertEqual(config.basic_auth, {})
-        self.assertEqual(config.form_auth, {})
-        self.assertEqual(config.http_opts, {})
-        self.assertEqual(config.request_opts, {})
 
-    def test_project_config(self):
-        config = ProjectConfig(
-            src_dir='src',
-            output_dir='docs/diagrams',
-            excluded_dirs=['__pycache__', 'tests'],
-            package_base_name='myproject'
-        )
-        self.assertTrue(config.src_dir.endswith('/src'))
-        self.assertTrue(config.output_dir.endswith('/docs/diagrams'))
-        self.assertEqual(config.excluded_dirs, ['__pycache__', 'tests'])
-        self.assertEqual(config.package_base_name, 'myproject')
+def test_plantuml_config_defaults():
+    config = PlantUMLConfig()
+    assert config.server_url == 'http://www.plantuml.com/plantuml/svg/'
+    assert config.output_format == 'svg'
+    assert config.basic_auth == {}
+    assert config.form_auth == {}
+    assert config.http_opts == {}
+    assert config.request_opts == {}
 
-    def test_parse_class_with_package_base_name(self):
-        code = """
+
+def test_plantuml_config_none_output():
+    config = PlantUMLConfig(output_format=None)
+    assert config.server_url == 'http://www.plantuml.com/plantuml/'
+    assert config.output_format is None
+    assert config.basic_auth == {}
+    assert config.form_auth == {}
+    assert config.http_opts == {}
+    assert config.request_opts == {}
+
+
+def test_project_config():
+    config = ProjectConfig(
+        src_dir='src',
+        output_dir='docs/diagrams',
+        excluded_dirs=['__pycache__', 'tests'],
+        package_base_name='myproject'
+    )
+    assert config.src_dir.endswith('/src')
+    assert config.output_dir.endswith('/docs/diagrams')
+    assert config.excluded_dirs == ['__pycache__', 'tests']
+    assert config.package_base_name == 'myproject'
+
+
+def test_parse_class_with_package_base_name():
+    code = """
 class TestClass:
     pass
 """
-        # Test without package base name
-        classes = parse_class_definitions(code, "src/test.py")
-        self.assertEqual(classes["TestClass"].full_name, "src.test.TestClass")
+    # Test without package base name
+    classes = parse_class_definitions(code, "src/test.py")
+    assert classes["TestClass"].full_name == "src.test.TestClass"
 
-        # Test with package base name
-        classes = parse_class_definitions(code, "src/test.py", "myproject")
-        self.assertEqual(classes["TestClass"].full_name, "myproject.src.test.TestClass")
+    # Test with package base name
+    classes = parse_class_definitions(code, "src/test.py", "myproject")
+    assert classes["TestClass"].full_name == "myproject.src.test.TestClass"
 
-    def test_exception_detection(self):
-        code = """
+
+def test_exception_detection():
+    code = """
 class CustomException(Exception):
     pass
 
@@ -182,30 +193,28 @@ class NetworkError(CustomException):
 class NormalClass:
     pass
 """
-        classes = parse_class_definitions(code, "src/test.py")
-        
-        # Test direct inheritance from Exception
-        self.assertIn("CustomException", classes)
-        self.assertEqual(classes["CustomException"].element_type, ElementType.EXCEPTION)
-        
-        # Test class with Error in name
-        self.assertIn("DatabaseError", classes)
-        self.assertEqual(classes["DatabaseError"].element_type, ElementType.EXCEPTION)
-        
-        # Test class with Exception in name
-        self.assertIn("ValidationException", classes)
-        self.assertEqual(classes["ValidationException"].element_type, ElementType.EXCEPTION)
-        
-        # Test inheritance from another exception class
-        self.assertIn("NetworkError", classes)
-        self.assertEqual(classes["NetworkError"].element_type, ElementType.EXCEPTION)
-        
-        # Test normal class
-        self.assertIn("NormalClass", classes)
-        self.assertEqual(classes["NormalClass"].element_type, ElementType.CLASS)
+    classes = parse_class_definitions(code, "src/test.py")
+    
+    # Test direct inheritance from Exception
+    assert "CustomException" in classes
+    assert classes["CustomException"].element_type == ElementType.EXCEPTION
+    
+    # Test class with Error in name
+    assert "DatabaseError" in classes
+    assert classes["DatabaseError"].element_type == ElementType.EXCEPTION
+    
+    # Test class with Exception in name
+    assert "ValidationException" in classes
+    assert classes["ValidationException"].element_type == ElementType.EXCEPTION
+    
+    # Test inheritance from another exception class
+    assert "NetworkError" in classes
+    assert classes["NetworkError"].element_type == ElementType.EXCEPTION
+    
+    # Test normal class
+    assert "NormalClass" in classes
+    assert classes["NormalClass"].element_type == ElementType.CLASS
 
-if __name__ == '__main__':
-    unittest.main()
 
 
 
