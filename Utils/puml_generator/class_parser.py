@@ -1,7 +1,9 @@
 """AST parsing and class information extraction."""
 
-from ast import parse, Name, AST, Subscript, Index, FunctionDef, walk, ClassDef
+from ast import parse, Name, AST, Subscript, Index, FunctionDef, walk, ClassDef, Attribute
 from typing import Dict, List, Optional
+from abc import abstractmethod
+# from functools import staticmethod
 
 from .class_info import ClassInfo
 from .relationship_visitor import ClassRelationshipVisitor
@@ -44,40 +46,81 @@ def extract_method_params(item: FunctionDef) -> List[str]:
             params.append(arg.arg)
     return params
 
-def extract_methods(node: ClassDef) -> List[tuple[str, str, str]]:
+def extract_methods(node: ClassDef) -> List[tuple[str, str, str, List[str]]]:
     """Extract methods from a class definition.
     
     Returns:
-        List of tuples containing (name, parameters, visibility)
+        List of tuples containing (name, parameters, visibility, modifiers)
     """
     methods = []
     for item in node.body:
         if isinstance(item, FunctionDef):
             params = extract_method_params(item)
             visibility = determine_visibility(item.name)
+            modifiers = []
+            
+            # Check for static methods
+            if any(d.id == 'staticmethod' for d in item.decorator_list if isinstance(d, Name)):
+                modifiers.append('static')
+                
+            # Check for abstract methods
+            if any(d.id == 'abstractmethod' for d in item.decorator_list if isinstance(d, Name)):
+                modifiers.append('abstract')
+                
+            # Check for classmethod (classifier in PlantUML)
+            if any(d.id == 'classmethod' for d in item.decorator_list if isinstance(d, Name)):
+                modifiers.append('classifier')
+                
             # Join parameters if there are any, otherwise use empty string
             param_str = ", ".join(params)
-            methods.append((item.name, param_str, visibility))
+            methods.append((item.name, param_str, visibility, modifiers))
     return methods
 
-def extract_attributes(node: ClassDef) -> List[tuple[str, str, str]]:
+def extract_attributes(node: ClassDef) -> List[tuple[str, str, str, List[str]]]:
     """Extract attributes from a class definition.
     
     Returns:
-        List of tuples containing (name, type, visibility)
+        List of tuples containing (name, type, visibility, modifiers)
     """
-    from ast import AnnAssign, Assign, Name
+    from ast import AnnAssign, Assign, Name, FunctionDef
     attributes = []
+    
+    # First collect all attributes defined in __init__
+    init_attributes = set()
+    for item in node.body:
+        if isinstance(item, FunctionDef) and item.name == '__init__':
+            for stmt in item.body:
+                if isinstance(stmt, Assign):
+                    for target in stmt.targets:
+                        if isinstance(target, Attribute) and isinstance(target.value, Name) and target.value.id == 'self':
+                            init_attributes.add(target.attr)
+                            # Add instance attributes to the list
+                            visibility = determine_visibility(target.attr)
+                            attributes.append((target.attr, "Any", visibility, []))
+    
+    # Now process class-level attributes
     for item in node.body:
         if isinstance(item, AnnAssign) and isinstance(item.target, Name):
             type_hint = extract_type_hint(item.annotation)
             visibility = determine_visibility(item.target.id)
-            attributes.append((item.target.id, type_hint, visibility))
+            modifiers = []
+            
+            # If the attribute is not defined in __init__, it's static
+            if item.target.id not in init_attributes:
+                modifiers.append('static')
+                
+            attributes.append((item.target.id, type_hint, visibility, modifiers))
         elif isinstance(item, Assign):
             for target in item.targets:
                 if isinstance(target, Name):
                     visibility = determine_visibility(target.id)
-                    attributes.append((target.id, "Any", visibility))
+                    modifiers = []
+                    
+                    # If the attribute is not defined in __init__, it's static
+                    if target.id not in init_attributes:
+                        modifiers.append('static')
+                        
+                    attributes.append((target.id, "Any", visibility, modifiers))
     return attributes
 
 def parse_class_definitions(content: str, filename: str, package_base_name: Optional[str] = None) -> Dict[str, ClassInfo]:
@@ -137,7 +180,7 @@ def collect_class_info(tree: AST, module_path: str = "") -> Dict[str, ClassInfo]
                 # Add all non-ABC bases to base_classes initially
                 class_info.base_classes.append(base_id)
             
-            # Extract methods and attributes
+            # Extract methods and attributes with their modifiers
             class_info.methods = extract_methods(node)
             class_info.attributes = extract_attributes(node)
             
@@ -192,6 +235,13 @@ def add_composition_relationships(tree: AST, classes: Dict[str, ClassInfo]) -> N
     for source, target in visitor.weak_dependency_relations:
         if source in classes:
             classes[source].weak_dependencies.add(target)
+
+
+
+
+
+
+
 
 
 

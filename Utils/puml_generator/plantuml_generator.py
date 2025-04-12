@@ -132,10 +132,14 @@ def generate_class_declarations(all_classes: Dict[str, ClassInfo]) -> List[str]:
         
         if class_info.attributes or class_info.methods:
             class_lines.append(f"{element_type} {class_info.full_name} {{")
-            for attr_name, attr_type, visibility in sorted(class_info.attributes):
-                class_lines.append(f"    {visibility} {attr_name}: {attr_type}")
-            for method_name, params, visibility in sorted(class_info.methods):
-                class_lines.append(f"    {visibility} {method_name}({params})")
+            for attr_name, attr_type, visibility, modifiers in sorted(class_info.attributes):
+                prefix_modifiers = [m for m in modifiers if m in {'static', 'abstract', 'classifier'}]
+                prefix = f"{{{' '.join(prefix_modifiers)}}} " if prefix_modifiers else ""
+                class_lines.append(f"    {visibility} {prefix}{attr_name}: {attr_type}")
+            for method_name, params, visibility, modifiers in sorted(class_info.methods):
+                prefix_modifiers = [m for m in modifiers if m in {'static', 'abstract', 'classifier'}]
+                prefix = f"{{{' '.join(prefix_modifiers)}}} " if prefix_modifiers else ""
+                class_lines.append(f"    {visibility} {prefix}{method_name}({params})")
             class_lines.append("}")
         else:
             class_lines.append(f"{element_type} {class_info.full_name}")
@@ -181,6 +185,8 @@ def generate_relationship_declarations(all_classes: Dict[str, ClassInfo]) -> Lis
         relationship_lines.extend(["' Weak dependencies"] + weak_dependencies + [""])
 
     return relationship_lines
+
+
 
 
 

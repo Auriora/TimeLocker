@@ -8,10 +8,10 @@ hide empty members
 
 class DataProtector.backup_manager.BackupManager {
     - __init__()
-    + from_uri(cls, uri: str, password: Optional[str])
+    + {classifier} from_uri(cls, uri: str, password: Optional[str])
     + get_repository_factory(name: str, repo_type: str)
     + list_registered_backends()
-    + redact_sensitive_info(uri: str)
+    + {static} redact_sensitive_info(uri: str)
     + register_repository_factory(name: str, repo_type: str, repository_class: Type[BackupRepository])
 }
 
@@ -21,39 +21,43 @@ exception DataProtector.backup_repository.BackupError
 
 abstract class DataProtector.backup_repository.BackupRepository {
     + apply_retention_policy(policy: RetentionPolicy, prune: bool)
-    + backup_target(targets: List[BackupTarget], tags: Any)
-    + check()
-    + forget_snapshot(snapshotid: str, prune: bool)
-    + initialize()
-    + location()
-    + prune_data()
-    + restore(snapshot_id: str, target_path: Optional[Path])
-    + snapshots(tags: Any)
-    + stats()
-    + validate()
+    + {abstract} backup_target(targets: List[BackupTarget], tags: Any)
+    + {abstract} check()
+    + {abstract} forget_snapshot(snapshotid: str, prune: bool)
+    + {abstract} initialize()
+    + {abstract} location()
+    + {abstract} prune_data()
+    + {abstract} restore(snapshot_id: str, target_path: Optional[Path])
+    + {abstract} snapshots(tags: Any)
+    + {abstract} stats()
+    + {abstract} validate()
 }
 
 struct DataProtector.backup_repository.RetentionPolicy {
-    + daily: Optional[int]
-    + hourly: Optional[int]
-    + last: Optional[int]
-    + monthly: Optional[int]
-    + weekly: Optional[int]
-    + yearly: Optional[int]
+    + {static} daily: Optional[int]
+    + {static} hourly: Optional[int]
+    + {static} last: Optional[int]
+    + {static} monthly: Optional[int]
+    + {static} weekly: Optional[int]
+    + {static} yearly: Optional[int]
     + is_valid()
 }
 
 class DataProtector.backup_snapshot.BackupSnapshot {
+    + id: Any
     + id: str
+    + paths: Any
     + paths: list[Path]
+    + repo: Any
     + repo: BackupRepository
-    + size: int
-    + tags: List[str]
+    + {static} size: int
+    + {static} tags: List[str]
+    + timestamp: Any
     + timestamp: datetime
     - __init__(repo: BackupRepository, snapshot_id: str, timestamp: datetime, paths: list[Path])
     + delete(prune: bool)
     + find(pattern: str)
-    + from_dict(cls, repository: Any, data: Dict)
+    + {classifier} from_dict(cls, repository: Any, data: Dict)
     + get_stats()
     + list(dir: Optional[Path])
     + restore(target_path: Optional[Path])
@@ -62,6 +66,8 @@ class DataProtector.backup_snapshot.BackupSnapshot {
 }
 
 class DataProtector.backup_target.BackupTarget {
+    + selection: Any
+    + tags: Any
     - __init__(selection: FileSelection, tags: List[str])
     + validate()
 }
@@ -83,33 +89,40 @@ class DataProtector.file_selections.FileSelection {
 }
 
 class DataProtector.file_selections.PatternGroup {
-    + COMMON_GROUPS: Any
+    + {static} COMMON_GROUPS: Any
+    + name: Any
+    + patterns: Any
     - __init__(name: str, patterns: List[str])
-    + get_common_group(cls, group_name: str)
+    + {classifier} get_common_group(cls, group_name: str)
 }
 
 enum DataProtector.file_selections.SelectionType {
-    + EXCLUDE: Any
-    + INCLUDE: Any
+    + {static} EXCLUDE: Any
+    + {static} INCLUDE: Any
 }
 
 class DataProtector.restic.Repositories.b2.B2ResticRepository {
+    + b2_account_id: Any
+    + b2_account_key: Any
     - __init__(location: str, password: Optional[str], b2_account_id: Optional[str], b2_account_key: Optional[str])
     + backend_env()
-    + from_parsed_uri(cls, parsed_uri, password: Optional[str])
+    + {classifier} from_parsed_uri(cls, parsed_uri, password: Optional[str])
     + validate()
 }
 
 class DataProtector.restic.Repositories.local.LocalResticRepository {
     + backend_env()
-    + from_parsed_uri(cls, parsed_uri, password: Optional[str])
+    + {classifier} from_parsed_uri(cls, parsed_uri, password: Optional[str])
     + validate()
 }
 
 class DataProtector.restic.Repositories.s3.S3ResticRepository {
+    + aws_access_key_id: Any
+    + aws_default_region: Any
+    + aws_secret_access_key: Any
     - __init__(location: str, password: Optional[str], aws_access_key_id: Optional[str], aws_secret_access_key: Optional[str], aws_default_region: Optional[str])
     + backend_env()
-    + from_parsed_uri(cls, parsed_uri, password: Optional[str])
+    + {classifier} from_parsed_uri(cls, parsed_uri, password: Optional[str])
     + validate()
 }
 
@@ -122,13 +135,19 @@ exception DataProtector.restic.errors.ResticVersionError
 exception DataProtector.restic.errors.UnsupportedSchemeError
 
 class DataProtector.restic.restic_repository.ResticRepository {
+    # _cached_env: Any
+    # _command: Any
+    # _command: Any
+    # _explicit_password: Any
+    # _location: Any
+    # _restic_version: Any
     - __init__(location: str, tags: Any, password: Optional[str], min_version: str)
     # _handle_restic_output(output: Dict)
     # _on_backup_status(status: Dict)
     # _on_backup_summary(summary: Dict)
     # _verify_restic_executable(min_version: str)
     + apply_retention_policy(policy: RetentionPolicy, prune: bool)
-    + backend_env()
+    + {abstract} backend_env()
     + backup_target(targets: List[BackupTarget], tags: Any)
     + check()
     + forget_snapshot(snapshotid: str, prune: bool)
@@ -145,8 +164,10 @@ class DataProtector.restic.restic_repository.ResticRepository {
 }
 
 class DataProtector.utils.command_builder.CommandBuilder {
+    # _command_def: Any
+    # _current_def: Any
     - __init__(command_def: CommandDefinition)
-    # _merge_envs(env1: Any, env2: Any)
+    # {static} _merge_envs(env1: Any, env2: Any)
     + build(use_short_form: bool, synopsis_values: Any)
     + clear()
     + command(name: str)
@@ -156,34 +177,40 @@ class DataProtector.utils.command_builder.CommandBuilder {
 }
 
 class DataProtector.utils.command_builder.CommandDefinition {
+    + default_param_style: Any
+    + name: Any
+    + parameters: Any
+    + subcommands: Any
+    + synopsis_params: Any
     - __init__(name: str, parameters: Any, subcommands: Any, default_param_style: Any, synopsis_params: Any)
 }
 
 exception DataProtector.utils.command_builder.CommandExecutionError {
+    + stderr: Any
     - __init__(message, stderr)
 }
 
 struct DataProtector.utils.command_builder.CommandParameter {
-    + description: str
-    + name: str
-    + position: Optional[int]
-    + prefix: Optional[str]
-    + required: bool
-    + short_name: Optional[str]
-    + short_style: Any
-    + style: Any
-    + value_required: bool
+    + {static} description: str
+    + {static} name: str
+    + {static} position: Optional[int]
+    + {static} prefix: Optional[str]
+    + {static} required: bool
+    + {static} short_name: Optional[str]
+    + {static} short_style: Any
+    + {static} style: Any
+    + {static} value_required: bool
     - __post_init__()
-    # _convert_style(style: Any)
+    # {static} _convert_style(style: Any)
     + format_param_name(use_short_form: bool)
 }
 
 enum DataProtector.utils.command_builder.ParameterStyle {
-    + DOUBLE_DASH: Any
-    + JOINED: Any
-    + POSITIONAL: Any
-    + SEPARATE: Any
-    + SINGLE_DASH: Any
+    + {static} DOUBLE_DASH: Any
+    + {static} JOINED: Any
+    + {static} POSITIONAL: Any
+    + {static} SEPARATE: Any
+    + {static} SINGLE_DASH: Any
     - __eq__(other)
     - __hash__()
     - __ne__(other)

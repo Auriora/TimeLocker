@@ -62,7 +62,7 @@ class TestClass:
 """
         classes = parse_class_definitions(code, "src/models/test.py")
         self.assertIn("TestClass", classes)
-        attrs = {name: (type_, vis) for name, type_, vis in classes["TestClass"].attributes}
+        attrs = {name: (type_, vis) for name, type_, vis, _ in classes["TestClass"].attributes}
         self.assertEqual(attrs["name"], ("str", "+"))
         self.assertEqual(attrs["_protected"], ("int", "#"))
         self.assertEqual(attrs["__private"], ("bool", "-"))
@@ -80,7 +80,7 @@ class TestClass:
 """
         classes = parse_class_definitions(code, "src/models/test.py")
         self.assertIn("TestClass", classes)
-        methods = {name: (params, vis) for name, params, vis in classes["TestClass"].methods}
+        methods = {name: (params, vis) for name, params, vis, _ in classes["TestClass"].methods}
         self.assertEqual(methods["public_method"], ("", "+"))
         self.assertEqual(methods["_protected_method"], ("", "#"))
         self.assertEqual(methods["__private_method"], ("", "-"))
@@ -206,6 +206,8 @@ class NormalClass:
 
 if __name__ == '__main__':
     unittest.main()
+
+
 
 
 
