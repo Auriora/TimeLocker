@@ -18,6 +18,7 @@ class ClassInfo:
         self.weak_dependencies: Set[str] = set()  # Weak dependencies
         self.element_type = ElementType.CLASS  # Default type
         self.stereotype = None  # Optional stereotype
+        self.visibility = "+"  # Default to public, can be +, -, #, or ~
 
     @property
     def full_name(self) -> str:
@@ -29,7 +30,7 @@ class ClassInfo:
 
     def to_plantuml(self) -> str:
         """Convert class information to PlantUML syntax."""
-        puml = [f"{self.element_type} {self.full_name} {{"]
+        puml = [f"{self.visibility} {self.element_type} {self.full_name} {{"]
         if self.attributes or self.methods:
             # Sort attributes by visibility only (private first, then protected, then public)
             # Within each visibility level, maintain original order
@@ -89,6 +90,11 @@ class ClassInfo:
                 relationships.append(f"{self.full_name} {RelationType.WEAK_DEPENDENCY} {all_classes[dependent].full_name}")
 
         return relationships
+
+
+
+
+
 
 
 

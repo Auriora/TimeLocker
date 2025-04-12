@@ -34,6 +34,22 @@ def determine_visibility(name: str) -> str:
     elif name.startswith("_"):
         return "#"  # protected
     return "+"  # public
+def determine_class_visibility(name: str) -> str:
+    """Determine class visibility based on Python naming conventions.
+    
+    Args:
+        name: The name of the class
+        
+    Returns:
+        The visibility modifier for PlantUML (-, #, ~, or +)
+    """
+    if name.startswith("__"):
+        return "-"  # private
+    elif name.startswith("_"):
+        if name.startswith("_abc_"):  # Special case for ABC implementation details
+            return "~"  # package private
+        return "#"  # protected
+    return "+"  # public
 
 def extract_method_params(item: FunctionDef) -> List[str]:
     """Extract method parameters with type hints."""
@@ -185,6 +201,9 @@ def collect_class_info(tree: AST, module_path: str = "") -> Dict[str, ClassInfo]
             # Set element type
             class_info.element_type = visitor.element_types.get(node.name, "class")
             
+            # Set class visibility
+            class_info.visibility = determine_class_visibility(node.name)
+            
             # Set stereotype if present
             if node.name in visitor.stereotypes:
                 class_info.stereotype = visitor.stereotypes[node.name]
@@ -254,6 +273,10 @@ def add_composition_relationships(tree: AST, classes: Dict[str, ClassInfo]) -> N
     for source, target in visitor.weak_dependency_relations:
         if source in classes:
             classes[source].weak_dependencies.add(target)
+
+
+
+
 
 
 
