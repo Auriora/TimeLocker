@@ -18,6 +18,21 @@ def extract_type_hint(node: AST) -> str:
             return f"{base}[{node.slice.value.id}]"
     return "Any"
 
+def determine_visibility(name: str) -> str:
+    """Determine member visibility based on Python naming conventions.
+    
+    Args:
+        name: The name of the method or attribute
+        
+    Returns:
+        The visibility modifier for PlantUML (-, #, ~, or +)
+    """
+    if name.startswith("__"):
+        return "-"  # private
+    elif name.startswith("_"):
+        return "#"  # protected
+    return "+"  # public
+
 def extract_method_params(item: FunctionDef) -> List[str]:
     """Extract method parameters with type hints."""
     params = []
@@ -29,27 +44,40 @@ def extract_method_params(item: FunctionDef) -> List[str]:
             params.append(arg.arg)
     return params
 
-def extract_methods(node: ClassDef) -> List[tuple[str, str]]:
-    """Extract methods from a class definition."""
+def extract_methods(node: ClassDef) -> List[tuple[str, str, str]]:
+    """Extract methods from a class definition.
+    
+    Returns:
+        List of tuples containing (name, parameters, visibility)
+    """
     methods = []
     for item in node.body:
         if isinstance(item, FunctionDef):
             params = extract_method_params(item)
-            methods.append((item.name, ", ".join(params)))
+            visibility = determine_visibility(item.name)
+            # Join parameters if there are any, otherwise use empty string
+            param_str = ", ".join(params)
+            methods.append((item.name, param_str, visibility))
     return methods
 
-def extract_attributes(node: ClassDef) -> List[tuple[str, str]]:
-    """Extract attributes from a class definition."""
+def extract_attributes(node: ClassDef) -> List[tuple[str, str, str]]:
+    """Extract attributes from a class definition.
+    
+    Returns:
+        List of tuples containing (name, type, visibility)
+    """
     from ast import AnnAssign, Assign, Name
     attributes = []
     for item in node.body:
         if isinstance(item, AnnAssign) and isinstance(item.target, Name):
             type_hint = extract_type_hint(item.annotation)
-            attributes.append((item.target.id, type_hint))
+            visibility = determine_visibility(item.target.id)
+            attributes.append((item.target.id, type_hint, visibility))
         elif isinstance(item, Assign):
             for target in item.targets:
                 if isinstance(target, Name):
-                    attributes.append((target.id, "Any"))
+                    visibility = determine_visibility(target.id)
+                    attributes.append((target.id, "Any", visibility))
     return attributes
 
 def parse_class_definitions(content: str, filename: str, package_base_name: Optional[str] = None) -> Dict[str, ClassInfo]:
@@ -164,3 +192,6 @@ def add_composition_relationships(tree: AST, classes: Dict[str, ClassInfo]) -> N
     for source, target in visitor.weak_dependency_relations:
         if source in classes:
             classes[source].weak_dependencies.add(target)
+
+
+

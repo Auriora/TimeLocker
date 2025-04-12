@@ -11,7 +11,9 @@ class PlantUMLConfig:
                  basic_auth: Optional[dict] = None,
                  form_auth: Optional[dict] = None,
                  http_opts: Optional[dict] = None,
-                 request_opts: Optional[dict] = None):
+                 request_opts: Optional[dict] = None,
+                 skin: str = 'plantuml',
+                 theme: Optional[str] = '_none_'):
         # Ensure server URL ends with /
         server_url = server_url.rstrip('/') + '/'
         # Add format to server URL if output_format is specified
@@ -24,6 +26,8 @@ class PlantUMLConfig:
         self.form_auth = form_auth or {}
         self.http_opts = http_opts or {}
         self.request_opts = request_opts or {}
+        self.skin = skin
+        self.theme = theme
 
 class ProjectConfig:
     """Configuration for project paths and settings."""
@@ -41,4 +45,8 @@ class ProjectConfig:
         """Ensure output directory exists."""
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
+
+
+
+
 

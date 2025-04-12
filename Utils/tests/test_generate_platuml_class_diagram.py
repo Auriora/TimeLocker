@@ -57,13 +57,33 @@ class Child(Parent):
         code = """
 class TestClass:
     name: str
-    age: int
+    _protected: int
+    __private: bool
 """
         classes = parse_class_definitions(code, "src/models/test.py")
         self.assertIn("TestClass", classes)
-        attrs = {name: type_ for name, type_ in classes["TestClass"].attributes}
-        self.assertEqual(attrs["name"], "str")
-        self.assertEqual(attrs["age"], "int")
+        attrs = {name: (type_, vis) for name, type_, vis in classes["TestClass"].attributes}
+        self.assertEqual(attrs["name"], ("str", "+"))
+        self.assertEqual(attrs["_protected"], ("int", "#"))
+        self.assertEqual(attrs["__private"], ("bool", "-"))
+    def test_parse_class_with_methods(self):
+        code = """
+class TestClass:
+    def public_method(self):
+        pass
+        
+    def _protected_method(self):
+        pass
+        
+    def __private_method(self):
+        pass
+"""
+        classes = parse_class_definitions(code, "src/models/test.py")
+        self.assertIn("TestClass", classes)
+        methods = {name: (params, vis) for name, params, vis in classes["TestClass"].methods}
+        self.assertEqual(methods["public_method"], ("", "+"))
+        self.assertEqual(methods["_protected_method"], ("", "#"))
+        self.assertEqual(methods["__private_method"], ("", "-"))
         self.assertEqual(classes["TestClass"].full_name, "src.models.test.TestClass")
 
     def test_collect_class_info_returns_dict(self):
@@ -186,6 +206,10 @@ class NormalClass:
 
 if __name__ == '__main__':
     unittest.main()
+
+
+
+
 
 
 

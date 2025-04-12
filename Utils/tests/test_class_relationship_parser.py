@@ -1,7 +1,7 @@
 # file: test_additional_relationships.py
 import unittest
 import textwrap
-from Utils.puml_generator import parse_class_definitions, ClassInfo
+from Utils.puml_generator import parse_class_definitions
 
 
 class TestAdditionalRelationships(unittest.TestCase):
@@ -60,6 +60,83 @@ class TestAdditionalRelationships(unittest.TestCase):
         self.assertIn("Helper", classes["Worker"].dependencies,
                       "Worker should have a dependency relationship with Helper.")
 
+    def test_composition_relationship(self):
+        """
+        Test that parse_class_definitions correctly identifies
+        a composition relationship when an instance is created within __init__.
+        """
+        code = textwrap.dedent("""
+            class ComposedPart:
+                pass
+            class Whole:
+                def __init__(self):
+                    self.part = ComposedPart()
+        """)
+        classes = parse_class_definitions(code, "src/test_composition.py")
+        self.assertIn("Whole", classes, "Whole class should be parsed.")
+        self.assertIn("ComposedPart", classes["Whole"].composition_relationships,
+                      "Whole should have a composition relationship with ComposedPart.")
+
+    def test_weak_dependency_relationship(self):
+        """
+        Test that parse_class_definitions correctly identifies
+        a weak dependency when an instance is used conditionally.
+        """
+        code = textwrap.dedent("""
+            class OptionalHelper:
+                def assist(self):
+                    pass
+            class Consumer:
+                def process(self):
+                    # weak dependency example:
+                    if False:
+                        helper = OptionalHelper()
+                        helper.assist()
+        """)
+        classes = parse_class_definitions(code, "src/test_weak_dependency.py")
+        self.assertIn("Consumer", classes, "Consumer class should be parsed.")
+        self.assertIn("OptionalHelper", classes["Consumer"].weak_dependencies,
+                      "Consumer should have a weak dependency relationship with OptionalHelper.")
+
+    def test_multiple_relationships(self):
+        """
+        Test a class with multiple relationships:
+        - Inheritance from Base.
+        - Composition relationship via attribute assignment.
+        - Dependency relationship in a method.
+        """
+        code = textwrap.dedent("""
+            class Base:
+                pass
+            class ComposedPart:
+                pass
+            class Helper:
+                def assist(self):
+                    pass
+            class Consumer(Base):
+                def __init__(self, provider, helper: Helper):
+                    self.provider = provider  # This may be marked as aggregation if further analyzed
+                    self.part = ComposedPart()
+                def process(self):
+                    temp = Helper()
+                    temp.assist()
+        """)
+        classes = parse_class_definitions(code, "src/test_multiple_relationships.py")
+        self.assertIn("Consumer", classes, "Consumer class should be parsed.")
+        consumer = classes["Consumer"]
+        # Inheritance check
+        self.assertIn("Base", consumer.base_classes,
+                      "Consumer should inherit from Base.")
+        # Composition check
+        self.assertIn("ComposedPart", consumer.composition_relationships,
+                      "Consumer should have a composition relationship with ComposedPart.")
+        # Dependency check (for the temporary helper instance)
+        self.assertIn("Helper", consumer.dependencies,
+                      "Consumer should have a dependency relationship with Helper.")
+        # Optionally, if the 'provider' parameter is not recognized as a specific relationship,
+        # there should be no aggregation for it unless determined by your parser:
+        self.assertEqual(len(consumer.aggregation_relationships), 0,
+                         "No aggregation relationship should be registered for an untyped provider by default.")
 
 if __name__ == '__main__':
     unittest.main()

@@ -30,6 +30,19 @@ def main():
                        help='Base package name to prepend to module paths (e.g., "myproject")')
     parser.add_argument('--debug', action='store_true',
                        help='Enable debug logging')
+    parser.add_argument('--skin', choices=['debug', 'plantuml', 'rose'],
+                       default='plantuml',
+                       help='PlantUML skin to use (default: plantuml)')
+    parser.add_argument('--theme', choices=['amiga', 'aws-orange', 'black-knight', 'bluegray', 'blueprint', 'carbon-gray',
+                                          'cerulean-outline', 'cerulean', 'cloudscape-design', 'crt-amber', 'crt-green',
+                                          'cyborg-outline', 'cyborg', 'hacker', 'lightgray', 'mars', 'materia-outline',
+                                          'materia', 'metal', 'mimeograph', 'minty', 'mono', 'none', 'plain',
+                                          'reddress-darkblue', 'reddress-darkgreen', 'reddress-darkorange', 'reddress-darkred',
+                                          'reddress-lightblue', 'reddress-lightgreen', 'reddress-lightorange', 'reddress-lightred',
+                                          'sandstone', 'silver', 'sketchy-outline', 'sketchy', 'spacelab-white', 'spacelab',
+                                          'Sunlust', 'superhero-outline', 'superhero', 'toy', 'united', 'vibrant'],
+                       default='_none_',
+                       help='PlantUML theme to use (default: _none_)')
 
     args = parser.parse_args()
 
@@ -46,7 +59,9 @@ def main():
 
     plantuml_config = PlantUMLConfig(
         server_url=args.plantuml_server,
-        output_format=args.output_format
+        output_format=args.output_format,
+        skin=args.skin,
+        theme=args.theme
     )
 
     # Generate diagram
@@ -54,5 +69,8 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+
 
 

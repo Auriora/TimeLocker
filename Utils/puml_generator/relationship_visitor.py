@@ -164,8 +164,9 @@ class ClassRelationshipVisitor(NodeVisitor):
     def _handle_init_method(self, init_node: FunctionDef):
         """Handle relationships in __init__ method."""
         # Check constructor parameters for aggregation relationships
+        # Only add aggregation relationships for explicitly typed parameters
         for arg in init_node.args.args:
-            if arg.name != 'self' and hasattr(arg, 'annotation') and isinstance(arg.annotation, Name):
+            if arg.arg != 'self' and hasattr(arg, 'annotation') and arg.annotation is not None and isinstance(arg.annotation, Name):
                 self.aggregation_relations.add((self.current_class, arg.annotation.id))
 
         # Check method body for assignments
@@ -240,4 +241,6 @@ class ClassRelationshipVisitor(NodeVisitor):
             elif stmt == item:
                 break
         return None
+
+
 

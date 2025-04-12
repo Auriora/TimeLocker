@@ -33,7 +33,7 @@ def generate_class_diagram(project_config: ProjectConfig, plantuml_config: Plant
         return
 
     # Generate PlantUML content
-    puml_content = generate_plantuml_content(all_classes, project_config.package_base_name)
+    puml_content = generate_plantuml_content(all_classes, project_config.package_base_name, plantuml_config)
 
     # Write and generate diagram
     output_file = join(project_config.output_dir, f"{project_config.package_base_name or 'Project Class Diagram'}.puml")
@@ -82,13 +82,14 @@ def collect_all_classes(project_config: ProjectConfig) -> Dict[str, ClassInfo]:
 
     return all_classes
 
-def generate_plantuml_content(all_classes: Dict[str, ClassInfo], package_base_name: str) -> str:
+def generate_plantuml_content(all_classes: Dict[str, ClassInfo], package_base_name: str, plantuml_config: PlantUMLConfig) -> str:
     """Generate PlantUML content from collected class information."""
     # Initialize PlantUML content
     puml_lines = [
         "@startuml",
         "' PlantUML style configuration",
-        "skinparam classAttributeIconSize 0",
+        f"!theme {plantuml_config.theme}" if plantuml_config.theme else "",
+        f"skin {plantuml_config.skin}" if plantuml_config.skin else "",
         "hide empty members",
         "",
         "' Project classes",
@@ -131,10 +132,10 @@ def generate_class_declarations(all_classes: Dict[str, ClassInfo]) -> List[str]:
         
         if class_info.attributes or class_info.methods:
             class_lines.append(f"{element_type} {class_info.full_name} {{")
-            for attr_name, attr_type in sorted(class_info.attributes):
-                class_lines.append(f"    - {attr_name}: {attr_type}")
-            for method_name, params in sorted(class_info.methods):
-                class_lines.append(f"    + {method_name}({params})")
+            for attr_name, attr_type, visibility in sorted(class_info.attributes):
+                class_lines.append(f"    {visibility} {attr_name}: {attr_type}")
+            for method_name, params, visibility in sorted(class_info.methods):
+                class_lines.append(f"    {visibility} {method_name}({params})")
             class_lines.append("}")
         else:
             class_lines.append(f"{element_type} {class_info.full_name}")
@@ -180,4 +181,8 @@ def generate_relationship_declarations(all_classes: Dict[str, ClassInfo]) -> Lis
         relationship_lines.extend(["' Weak dependencies"] + weak_dependencies + [""])
 
     return relationship_lines
+
+
+
+
 

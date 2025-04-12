@@ -8,8 +8,8 @@ class ClassInfo:
     def __init__(self, name: str, module_path: str = ""):
         self.name = name
         self.module_path = module_path
-        self.methods: List[Tuple[str, str]] = []  # (name, parameters)
-        self.attributes: List[Tuple[str, str]] = []  # (name, type)
+        self.methods: List[Tuple[str, str, str]] = []  # (name, parameters, visibility)
+        self.attributes: List[Tuple[str, str, str]] = []  # (name, type, visibility)
         self.base_classes: List[str] = []  # List of base class names
         self.implemented_interfaces: List[str] = []  # For interface implementations
         self.composition_relationships: Set[str] = set()  # Strong whole-part
@@ -31,8 +31,16 @@ class ClassInfo:
         """Convert class information to PlantUML syntax."""
         puml = [f"{self.element_type} {self.full_name} {{"]
         if self.attributes or self.methods:
-            puml.extend(f"    - {attr_name}: {attr_type}" for attr_name, attr_type in sorted(self.attributes))
-            puml.extend(f"    + {method_name}({params})" for method_name, params in sorted(self.methods))
+            # Sort attributes by visibility only (private first, then protected, then public)
+            # Within each visibility level, maintain original order
+            visibility_order = {'-': 1, '#': 2, '+': 3}
+            sorted_attrs = sorted(self.attributes, key=lambda x: visibility_order[x[2]])  # x[2] is visibility
+            puml.extend(f"    {visibility} {attr_name}: {attr_type}" for attr_name, attr_type, visibility in sorted_attrs)
+            
+            # Sort methods by visibility only (private first, then protected, then public)
+            # Within each visibility level, maintain original order
+            sorted_methods = sorted(self.methods, key=lambda x: visibility_order[x[2]])  # x[2] is visibility
+            puml.extend(f"    {visibility} {method_name}({params})" for method_name, params, visibility in sorted_methods)
         puml.append("}")
         return "\n".join(puml)
 
@@ -71,3 +79,5 @@ class ClassInfo:
                 relationships.append(f"{self.full_name} {RelationType.WEAK_DEPENDENCY} {all_classes[dependent].full_name}")
 
         return relationships
+
+
