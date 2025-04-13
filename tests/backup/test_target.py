@@ -1,9 +1,9 @@
 import pytest
+from unittest.mock import Mock
 from backup_target import BackupTarget
 from file_selections import SelectionType, FileSelection
 
-
-class TestBackupTargetCreation:
+class TestBackupTargetBasics:
     def test_create_backup_target(self, selection):
         """Test creating a basic backup target"""
         target = BackupTarget(selection)
@@ -14,6 +14,25 @@ class TestBackupTargetCreation:
         """Test creating a backup target with tags"""
         tags = ["daily", "important"]
         target = BackupTarget(selection, tags=tags)
+        assert target.tags == tags
+
+    def test_init_with_none_selection(self):
+        """Test initializing BackupTarget with None as the selection argument."""
+        with pytest.raises(AttributeError):
+            BackupTarget(None)
+
+    def test_init_with_none_tags(self):
+        """Test initializing BackupTarget with None as the tags argument."""
+        selection = FileSelection()
+        target = BackupTarget(selection, None)
+        assert target.tags == []
+
+    def test_init_with_selection_and_tags(self):
+        """Test the initialization of BackupTarget with a FileSelection and tags."""
+        selection = FileSelection()
+        tags = ["important", "daily"]
+        target = BackupTarget(selection, tags)
+        assert target.selection == selection
         assert target.tags == tags
 
 class TestBackupTargetValidation:
@@ -31,6 +50,21 @@ class TestBackupTargetValidation:
         selection.add_path(test_dir)
         target = BackupTarget(selection)
         assert target.validate()
+
+    def test_validate_raises_value_error(self):
+        """Test that validate() method raises ValueError when the selection configuration is invalid."""
+        mock_selection = Mock(spec=FileSelection)
+        mock_selection.validate.side_effect = ValueError("Invalid selection")
+        backup_target = BackupTarget(selection=mock_selection)
+        with pytest.raises(ValueError):
+            backup_target.validate()
+
+    def test_validate_returns_true_for_valid_selection(self):
+        """Test that the validate method returns True when the selection is valid."""
+        mock_selection = FileSelection()
+        mock_selection.validate = lambda: True
+        backup_target = BackupTarget(selection=mock_selection)
+        assert backup_target.validate() == True
 
 class TestBackupTargetPatterns:
     def test_backup_target_with_patterns(self, selection, test_dir):

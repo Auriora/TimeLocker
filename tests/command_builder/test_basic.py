@@ -3,7 +3,7 @@ from utils.command_builder import CommandBuilder, CommandDefinition, ParameterSt
 
 @pytest.fixture
 def cmd_def():
-    # Basic command definition for testing
+    """Basic command definition for testing"""
     return CommandDefinition(
         "test-cmd",
         parameters={
@@ -25,6 +25,7 @@ def cmd_def():
 
 @pytest.fixture
 def builder(cmd_def):
+    """Command builder instance for testing"""
     return CommandBuilder(cmd_def)
 
 class TestBasicCommandBuilding:
@@ -46,10 +47,10 @@ class TestBasicCommandBuilding:
     def test_parameter_chaining(self, builder):
         """Test chaining multiple parameters"""
         result = (builder
-                 .param("verbose")
-                 .param("output", "file.txt")
-                 .param("format", "json")
-                 .build())
+                .param("verbose")
+                .param("output", "file.txt")
+                .param("format", "json")
+                .build())
         assert result == ["test-cmd", "--verbose", "--output", "file.txt", "--format", "json"]
 
 class TestSubcommands:
@@ -61,10 +62,10 @@ class TestSubcommands:
     def test_subcommand_with_parameters(self, builder):
         """Test subcommand with parameters"""
         result = (builder
-                 .command("backup")
-                 .param("source", "/path")
-                 .param("verbose")
-                 .build())
+                .command("backup")
+                .param("source", "/path")
+                .param("verbose")
+                .build())
         assert result == ["test-cmd", "backup", "--source", "/path", "--verbose"]
 
 class TestBuilderState:

@@ -1,0 +1,123 @@
+from src.backup_manager import BackupManager, BackupManagerError
+from backup_repository import BackupRepository
+from typing import Dict, List, Optional, Type
+from urllib.parse import urlparse
+import io
+import logging
+import pytest
+import sys
+
+class TestBackupManagerBasics:
+    def test_init_creates_empty_repository_factories(self):
+        """Test that __init__ creates an empty repository factories dictionary"""
+        manager = BackupManager()
+        assert isinstance(manager._repository_factories, dict)
+        assert len(manager._repository_factories) == 0
+
+    def test_redact_sensitive_info_no_username(self):
+        """Test redacting sensitive info from URL without username"""
+        uri = "https://example.com/path"
+        result = BackupManager.redact_sensitive_info(uri)
+        assert result == uri, "URL without username should not be modified"
+
+    def test_redact_sensitive_info_with_username(self):
+        """Test redacting username and password from URL"""
+        uri = "https://username:password@example.com/path"
+        expected_result = "https://example.com[:*****]/path"
+        result = BackupManager.redact_sensitive_info(uri)
+        assert result == expected_result
+
+class TestBackupManagerRepositoryFactories:
+    def test_get_repository_factory_nonexistent(self):
+        """Test getting nonexistent repository factory"""
+        manager = BackupManager()
+        result = manager.get_repository_factory("nonexistent", "some_type")
+        assert result is None
+
+    def test_get_repository_factory_nonexistent_type(self):
+        """Test getting nonexistent repository type from existing factory"""
+        manager = BackupManager()
+        manager.register_repository_factory("existing", "existing_type", BackupRepository)
+        result = manager.get_repository_factory("existing", "nonexistent_type")
+        assert result is None
+
+    def test_register_repository_factory(self):
+        """Test registering a new repository factory"""
+        manager = BackupManager()
+        name = "test_name"
+        repo_type = "test_type"
+        repository_class = Type[BackupRepository]
+
+        # First registration
+        manager.register_repository_factory(name, repo_type, repository_class)
+        assert name in manager._repository_factories
+        assert repo_type in manager._repository_factories[name]
+        assert manager._repository_factories[name][repo_type] == repository_class
+
+        # Second registration (overwrite)
+        class MockRepository(BackupRepository):
+            pass
+
+        manager.register_repository_factory(name, repo_type, MockRepository)
+        assert manager._repository_factories[name][repo_type] == MockRepository
+
+    def test_register_repository_factory_overwrite_warning(self, capfd):
+        """Test warning when overwriting existing repository factory"""
+        manager = BackupManager()
+        manager.register_repository_factory("test", "repo_type", BackupRepository)
+        manager.register_repository_factory("test", "repo_type", BackupRepository)
+        captured = capfd.readouterr()
+        assert "Warning: Overwriting existing repository class for test/repo_type" in captured.out
+
+    def test_list_registered_backends(self):
+        """Test listing registered backends and their types"""
+        manager = BackupManager()
+        manager.register_repository_factory("backend1", "type1", BackupRepository)
+        manager.register_repository_factory("backend1", "type2", BackupRepository)
+        manager.register_repository_factory("backend2", "type3", BackupRepository)
+
+        result = manager.list_registered_backends()
+        expected = {
+            "backend1": ["type1", "type2"],
+            "backend2": ["type3"]
+        }
+        assert result == expected
+
+    def test_list_registered_backends_empty(self):
+        """Test listing backends when none are registered"""
+        manager = BackupManager()
+        result = manager.list_registered_backends()
+        assert isinstance(result, dict)
+        assert len(result) == 0
+
+class TestBackupManagerURI:
+    def test_from_uri_supported_scheme(self):
+        """Test creating repository from supported URI scheme"""
+        uri = "s3://test-bucket/backup"
+        password = "test-password"
+
+        # Mock the repo_classes dictionary
+        BackupManager.from_uri.__func__.repo_classes = {
+            's3': MockS3Repository
+        }
+
+        result = BackupManager.from_uri(uri, password)
+        assert isinstance(result, MockS3Repository)
+        assert result.parsed_uri == urlparse(uri)
+        assert result.password == password
+
+    def test_from_uri_unsupported_scheme(self):
+        """Test error when using unsupported URI scheme"""
+        unsupported_uri = "unsupported://example.com/path"
+        with pytest.raises(BackupManagerError) as excinfo:
+            BackupManager.from_uri(unsupported_uri)
+        assert str(excinfo.value) == "Unsupported repository scheme: unsupported"
+
+class MockS3Repository:
+    def __init__(self, parsed_uri, password):
+        self.parsed_uri = parsed_uri
+        self.password = password
+
+    @classmethod
+    def from_parsed_uri(cls, parsed_uri, password):
+        return cls(parsed_uri, password)

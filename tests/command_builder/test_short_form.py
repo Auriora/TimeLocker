@@ -37,9 +37,9 @@ class TestCommandShortForm:
         - Parameter styles are adjusted according to short_style
         """
         result = (builder
-                 .param("help")
-                 .param("output", "file.txt")
-                 .build(use_short_form=True))
+                .param("help")
+                .param("output", "file.txt")
+                .build(use_short_form=True))
         assert result == ["test-cmd", "-h", "-o", "file.txt"]
 
     def test_long_form_parameters(self, builder):
@@ -50,8 +50,7 @@ class TestCommandShortForm:
         - Original parameter styles are preserved
         """
         result = (builder
-                 .param("help")
-                 .param("output", "file.txt")
-                 .build(use_short_form=False))
+                .param("help")
+                .param("output", "file.txt")
+                .build(use_short_form=False))
         assert result == ["test-cmd", "--help", "--output=file.txt"]
-
