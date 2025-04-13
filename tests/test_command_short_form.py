@@ -11,6 +11,7 @@ class TestCommandShortForm:
                 "help": CommandParameter(
                     name="help",
                     style=ParameterStyle.SEPARATE,
+                    value_required=False,
                     short_name="h",
                     short_style=ParameterStyle.SINGLE_DASH
                 ),
@@ -53,3 +54,4 @@ class TestCommandShortForm:
                  .param("output", "file.txt")
                  .build(use_short_form=False))
         assert result == ["test-cmd", "--help", "--output=file.txt"]
+

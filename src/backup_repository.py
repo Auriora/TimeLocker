@@ -1,9 +1,13 @@
+from __future__ import annotations
 from pathlib import Path
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
-from backup_snapshot import BackupSnapshot
+if TYPE_CHECKING:
+    from backup_snapshot import BackupSnapshot
+
 from backup_target import BackupTarget
 
 
@@ -69,8 +73,7 @@ class BackupRepository(ABC):
         ...
 
     @abstractmethod
-    def snapshots(self,
-                       tags: Optional[List[str]] = None) -> List[BackupSnapshot]:
+    def snapshots(self, tags: Optional[List[str]] = None) -> List[BackupSnapshot]:
         """List available snapshots"""
         ...
 

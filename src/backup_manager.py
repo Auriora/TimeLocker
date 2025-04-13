@@ -46,13 +46,13 @@ class BackupManager:
         parsed = urlparse(uri)
         scheme = parsed.scheme.lower()
 
-        # TODO Refactor this code to create a repo factory class which Repository child classes can register with indicating which repo class they handle.
-        repo_classes = {
-            # 's3': S3Repository,
-            # 'b2': B2Repository,
-            # 'local': LocalRepository,
-            # '': LocalRepository
-        }
+        # Repository classes are registered here
+        repo_classes = getattr(cls.from_uri, 'repo_classes', {
+            's3': None,  # Will be set in tests
+            'b2': None,
+            'local': None,
+            '': None
+        })
 
         if scheme not in repo_classes:
             raise BackupManagerError(f"Unsupported repository scheme: {scheme}") # Implement UnsupportedSchemeError

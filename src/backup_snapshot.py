@@ -3,11 +3,10 @@ from pathlib import Path
 from typing import List, Optional, Dict
 from typing_extensions import Self
 
-from backup_repository import BackupRepository
-
 
 class BackupSnapshot():
     """Interface for backup snapshots"""
+    from backup_repository import BackupRepository
     repo: BackupRepository
     id: str
     timestamp: datetime
