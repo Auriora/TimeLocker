@@ -7,12 +7,12 @@ hide empty members
 ' Project classes
 
 class DataProtector.backup_manager.BackupManager {
-    - __init__()
-    + {classifier} from_uri(cls, uri: str, password: Optional[str])
-    + get_repository_factory(name: str, repo_type: str)
-    + list_registered_backends()
-    + {static} redact_sensitive_info(uri: str)
-    + register_repository_factory(name: str, repo_type: str, repository_class: Type[BackupRepository])
+    -__init__(): None
+    +{classifier} from_uri(cls, uri: str, password: Optional[str]): Any
+    +get_repository_factory(name: str, repo_type: str): Any
+    +list_registered_backends(): Any
+    +{static} redact_sensitive_info(uri: str): str
+    +register_repository_factory(\n                                 name: str,\n                                 repo_type: str,\n                                 repository_class: Type[BackupRepository]): None
 }
 
 exception DataProtector.backup_manager.BackupManagerError
@@ -20,106 +20,106 @@ exception DataProtector.backup_manager.BackupManagerError
 exception DataProtector.backup_repository.BackupError
 
 abstract class DataProtector.backup_repository.BackupRepository {
-    + apply_retention_policy(policy: RetentionPolicy, prune: bool)
-    + {abstract} backup_target(targets: List[BackupTarget], tags: Any)
-    + {abstract} check()
-    + {abstract} forget_snapshot(snapshotid: str, prune: bool)
-    + {abstract} initialize()
-    + {abstract} location()
-    + {abstract} prune_data()
-    + {abstract} restore(snapshot_id: str, target_path: Optional[Path])
-    + {abstract} snapshots(tags: Any)
-    + {abstract} stats()
-    + {abstract} validate()
+    +apply_retention_policy(policy: RetentionPolicy, prune: bool): bool
+    +{abstract} backup_target(targets: List[BackupTarget], tags: Any): Dict
+    +{abstract} check(): bool
+    +{abstract} forget_snapshot(snapshotid: str, prune: bool): bool
+    +{abstract} initialize(): bool
+    +{abstract} location(): str
+    +{abstract} prune_data(): bool
+    +{abstract} restore(snapshot_id: str, target_path: Optional[Path]): str
+    +{abstract} snapshots(tags: Any): List[BackupSnapshot]
+    +{abstract} stats(): dict
+    +{abstract} validate(): bool
 }
 
 struct DataProtector.backup_repository.RetentionPolicy {
-    + daily: Optional[int]
-    + hourly: Optional[int]
-    + last: Optional[int]
-    + monthly: Optional[int]
-    + weekly: Optional[int]
-    + yearly: Optional[int]
-    + is_valid()
+    +daily: Optional[int]
+    +hourly: Optional[int]
+    +last: Optional[int]
+    +monthly: Optional[int]
+    +weekly: Optional[int]
+    +yearly: Optional[int]
+    +is_valid(): bool
 }
 
 class DataProtector.backup_snapshot.BackupSnapshot {
-    + id: Any
-    + paths: Any
-    + repo: Any
-    + size: int
-    + tags: List[str]
-    + timestamp: Any
-    - __init__(repo: BackupRepository, snapshot_id: str, timestamp: datetime, paths: list[Path])
-    + delete(prune: bool)
-    + find(pattern: str)
-    + {classifier} from_dict(cls, repository: Any, data: Dict)
-    + get_stats()
-    + list(dir: Optional[Path])
-    + restore(target_path: Optional[Path])
-    + restore_file(target_path: Optional[Path])
-    + verify()
+    +id: Any
+    +paths: Any
+    +repo: Any
+    +size: int
+    +tags: List[str]
+    +timestamp: Any
+    -__init__(\n              repo: BackupRepository,\n              snapshot_id: str,\n              timestamp: datetime,\n              paths: list[Path]): None
+    +delete(prune: bool): str
+    +find(pattern: str): list[str]
+    +{classifier} from_dict(cls, repository: BackupRepository, data: Dict): Self
+    +get_stats(): dict
+    +list(dir: Optional[Path]): list[str]
+    +restore(target_path: Optional[Path]): str
+    +restore_file(target_path: Optional[Path]): bool
+    +verify(): bool
 }
 
 class DataProtector.backup_target.BackupTarget {
-    + selection: Any
-    + tags: Any
-    - __init__(selection: FileSelection, tags: List[str])
-    + validate()
+    +selection: Any
+    +tags: Any
+    -__init__(selection: FileSelection, tags: List[str]): None
+    +validate(): bool
 }
 
 class DataProtector.file_selections.FileSelection {
-    - __init__()
-    - __repr__()
-    + add_path(path: Any, selection_type: SelectionType)
-    + add_pattern(pattern: str, selection_type: SelectionType)
-    + add_pattern_group(group: Any, selection_type: SelectionType)
-    + exclude_patterns()
-    + excludes()
-    + include_patterns()
-    + includes()
-    + remove_path(path: Any, selection_type: SelectionType)
-    + remove_pattern(pattern: str, selection_type: SelectionType)
-    + remove_pattern_group(group_name: str, selection_type: SelectionType)
-    + validate()
+    -__init__(): None
+    -__repr__(): str
+    +add_path(path: Any, selection_type: SelectionType): None
+    +add_pattern(pattern: str, selection_type: SelectionType): None
+    +add_pattern_group(group: Any, selection_type: SelectionType): None
+    +exclude_patterns(): Set[str]
+    +excludes(): Set[Path]
+    +include_patterns(): Set[str]
+    +includes(): Set[Path]
+    +remove_path(path: Any, selection_type: SelectionType): None
+    +remove_pattern(pattern: str, selection_type: SelectionType): None
+    +remove_pattern_group(group_name: str, selection_type: SelectionType): None
+    +validate(): bool
 }
 
 class DataProtector.file_selections.PatternGroup {
-    + {static} COMMON_GROUPS: Any
-    + name: Any
-    + patterns: Any
-    - __init__(name: str, patterns: List[str])
-    + {classifier} get_common_group(cls, group_name: str)
+    +{static} COMMON_GROUPS: Any
+    +name: Any
+    +patterns: Any
+    -__init__(name: str, patterns: List[str]): None
+    +{classifier} get_common_group(cls, group_name: str): Any
 }
 
 enum DataProtector.file_selections.SelectionType {
-    + EXCLUDE: Any
-    + INCLUDE: Any
+    +EXCLUDE: Any
+    +INCLUDE: Any
 }
 
 class DataProtector.restic.Repositories.b2.B2ResticRepository {
-    + b2_account_id: Any
-    + b2_account_key: Any
-    - __init__(location: str, password: Optional[str], b2_account_id: Optional[str], b2_account_key: Optional[str])
-    + backend_env()
-    + {classifier} from_parsed_uri(cls, parsed_uri, password: Optional[str])
-    + validate()
+    +b2_account_id: Any
+    +b2_account_key: Any
+    -__init__(\n              location: str,\n              password: Optional[str],\n              b2_account_id: Optional[str],\n              b2_account_key: Optional[str]): None
+    +backend_env(): Any
+    +{classifier} from_parsed_uri(cls, parsed_uri, password: Optional[str]): Any
+    +validate(): None
 }
 
 class DataProtector.restic.Repositories.local.LocalResticRepository {
-    + backend_env()
-    + {classifier} from_parsed_uri(cls, parsed_uri, password: Optional[str])
-    + validate()
+    +backend_env(): Any
+    +{classifier} from_parsed_uri(cls, parsed_uri, password: Optional[str]): Any
+    +validate(): None
 }
 
 class DataProtector.restic.Repositories.s3.S3ResticRepository {
-    + aws_access_key_id: Any
-    + aws_default_region: Any
-    + aws_secret_access_key: Any
-    - __init__(location: str, password: Optional[str], aws_access_key_id: Optional[str], aws_secret_access_key: Optional[str], aws_default_region: Optional[str])
-    + backend_env()
-    + {classifier} from_parsed_uri(cls, parsed_uri, password: Optional[str])
-    + validate()
+    +aws_access_key_id: Any
+    +aws_default_region: Any
+    +aws_secret_access_key: Any
+    -__init__(\n              location: str,\n              password: Optional[str],\n              aws_access_key_id: Optional[str],\n              aws_secret_access_key: Optional[str],\n              aws_default_region: Optional[str]): None
+    +backend_env(): Any
+    +{classifier} from_parsed_uri(cls, parsed_uri, password: Optional[str]): Any
+    +validate(): None
 }
 
 exception DataProtector.restic.errors.RepositoryError
@@ -131,86 +131,73 @@ exception DataProtector.restic.errors.ResticVersionError
 exception DataProtector.restic.errors.UnsupportedSchemeError
 
 class DataProtector.restic.restic_repository.ResticRepository {
-    # _cached_env: Any
-    # _command: Any
-    # _command: Any
-    # _explicit_password: Any
-    # _location: Any
-    # _restic_version: Any
-    - __init__(location: str, tags: Any, password: Optional[str], min_version: str)
-    # _handle_restic_output(output: Dict)
-    # _on_backup_status(status: Dict)
-    # _on_backup_summary(summary: Dict)
-    # _verify_restic_executable(min_version: str)
-    + apply_retention_policy(policy: RetentionPolicy, prune: bool)
-    + {abstract} backend_env()
-    + backup_target(targets: List[BackupTarget], tags: Any)
-    + check()
-    + forget_snapshot(snapshotid: str, prune: bool)
-    + initialize()
-    + location()
-    + password()
-    + prune_data()
-    + restore(snapshot_id: str, target_path: Optional[Path])
-    + snapshots(tags: Any)
-    + stats()
-    + to_env()
-    + uri()
-    + validate()
+    #_cached_env: Any
+    #_command: Any
+    #_command: Any
+    #_explicit_password: Any
+    #_location: Any
+    #_restic_version: Any
+    -__init__(\n              location: str,\n              tags: Any,\n              password: Optional[str],\n              min_version: str): None
+    #_handle_restic_output(output: Dict): None
+    #_on_backup_status(status: Dict): None
+    #_on_backup_summary(summary: Dict): None
+    #_verify_restic_executable(min_version: str): Any
+    +apply_retention_policy(policy: RetentionPolicy, prune: bool): bool
+    +{abstract} backend_env(): Any
+    +backup_target(targets: List[BackupTarget], tags: Any): str
+    +check(): str
+    +forget_snapshot(snapshotid: str, prune: bool): bool
+    +initialize(): bool
+    +location(): str
+    +password(): Optional[str]
+    +prune_data(): str
+    +restore(snapshot_id: str, target_path: Optional[Path]): str
+    +snapshots(tags: Any): List[BackupSnapshot]
+    +stats(): dict
+    +to_env(): Any
+    +uri(): str
+    +validate(): str
 }
 
 class DataProtector.utils.command_builder.CommandBuilder {
-    # _command_def: Any
-    # _current_def: Any
-    - __init__(command_def: CommandDefinition)
-    # {static} _merge_envs(env1: Any, env2: Any)
-    + build(use_short_form: bool, synopsis_values: Any)
-    + clear()
-    + command(name: str)
-    + param(name: str, value: Any)
-    + run(callback: Any, env: Any, synopsis_values: Any)
-    + run_iter(env: Any, synopsis_values: Any)
+    +current_command: Any
+    +definition: Any
+    -__init__(definition: CommandDefinition): None
+    +build(synopsis_values: Any, use_short_form: bool): List[str]
+    +clear(): Any
+    +command(name: str): Any
+    +param(name: str, value: Any): Any
 }
 
 class DataProtector.utils.command_builder.CommandDefinition {
-    + default_param_style: Any
-    + name: Any
-    + parameters: Any
-    + subcommands: Any
-    + synopsis_params: Any
-    - __init__(name: str, parameters: Any, subcommands: Any, default_param_style: Any, synopsis_params: Any)
+    +default_param_style: Any
+    +name: Any
+    +parameters: Any
+    +subcommands: Any
+    +synopsis_params: Any
+    -__init__(\n              name: str,\n              parameters: Any,\n              subcommands: Any,\n              default_param_style: ParameterStyle,\n              synopsis_params: List[str]): None
 }
 
-exception DataProtector.utils.command_builder.CommandExecutionError {
-    + stderr: Any
-    - __init__(message, stderr)
-}
-
-struct DataProtector.utils.command_builder.CommandParameter {
-    + description: str
-    + name: str
-    + position: Optional[int]
-    + prefix: Optional[str]
-    + required: bool
-    + short_name: Optional[str]
-    + short_style: Any
-    + style: Any
-    + value_required: bool
-    - __post_init__()
-    # {static} _convert_style(style: Any)
-    + format_param_name(use_short_form: bool)
+class DataProtector.utils.command_builder.CommandParameter {
+    +name: Any
+    +position: Any
+    +prefix: Any
+    +required: Any
+    +short_name: Any
+    +short_style: Any
+    +style: Any
+    +value_required: Any
+    -__init__(\n              name: str,\n              style: ParameterStyle,\n              required: bool,\n              value_required: bool,\n              prefix: str,\n              position: Optional[int],\n              short_name: Optional[str],\n              short_style: Optional[ParameterStyle]): None
 }
 
 enum DataProtector.utils.command_builder.ParameterStyle {
-    + DOUBLE_DASH: Any
-    + JOINED: Any
-    + POSITIONAL: Any
-    + SEPARATE: Any
-    + SINGLE_DASH: Any
-    - __eq__(other)
-    - __hash__()
-    - __ne__(other)
-    - __str__()
+    +DOUBLE_DASH: Any
+    +JOINED: Any
+    +POSITIONAL: Any
+    +SEPARATE: Any
+    +SINGLE_DASH: Any
+    -__eq__(other): None
+    -__ne__(other): None
 }
 
 
@@ -225,20 +212,16 @@ DataProtector.restic.restic_repository.ResticRepository <|-- DataProtector.resti
 DataProtector.restic.restic_repository.ResticRepository <|-- DataProtector.restic.Repositories.local.LocalResticRepository
 DataProtector.restic.restic_repository.ResticRepository <|-- DataProtector.restic.Repositories.s3.S3ResticRepository
 
-' Compositions
-DataProtector.backup_snapshot.BackupSnapshot *-- DataProtector.backup_repository.BackupRepository
-
 ' Aggregations
-DataProtector.backup_snapshot.BackupSnapshot o-- DataProtector.backup_repository.BackupRepository
-DataProtector.backup_target.BackupTarget o-- DataProtector.file_selections.FileSelection
 DataProtector.utils.command_builder.CommandBuilder o-- DataProtector.utils.command_builder.CommandDefinition
+DataProtector.utils.command_builder.CommandDefinition o-- DataProtector.utils.command_builder.ParameterStyle
+DataProtector.utils.command_builder.CommandParameter o-- DataProtector.utils.command_builder.ParameterStyle
 
 ' Weak dependencies
 DataProtector.file_selections.FileSelection ..> DataProtector.file_selections.PatternGroup
 
 ' Packages
-package DataProtector <<Rectangle>> 
-{
+package DataProtector <<Rectangle>> {
 }
 
 @enduml
