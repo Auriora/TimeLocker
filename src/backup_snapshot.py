@@ -26,30 +26,40 @@ class BackupSnapshot():
 
     def restore_file(self, target_path: Optional[Path] = None) -> bool:
         """Restore a single file from this snapshot"""
-        ...
+        try:
+            self.repo.restore(self.id, target_path)
+            return True
+        except:
+            return False
 
     def find(self, pattern: str) -> list[str]:
         """Find files matching pattern in this snapshot"""
-        ...
+        if not pattern:
+            return []
+        return []  # Mock implementation - in real code would search snapshot contents
 
     def list(self, dir: Optional[Path] = None) -> list[str]:
         """List files in this snapshot"""
-        ...
+        return []  # Mock implementation - in real code would list snapshot contents
 
     def get_stats(self) -> dict:
         """Get snapshot stats"""
-        ...
+        return {
+            'total_size': 0,
+            'total_files': 0,
+            'unique_files': 0
+        }
 
     def verify(self) -> bool:
         """Verify snapshot integrity"""
-        ...
+        return False  # Mock implementation - in real code would verify snapshot integrity
 
     def delete(self, prune: bool = False) -> str:
         """Delete this snapshot"""
         return self.repo.forget_snapshot(self.id, prune)
 
     @classmethod
-    def from_dict(cls, repository: 'BackupRepository', data: Dict) -> Self:
+    def from_dict(cls, repository: BackupRepository, data: Dict) -> Self:
         """Create a snapshot instance from dictionary data"""
         return cls(
             repo=repository,
@@ -57,3 +67,4 @@ class BackupSnapshot():
             timestamp=datetime.fromisoformat(data['timestamp']),
             paths=Path(data['path'])
         )
+
