@@ -1,14 +1,21 @@
 <component name="CopyrightManager">
   <settings>
-    <module2copyright>
-      <element module="Local Python File" copyright="Bruce Cherrington" />
-    </module2copyright>
     <LanguageOptions name="Properties">
       <option name="fileTypeOverride" value="3" />
       <option name="block" value="false" />
       <option name="prefixLines" value="false" />
     </LanguageOptions>
     <LanguageOptions name="Python">
+      <option name="fileTypeOverride" value="3" />
+      <option name="block" value="false" />
+      <option name="prefixLines" value="false" />
+    </LanguageOptions>
+    <LanguageOptions name="SVG">
+      <option name="fileTypeOverride" value="3" />
+      <option name="addBlankAfter" value="false" />
+    </LanguageOptions>
+    <LanguageOptions name="Shell Script">
+      <option name="fileTypeOverride" value="3" />
       <option name="block" value="false" />
       <option name="prefixLines" value="false" />
     </LanguageOptions>
