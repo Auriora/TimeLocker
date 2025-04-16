@@ -1,0 +1,10 @@
+<component name="CopyrightManager">
+  <settings>
+    <module2copyright>
+      <element module="Local Python File" copyright="Bruce Cherrington" />
+    </module2copyright>
+    <LanguageOptions name="Python">
+      <option name="fileTypeOverride" value="3" />
+    </LanguageOptions>
+  </settings>
+</component>
