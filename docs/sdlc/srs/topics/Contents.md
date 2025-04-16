@@ -36,6 +36,15 @@
 
 - [3.3 System Features](3-3-System-Features.md)
 
+---
+
+### 4. Appendices
+
+- [4.1 Glossary](4-1-Glossary.md)
+- [4.2 Acronyms](4-2-Acronyms.md)
+- [4.3 References](4-3-References.md)
+
+
 - 3.4 Non-Functional Requirements
     - [3.4.1 Performance](3-4-1-Performance.md)
     - [3.4.2 Reliability & Stability](3-4-2-Reliability-Stability.md)
@@ -50,3 +59,4 @@
     - [3.4.11 Infrastructure Deployment](3-4-11-Infrastructure-Deployment.md)
 
 - [3.5 Use Cases](3-5-Use-Cases.md)
+
