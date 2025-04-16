@@ -1,56 +1,67 @@
 # Summary
 
-The Desktop Backup Application addresses the growing need for secure, reliable, and user-friendly backup solutions in personal and small business domains. Its modular architecture and compliance-centric design ensure long-term adaptability and scalability in a rapidly evolving data landscape.
+The **Desktop Backup Application (DBA)** addresses the growing need for reliable, secure, and user-friendly backup solutions. Designed primarily for personal use and small businesses, its modular, compliance-driven architecture ensures adaptability and scalability in an ever-changing data landscape.
 
-The DBA is a standalone desktop client that provides a modern GUI for the Restic engine, along with scheduling, policy enforcement, and reporting tools. Integration capabilities allow interoperability with system schedulers, credential stores, and remote storage services (e.g., S3, SMB, NFS). Additionally, it features a CLI and JSON-RPC/REST API for advanced automation scenarios.
+With the **Restic backup engine** at its core, DBA provides a modern desktop client that integrates advanced backup management features, including automation, reporting, and policy enforcement. It interoperates with system schedulers, credential stores, and popular remote storage platforms like S3, SMB, and NFS. Additionally, a command-line interface (CLI) and API support allow extensibility for advanced automation and integration workflows.
 
-**Purpose**
-The **Desktop Backup Application (DBA)** is a cross-platform desktop client designed to simplify file-system backups with a user-friendly interface and advanced functionalities. This document outlines its scope, requirements, and use cases, providing developers, project managers, and stakeholders with a clear understanding of the product’s design and goals.
+---
 
-**Scope**
-The DBA will primarily support Linux desktops, with Windows and macOS included in future development. It uses the **Restic CLI** as its backup engine, offering features like:
-- Full, incremental, and scheduled backups.
-- Policy-based retention, encryption, and auditing.
-- Support for multiple storage backends (local disk, SFTP, S3, etc.).
-- Point-in-time and partial restores.
+### Purpose
 
-The **DBA will not** provide centralized server functionality or replace existing OS-level tools but aims to enhance personal backup workflows.
+The **Desktop Backup Application** aims to simplify complex backup processes through an intuitive user experience while providing robust advanced features. This document delivers a comprehensive overview of the product’s scope, goals, and functional attributes. It serves as a guiding resource for developers, project managers, and stakeholders.
+
+---
+
+### Scope
+
+The DBA is intended to improve user backup workflows by supporting personal desktops, with **Linux** as the primary target platform. Future releases will extend support to **Windows** and **macOS**. By leveraging **Restic**, DBA offers:
+- Comprehensive backup options: full, partial, and incremental.
+- Scheduling and policy-driven retention mechanisms.
+- High data security, including encryption and auditing.
+- Reliable support for a wide range of storage backends, such as local disks and cloud services like **SFTP**, **SMB**, and **S3**.
+
+DBA is **not** intended to replace enterprise server-based solutions or OS-level backup tools. Instead, it complements existing personal and small-scale backup workflows, providing an independent, flexible option.
+
+---
 
 ## Functional Overview
-The core features of the DBA include the following:
+
 ### 1. Repository Management
-- Support for multiple storage backends (local, S3, SFTP, SMB, etc.).
-- Credential management and plugin-based extensibility.
-- Compliance with GDPR for regional repository restrictions.
+- Easily manage multiple data repositories with support for both local and cloud-based backends.
+- Credential management ensures secure access to external storage.
+- Expandable architecture through plugins and a commitment to **regional compliance practices** (e.g., GDPR).
 
 ### 2. Backup Operations
-- Full and incremental backups.
-- Scheduled backups via cron/systemd.
-- Backup integrity validation using Restic’s `check` command.
+- Perform full, incremental, and scheduled backups using an intuitive interface.
+- Automate backup scheduling via **cron/systemd** while maintaining granular operational controls.
+- Ensure data consistency with built-in backup verification mechanisms.
 
 ### 3. Recovery Operations
-- Point-in-time and partial restores.
-- Verification of restored data integrity.
-- Support for disaster recovery workflows.
+- Enable **point-in-time restores** and partial recovery for disaster recovery workflows.
+- Validate the integrity of restored backups to ensure data reliability and trust.
 
 ### 4. Policy Management
-- Retention frequency, tagging, and prioritization.
-- Data lifecycle management with pruning and archival.
+- Retention, tagging, and automation support efficient space management practices.
+- Prune outdated or unnecessary backups while maintaining a clear audit trail.
 
 ### 5. Security
-- Encryption of data in transit and at rest.
-- Secure credential storage using OS key-ring.
-- Default privacy-by-design configurations.
+- Protect data with industry-standard encryption both **in transit** and **at rest**.
+- Leverage OS-level key-ring systems for secure credential storage.
+- Employ privacy-first designs to meet compliance regulations by default.
 
-### 6. Monitoring & Reporting
-- Real-time progress updates and status notifications.
-- Exportable audit reports (PDF/CSV) for compliance.
-- Tamper-detection mechanisms for audit logs.
+### 6. Monitoring and Reporting
+- Provide users with actionable updates, real-time notifications, and comprehensive progress details.
+- Generate compliance-ready reports (PDF/CSV) for backup logs and audit trails.
+- Include tamper-detection mechanisms within the reporting process for added integrity.
 
-### 7. Error & Resource Management
-- Backup consistency safeguards.
-- Bandwidth throttling and automatic cleanup of outdated backups.
+### 7. Error and Resource Management
+- Ensure backup integrity through automated, pre-execution consistency checks.
+- Optimize performance with features like **bandwidth throttling** and intelligent resource cleanup.
 
 ### 8. Integration
-- Cross-platform support for Linux, Windows, and macOS.
-- CLI for scripting and API-based automation.
+- Operate seamlessly across Linux, with future plans for **Windows** and **macOS** support.
+- Provide a CLI for scripting complex workflows or automation scenarios.
+- Allow advanced integration via **JSON-RPC** or **REST API** for customized workflows.
+
+---
+The goal of the **Desktop Backup Application** is to bridge the gap between simplicity and advanced functionality, empowering users to maintain control over their data and backups—securely, efficiently, and reliably—across multiple environments and storage backends.
