@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import Mock
-from backup_target import BackupTarget
-from file_selections import SelectionType, FileSelection
+from DataProtector.backup_target import BackupTarget
+from DataProtector.file_selections import SelectionType, FileSelection
 
 class TestBackupTargetBasics:
     def test_create_backup_target(self, selection):

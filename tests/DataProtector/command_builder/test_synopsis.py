@@ -1,5 +1,5 @@
 import pytest
-from utils.command_builder import CommandBuilder, CommandDefinition, ParameterStyle, CommandParameter
+from DataProtector.utils.command_builder import CommandBuilder, CommandDefinition, ParameterStyle, CommandParameter
 
 class TestSynopsisParameters:
     @pytest.fixture

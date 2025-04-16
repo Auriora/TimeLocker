@@ -1,14 +1,11 @@
-from boto3 import client
 from restic.Repositories.s3 import S3ResticRepository
-from restic.Repositories.s3 import S3ResticRepository, RepositoryError
-from restic.logging import logger
-from restic.restic_repository import RepositoryError
-from typing import Dict, Optional
+from DataProtector.restic.Repositories.s3 import S3ResticRepository, RepositoryError
+from DataProtector.restic.logging import logger
+from DataProtector.restic.restic_repository import RepositoryError
 from unittest.mock import patch, MagicMock
 from urllib.parse import urlparse
 import os
 import pytest
-import unittest
 
 class TestS3:
 

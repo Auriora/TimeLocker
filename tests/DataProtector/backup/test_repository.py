@@ -1,15 +1,9 @@
 from abc import ABC, abstractmethod
-from backup_repository import BackupRepository
-from backup_repository import BackupRepository, RetentionPolicy
-from backup_snapshot import BackupSnapshot
-from backup_target import BackupTarget
+from DataProtector.backup_repository import BackupRepository, RetentionPolicy
+from DataProtector.backup_snapshot import BackupSnapshot
+from DataProtector.backup_target import BackupTarget
 from pathlib import Path
-from typing import Dict, List, Optional
-from typing import List, Dict, Optional
-from typing import List, Optional
-from typing import List, Optional, Dict
-from typing import Optional
-from typing import Optional, List, Dict, TYPE_CHECKING
+from typing import Optional, List, Dict
 from unittest.mock import Mock
 import pytest
 

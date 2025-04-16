@@ -1,7 +1,11 @@
 import pytest
 from unittest.mock import Mock
 from pathlib import Path
-from file_selections import FileSelection
+
+from DataProtector.file_selections import FileSelection
+
+
+# from file_selections import FileSelection
 
 @pytest.fixture
 def selection():

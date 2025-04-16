@@ -2,9 +2,9 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from datetime import datetime
 
-from backup_repository import BackupRepository
-from backup_target import BackupTarget
-from backup_snapshot import BackupSnapshot
+from DataProtector.backup_repository import BackupRepository
+from DataProtector.backup_target import BackupTarget
+from DataProtector.backup_snapshot import BackupSnapshot
 
 
 class MockBackupRepository(BackupRepository):

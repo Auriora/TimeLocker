@@ -1,5 +1,5 @@
 import pytest
-from utils.command_builder import CommandBuilder, CommandDefinition, CommandParameter, ParameterStyle
+from DataProtector.utils.command_builder import CommandBuilder, CommandDefinition, CommandParameter, ParameterStyle
 
 class TestCommandShortForm:
     @pytest.fixture

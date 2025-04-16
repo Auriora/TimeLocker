@@ -1,11 +1,8 @@
-from src.backup_manager import BackupManager, BackupManagerError
-from backup_repository import BackupRepository
-from typing import Dict, List, Optional, Type
+from DataProtector.backup_manager import BackupManager, BackupManagerError
+from DataProtector.backup_repository import BackupRepository
+from typing import Type
 from urllib.parse import urlparse
-import io
-import logging
 import pytest
-import sys
 
 class TestBackupManagerBasics:
     def test_init_creates_empty_repository_factories(self):

@@ -1,11 +1,11 @@
-from backup_repository import RetentionPolicy
-from backup_snapshot import BackupSnapshot
-from backup_target import BackupTarget
+from DataProtector.backup_repository import RetentionPolicy
+from DataProtector.backup_snapshot import BackupSnapshot
+from DataProtector.backup_target import BackupTarget
 from packaging import version
 from pathlib import Path
-from restic.errors import RepositoryError
-from restic.errors import ResticError
-from restic.restic_repository import ResticRepository, RESTIC_MIN_VERSION
+from DataProtector.restic.errors import RepositoryError
+from DataProtector.restic.errors import ResticError
+from DataProtector.restic.restic_repository import ResticRepository, RESTIC_MIN_VERSION
 from unittest.mock import Mock
 from unittest.mock import patch, MagicMock
 import builtins

@@ -1,8 +1,6 @@
-from backup_repository import BackupRepository
-from backup_snapshot import BackupSnapshot
+from DataProtector.backup_snapshot import BackupSnapshot
 from datetime import datetime
 from pathlib import Path
-from unittest.mock import Mock, MagicMock
 import pytest
 from .mock_repository import MockBackupRepository
 

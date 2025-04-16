@@ -1,5 +1,5 @@
 import pytest
-from utils.command_builder import CommandBuilder, CommandDefinition, ParameterStyle, CommandParameter
+from DataProtector.utils.command_builder import CommandBuilder, CommandDefinition, ParameterStyle, CommandParameter
 
 class TestParameterStyles:
     def test_different_parameter_styles(self):

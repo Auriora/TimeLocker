@@ -1,5 +1,5 @@
 import pytest
-from file_selections import FileSelection, SelectionType, PatternGroup
+from DataProtector.file_selections import FileSelection, SelectionType, PatternGroup
 
 class TestPathOperations:
     def test_add_include_path(self, selection, test_dir):
