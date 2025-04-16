@@ -146,7 +146,7 @@ Key component interactions:
 
 ## Infrastructure
 
-![Infrastructure diagram](./docs/infra.svg)
+![Infrastructure diagram](./docs/resources/images/infra.svg)
 ### S3 Repository
 - Type: `S3ResticRepository`
 - Purpose: Manages backups in Amazon S3 buckets
