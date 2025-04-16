@@ -1,19 +1,37 @@
-from DataProtector.backup_repository import RetentionPolicy
-from DataProtector.backup_snapshot import BackupSnapshot
-from DataProtector.backup_target import BackupTarget
-from packaging import version
-from pathlib import Path
-from DataProtector.restic.errors import RepositoryError
-from DataProtector.restic.errors import ResticError
-from DataProtector.restic.restic_repository import ResticRepository, RESTIC_MIN_VERSION
-from unittest.mock import Mock
-from unittest.mock import patch, MagicMock
+"""
+Copyright ©  Bruce Cherrington
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import builtins
 import io
 import json
 import os
-import pytest
 import sys
+from pathlib import Path
+from unittest.mock import MagicMock, Mock, patch
+
+import pytest
+from packaging import version
+
+from DataProtector.backup_repository import RetentionPolicy
+from DataProtector.backup_snapshot import BackupSnapshot
+from DataProtector.backup_target import BackupTarget
+from DataProtector.restic.errors import RepositoryError, ResticError
+from DataProtector.restic.restic_repository import RESTIC_MIN_VERSION, ResticRepository
+
 
 class TestResticRepository:
 

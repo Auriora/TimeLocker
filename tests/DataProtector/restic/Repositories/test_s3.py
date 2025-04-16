@@ -1,11 +1,30 @@
-from restic.Repositories.s3 import S3ResticRepository
-from DataProtector.restic.Repositories.s3 import S3ResticRepository, RepositoryError
-from DataProtector.restic.logging import logger
-from DataProtector.restic.restic_repository import RepositoryError
-from unittest.mock import patch, MagicMock
-from urllib.parse import urlparse
+"""
+Copyright ©  Bruce Cherrington
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import os
+from unittest.mock import MagicMock, patch
+from urllib.parse import urlparse
+
 import pytest
+
+from DataProtector.restic.logging import logger
+from DataProtector.restic.Repositories.s3 import S3ResticRepository
+from DataProtector.restic.restic_repository import RepositoryError
+
 
 class TestS3:
 
@@ -15,8 +34,8 @@ class TestS3:
         parameters and environment variables.
         """
         # Clear environment variables to simulate missing credentials
-        os.environ.pop('AWS_ACCESS_KEY_ID', None)
-        os.environ.pop('AWS_SECRET_ACCESS_KEY', None)
+        os.environ.pop("AWS_ACCESS_KEY_ID", None)
+        os.environ.pop("AWS_SECRET_ACCESS_KEY", None)
 
         repo = S3ResticRepository("s3:bucket/path")
 
@@ -25,7 +44,10 @@ class TestS3:
         with self.assertRaises(RepositoryError) as context:
             repo.backend_env()
 
-        self.assertIn("AWS credentials must be set explicitly or in the environment", str(context.exception))
+        self.assertIn(
+            "AWS credentials must be set explicitly or in the environment",
+            str(context.exception),
+        )
         self.assertIn("AWS_ACCESS_KEY_ID", str(context.exception))
         self.assertIn("AWS_SECRET_ACCESS_KEY", str(context.exception))
 
@@ -45,7 +67,7 @@ class TestS3:
             password,
             aws_access_key_id,
             aws_secret_access_key,
-            aws_default_region
+            aws_default_region,
         )
 
         assert repo.location == location
@@ -68,13 +90,15 @@ class TestS3:
             location="s3:test-bucket/path",
             aws_access_key_id="test_access_key",
             aws_secret_access_key=None,
-            aws_default_region="us-west-2"
+            aws_default_region="us-west-2",
         )
 
         with pytest.raises(RepositoryError) as exc_info:
             repo.backend_env()
 
-        assert "AWS credentials must be set explicitly or in the environment" in str(exc_info.value)
+        assert "AWS credentials must be set explicitly or in the environment" in str(
+            exc_info.value
+        )
         assert "AWS_SECRET_ACCESS_KEY" in str(exc_info.value)
         assert "AWS_ACCESS_KEY_ID" not in str(exc_info.value)
 
@@ -87,25 +111,33 @@ class TestS3:
             location="s3:my-bucket/my-path",
             aws_access_key_id=None,
             aws_secret_access_key="secret_key",
-            aws_default_region="us-west-2"
+            aws_default_region="us-west-2",
         )
 
         with pytest.raises(RepositoryError) as excinfo:
             repo.backend_env()
 
-        assert "AWS credentials must be set explicitly or in the environment. Missing: AWS_ACCESS_KEY_ID" in str(excinfo.value)
+        assert (
+            "AWS credentials must be set explicitly or in the environment. Missing: AWS_ACCESS_KEY_ID"
+            in str(excinfo.value)
+        )
 
     def test_backend_env_4(self):
         """
         Test that backend_env raises a RepositoryError when both AWS credentials are missing,
         even if aws_default_region is set.
         """
-        repo = S3ResticRepository(location="s3:bucket/path", aws_default_region="us-west-2")
+        repo = S3ResticRepository(
+            location="s3:bucket/path", aws_default_region="us-west-2"
+        )
 
         with self.assertRaises(RepositoryError) as context:
             repo.backend_env()
 
-        self.assertIn("AWS credentials must be set explicitly or in the environment", str(context.exception))
+        self.assertIn(
+            "AWS credentials must be set explicitly or in the environment",
+            str(context.exception),
+        )
         self.assertIn("AWS_ACCESS_KEY_ID", str(context.exception))
         self.assertIn("AWS_SECRET_ACCESS_KEY", str(context.exception))
 
@@ -119,7 +151,10 @@ class TestS3:
         with self.assertRaises(RepositoryError) as context:
             repo.backend_env()
 
-        self.assertIn("AWS credentials must be set explicitly or in the environment", str(context.exception))
+        self.assertIn(
+            "AWS credentials must be set explicitly or in the environment",
+            str(context.exception),
+        )
         self.assertIn("AWS_ACCESS_KEY_ID", str(context.exception))
         self.assertIn("AWS_SECRET_ACCESS_KEY", str(context.exception))
 
@@ -136,7 +171,9 @@ class TestS3:
         with pytest.raises(RepositoryError) as exc_info:
             repo.backend_env()
 
-        assert "AWS credentials must be set explicitly or in the environment" in str(exc_info.value)
+        assert "AWS credentials must be set explicitly or in the environment" in str(
+            exc_info.value
+        )
         assert "AWS_ACCESS_KEY_ID" in str(exc_info.value)
         assert "AWS_SECRET_ACCESS_KEY" in str(exc_info.value)
 
@@ -154,7 +191,9 @@ class TestS3:
         with pytest.raises(RepositoryError) as excinfo:
             repo.backend_env()
 
-        assert "AWS credentials must be set explicitly or in the environment" in str(excinfo.value)
+        assert "AWS credentials must be set explicitly or in the environment" in str(
+            excinfo.value
+        )
         assert "AWS_ACCESS_KEY_ID" in str(excinfo.value)
         assert "AWS_SECRET_ACCESS_KEY" in str(excinfo.value)
 
@@ -163,36 +202,38 @@ class TestS3:
         Test the from_parsed_uri method with an empty bucket name.
         This is an edge case where the parsed URI has an empty netloc (bucket name).
         """
-        parsed_uri = urlparse('s3://')
+        parsed_uri = urlparse("s3://")
         result = S3ResticRepository.from_parsed_uri(parsed_uri)
-        assert result.location == 's3:/'
+        assert result.location == "s3:/"
 
     def test_from_parsed_uri_empty_path(self):
         """
         Test the from_parsed_uri method with an empty path.
         This is an edge case where the parsed URI has no path component.
         """
-        parsed_uri = urlparse('s3://mybucket')
+        parsed_uri = urlparse("s3://mybucket")
         result = S3ResticRepository.from_parsed_uri(parsed_uri)
-        assert result.location == 's3:mybucket/'
+        assert result.location == "s3:mybucket/"
 
     def test_from_parsed_uri_empty_query_params(self):
         """
         Test the from_parsed_uri method with empty query parameters.
         This checks the handling of query parameters with no values.
         """
-        parsed_uri = urlparse('s3://mybucket/mypath?access_key_id=&secret_access_key=&region=')
+        parsed_uri = urlparse(
+            "s3://mybucket/mypath?access_key_id=&secret_access_key=&region="
+        )
         result = S3ResticRepository.from_parsed_uri(parsed_uri)
-        assert result.aws_access_key_id == ''
-        assert result.aws_secret_access_key == ''
-        assert result.aws_default_region == ''
+        assert result.aws_access_key_id == ""
+        assert result.aws_secret_access_key == ""
+        assert result.aws_default_region == ""
 
     def test_from_parsed_uri_no_query_params(self):
         """
         Test the from_parsed_uri method with no query parameters.
         This checks the handling of missing optional parameters.
         """
-        parsed_uri = urlparse('s3://mybucket/mypath')
+        parsed_uri = urlparse("s3://mybucket/mypath")
         result = S3ResticRepository.from_parsed_uri(parsed_uri)
         assert result.aws_access_key_id is None
         assert result.aws_secret_access_key is None
@@ -204,7 +245,9 @@ class TestS3:
         This test verifies that the method correctly extracts and uses the access_key_id,
         secret_access_key, and region from the parsed URI.
         """
-        parsed_uri = urlparse("s3://my-bucket/my-path?access_key_id=AKIAIOSFODNN7EXAMPLE&secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY&region=us-west-2")
+        parsed_uri = urlparse(
+            "s3://my-bucket/my-path?access_key_id=AKIAIOSFODNN7EXAMPLE&secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY&region=us-west-2"
+        )
         password = "my-password"
 
         repo = S3ResticRepository.from_parsed_uri(parsed_uri, password)
@@ -221,10 +264,13 @@ class TestS3:
         This should result in a warning log message and skip the validation.
         """
         repo = S3ResticRepository(location="s3:bucket/path")
-        with patch('restic.Repositories.s3.client', side_effect=ImportError):
-            with self.assertLogs(level='WARNING') as log:
+        with patch("restic.Repositories.s3.client", side_effect=ImportError):
+            with self.assertLogs(level="WARNING") as log:
                 repo.validate()
-            self.assertIn("boto3 is not installed. S3 repository validation skipped.", log.output[0])
+            self.assertIn(
+                "boto3 is not installed. S3 repository validation skipped.",
+                log.output[0],
+            )
 
     def test_validate_s3_exception(self):
         """
@@ -234,10 +280,12 @@ class TestS3:
         repo = S3ResticRepository(location="s3:bucket/path")
         mock_s3 = MagicMock()
         mock_s3.head_bucket.side_effect = Exception("S3 Error")
-        with patch('restic.Repositories.s3.client', return_value=mock_s3):
+        with patch("restic.Repositories.s3.client", return_value=mock_s3):
             with self.assertRaises(RepositoryError) as context:
                 repo.validate()
-            self.assertIn("Failed to validate S3 repository: S3 Error", str(context.exception))
+            self.assertIn(
+                "Failed to validate S3 repository: S3 Error", str(context.exception)
+            )
 
     def test_validate_successful_s3_bucket(self):
         """
@@ -245,14 +293,16 @@ class TestS3:
         It should create an S3 client, extract the bucket name from the location,
         call head_bucket on the S3 client, and log a success message.
         """
-        with patch('restic.Repositories.s3.client') as mock_client:
+        with patch("restic.Repositories.s3.client") as mock_client:
             mock_s3 = MagicMock()
             mock_client.return_value = mock_s3
 
-            repo = S3ResticRepository(location='s3:test-bucket/path')
+            repo = S3ResticRepository(location="s3:test-bucket/path")
 
             repo.validate()
 
-            mock_client.assert_called_once_with('s3')
-            mock_s3.head_bucket.assert_called_once_with(Bucket='XXXXXXXXXXX')
-            logger.info.assert_called_with("Successfully validated S3 bucket: test-bucket")
+            mock_client.assert_called_once_with("s3")
+            mock_s3.head_bucket.assert_called_once_with(Bucket="XXXXXXXXXXX")
+            logger.info.assert_called_with(
+                "Successfully validated S3 bucket: test-bucket"
+            )
