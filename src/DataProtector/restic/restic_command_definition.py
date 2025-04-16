@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from DataProtector.utils.command_builder import CommandParameter, ParameterStyle, CommandDefinition
 
-restic_command = CommandDefinition(
+restic_command_def = CommandDefinition(
     name="restic",
     parameters={
         "cacert": CommandParameter(
