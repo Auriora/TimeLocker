@@ -1,4 +1,5 @@
 from enum import Enum
+from pydoc import describe
 from typing import Dict, List, Optional, Union
 
 class ParameterStyle(Enum):
@@ -19,10 +20,16 @@ class ParameterStyle(Enum):
         return not self.__eq__(other)
 
 class CommandParameter:
-    def __init__(self, name: str, style: ParameterStyle = ParameterStyle.SEPARATE, 
-                 required: bool = False, value_required: bool = True,
-                 prefix: str = "--", position: Optional[int] = None,
-                 short_name: Optional[str] = None, short_style: Optional[ParameterStyle] = None):
+    def __init__(self,
+                 name: str,
+                 style: ParameterStyle = ParameterStyle.SEPARATE,
+                 required: bool = False,
+                 value_required: bool = True,
+                 prefix: str = "--",
+                 position: Optional[int] = None,
+                 short_name: Optional[str] = None,
+                 short_style: Optional[ParameterStyle] = None,
+                 description: str = ""):
         self.name = name
         self.style = style
         self.required = required
@@ -31,6 +38,7 @@ class CommandParameter:
         self.position = position
         self.short_name = short_name
         self.short_style = short_style
+        self.description = description
 
 class CommandDefinition:
     def __init__(self, name: str, parameters: Dict[str, CommandParameter] = None,
