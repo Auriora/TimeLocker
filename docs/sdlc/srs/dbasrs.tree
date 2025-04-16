@@ -23,7 +23,7 @@
         <toc-element topic="2-5-Assumptions-and-Dependencies.md"/>
     </toc-element>
     <toc-element topic="3-Specific-Requirements.md">
-        <toc-element toc-title="3-1-Functional-Requirements">
+        <toc-element topic="3-1-Functional-Requirements.md">
             <toc-element topic="3-1-1-Repository-Management.md"/>
             <toc-element topic="3-1-2-Backup-Operations.md"/>
             <toc-element topic="3-1-3-Security.md"/>
@@ -49,11 +49,36 @@
             <toc-element topic="3-4-11-Infrastructure-Deployment.md"/>
         </toc-element>
         <toc-element topic="3-5-Use-Cases.md">
-            <toc-element topic="UC-BK-002.md"/>
-            <toc-element topic="UC-RM-002.md"/>
             <toc-element topic="UC-RM-001.md"/>
+            <toc-element topic="UC-RM-002.md"/>
             <toc-element topic="UC‑BK‑001.md"/>
+            <toc-element topic="UC-BK-002.md"/>
+            <toc-element topic="UC‑SC‑001.md"/>
+            <toc-element topic="UC‑RC‑001.md"/>
+            <toc-element topic="UC‑RC‑002.md"/>
+            <toc-element topic="UC‑PM‑001.md"/>
+            <toc-element topic="UC‑SEC‑001.md"/>
+            <toc-element topic="UC‑SEC‑002.md"/>
+            <toc-element topic="UC‑MON‑001.md"/>
+            <toc-element topic="UC‑MON‑002.md"/>
+            <toc-element topic="UC‑ERR‑001.md"/>
+            <toc-element topic="UC‑INT‑001.md"/>
         </toc-element>
     </toc-element>
-    <toc-element topic="3-1-Functional-Requirements.md"/>
+    <toc-element topic="4-Appendices.md">
+        <toc-element topic="4-1-Glossary.md"/>
+        <toc-element topic="4-2-Analysis-Models.md"/>
+        <toc-element topic="4-3-Issue-List.md"/>
+        <toc-element topic="4-4-GDPR-Impact-Mapping.md"/>
+        <toc-element topic="4-5-Onboarding-Notice-Consent-Copy-Deck.md"/>
+        <toc-element topic="4-6-Repository-Configuration-Schema.md"/>
+        <toc-element topic="4-7-OWASP-ASVS-v4-0.md"/>
+        <toc-element topic="4-8-ASVS-Control-Mapping.md"/>
+        <toc-element topic="4-9-Compliance-Documentation-Artifacts.md"/>
+        <toc-element topic="4-10-WCAG-2-2-AA-Mapping.md"/>
+        <toc-element topic="4-11-ISO-IEC-IEEE-29148-Checklist-Mapping.md"/>
+        <toc-element topic="4-12-UIUX-Standards-Mapping.md"/>
+        <toc-element topic="4-13-ISO-IEC-250102023-Quality-Model-Mapping.md"/>
+        <toc-element topic="4-14-Infrastructure-Deployment-Mapping.md"/>
+    </toc-element>
 </instance-profile>
