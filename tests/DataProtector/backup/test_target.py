@@ -23,88 +23,85 @@ from DataProtector.backup_target import BackupTarget
 from DataProtector.file_selections import FileSelection, SelectionType
 
 
-class TestBackupTargetBasics:
-    def test_create_backup_target(self, selection):
-        """Test creating a basic backup target"""
-        target = BackupTarget(selection)
-        assert isinstance(target.selection, FileSelection)
-        assert target.tags == []
+def test_create_backup_target(selection):
+    """Test creating a basic backup target"""
+    target = BackupTarget(selection)
+    assert isinstance(target.selection, FileSelection)
+    assert target.tags == []
 
-    def test_create_backup_target_with_tags(self, selection):
-        """Test creating a backup target with tags"""
-        tags = ["daily", "important"]
-        target = BackupTarget(selection, tags=tags)
-        assert target.tags == tags
+def test_create_backup_target_with_tags(selection):
+    """Test creating a backup target with tags"""
+    tags = ["daily", "important"]
+    target = BackupTarget(selection, tags=tags)
+    assert target.tags == tags
 
-    def test_init_with_none_selection(self):
-        """Test initializing BackupTarget with None as the selection argument."""
-        with pytest.raises(AttributeError):
-            BackupTarget(None)
+def test_init_with_none_selection():
+    """Test initializing BackupTarget with None as the selection argument."""
+    with pytest.raises(AttributeError):
+        BackupTarget(None)
 
-    def test_init_with_none_tags(self):
-        """Test initializing BackupTarget with None as the tags argument."""
-        selection = FileSelection()
-        target = BackupTarget(selection, None)
-        assert target.tags == []
+def test_init_with_none_tags():
+    """Test initializing BackupTarget with None as the tags argument."""
+    selection = FileSelection()
+    target = BackupTarget(selection, None)
+    assert target.tags == []
 
-    def test_init_with_selection_and_tags(self):
-        """Test the initialization of BackupTarget with a FileSelection and tags."""
-        selection = FileSelection()
-        tags = ["important", "daily"]
-        target = BackupTarget(selection, tags)
-        assert target.selection == selection
-        assert target.tags == tags
+def test_init_with_selection_and_tags():
+    """Test the initialization of BackupTarget with a FileSelection and tags."""
+    selection = FileSelection()
+    tags = ["important", "daily"]
+    target = BackupTarget(selection, tags)
+    assert target.selection == selection
+    assert target.tags == tags
 
-class TestBackupTargetValidation:
-    def test_validate_requires_folder(self, selection, test_dir, test_file):
-        """Test that validation requires at least one folder"""
-        target = BackupTarget(selection)
-        
-        # Should raise error when no folders are included
-        selection.add_path(test_file)
-        with pytest.raises(ValueError):
-            target.validate()
+def test_validate_requires_folder(selection, test_dir, test_file):
+    """Test that validation requires at least one folder"""
+    target = BackupTarget(selection)
 
-        # Should pass when a folder is included
-        selection = FileSelection()  # Reset selection
-        selection.add_path(test_dir)
-        target = BackupTarget(selection)
-        assert target.validate()
+    # Should raise error when no folders are included
+    selection.add_path(test_file)
+    with pytest.raises(ValueError):
+        target.validate()
 
-    def test_validate_raises_value_error(self):
-        """Test that validate() method raises ValueError when the selection configuration is invalid."""
-        mock_selection = Mock(spec=FileSelection)
-        mock_selection.validate.side_effect = ValueError("Invalid selection")
-        backup_target = BackupTarget(selection=mock_selection)
-        with pytest.raises(ValueError):
-            backup_target.validate()
+    # Should pass when a folder is included
+    selection = FileSelection()  # Reset selection
+    selection.add_path(test_dir)
+    target = BackupTarget(selection)
+    assert target.validate()
 
-    def test_validate_returns_true_for_valid_selection(self):
-        """Test that the validate method returns True when the selection is valid."""
-        mock_selection = FileSelection()
-        mock_selection.validate = lambda: True
-        backup_target = BackupTarget(selection=mock_selection)
-        assert backup_target.validate() == True
+def test_validate_raises_value_error():
+    """Test that validate() method raises ValueError when the selection configuration is invalid."""
+    mock_selection = Mock(spec=FileSelection)
+    mock_selection.validate.side_effect = ValueError("Invalid selection")
+    backup_target = BackupTarget(selection=mock_selection)
+    with pytest.raises(ValueError):
+        backup_target.validate()
 
-class TestBackupTargetPatterns:
-    def test_backup_target_with_patterns(self, selection, test_dir):
-        """Test backup target with include/exclude patterns"""
-        selection.add_path(test_dir)  # Add required folder
-        selection.add_pattern("*.txt")
-        selection.add_pattern("*.tmp", selection_type=SelectionType.EXCLUDE)
-        
-        target = BackupTarget(selection)
-        assert target.validate()
-        assert "*.txt" in target.selection.include_patterns
-        assert "*.tmp" in target.selection.exclude_patterns
+def test_validate_returns_true_for_valid_selection():
+    """Test that the validate method returns True when the selection is valid."""
+    mock_selection = FileSelection()
+    mock_selection.validate = lambda: True
+    backup_target = BackupTarget(selection=mock_selection)
+    assert backup_target.validate() == True
 
-    def test_backup_target_with_pattern_group(self, selection, test_dir):
-        """Test backup target with pattern groups"""
-        selection.add_path(test_dir)  # Add required folder
-        selection.add_pattern_group("office_documents")
-        
-        target = BackupTarget(selection)
-        assert target.validate()
-        assert "*.doc" in target.selection.include_patterns
-        assert "*.pdf" in target.selection.include_patterns
+def test_backup_target_with_patterns(selection, test_dir):
+    """Test backup target with include/exclude patterns"""
+    selection.add_path(test_dir)  # Add required folder
+    selection.add_pattern("*.txt")
+    selection.add_pattern("*.tmp", selection_type=SelectionType.EXCLUDE)
+
+    target = BackupTarget(selection)
+    assert target.validate()
+    assert "*.txt" in target.selection.include_patterns
+    assert "*.tmp" in target.selection.exclude_patterns
+
+def test_backup_target_with_pattern_group(selection, test_dir):
+    """Test backup target with pattern groups"""
+    selection.add_path(test_dir)  # Add required folder
+    selection.add_pattern_group("office_documents")
+
+    target = BackupTarget(selection)
+    assert target.validate()
+    assert "*.doc" in target.selection.include_patterns
+    assert "*.pdf" in target.selection.include_patterns
 

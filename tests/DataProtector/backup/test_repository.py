@@ -15,7 +15,6 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
-from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, List, Optional
 from unittest.mock import Mock
@@ -27,248 +26,214 @@ from DataProtector.backup_snapshot import BackupSnapshot
 from DataProtector.backup_target import BackupTarget
 
 
-class TestBackupRepository:
+def test_apply_retention_policy_1():
+    """
+    Test that apply_retention_policy correctly applies the retention policy
+    when at least one retention period is specified and returns True.
+    """
+    repo = BackupRepository()
+    policy = RetentionPolicy(daily=7, weekly=4)
+    result = repo.apply_retention_policy(policy)
+    assert result == True
 
-    def test_apply_retention_policy_1(self):
-        """
-        Test that apply_retention_policy correctly applies the retention policy
-        when at least one retention period is specified and returns True.
-        """
-        repo = BackupRepository()
-        policy = RetentionPolicy(daily=7, weekly=4)
-        result = repo.apply_retention_policy(policy)
-        assert result == True
+def test_apply_retention_policy_with_invalid_policy():
+    """
+    Test apply_retention_policy with an invalid retention policy.
+    The method should return False when the policy is not valid.
+    """
+    repo = Mock(spec=BackupRepository)
+    invalid_policy = RetentionPolicy()  # All fields are None by default
+    result = BackupRepository.apply_retention_policy(repo, invalid_policy)
+    assert result == False, "Expected False for invalid retention policy"
 
-    def test_apply_retention_policy_with_invalid_policy(self):
-        """
-        Test apply_retention_policy with an invalid retention policy.
-        The method should return False when the policy is not valid.
-        """
-        repo = Mock(spec=BackupRepository)
-        invalid_policy = RetentionPolicy()  # All fields are None by default
-        result = BackupRepository.apply_retention_policy(repo, invalid_policy)
-        assert result == False, "Expected False for invalid retention policy"
+def test_backup_target_1():
+    """
+    Test that the backup_target method creates a new backup successfully.
 
-    def test_backup_target_1(self):
-        """
-        Test that the backup_target method creates a new backup successfully.
+    This test verifies that:
+    1. The method accepts a list of BackupTarget objects and an optional list of tags.
+    2. It returns a dictionary containing information about the created backup.
+    3. The returned dictionary is not empty, indicating a successful backup operation.
+    """
+    # Create a mock BackupRepository implementation for testing
+    class MockBackupRepository(BackupRepository):
+        def backup_target(self, targets: List[BackupTarget], tags: Optional[List[str]] = None) -> Dict:
+            return {"status": "success", "backup_id": "123"}
 
-        This test verifies that:
-        1. The method accepts a list of BackupTarget objects and an optional list of tags.
-        2. It returns a dictionary containing information about the created backup.
-        3. The returned dictionary is not empty, indicating a successful backup operation.
-        """
-        # Create a mock BackupRepository implementation for testing
-        class MockBackupRepository(BackupRepository):
-            def backup_target(self, targets: List[BackupTarget], tags: Optional[List[str]] = None) -> Dict:
-                return {"status": "success", "backup_id": "123"}
+    # Create an instance of the mock repository
+    repo = MockBackupRepository()
 
-        # Create an instance of the mock repository
-        repo = MockBackupRepository()
+    # Create a mock BackupTarget
+    class MockBackupTarget(BackupTarget):
+        pass
 
-        # Create a mock BackupTarget
-        class MockBackupTarget(BackupTarget):
-            pass
+    # Prepare test data
+    targets = [MockBackupTarget()]
+    tags = ["test", "backup"]
 
-        # Prepare test data
-        targets = [MockBackupTarget()]
-        tags = ["test", "backup"]
+    # Call the method under test
+    result = repo.backup_target(targets, tags)
 
-        # Call the method under test
-        result = repo.backup_target(targets, tags)
+    # Assert the result
+    assert isinstance(result, dict), "The returned value should be a dictionary"
+    assert len(result) > 0, "The returned dictionary should not be empty"
+    assert "status" in result, "The result should contain a 'status' key"
+    assert result["status"] == "success", "The backup should be successful"
 
-        # Assert the result
-        assert isinstance(result, dict), "The returned value should be a dictionary"
-        assert len(result) > 0, "The returned dictionary should not be empty"
-        assert "status" in result, "The result should contain a 'status' key"
-        assert result["status"] == "success", "The backup should be successful"
+def test_backup_target_with_empty_targets_list():
+    """
+    Test the backup_target method with an empty list of targets.
+    This tests the edge case of calling the method with no actual backup targets.
+    """
+    repo = MockBackupRepository()
+    result = repo.backup_target([])
+    assert result == {"error": "No backup targets provided"}
 
-    def test_backup_target_with_empty_targets_list(self):
-        """
-        Test the backup_target method with an empty list of targets.
-        This tests the edge case of calling the method with no actual backup targets.
-        """
-        repo = MockBackupRepository()
-        result = repo.backup_target([])
-        assert result == {"error": "No backup targets provided"}
+def test_backup_target_with_invalid_tags():
+    """
+    Test the backup_target method with invalid tags.
+    This tests the edge case of providing tags that are not strings.
+    """
 
-    def test_backup_target_with_invalid_tags(self):
-        """
-        Test the backup_target method with invalid tags.
-        This tests the edge case of providing tags that are not strings.
-        """
-        repo = MockBackupRepository()
-        target = MockBackupTarget()
-        with pytest.raises(ValueError):
-            repo.backup_target([target], tags=[1, 2, 3])
+    # Create a mock BackupTarget
+    class MockBackupTarget(BackupTarget):
+        pass
 
-    def test_check_method_not_implemented(self):
-        """
-        Test that calling the abstract 'check' method raises NotImplementedError.
-        """
-        class ConcreteBackupRepository(BackupRepository):
-            pass
+    repo = MockBackupRepository()
+    target = MockBackupTarget()
+    with pytest.raises(ValueError):
+        repo.backup_target([target], tags=[1, 2, 3])
 
-        repository = ConcreteBackupRepository()
+def test_check_method_not_implemented():
+    """
+    Test that calling the abstract 'check' method raises NotImplementedError.
+    """
+    class ConcreteBackupRepository(BackupRepository):
+        pass
 
-        try:
-            repository.check()
-        except NotImplementedError:
-            assert True
-        else:
-            assert False, "NotImplementedError was not raised"
+    repository = ConcreteBackupRepository()
 
-    def test_check_repository_availability(self):
-        """
-        Test that the check method returns a boolean indicating repository availability.
+    try:
+        repository.check()
+    except NotImplementedError:
+        assert True
+    else:
+        assert False, "NotImplementedError was not raised"
 
-        This test verifies that the check method of the BackupRepository class
-        returns a boolean value. The method should return True if the backup
-        repository is available, and False otherwise.
-        """
-        # Create a mock BackupRepository
-        class MockBackupRepository(BackupRepository):
-            def check(self) -> bool:
-                return True
+def test_check_repository_availability():
+    """
+    Test that the check method returns a boolean indicating repository availability.
 
-        repository = MockBackupRepository()
+    This test verifies that the check method of the BackupRepository class
+    returns a boolean value. The method should return True if the backup
+    repository is available, and False otherwise.
+    """
+    # Create a mock BackupRepository
+    class MockBackupRepository(BackupRepository):
+        def check(self) -> bool:
+            return True
 
-        # Call the check method
-        result = repository.check()
+    repository = MockBackupRepository()
 
-        # Assert that the result is a boolean
-        assert isinstance(result, bool), "The check method should return a boolean value"
+    # Call the check method
+    result = repository.check()
 
-        # Assert that the result is True for this mock implementation
-        assert result is True, "The mock repository should be available"
+    # Assert that the result is a boolean
+    assert isinstance(result, bool), "The check method should return a boolean value"
 
-    def test_initialize_not_implemented(self):
-        """
-        Test that calling initialize() on the abstract base class raises NotImplementedError.
-        This tests the edge case of trying to use the abstract method directly.
-        """
-        class ConcreteBackupRepository(BackupRepository):
-            pass
+    # Assert that the result is True for this mock implementation
+    assert result is True, "The mock repository should be available"
 
-        repo = ConcreteBackupRepository()
-        with self.assertRaises(NotImplementedError):
-            repo.initialize()
+def test_initialize_not_implemented():
+    """
+    Test that calling initialize() on the abstract base class raises NotImplementedError.
+    This tests the edge case of trying to use the abstract method directly.
+    """
 
-    def test_initialize_returns_true(self):
-        """
-        Test that the initialize method of BackupRepository returns True when successful.
+    class ConcreteBackupRepository(BackupRepository):
+        pass
 
-        This test verifies that when the initialize method is called on a concrete
-        implementation of BackupRepository, it returns True, indicating successful
-        initialization of the backup repository.
-        """
-        class ConcreteBackupRepository(BackupRepository):
-            def initialize(self) -> bool:
-                return True
+    repo = ConcreteBackupRepository()
+    with pytest.raises(NotImplementedError):
+        repo.initialize()
 
-        repo = ConcreteBackupRepository()
-        result = repo.initialize()
-        assert result == True, "The initialize method should return True when successful"
+def test_initialize_returns_true():
+    """
+    Test that the initialize method of BackupRepository returns True when successful.
 
-    def test_restore_snapshot_to_target_path(self):
-        """
-        Test restoring a snapshot to a specific target path.
+    This test verifies that when the initialize method is called on a concrete
+    implementation of BackupRepository, it returns True, indicating successful
+    initialization of the backup repository.
+    """
+    class ConcreteBackupRepository(BackupRepository):
+        def initialize(self) -> bool:
+            return True
 
-        This test verifies that the restore method of BackupRepository
-        correctly restores a snapshot to a given target path and returns
-        an appropriate success message.
-        """
-        class ConcreteBackupRepository(BackupRepository):
-            def restore(self, snapshot_id: str, target_path: Optional[Path] = None) -> str:
-                return f"Snapshot {snapshot_id} restored to {target_path}"
+    repo = ConcreteBackupRepository()
+    result = repo.initialize()
+    assert result == True, "The initialize method should return True when successful"
 
-        repo = ConcreteBackupRepository()
-        snapshot_id = "test_snapshot_001"
-        target_path = Path("/tmp/restore_location")
+def test_restore_snapshot_to_target_path():
+    """
+    Test restoring a snapshot to a specific target path.
 
-        result = repo.restore(snapshot_id, target_path)
+    This test verifies that the restore method of BackupRepository
+    correctly restores a snapshot to a given target path and returns
+    an appropriate success message.
+    """
+    class ConcreteBackupRepository(BackupRepository):
+        def restore(self, snapshot_id: str, target_path: Optional[Path] = None) -> str:
+            return f"Snapshot {snapshot_id} restored to {target_path}"
 
-        assert result == f"Snapshot {snapshot_id} restored to {target_path}"
+    repo = ConcreteBackupRepository()
+    snapshot_id = "test_snapshot_001"
+    target_path = Path("/tmp/restore_location")
 
-    def test_snapshots_list_all(self):
-        """
-        Test that snapshots() returns a list of all available BackupSnapshot objects when called without tags.
-        """
-        class ConcreteBackupRepository(BackupRepository):
-            def snapshots(self, tags: Optional[List[str]] = None) -> List[BackupSnapshot]:
-                return [BackupSnapshot(), BackupSnapshot()]
+    result = repo.restore(snapshot_id, target_path)
 
-        repo = ConcreteBackupRepository()
-        result = repo.snapshots()
-        assert isinstance(result, list)
-        assert all(isinstance(snapshot, BackupSnapshot) for snapshot in result)
-        assert len(result) == 2
+    assert result == f"Snapshot {snapshot_id} restored to {target_path}"
 
-    def test_stats_empty_repository(self):
-        """
-        Test the stats method when the repository is empty.
-        This tests the edge case of calling stats on a repository with no snapshots.
-        """
-        class EmptyRepository(BackupRepository):
-            def stats(self) -> dict:
-                return {}
+def test_snapshots_list_all():
+    """
+    Test that snapshots() returns a list of all available BackupSnapshot objects when called without tags.
+    """
+    class ConcreteBackupRepository(BackupRepository):
+        def snapshots(self, tags: Optional[List[str]] = None) -> List[BackupSnapshot]:
+            return [BackupSnapshot(), BackupSnapshot()]
 
-        repo = EmptyRepository()
-        result = repo.stats()
-        assert isinstance(result, dict), "Stats should return a dictionary"
-        assert len(result) == 0, "Stats should be empty for an empty repository"
+    repo = ConcreteBackupRepository()
+    result = repo.snapshots()
+    assert isinstance(result, list)
+    assert all(isinstance(snapshot, BackupSnapshot) for snapshot in result)
+    assert len(result) == 2
 
-    def test_stats_returns_dict(self):
-        """
-        Test that the stats method returns a dictionary.
+def test_stats_empty_repository():
+    """
+    Test the stats method when the repository is empty.
+    This tests the edge case of calling stats on a repository with no snapshots.
+    """
+    class EmptyRepository(BackupRepository):
+        def stats(self) -> dict:
+            return {}
 
-        This test verifies that the stats method of the BackupRepository
-        class returns a dictionary object. It does not check the contents
-        of the dictionary, only that the return type is correct.
-        """
-        repo = MockBackupRepository()
-        result = repo.stats()
-        assert isinstance(result, dict), "stats method should return a dictionary"
+    repo = EmptyRepository()
+    result = repo.stats()
+    assert isinstance(result, dict), "Stats should return a dictionary"
+    assert len(result) == 0, "Stats should be empty for an empty repository"
 
-class BackupRepository(ABC):
+def test_stats_returns_dict():
+    """
+    Test that the stats method returns a dictionary.
 
-    @abstractmethod
-    def backup_target(self,
-                      targets: List[BackupTarget],
-                      tags: Optional[List[str]] = None) -> Dict:
-        """Create a new backup"""
-        ...
-
-    @abstractmethod
-    def check(self) -> bool:
-        """Check if the backup repository is available"""
-        ...
-
-    @abstractmethod
-    def initialize(self) -> bool:
-        """Initialize the backup repository"""
-        ...
-
-    @abstractmethod
-    def prune_data(self) -> bool:
-        """
-        Remove unreferenced data from the repository.
-        This removes file chunks that are no longer used by any snapshot.
-        """
-        ...
-
-    @abstractmethod
-    def snapshots(self, tags: Optional[List[str]] = None) -> List[BackupSnapshot]:
-        """List available snapshots"""
-        ...
-
-    @abstractmethod
-    def stats(self) -> dict:
-        """Get snapshot stats"""
-        ...
+    This test verifies that the stats method of the BackupRepository
+    class returns a dictionary object. It does not check the contents
+    of the dictionary, only that the return type is correct.
+    """
+    repo = MockBackupRepository()
+    result = repo.stats()
+    assert isinstance(result, dict), "stats method should return a dictionary"
 
 class MockBackupRepository(BackupRepository):
-
     def backup_target(self, targets: List[BackupTarget], tags: Optional[List[str]] = None) -> Dict:
         if not targets:
             return {"error": "No backup targets provided"}
