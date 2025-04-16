@@ -1,0 +1,11 @@
+# 1.4 References
+- [Restic Documentation](https://restic.readthedocs.io)
+- OWASP ASVS v4.0
+- EU GDPR (Regulation 2016/679) and UK GDPR (Data Protection Act 2018)
+- WCAG 2.2
+- IEEE 830‑1998 SRS Guidelines
+- ISO/IEC/IEEE 29148:2018 — Systems & Software Engineering — Requirements Engineering
+- ISO 9241‑210:2019 — Human‑centred design for interactive systems
+- ISO/IEC 25010:2023 — System & software quality models
+- Nielsen’s 10 Usability Heuristics (2020 refresh)
+- EN 301 549 v4.1.1 — Accessibility requirements for ICT products and services
