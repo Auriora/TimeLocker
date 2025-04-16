@@ -17,21 +17,22 @@ Key features include:
 ```
 .
 ├── src/                          # Main source code
-│   ├── backup_manager.py        # Central backup operation coordinator
-│   ├── backup_repository.py     # Abstract base class for repositories
-│   ├── backup_snapshot.py       # Snapshot management functionality
-│   ├── backup_target.py         # Backup target configuration
-│   ├── file_selections.py       # File selection pattern management
-│   ├── restic/                  # Restic-specific implementations
-│   │   ├── Repositories/       # Storage backend implementations
-│   │   │   ├── b2.py          # Backblaze B2 repository implementation
-│   │   │   ├── local.py       # Local filesystem repository
-│   │   │   └── s3.py          # Amazon S3 repository
-│   │   ├── errors.py          # Custom error definitions
-│   │   └── logging.py         # Logging configuration
-│   └── utils/                  # Utility functions and helpers
-├── tests/                       # Test suite
-└── docs/                       # Documentation and diagrams
+│   └── DataProtector/           # Core package
+│       ├── backup_manager.py    # Central backup operation coordinator
+│       ├── backup_repository.py # Abstract base class for repositories
+│       ├── backup_snapshot.py   # Snapshot management functionality
+│       ├── backup_target.py     # Backup target configuration
+│       ├── file_selections.py   # File selection pattern management
+│       ├── restic/             # Restic-specific implementations
+│       │   ├── Repositories/   # Storage backend implementations
+│       │   │   ├── b2.py      # Backblaze B2 repository implementation
+│       │   │   ├── local.py   # Local filesystem repository
+│       │   │   └── s3.py      # Amazon S3 repository
+│       │   ├── errors.py      # Custom error definitions
+│       │   └── logging.py     # Logging configuration
+│       └── utils/             # Utility functions and helpers
+├── tests/                      # Test suite
+└── docs/                      # Documentation and diagrams
 ```
 
 ## Usage Instructions
@@ -54,9 +55,9 @@ pip install -r requirements.txt
 
 ### Quick Start
 ```python
-from backup_manager import BackupManager
-from backup_target import BackupTarget
-from file_selections import FileSelection, SelectionType
+from DataProtector.backup_manager import BackupManager
+from DataProtector.backup_target import BackupTarget
+from DataProtector.file_selections import FileSelection, SelectionType
 
 # Initialize backup manager
 manager = BackupManager()
@@ -164,7 +165,7 @@ Key component interactions:
 
 ---
 
-> Copyright ©  Bruce Cherrington
+> Copyright © Bruce Cherrington
 >
 > This program is free software: you can redistribute it and/or modify
 > it under the terms of the GNU General Public License as published by
