@@ -16,7 +16,7 @@ The **TimeLocker** aims to simplify complex backup processes through an intuitiv
 
 The TimeLocker is intended to improve user backup workflows by supporting personal desktops, with **Linux** as the primary target platform. Future releases will extend support to **Windows** and **macOS**. By leveraging **Restic**, TimeLocker offers:
 - Comprehensive backup options: full, partial, and incremental.
-- Scheduling and policy-driven retention mechanisms.
+- Scheduling and event-driven retention mechanisms.
 - High data security, including encryption and auditing.
 - Reliable support for a wide range of storage backends, such as local disks and cloud services like **SFTP**, **SMB**, and **S3**.
 
@@ -27,8 +27,8 @@ TimeLocker is **not** intended to replace enterprise server-based solutions or O
 ## Functional Overview
 
 ### 1. Repository Management
-- Easily manage multiple data repositories with support for both local and cloud-based backends.
-- Credential management ensures secure access to external storage.
+- Easily manage multiple data repositories with support for both local, network, and cloud-based backends.
+- Repository data is protected using a password or key.
 - Expandable architecture through plugins and a commitment to **regional compliance practices** (e.g., GDPR).
 
 ### 2. Backup Operations
