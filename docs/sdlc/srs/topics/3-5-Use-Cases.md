@@ -1,6 +1,6 @@
 # 3.5 Use Cases
 
-This document lists the primary use cases that drive the functional requirements in the Desktop Backup Application (DBA) SRS. Each use case is uniquely identified (UC-XX-###) and references the actors, goals, and success criteria.
+This document lists the primary use cases that drive the functional requirements in the TimeLocker SRS. Each use case is uniquely identified (UC-XX-###) and references the actors, goals, and success criteria.
 
 | ID                              | Name                      | Primary Actors            | Brief Goal                                       |
 |---------------------------------|---------------------------|---------------------------|--------------------------------------------------|

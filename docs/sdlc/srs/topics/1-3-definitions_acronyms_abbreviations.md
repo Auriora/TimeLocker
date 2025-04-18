@@ -6,7 +6,6 @@
 | **Repository**         | Storage location that contains backup snapshots and metadata.                                      |
 | **Retention Policy**   | Rules governing how long snapshots are kept before pruning.                                        |
 | **Pattern Group**      | A set of glob patterns defining inclusion/exclusion rules.                                         |
-| **DBA**                | Desktop Backup Application (this product).                                                         |
 | **Restic**             | Open‑source backup program used as underlying engine.                                              |
 | **MTBF**               | Mean Time Between Failures.                                                                        |
 | **Encryption**         | The process of converting data into a form that can only be read by authorized parties.            |
