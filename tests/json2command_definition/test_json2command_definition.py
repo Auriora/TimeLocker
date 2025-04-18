@@ -16,7 +16,7 @@
 '''
 
 from json2command_definition.json2command_definition import convert_json_to_command_definition
-from DataProtector.utils.command_builder import ParameterStyle
+from TimeLocker.utils.command_builder import ParameterStyle
 
 def test_synopsis_handling():
     # Test data with SYNOPSIS values

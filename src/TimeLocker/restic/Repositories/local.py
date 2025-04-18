@@ -18,8 +18,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 import os
 from typing import Dict, Optional
 
-from DataProtector.restic.logging import logger
-from DataProtector.restic.restic_repository import RepositoryError, ResticRepository
+from TimeLocker.restic.logging import logger
+from TimeLocker.restic.restic_repository import RepositoryError, ResticRepository
 
 
 class LocalResticRepository(ResticRepository):

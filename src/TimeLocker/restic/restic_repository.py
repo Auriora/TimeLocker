@@ -23,13 +23,13 @@ from typing import Dict, List, Optional
 
 from packaging import version
 
-from DataProtector.backup_repository import BackupRepository, RetentionPolicy
-from DataProtector.backup_snapshot import BackupSnapshot
-from DataProtector.backup_target import BackupTarget
-from DataProtector.restic.errors import RepositoryError, ResticError
-from DataProtector.restic.logging import logger
-from DataProtector.restic.restic_command_definition import restic_command_def
-from DataProtector.utils.command_builder import CommandBuilder
+from TimeLocker.backup_repository import BackupRepository, RetentionPolicy
+from TimeLocker.backup_snapshot import BackupSnapshot
+from TimeLocker.backup_target import BackupTarget
+from TimeLocker.restic.errors import RepositoryError, ResticError
+from TimeLocker.restic.logging import logger
+from TimeLocker.restic.restic_command_definition import restic_command_def
+from TimeLocker.utils.command_builder import CommandBuilder
 
 RESTIC_COMMAND = "restic"
 RESTIC_VERSION_COMMAND = f"{RESTIC_COMMAND} --json version"

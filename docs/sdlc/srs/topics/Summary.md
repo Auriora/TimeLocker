@@ -1,26 +1,26 @@
 # Summary
 
-The **Desktop Backup Application (DBA)** addresses the growing need for reliable, secure, and user-friendly backup solutions. Designed primarily for personal use and small businesses, its modular, compliance-driven architecture ensures adaptability and scalability in an ever-changing data landscape.
+The **TimeLocker** addresses the growing need for reliable, secure, and user-friendly backup solutions. Designed primarily for personal use and small businesses, its modular, compliance-driven architecture ensures adaptability and scalability in an ever-changing data landscape.
 
-With the **Restic backup engine** at its core, DBA provides a modern desktop client that integrates advanced backup management features, including automation, reporting, and policy enforcement. It interoperates with system schedulers, credential stores, and popular remote storage platforms like S3, SMB, and NFS. Additionally, a command-line interface (CLI) and API support allow extensibility for advanced automation and integration workflows.
+With the **Restic backup engine** at its core, TimeLocker provides a modern desktop client that integrates advanced backup management features, including automation, reporting, and policy enforcement. It interoperates with system schedulers, credential stores, and popular remote storage platforms like S3, SMB, and NFS. Additionally, a command-line interface (CLI) and API support allow extensibility for advanced automation and integration workflows.
 
 ---
 
 ### Purpose
 
-The **Desktop Backup Application** aims to simplify complex backup processes through an intuitive user experience while providing robust advanced features. This document delivers a comprehensive overview of the product’s scope, goals, and functional attributes. It serves as a guiding resource for developers, project managers, and stakeholders.
+The **TimeLocker** aims to simplify complex backup processes through an intuitive user experience while providing robust advanced features. This document delivers a comprehensive overview of the product's scope, goals, and functional attributes. It serves as a guiding resource for developers, project managers, and stakeholders.
 
 ---
 
 ### Scope
 
-The DBA is intended to improve user backup workflows by supporting personal desktops, with **Linux** as the primary target platform. Future releases will extend support to **Windows** and **macOS**. By leveraging **Restic**, DBA offers:
+The TimeLocker is intended to improve user backup workflows by supporting personal desktops, with **Linux** as the primary target platform. Future releases will extend support to **Windows** and **macOS**. By leveraging **Restic**, TimeLocker offers:
 - Comprehensive backup options: full, partial, and incremental.
 - Scheduling and policy-driven retention mechanisms.
 - High data security, including encryption and auditing.
 - Reliable support for a wide range of storage backends, such as local disks and cloud services like **SFTP**, **SMB**, and **S3**.
 
-DBA is **not** intended to replace enterprise server-based solutions or OS-level backup tools. Instead, it complements existing personal and small-scale backup workflows, providing an independent, flexible option.
+TimeLocker is **not** intended to replace enterprise server-based solutions or OS-level backup tools. Instead, it complements existing personal and small-scale backup workflows, providing an independent, flexible option.
 
 ---
 
@@ -64,4 +64,4 @@ DBA is **not** intended to replace enterprise server-based solutions or OS-level
 - Allow advanced integration via **JSON-RPC** or **REST API** for customized workflows.
 
 ---
-The goal of the **Desktop Backup Application** is to bridge the gap between simplicity and advanced functionality, empowering users to maintain control over their data and backups—securely, efficiently, and reliably—across multiple environments and storage backends.
+The goal of the **TimeLocker** is to bridge the gap between simplicity and advanced functionality, empowering users to maintain control over their data and backups—securely, efficiently, and reliably—across multiple environments and storage backends.

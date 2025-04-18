@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from typing import List
 
-from DataProtector.file_selections import FileSelection
+from TimeLocker.file_selections import FileSelection
 
 
 class BackupTarget:

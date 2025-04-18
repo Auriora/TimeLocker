@@ -17,7 +17,7 @@ Key features include:
 ```
 .
 ├── src/                          # Main source code
-│   └── DataProtector/           # Core package
+│   └── TimeLocker/              # Core package
 │       ├── backup_manager.py    # Central backup operation coordinator
 │       ├── backup_repository.py # Abstract base class for repositories
 │       ├── backup_snapshot.py   # Snapshot management functionality
@@ -55,9 +55,9 @@ pip install -r requirements.txt
 
 ### Quick Start
 ```python
-from DataProtector.backup_manager import BackupManager
-from DataProtector.backup_target import BackupTarget
-from DataProtector.file_selections import FileSelection, SelectionType
+from TimeLocker.backup_manager import BackupManager
+from TimeLocker.backup_target import BackupTarget
+from TimeLocker.file_selections import FileSelection, SelectionType
 
 # Initialize backup manager
 manager = BackupManager()

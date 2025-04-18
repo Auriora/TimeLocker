@@ -25,7 +25,7 @@ from typing import Dict, List, Optional, TYPE_CHECKING
 if TYPE_CHECKING:
     from backup_snapshot import BackupSnapshot
 
-from DataProtector.backup_target import BackupTarget
+from TimeLocker.backup_target import BackupTarget
 
 
 class BackupError(Exception):

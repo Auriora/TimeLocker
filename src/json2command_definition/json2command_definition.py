@@ -19,7 +19,7 @@ import json
 from pathlib import Path
 from typing import List, Dict, Any
 
-from DataProtector.utils.command_builder import CommandParameter, ParameterStyle, CommandDefinition
+from TimeLocker.utils.command_builder import CommandParameter, ParameterStyle, CommandDefinition
 
 # Get the project root directory (two levels up from this script)
 PROJECT_ROOT = Path(__file__).parent.parent

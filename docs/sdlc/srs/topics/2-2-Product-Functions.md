@@ -6,4 +6,4 @@
 5. **Security** – encryption, vault locking, secure credential storage.
 6. **Monitoring & Reporting** – real‑time status, notifications, logs, audit reports, performance metrics.
 7. **Error & Resource Management** – graceful handling of failures, retries, pruning, and cleanup.
-8. **Integration** – CLI  interface for scripting and orchestration.
+8. **Integration** – CLI interface for scripting and orchestration.

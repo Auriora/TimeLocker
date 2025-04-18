@@ -24,7 +24,7 @@ from typing_extensions import Self
 
 class BackupSnapshot():
     """Interface for backup snapshots"""
-    from DataProtector.backup_repository import BackupRepository
+    from TimeLocker.backup_repository import BackupRepository
     repo: BackupRepository
     id: str
     timestamp: datetime

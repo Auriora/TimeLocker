@@ -19,7 +19,7 @@ import logging
 from typing import Dict, List, Optional, Type
 from urllib.parse import urlparse
 
-from DataProtector.backup_repository import BackupRepository
+from TimeLocker.backup_repository import BackupRepository
 
 logger = logging.getLogger("restic")
 
