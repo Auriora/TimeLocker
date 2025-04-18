@@ -32,9 +32,9 @@ According to ISO/IEC 25010:2023, quality in use comprises the following characte
 - Error logging during user sessions
 
 **Target Metrics**:
-- Task completion rate: ≥ 95%
-- Error rate: ≤ 2 errors per task
-- Task accuracy: ≥ 90%
+- Task completion rate: >= 95%
+- Error rate: <= 2 errors per task
+- Task accuracy: >= 90%
 
 ### 2. Efficiency
 
@@ -51,9 +51,9 @@ According to ISO/IEC 25010:2023, quality in use comprises the following characte
 - Learning curve analysis with new users
 
 **Target Metrics**:
-- Time on task: ≤ 2 minutes for common backup operations
-- Clicks/steps: ≤ 5 clicks for primary functions
-- Learning time: ≤ 30 minutes for basic proficiency
+- Time on task: <= 2 minutes for common backup operations
+- Clicks/steps: <= 5 clicks for primary functions
+- Learning time: <= 30 minutes for basic proficiency
 
 ### 3. Satisfaction
 
@@ -71,9 +71,9 @@ According to ISO/IEC 25010:2023, quality in use comprises the following characte
 - Feedback collection during beta testing
 
 **Target Metrics**:
-- SUS score: ≥ 80 (above industry average)
-- NPS: ≥ 40 (good)
-- Feature satisfaction: ≥ 4 on 5-point scale
+- SUS score: >= 80 (above industry average)
+- NPS: >= 40 (good)
+- Feature satisfaction: >= 4 on 5-point scale
 
 ### 4. Risk Mitigation
 
@@ -93,9 +93,9 @@ According to ISO/IEC 25010:2023, quality in use comprises the following characte
 
 **Target Metrics**:
 - Data loss incidents: 0 during normal operation
-- Recovery success rate: ≥ 99.9%
+- Recovery success rate: >= 99.9%
 - Critical security vulnerabilities: 0 after remediation
-- Error prevention: ≥ 95% of common user errors prevented
+- Error prevention: >= 95% of common user errors prevented
 
 ## Test Scenarios
 

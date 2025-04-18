@@ -38,7 +38,7 @@
 10. [Auditability](3-4-10-Auditability.md)
 11. [Infrastructure Deployment](3-4-11-Infrastructure-Deployment.md)
 
-##### Non‑Functional Overview
-12. [Non‑Functional Requirements](3-4-Non‑Functional-Requirements.md)
+##### Non-Functional Overview
+12. [Non-Functional Requirements](3-4-Non-Functional-Requirements.md)
 
 #### [3.5 Use Cases](3-5-Use-Cases.md)

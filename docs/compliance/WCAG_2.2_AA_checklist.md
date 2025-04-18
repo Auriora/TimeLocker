@@ -24,7 +24,7 @@ The BackupManager application must comply with WCAG 2.2 AA standards to ensure a
 - Automated accessibility test results
 - Manual testing documentation
 
-**SRS Reference**: § 3.4.9 bullet "Focus Not Obscured (Minimum)" (NFR‑ACC‑01)
+**SRS Reference**: § 3.4.9 bullet "Focus Not Obscured (Minimum)" (NFR-ACC-01)
 
 ---
 
@@ -44,7 +44,7 @@ The BackupManager application must comply with WCAG 2.2 AA standards to ensure a
 - Implementation code review notes
 - User testing results
 
-**SRS Reference**: § 3.4.9 bullet "Dragging Movements Alternative" (NFR‑ACC‑03)
+**SRS Reference**: § 3.4.9 bullet "Dragging Movements Alternative" (NFR-ACC-03)
 
 ---
 
@@ -64,7 +64,7 @@ The BackupManager application must comply with WCAG 2.2 AA standards to ensure a
 - Component measurements
 - Accessibility audit results
 
-**SRS Reference**: § 3.4.9 design‑system rule "24 × 24 px targets" (NFR‑ACC‑04)
+**SRS Reference**: § 3.4.9 design-system rule "24 × 24 px targets" (NFR-ACC-04)
 
 ---
 
@@ -84,7 +84,7 @@ The BackupManager application must comply with WCAG 2.2 AA standards to ensure a
 - Help system documentation
 - User feedback on help accessibility
 
-**SRS Reference**: § 3.4.9 bullet "Consistent Help" (NFR‑ACC‑05)
+**SRS Reference**: § 3.4.9 bullet "Consistent Help" (NFR-ACC-05)
 
 ---
 
@@ -104,7 +104,7 @@ The BackupManager application must comply with WCAG 2.2 AA standards to ensure a
 - User flow diagrams showing data reuse
 - Test cases for form data persistence
 
-**SRS Reference**: § 3.4.9 bullet "Redundant Entry" (NFR‑ACC‑06)
+**SRS Reference**: § 3.4.9 bullet "Redundant Entry" (NFR-ACC-06)
 
 ---
 
@@ -124,7 +124,7 @@ The BackupManager application must comply with WCAG 2.2 AA standards to ensure a
 - Accessibility test results for login processes
 - User testing with assistive technologies
 
-**SRS Reference**: § 3.4.9 bullet "Accessible Authentication (Minimum)" (NFR‑ACC‑06)
+**SRS Reference**: § 3.4.9 bullet "Accessible Authentication (Minimum)" (NFR-ACC-06)
 
 ---
 
@@ -136,13 +136,13 @@ While not required for AA compliance, the following AAA criteria are being track
 
 **Status**: Aspirational
 
-**SRS Reference**: § 3.4.9 bullet "Focus Appearance (AAA)" (NFR‑ACC‑02)
+**SRS Reference**: § 3.4.9 bullet "Focus Appearance (AAA)" (NFR-ACC-02)
 
 ### 3.3.9 Accessible Authentication (Enhanced) - Level AAA
 
 **Status**: Aspirational
 
-**SRS Reference**: § 3.4.9 bullet "Accessible Authentication (Enhanced)" (NFR‑ACC‑06)
+**SRS Reference**: § 3.4.9 bullet "Accessible Authentication (Enhanced)" (NFR-ACC-06)
 
 ## Testing and Validation
 

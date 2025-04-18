@@ -2,6 +2,6 @@
 
 | ID              | Requirement                                                                                                                                     | Priority    | Rationale                               |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- | ----------- | --------------------------------------- |
-| **NFR‑INT‑01**  | Application shall be compatible with Restic repository format v2.                                                                               | Must‑have   | Core engine compatibility.              |
-| **NFR‑INT‑02**  | Application shall support S3 API (v4 signing) and SFTP over SSH.                                                                                | Must‑have   | Supports common storage protocols.      |
-| <a id="nfrComp01">**NFR‑COMP‑01**</a> | Application shall not lock files exclusively for longer than 100 ms and shall coexist with other backup or antivirus software without conflict. | Should‑have | Prevents interference with other tools. |
+| **NFR-INT-01**  | Application shall be compatible with Restic repository format v2.                                                                               | Must-have   | Core engine compatibility.              |
+| **NFR-INT-02**  | Application shall support S3 API (v4 signing) and SFTP over SSH.                                                                                | Must-have   | Supports common storage protocols.      |
+| <a id="nfrComp01">**NFR-COMP-01**</a> | Application shall not lock files exclusively for longer than 100 ms and shall coexist with other backup or antivirus software without conflict. | Should-have | Prevents interference with other tools. |
