@@ -1,4 +1,4 @@
-# 4.6 Repository Configuration Schema (Region‑Aware excerpt)
+# 4.6 Repository Configuration Schema (Region‑Aware excerpt)
 
 ```yaml
 # Example repository config snippet after region‑awareness update
@@ -10,4 +10,4 @@ repo:
   enforce_region: true # true = block backups outside declared region
 ```
 
-This schema addition underpins **FR‑RM‑004/005** and **NFR‑SEC‑12**, enabling GDPR‑compliant control over data‑transfer regions.
+This schema addition underpins **[FR‑RM‑004](3-1-1-Repository-Management.md#frRm004)/[005](3-1-1-Repository-Management.md#frRm005)** and **[NFR‑SEC‑12](3-4-6-Security-Compliance.md#nfrSec12)**, enabling GDPR‑compliant control over data‑transfer regions.
