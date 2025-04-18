@@ -2,7 +2,7 @@
 
 ## About This Document
 
-This Software Requirements Specification (SRS) document provides a comprehensive description of the **TimeLocker** project, also referred to as the **TimeLocker**. The document is organized into four main sections:
+This Software Requirements Specification (SRS) document provides a comprehensive description of the **TimeLocker** project. The document is organized into four main sections:
 
 1. **Introduction** - Provides an overview of the document, its purpose, and key terminology
 2. **Overall Description** - Describes the product context, functions, user characteristics, and constraints
@@ -19,7 +19,8 @@ Targeting Linux desktop environments as its initial focus, TimeLocker also plans
 
 By combining a user-friendly design with powerful automation and integration capabilities, TimeLocker fills a critical gap in the market—allowing users to achieve effective backup management without requiring familiarity with complex command-line tools. Through this SRS, stakeholders are equipped with the guidance needed for the development lifecycle, ensuring the successful delivery of a robust, scalable, and reliable backup application.
 
-- [1.2 Purpose](1-2-purpose.md)
+- [1.1 Purpose](1-1-purpose.md)
+- [1.2 Scope](1-2-scope.md)
 - [1.3 Definitions, Acronyms, and Abbreviations](1-3-definitions_acronyms_abbreviations.md)
 - [1.4 References](1-4-references.md)
 - [1.5 Overview](1-5-overview.md)
