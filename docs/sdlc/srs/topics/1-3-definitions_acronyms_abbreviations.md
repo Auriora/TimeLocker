@@ -27,3 +27,24 @@
 | **UX/UI**              | User Experience and User Interface design aspects of software.                                     |
 | **Power User**         | A highly technical user who utilizes advanced features of the application.                         |
 | **Everyday User**      | A typical user who interacts with the application for standard day-to-day functions.               |
+| **TimeLocker**        | The name of the product being developed, a user-friendly backup application.                      |
+| **S3**                | Amazon Simple Storage Service, a cloud storage platform.                                          |
+| **SMB**               | Server Message Block, a network file sharing protocol.                                            |
+| **NFS**               | Network File System, a distributed file system protocol.                                          |
+| **SFTP**              | SSH File Transfer Protocol, a secure file transfer protocol.                                      |
+| **B2**                | Backblaze B2 Cloud Storage, a cloud storage service.                                              |
+| **cron/systemd**      | Scheduling mechanisms in Linux used for automated tasks.                                          |
+| **point-in-time restores** | A recovery feature allowing restoration to a specific moment in time.                        |
+| **in transit**        | Data that is being transmitted between systems.                                                   |
+| **at rest**           | Data that is stored and not actively being used.                                                  |
+| **bandwidth throttling** | Limiting network bandwidth usage to control resource consumption.                              |
+| **JSON-RPC**          | A remote procedure call protocol encoded in JSON.                                                 |
+| **REST API**          | Representational State Transfer Application Programming Interface.                                |
+| **ASVS**              | Application Security Verification Standard.                                                       |
+| **CI/CD**             | Continuous Integration/Continuous Deployment, automated software development practices.           |
+| **HSTS**              | HTTP Strict Transport Security, a web security policy mechanism.                                  |
+| **AES-256**           | Advanced Encryption Standard with 256-bit key, a strong encryption algorithm.                     |
+| **CAPTCHA**           | Completely Automated Public Turing test to tell Computers and Humans Apart.                       |
+| **ISO/IEC 29148**     | A standard for requirements engineering in systems and software.                                  |
+| **WCAG 2.2 AA**       | Web Content Accessibility Guidelines version 2.2, AA compliance level.                            |
+| **FR/NFR**            | Functional Requirements/Non-Functional Requirements.                                              |
