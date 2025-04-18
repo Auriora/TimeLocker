@@ -56,8 +56,6 @@
 ### 4. Appendices
 
 - [4.1 Glossary](4-1-Glossary.md)
-- [4.2 Acronyms](4-2-Acronyms.md)
-- [4.3 References](4-3-References.md)
 - [4.2 Analysis Models](4-2-Analysis-Models.md)
 - [4.3 Issue List](4-3-Issue-List.md)
 - [4.4 GDPR Impact Mapping](4-4-GDPR-Impact-Mapping.md)
