@@ -4,7 +4,7 @@
 
 <instance-profile id="dbasrs"
                   name="Desktop Backup Application Software Requirements Specification (SRS)"
-                  start-page="1-Introduction.md">
+                  start-page="Summary.md">
 
     <toc-element topic="Summary.md"/>
     <toc-element topic="Contents.md"/>
