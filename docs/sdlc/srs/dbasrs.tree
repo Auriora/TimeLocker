@@ -22,7 +22,7 @@
         <toc-element topic="2-4-Constraints.md"/>
         <toc-element topic="2-5-Assumptions-and-Dependencies.md"/>
     </toc-element>
-    <toc-element topic="3-Specific-Requirements.md">
+    <toc-element topic="3-Specific-Requirements.md"/>
         <toc-element topic="3-1-Functional-Requirements.md">
             <toc-element topic="3-1-1-Repository-Management.md"/>
             <toc-element topic="3-1-2-Backup-Operations.md"/>
@@ -64,7 +64,7 @@
         <toc-element topic="UC-ERR-001.md"/>
         <toc-element topic="UC-INT-001.md"/>
     </toc-element>
-    <toc-element topic="5-Traceability.md" name="5 Compliance &amp; Traceability">
+    <toc-element topic="5-Traceability.md" >
         <toc-element topic="5-1-GDPR-Impact-Mapping.md"/>
         <toc-element topic="5-2-ASVS-Control-Mapping.md"/>
         <toc-element topic="5-3-WCAG-2-2-AA-Mapping.md"/>

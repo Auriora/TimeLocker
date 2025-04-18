@@ -79,8 +79,3 @@
 ---
 
 ### [7. Document Change Management](7-Document-Change-Management.md)
-
-- [7.1 Change History](#7-1-change-history)
-- [7.2 Document Approval](#7-2-document-approval)
-- [7.3 Change Request Process](#7-3-change-request-process)
-- [7.4 Version Control](#7-4-version-control)
