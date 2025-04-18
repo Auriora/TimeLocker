@@ -8,8 +8,9 @@ To facilitate easy navigation and clear understanding, the SRS is divided into t
 3. **Specific Requirements (Section 3):** The core of the document, this section details both functional and non-functional requirements:
     - **Functional Requirements:** Organized into logical categories such as repository management, backup operations, recovery operations, policy management, and monitoring/reporting. These requirements outline critical features like snapshot creation, retention policy updates, and disaster recovery processes.
     - **Non-functional Requirements:** Specifies performance, reliability, usability, accessibility, scalability, security, and auditability criteria to ensure the application meets operational expectations and complies with defined standards.
-
-4. **Use Cases (Section 3.5):** Links the requirements to real-world scenarios, describing the workflow and actors involved (e.g., everyday users, power users, and system operations). Each use case highlights specific goals such as configuring repositories, scheduling backups, and verifying audit logs.
-5. **References and Compliance (Section 4):** This section integrates supporting materials and references to align the application's design and functionality with established regulatory frameworks and standards, ensuring adherence to guidelines such as GDPR and OWASP.
+4. **Use Cases (Section 4):** Links the requirements to real-world scenarios, describing the workflow and actors involved (e.g., everyday users, power users, and system operations). Each use case highlights specific goals such as configuring repositories, scheduling backups, and verifying audit logs.
+5. **Traceability (Section 5):** Contains traceability matrices that map requirements to various standards, regulations, and quality models, ensuring compliance with guidelines such as GDPR, OWASP-ASVS, and ISO/IEEE standards.
+6. **Appendices (Section 6):** Provides supplementary information including glossaries, analysis models, and compliance documentation artifacts.
+7. **Document Change Management (Section 7):** Tracks changes to the SRS document over time, including version history, approval process, and version control information.
 
 Additionally, appendices further supplement the document with glossaries, analysis models, and compliance documentation artifacts to aid in deeper understanding and auditability.

@@ -49,22 +49,38 @@
     - [3.4.10 Auditability](3-4-10-Auditability.md)
     - [3.4.11 Infrastructure Deployment](3-4-11-Infrastructure-Deployment.md)
 
-- [3.5 Use Cases](3-5-Use-Cases.md)
+---
+
+### [4. Use Cases](4-Use-Cases.md)
 
 ---
 
-### 4. Appendices
+### [5. Traceability](5-Traceability.md)
 
-- [4.1 Glossary](4-1-Glossary.md)
-- [4.2 Analysis Models](4-2-Analysis-Models.md)
-- [4.3 Issue List](4-3-Issue-List.md)
-- [4.4 GDPR Impact Mapping](4-4-GDPR-Impact-Mapping.md)
-- [4.5 Onboarding Notice Consent Copy Deck](4-5-Onboarding-Notice-Consent-Copy-Deck.md)
-- [4.6 Repository Configuration Schema](4-6-Repository-Configuration-Schema.md)
-- [4.7 OWASP ASVS v4.0](4-7-OWASP-ASVS-v4-0.md)
-- [4.8 ASVS Control Mapping](4-8-ASVS-Control-Mapping.md)
-- [4.9 Compliance Documentation Artifacts](4-9-Compliance-Documentation-Artifacts.md)
-- [4.10 WCAG 2.2 AA Mapping](4-10-WCAG-2-2-AA-Mapping.md)
-- [4.11 ISO/IEC/IEEE 29148 Checklist Mapping](4-11-ISO-IEC-IEEE-29148-Checklist-Mapping.md)
-- [4.12 UI/UX Standards Mapping](4-12-UIUX-Standards-Mapping.md)
-- [4.13 ISO/IEC 25010:2023 Quality Model Mapping](4-13-ISO-IEC-250102023-Quality-Model-Mapping.md)
+- [5.1 GDPR Impact Mapping](5-1-GDPR-Impact-Mapping.md)
+- [5.2 ASVS Control Mapping](5-2-ASVS-Control-Mapping.md)
+- [5.3 WCAG 2.2 AA Mapping](5-3-WCAG-2-2-AA-Mapping.md)
+- [5.4 ISO/IEC/IEEE 29148 Checklist Mapping](5-4-ISO-IEC-IEEE-29148-Checklist-Mapping.md)
+- [5.5 UI/UX Standards Mapping](5-5-UIUX-Standards-Mapping.md)
+- [5.6 ISO/IEC 25010:2023 Quality Model Mapping](5-6-ISO-IEC-250102023-Quality-Model-Mapping.md)
+
+---
+
+### [6. Appendices](6-Appendices.md)
+
+- [6.1 Glossary](6-1-Glossary.md)
+- [6.2 Analysis Models](6-2-Analysis-Models.md)
+- [6.3 Issue List](6-3-Issue-List.md)
+- [6.4 Onboarding Notice Consent Copy Deck](6-4-Onboarding-Notice-Consent-Copy-Deck.md)
+- [6.5 Repository Configuration Schema](6-5-Repository-Configuration-Schema.md)
+- [6.6 OWASP ASVS v4.0](6-6-OWASP-ASVS-v4-0.md)
+- [6.7 Compliance Documentation Artifacts](6-7-Compliance-Documentation-Artifacts.md)
+
+---
+
+### [7. Document Change Management](7-Document-Change-Management.md)
+
+- [7.1 Change History](#7-1-change-history)
+- [7.2 Document Approval](#7-2-document-approval)
+- [7.3 Change Request Process](#7-3-change-request-process)
+- [7.4 Version Control](#7-4-version-control)

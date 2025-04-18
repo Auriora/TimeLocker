@@ -2,12 +2,15 @@
 
 ## About This Document
 
-This Software Requirements Specification (SRS) document provides a comprehensive description of the **TimeLocker** project. The document is organized into four main sections:
+This Software Requirements Specification (SRS) document provides a comprehensive description of the **TimeLocker** project. The document is organized into seven main sections:
 
 1. **Introduction** - Provides an overview of the document, its purpose, and key terminology
 2. **Overall Description** - Describes the product context, functions, user characteristics, and constraints
 3. **Specific Requirements** - Details the functional and non-functional requirements
-4. **Appendices** - Contains supplementary information, glossaries, and compliance mappings
+4. **Use Cases** - Links requirements to real-world scenarios with actors and workflows
+5. **Traceability** - Contains matrices mapping requirements to standards and regulations
+6. **Appendices** - Contains supplementary information and glossaries
+7. **Document Change Management** - Tracks document revisions and approval process
 
 Each section is designed to provide stakeholders with clear guidance on different aspects of the project. Navigation links at the end of each section allow for easy movement between related topics.
 
