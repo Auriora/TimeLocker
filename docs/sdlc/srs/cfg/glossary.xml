@@ -11,6 +11,7 @@
     <term name="Backup Schedule">A predefined routine specifying when and how backups are automatically created.</term>
     <term name="Pruning">The process of deleting old or unnecessary backup snapshots based on the retention policy.</term>
     <term name="Metadata">Data that describes other data, such as information about snapshots, file versions, and structure.</term>
+    <term name="Incremental">Referring to a process that builds upon previous steps or states, adding only what has changed since the last operation.</term>
     <term name="Incremental Backup">A backup that includes only the changes made since the last backup, reducing size and time.</term>
     <term name="Glob Patterns">Text patterns used to match file or folder names, often in inclusion/exclusion rules.</term>
     <term name="CLI">Command-Line Interface used to interact with software via text-based commands.</term>

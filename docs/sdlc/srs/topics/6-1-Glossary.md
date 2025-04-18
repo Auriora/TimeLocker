@@ -29,6 +29,7 @@
 | **Glob Patterns**          | Text patterns used to match file or folder names, often in inclusion/exclusion rules.                                 |
 | **HSTS**                   | HTTP Strict Transport Security, a web security policy mechanism.                                                      |
 | **In Transit**             | Data that is being transmitted between systems.                                                                       |
+| **Incremental**            | Referring to a process that builds upon previous steps or states, adding only what has changed since the last operation. |
 | **Incremental Backup**     | A backup that includes only the changes made since the last backup, reducing size and time.                           |
 | **Integrity**              | The assurance that data has not been altered or corrupted during storage or transmission.                             |
 | **Integrity Check**        | A method of ensuring consistency and correctness, often performed using `restic check`.                               |
