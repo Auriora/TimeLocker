@@ -31,6 +31,7 @@
     - [3.1.6 Monitoring & Reporting](3-1-6-Monitoring-Reporting.md)
     - [3.1.7 Error Handling and Resource Management](3-1-7-Error-Handling-Resource-Management.md)
     - [3.1.8 Integration](3-1-8-Integration.md)
+    - [3.1.9 Audit Logs](3-1-9-Audit-Logs.md)
 
 - [3.2 External Interface Requirements](3-2-External-Interface-Requirements.md)
 

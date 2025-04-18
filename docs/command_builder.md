@@ -14,9 +14,9 @@ The command builder is based on three main concepts:
 
 Parameters can be formatted in three different styles:
 
-- `SEPARATE`: Parameters and values are separate arguments (e.g., `--param value`)
-- `JOINED`: Parameters and values are joined with = (e.g., `--param=value`)
-- `POSITIONAL`: Only the value is included (e.g., `value`)
+- `SEPARATE`: Parameters and values are separate arguments (e.g. `--param value`)
+- `JOINED`: Parameters and values are joined with = (e.g. `--param=value`)
+- `POSITIONAL`: Only the value is included (e.g. `value`)
 
 ## Example Usage
 
