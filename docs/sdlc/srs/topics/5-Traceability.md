@@ -1,6 +1,6 @@
-# 5 Traceability
+# 5 Compliance & Traceability
 
-This section contains traceability matrices that map requirements to various standards, regulations, and quality models. These matrices help ensure that the TimeLocker application meets all necessary compliance requirements and quality standards.
+This section contains compliance information and traceability matrices that map requirements to various standards, regulations, and quality models. These matrices help ensure that the TimeLocker application meets all necessary compliance requirements and quality standards.
 
 - [5.1 GDPR Impact Mapping](5-1-GDPR-Impact-Mapping.md)
 - [5.2 ASVS Control Mapping](5-2-ASVS-Control-Mapping.md)

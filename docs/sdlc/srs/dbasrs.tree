@@ -10,7 +10,7 @@
     <toc-element topic="Contents.md"/>
     <toc-element topic="1-Introduction.md">
         <toc-element topic="1-1-purpose.md"/>
-        <toc-element topic="1.2-scope.md"/>
+        <toc-element topic="1-2-scope.md"/>
         <toc-element topic="1-3-definitions_acronyms_abbreviations.md"/>
         <toc-element topic="1-4-references.md"/>
         <toc-element topic="1-5-overview.md"/>
@@ -48,36 +48,38 @@
             <toc-element topic="3-4-10-Auditability.md"/>
             <toc-element topic="3-4-11-Infrastructure-Deployment.md"/>
         </toc-element>
-        <toc-element topic="3-5-Use-Cases.md">
-            <toc-element topic="UC-RM-001.md"/>
-            <toc-element topic="UC-RM-002.md"/>
-            <toc-element topic="UC-BK-001.md"/>
-            <toc-element topic="UC-BK-002.md"/>
-            <toc-element topic="UC-SC-001.md"/>
-            <toc-element topic="UC-RC-001.md"/>
-            <toc-element topic="UC-RC-002.md"/>
-            <toc-element topic="UC-PM-001.md"/>
-            <toc-element topic="UC-SEC-001.md"/>
-            <toc-element topic="UC-SEC-002.md"/>
-            <toc-element topic="UC-MON-001.md"/>
-            <toc-element topic="UC-MON-002.md"/>
-            <toc-element topic="UC-ERR-001.md"/>
-            <toc-element topic="UC-INT-001.md"/>
-        </toc-element>
+    <toc-element topic="4-Use-Cases.md">
+        <toc-element topic="UC-RM-001.md"/>
+        <toc-element topic="UC-RM-002.md"/>
+        <toc-element topic="UC-BK-001.md"/>
+        <toc-element topic="UC-BK-002.md"/>
+        <toc-element topic="UC-SC-001.md"/>
+        <toc-element topic="UC-RC-001.md"/>
+        <toc-element topic="UC-RC-002.md"/>
+        <toc-element topic="UC-PM-001.md"/>
+        <toc-element topic="UC-SEC-001.md"/>
+        <toc-element topic="UC-SEC-002.md"/>
+        <toc-element topic="UC-MON-001.md"/>
+        <toc-element topic="UC-MON-002.md"/>
+        <toc-element topic="UC-ERR-001.md"/>
+        <toc-element topic="UC-INT-001.md"/>
     </toc-element>
-    <toc-element topic="4-Appendices.md">
-        <toc-element topic="4-1-Glossary.md"/>
-        <toc-element topic="4-2-Analysis-Models.md"/>
-        <toc-element topic="4-3-Issue-List.md"/>
-        <toc-element topic="4-4-GDPR-Impact-Mapping.md"/>
-        <toc-element topic="4-5-Onboarding-Notice-Consent-Copy-Deck.md"/>
-        <toc-element topic="4-6-Repository-Configuration-Schema.md"/>
-        <toc-element topic="4-7-OWASP-ASVS-v4-0.md"/>
-        <toc-element topic="4-8-ASVS-Control-Mapping.md"/>
-        <toc-element topic="4-9-Compliance-Documentation-Artifacts.md"/>
-        <toc-element topic="4-10-WCAG-2-2-AA-Mapping.md"/>
-        <toc-element topic="4-11-ISO-IEC-IEEE-29148-Checklist-Mapping.md"/>
-        <toc-element topic="4-12-UIUX-Standards-Mapping.md"/>
-        <toc-element topic="4-13-ISO-IEC-250102023-Quality-Model-Mapping.md"/>
+    <toc-element topic="5-Traceability.md" name="5 Compliance &amp; Traceability">
+        <toc-element topic="5-1-GDPR-Impact-Mapping.md"/>
+        <toc-element topic="5-2-ASVS-Control-Mapping.md"/>
+        <toc-element topic="5-3-WCAG-2-2-AA-Mapping.md"/>
+        <toc-element topic="5-4-ISO-IEC-IEEE-29148-Checklist-Mapping.md"/>
+        <toc-element topic="5-5-UIUX-Standards-Mapping.md"/>
+        <toc-element topic="5-6-ISO-IEC-250102023-Quality-Model-Mapping.md"/>
     </toc-element>
+    <toc-element topic="6-Appendices.md">
+        <toc-element topic="6-1-Glossary.md"/>
+        <toc-element topic="6-2-Analysis-Models.md"/>
+        <toc-element topic="6-3-Issue-List.md"/>
+        <toc-element topic="6-4-Onboarding-Notice-Consent-Copy-Deck.md"/>
+        <toc-element topic="6-5-Repository-Configuration-Schema.md"/>
+        <toc-element topic="6-6-OWASP-ASVS-v4-0.md"/>
+        <toc-element topic="6-7-Compliance-Documentation-Artifacts.md"/>
+    </toc-element>
+    <toc-element topic="7-Document-Change-Management.md"/>
 </instance-profile>

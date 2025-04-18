@@ -55,7 +55,7 @@
 
 ---
 
-### [5. Traceability](5-Traceability.md)
+### [5. Compliance & Traceability](5-Traceability.md)
 
 - [5.1 GDPR Impact Mapping](5-1-GDPR-Impact-Mapping.md)
 - [5.2 ASVS Control Mapping](5-2-ASVS-Control-Mapping.md)
