@@ -68,4 +68,3 @@
 - [4.11 ISO/IEC/IEEE 29148 Checklist Mapping](4-11-ISO-IEC-IEEE-29148-Checklist-Mapping.md)
 - [4.12 UI/UX Standards Mapping](4-12-UIUX-Standards-Mapping.md)
 - [4.13 ISO/IEC 25010:2023 Quality Model Mapping](4-13-ISO-IEC-250102023-Quality-Model-Mapping.md)
-- [4.14 Infrastructure Deployment Mapping](4-14-Infrastructure-Deployment-Mapping.md)

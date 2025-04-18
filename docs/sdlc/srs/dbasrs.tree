@@ -35,7 +35,7 @@
         </toc-element>
         <toc-element topic="3-2-External-Interface-Requirements.md"/>
         <toc-element topic="3-3-System-Features.md"/>
-        <toc-element topic="3-4-Non‑Functional-Requirements.md">
+        <toc-element topic="3-4-Non-Functional-Requirements.md">
             <toc-element topic="3-4-1-Performance.md"/>
             <toc-element topic="3-4-2-Reliability-Stability.md"/>
             <toc-element topic="3-4-3-Usability.md"/>
@@ -51,18 +51,18 @@
         <toc-element topic="3-5-Use-Cases.md">
             <toc-element topic="UC-RM-001.md"/>
             <toc-element topic="UC-RM-002.md"/>
-            <toc-element topic="UC‑BK‑001.md"/>
+            <toc-element topic="UC-BK-001.md"/>
             <toc-element topic="UC-BK-002.md"/>
-            <toc-element topic="UC‑SC‑001.md"/>
-            <toc-element topic="UC‑RC‑001.md"/>
-            <toc-element topic="UC‑RC‑002.md"/>
-            <toc-element topic="UC‑PM‑001.md"/>
-            <toc-element topic="UC‑SEC‑001.md"/>
-            <toc-element topic="UC‑SEC‑002.md"/>
-            <toc-element topic="UC‑MON‑001.md"/>
-            <toc-element topic="UC‑MON‑002.md"/>
-            <toc-element topic="UC‑ERR‑001.md"/>
-            <toc-element topic="UC‑INT‑001.md"/>
+            <toc-element topic="UC-SC-001.md"/>
+            <toc-element topic="UC-RC-001.md"/>
+            <toc-element topic="UC-RC-002.md"/>
+            <toc-element topic="UC-PM-001.md"/>
+            <toc-element topic="UC-SEC-001.md"/>
+            <toc-element topic="UC-SEC-002.md"/>
+            <toc-element topic="UC-MON-001.md"/>
+            <toc-element topic="UC-MON-002.md"/>
+            <toc-element topic="UC-ERR-001.md"/>
+            <toc-element topic="UC-INT-001.md"/>
         </toc-element>
     </toc-element>
     <toc-element topic="4-Appendices.md">
@@ -79,6 +79,5 @@
         <toc-element topic="4-11-ISO-IEC-IEEE-29148-Checklist-Mapping.md"/>
         <toc-element topic="4-12-UIUX-Standards-Mapping.md"/>
         <toc-element topic="4-13-ISO-IEC-250102023-Quality-Model-Mapping.md"/>
-        <toc-element topic="4-14-Infrastructure-Deployment-Mapping.md"/>
     </toc-element>
 </instance-profile>
