@@ -24,6 +24,5 @@ By combining a <tooltip term="User-friendly Design">user-friendly design</toolti
 
 - [1.1 Purpose](1-1-purpose.md)
 - [1.2 Scope](1-2-scope.md)
-- [1.3 Definitions, Acronyms, and Abbreviations](1-3-definitions_acronyms_abbreviations.md)
-- [1.4 References](1-4-references.md)
-- [1.5 Overview](1-5-overview.md)
+- [1.3 References](1-3-references.md)
+- [1.4 Overview](1-4-overview.md)
