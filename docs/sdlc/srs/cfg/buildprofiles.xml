@@ -10,14 +10,14 @@
             <noindex-content>false</noindex-content>
             <color-preset>soft</color-preset>
             <resizable-sidebar>true</resizable-sidebar>
-            <product-web-url>https://github.com/bcherrington/DataProtector</product-web-url>
-            <download-title>Protect My Data</download-title>
-            <download-page>https://github.com/bcherrington/DataProtector/archive/refs/heads/master.zip</download-page>
+            <product-web-url>https://github.com/bcherrington/TimeLockerr</product-web-url>
+            <download-title>TimeLocker</download-title>
+            <download-page>https://github.com/bcherrington/TimeLocker/archive/refs/heads/master.zip</download-page>
             <showDownloadButton>true</showDownloadButton>
         </variables>
         <footer>
             <copyright>2025 Bruce Cherrington</copyright>
-            <link href="https://github.com/bcherrington/DataProtector">Compliance</link>
+            <link href="https://github.com/bcherrington/TimeLocker">Compliance</link>
         </footer>
         <sitemap priority="0.35" change-frequency="monthly"/>
     </build-profile>
