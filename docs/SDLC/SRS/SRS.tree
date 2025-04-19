@@ -2,7 +2,7 @@
 <!DOCTYPE instance-profile
         SYSTEM "https://resources.jetbrains.com/writerside/1.0/product-profile.dtd">
 
-<instance-profile id="srs"
+<instance-profile id="SRS"
                   name="Desktop Backup Application Software Requirements Specification (SRS)"
                   start-page="Summary.md">
 
