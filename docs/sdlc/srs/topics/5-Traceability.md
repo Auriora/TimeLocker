@@ -8,3 +8,4 @@ This section contains compliance information and traceability matrices that map 
 - [5.4 ISO/IEC/IEEE 29148 Checklist Mapping](5-4-ISO-IEC-IEEE-29148-Checklist-Mapping.md)
 - [5.5 UI/UX Standards Mapping](5-5-UIUX-Standards-Mapping.md)
 - [5.6 ISO/IEC 25010:2023 Quality Model Mapping](5-6-ISO-IEC-250102023-Quality-Model-Mapping.md)
+- [5.7 Compliance Documentation Artifacts](5-7-Compliance-Documentation-Artifacts.md)

@@ -1,4 +1,4 @@
-# 4.9 Compliance Documentation Artifacts
+# 5.7 Compliance Documentation Artifacts
 
 The following artefacts **shall** be included in the `docs/compliance/` folder:
 

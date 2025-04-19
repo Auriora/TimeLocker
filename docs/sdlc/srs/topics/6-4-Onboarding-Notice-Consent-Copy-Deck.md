@@ -1,4 +1,4 @@
-# 4.5 Onboarding Notice & Consent Copy Deck
+# 6.4  Onboarding Notice & Consent Copy Deck
 
 Below is the proposed copy for the first-run privacy and consent dialog that appears immediately after installation but **before** any data is processed.
 

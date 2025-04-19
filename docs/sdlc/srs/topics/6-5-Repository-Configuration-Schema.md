@@ -1,4 +1,4 @@
-# 4.6 Repository Configuration Schema (Region-Aware excerpt)
+# 6.5 Repository Configuration Schema (Region-Aware excerpt)
 
 ```yaml
 # Example repository config snippet after region-awareness update

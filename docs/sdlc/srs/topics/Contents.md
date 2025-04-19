@@ -63,6 +63,7 @@
 - [5.4 ISO/IEC/IEEE 29148 Checklist Mapping](5-4-ISO-IEC-IEEE-29148-Checklist-Mapping.md)
 - [5.5 UI/UX Standards Mapping](5-5-UIUX-Standards-Mapping.md)
 - [5.6 ISO/IEC 25010:2023 Quality Model Mapping](5-6-ISO-IEC-250102023-Quality-Model-Mapping.md)
+- [5.7 Compliance Documentation Artifacts](5-7-Compliance-Documentation-Artifacts.md)
 
 ---
 
@@ -74,7 +75,6 @@
 - [6.4 Onboarding Notice Consent Copy Deck](6-4-Onboarding-Notice-Consent-Copy-Deck.md)
 - [6.5 Repository Configuration Schema](6-5-Repository-Configuration-Schema.md)
 - [6.6 OWASP ASVS v4.0](6-6-OWASP-ASVS-v4-0.md)
-- [6.7 Compliance Documentation Artifacts](6-7-Compliance-Documentation-Artifacts.md)
 
 ---
 
