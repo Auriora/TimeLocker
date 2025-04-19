@@ -1,0 +1,18 @@
+# Activities
+
+- [Test Coverage Criteria](Testing-Activities-Test-Coverage-Criteria.md)
+- [Test Environment Setup and Management](Testing-Activities-Test-Environment-Setup-and-Management.md)
+- [Unit Testing](Testing-Activities-Unit-Testing.md)
+- [Integration Testing](Testing-Activities-Integration-Testing.md)
+- [System Testing](Testing-Activities-System-Testing.md)
+- [Regression Testing Strategy](Testing-Activities-Regression-Testing-Strategy.md)
+- [Security Testing Methods](Testing-Activities-Security-Testing-Methods.md)
+- [Performance Testing Techniques and Metrics](Testing-Activities-Performance-Testing-Techniques-and-Metrics.md)
+- [Accessibility Testing](Testing-Activities-Accessibility-Testing.md)
+- [Test-Requirements Traceability](Testing-Activities-Test-Requirements-Traceability.md)
+- [Test Data Management](Testing-Activities-Test-Data-Management.md)
+- [Defect Management Process](Testing-Activities-Defect-Management-Process.md)
+- [Test Automation Strategy](Testing-Activities-Test-Automation-Strategy.md)
+- [User Acceptance Testing (UAT)](Testing-Activities-User-Acceptance-Testing.md)
+- [Verification Process](Testing-Activities-Verification-Process.md)
+- [Validation Process](Testing-Activities-Validation-Process.md)

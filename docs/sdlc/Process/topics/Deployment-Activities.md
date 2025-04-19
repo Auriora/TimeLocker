@@ -1,0 +1,16 @@
+# Activities
+
+- [Deployment Automation Techniques](Deployment-Activities-Deployment-Automation-Techniques.md)
+- [Security Validation During Deployment](Deployment-Activities-Security-Validation-During-Deployment.md)
+- [User Training and Documentation](Deployment-Activities-User-Training-and-Documentation.md)
+- [Data Migration Strategies](Deployment-Activities-Data-Migration-Strategies.md)
+- [Deployment Verification and Validation](Deployment-Activities-Deployment-Verification-and-Validation.md)
+- [Post-Deployment Monitoring](Deployment-Activities-Post-Deployment-Monitoring.md)
+- [Production Environment Configuration Management](Deployment-Activities-Production-Environment-Configuration-Management.md)
+- [Deployment Scheduling and Communication](Deployment-Activities-Deployment-Scheduling-and-Communication.md)
+- [Compliance Verification During Deployment](Deployment-Activities-Compliance-Verification-During-Deployment.md)
+- [Deployment Plan Development](Deployment-Activities-Deployment-Plan-Development.md)
+- [Staging Environment Deployment](Deployment-Activities-Staging-Environment-Deployment.md)
+- [Performance Validation](Deployment-Activities-Performance-Validation.md)
+- [Transition Process](Deployment-Activities-Transition-Process.md)
+- [Installation Process](Deployment-Activities-Installation-Process.md)
