@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE instance-profile
+        SYSTEM "https://resources.jetbrains.com/writerside/1.0/product-profile.dtd">
+
+<instance-profile id="process"
+                  name="Software Development Life Cycle Process"
+                  start-page="Contents.md">
+
+    <toc-element topic="Contents.md"/>
+    <toc-element topic="Introduction.md"/>
+    <toc-element topic="Requirements-Gathering-Analysis.md"/>
+    <toc-element topic="UX-UI-Design.md"/>
+    <toc-element topic="Design-Phase.md"/>
+    <toc-element topic="Implementation-Development.md"/>
+    <toc-element topic="Testing.md"/>
+    <toc-element topic="Deployment.md"/>
+    <toc-element topic="Maintenance-Continuous-Improvement.md"/>
+    <toc-element topic="Additional-Considerations.md"/>
+</instance-profile>
