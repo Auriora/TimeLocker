@@ -1,26 +1,12 @@
 @startuml
-'Copyright ©  Bruce Cherrington
-'
-'This program is free software: you can redistribute it and/or modify
-'it under the terms of the GNU General Public License as published by
-'the Free Software Foundation, either version 3 of the License, or
-'(at your option) any later version.
-'
-'This program is distributed in the hope that it will be useful,
-'but WITHOUT ANY WARRANTY; without even the implied warranty of
-'MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-'GNU General Public License for more details.
-'
-'You should have received a copy of the GNU General Public License
-'along with this program. If not, see <https://www.gnu.org/licenses/>.
-
 ' PlantUML style configuration
 !theme _none_
 skin plantuml
 hide empty members
 
 ' Project classes
-class DataProtector.backup_manager.BackupManager {
+
++class TimeLocker.backup_manager.BackupManager {
     -__init__(): None
     +{classifier} from_uri(cls, uri: str, password: Optional[str]): Any
     +get_repository_factory(name: str, repo_type: str): Any
@@ -29,11 +15,13 @@ class DataProtector.backup_manager.BackupManager {
     +register_repository_factory(\n                                 name: str,\n                                 repo_type: str,\n                                 repository_class: Type[BackupRepository]): None
 }
 
-exception DataProtector.backup_manager.BackupManagerError
++exception TimeLocker.backup_manager.BackupManagerError {
+}
 
-exception DataProtector.backup_repository.BackupError
++exception TimeLocker.backup_repository.BackupError {
+}
 
-abstract class DataProtector.backup_repository.BackupRepository {
++abstract class TimeLocker.backup_repository.BackupRepository {
     +apply_retention_policy(policy: RetentionPolicy, prune: bool): bool
     +{abstract} backup_target(targets: List[BackupTarget], tags: Any): Dict
     +{abstract} check(): bool
@@ -47,7 +35,7 @@ abstract class DataProtector.backup_repository.BackupRepository {
     +{abstract} validate(): bool
 }
 
-struct DataProtector.backup_repository.RetentionPolicy {
++struct TimeLocker.backup_repository.RetentionPolicy {
     +daily: Optional[int]
     +hourly: Optional[int]
     +last: Optional[int]
@@ -57,7 +45,7 @@ struct DataProtector.backup_repository.RetentionPolicy {
     +is_valid(): bool
 }
 
-class DataProtector.backup_snapshot.BackupSnapshot {
++class TimeLocker.backup_snapshot.BackupSnapshot {
     +id: Any
     +paths: Any
     +repo: Any
@@ -75,14 +63,14 @@ class DataProtector.backup_snapshot.BackupSnapshot {
     +verify(): bool
 }
 
-class DataProtector.backup_target.BackupTarget {
++class TimeLocker.backup_target.BackupTarget {
     +selection: Any
     +tags: Any
     -__init__(selection: FileSelection, tags: List[str]): None
     +validate(): bool
 }
 
-class DataProtector.file_selections.FileSelection {
++class TimeLocker.file_selections.FileSelection {
     -__init__(): None
     -__repr__(): str
     +add_path(path: Any, selection_type: SelectionType): None
@@ -98,7 +86,7 @@ class DataProtector.file_selections.FileSelection {
     +validate(): bool
 }
 
-class DataProtector.file_selections.PatternGroup {
++class TimeLocker.file_selections.PatternGroup {
     +{static} COMMON_GROUPS: Any
     +name: Any
     +patterns: Any
@@ -106,12 +94,12 @@ class DataProtector.file_selections.PatternGroup {
     +{classifier} get_common_group(cls, group_name: str): Any
 }
 
-enum DataProtector.file_selections.SelectionType {
++enum TimeLocker.file_selections.SelectionType {
     +EXCLUDE: Any
     +INCLUDE: Any
 }
 
-class DataProtector.restic.Repositories.b2.B2ResticRepository {
++class TimeLocker.restic.Repositories.b2.B2ResticRepository {
     +b2_account_id: Any
     +b2_account_key: Any
     -__init__(\n              location: str,\n              password: Optional[str],\n              b2_account_id: Optional[str],\n              b2_account_key: Optional[str]): None
@@ -120,13 +108,13 @@ class DataProtector.restic.Repositories.b2.B2ResticRepository {
     +validate(): None
 }
 
-class DataProtector.restic.Repositories.local.LocalResticRepository {
++class TimeLocker.restic.Repositories.local.LocalResticRepository {
     +backend_env(): Any
     +{classifier} from_parsed_uri(cls, parsed_uri, password: Optional[str]): Any
     +validate(): None
 }
 
-class DataProtector.restic.Repositories.s3.S3ResticRepository {
++class TimeLocker.restic.Repositories.s3.S3ResticRepository {
     +aws_access_key_id: Any
     +aws_default_region: Any
     +aws_secret_access_key: Any
@@ -136,17 +124,20 @@ class DataProtector.restic.Repositories.s3.S3ResticRepository {
     +validate(): None
 }
 
-exception DataProtector.restic.errors.RepositoryError
++exception TimeLocker.restic.errors.RepositoryError {
+}
 
-exception DataProtector.restic.errors.ResticError
++exception TimeLocker.restic.errors.ResticError {
+}
 
-exception DataProtector.restic.errors.ResticVersionError
++exception TimeLocker.restic.errors.ResticVersionError {
+}
 
-exception DataProtector.restic.errors.UnsupportedSchemeError
++exception TimeLocker.restic.errors.UnsupportedSchemeError {
+}
 
-class DataProtector.restic.restic_repository.ResticRepository {
++class TimeLocker.restic.restic_repository.ResticRepository {
     #_cached_env: Any
-    #_command: Any
     #_command: Any
     #_explicit_password: Any
     #_location: Any
@@ -173,7 +164,7 @@ class DataProtector.restic.restic_repository.ResticRepository {
     +validate(): str
 }
 
-class DataProtector.utils.command_builder.CommandBuilder {
++class TimeLocker.utils.command_builder.CommandBuilder {
     +current_command: Any
     +definition: Any
     -__init__(definition: CommandDefinition): None
@@ -183,7 +174,7 @@ class DataProtector.utils.command_builder.CommandBuilder {
     +param(name: str, value: Any): Any
 }
 
-class DataProtector.utils.command_builder.CommandDefinition {
++class TimeLocker.utils.command_builder.CommandDefinition {
     +default_param_style: Any
     +name: Any
     +parameters: Any
@@ -192,7 +183,8 @@ class DataProtector.utils.command_builder.CommandDefinition {
     -__init__(\n              name: str,\n              parameters: Any,\n              subcommands: Any,\n              default_param_style: ParameterStyle,\n              synopsis_params: List[str]): None
 }
 
-class DataProtector.utils.command_builder.CommandParameter {
++class TimeLocker.utils.command_builder.CommandParameter {
+    +description: Any
     +name: Any
     +position: Any
     +prefix: Any
@@ -201,10 +193,10 @@ class DataProtector.utils.command_builder.CommandParameter {
     +short_style: Any
     +style: Any
     +value_required: Any
-    -__init__(\n              name: str,\n              style: ParameterStyle,\n              required: bool,\n              value_required: bool,\n              prefix: str,\n              position: Optional[int],\n              short_name: Optional[str],\n              short_style: Optional[ParameterStyle]): None
+    -__init__(\n              name: str,\n              style: ParameterStyle,\n              required: bool,\n              value_required: bool,\n              prefix: str,\n              position: Optional[int],\n              short_name: Optional[str],\n              short_style: Optional[ParameterStyle],\n              description: str): None
 }
 
-enum DataProtector.utils.command_builder.ParameterStyle {
++enum TimeLocker.utils.command_builder.ParameterStyle {
     +DOUBLE_DASH: Any
     +JOINED: Any
     +POSITIONAL: Any
@@ -218,24 +210,30 @@ enum DataProtector.utils.command_builder.ParameterStyle {
 ' Relationships
 
 ' Extensions (inheritance)
-DataProtector.backup_repository.BackupRepository <|-- DataProtector.restic.restic_repository.ResticRepository
-DataProtector.restic.errors.RepositoryError <|-- DataProtector.restic.errors.UnsupportedSchemeError
-DataProtector.restic.errors.ResticError <|-- DataProtector.restic.errors.RepositoryError
-DataProtector.restic.errors.ResticError <|-- DataProtector.restic.errors.ResticVersionError
-DataProtector.restic.restic_repository.ResticRepository <|-- DataProtector.restic.Repositories.b2.B2ResticRepository
-DataProtector.restic.restic_repository.ResticRepository <|-- DataProtector.restic.Repositories.local.LocalResticRepository
-DataProtector.restic.restic_repository.ResticRepository <|-- DataProtector.restic.Repositories.s3.S3ResticRepository
+TimeLocker.backup_repository.BackupRepository <|-- TimeLocker.restic.restic_repository.ResticRepository
+TimeLocker.restic.errors.RepositoryError <|-- TimeLocker.restic.errors.UnsupportedSchemeError
+TimeLocker.restic.errors.ResticError <|-- TimeLocker.restic.errors.RepositoryError
+TimeLocker.restic.errors.ResticError <|-- TimeLocker.restic.errors.ResticVersionError
+TimeLocker.restic.restic_repository.ResticRepository <|-- TimeLocker.restic.Repositories.b2.B2ResticRepository
+TimeLocker.restic.restic_repository.ResticRepository <|-- TimeLocker.restic.Repositories.local.LocalResticRepository
+TimeLocker.restic.restic_repository.ResticRepository <|-- TimeLocker.restic.Repositories.s3.S3ResticRepository
+
+' Compositions
+TimeLocker.file_selections.FileSelection *-- TimeLocker.file_selections.PatternGroup
 
 ' Aggregations
-DataProtector.utils.command_builder.CommandBuilder o-- DataProtector.utils.command_builder.CommandDefinition
-DataProtector.utils.command_builder.CommandDefinition o-- DataProtector.utils.command_builder.ParameterStyle
-DataProtector.utils.command_builder.CommandParameter o-- DataProtector.utils.command_builder.ParameterStyle
+TimeLocker.backup_snapshot.BackupSnapshot o-- TimeLocker.backup_repository.BackupRepository
+TimeLocker.backup_target.BackupTarget o-- TimeLocker.file_selections.FileSelection
+TimeLocker.utils.command_builder.CommandBuilder o-- TimeLocker.utils.command_builder.CommandDefinition
+TimeLocker.utils.command_builder.CommandDefinition o-- TimeLocker.utils.command_builder.ParameterStyle
+TimeLocker.utils.command_builder.CommandParameter o-- TimeLocker.utils.command_builder.ParameterStyle
 
-' Weak dependencies
-DataProtector.file_selections.FileSelection ..> DataProtector.file_selections.PatternGroup
-
-' Packages
-package DataProtector <<Rectangle>> {
-}
+' Dependencies
+TimeLocker.backup_manager.BackupManager --> TimeLocker.backup_repository.BackupRepository
+TimeLocker.backup_repository.BackupRepository --> TimeLocker.backup_repository.RetentionPolicy
+TimeLocker.backup_repository.BackupRepository --> TimeLocker.backup_target.BackupTarget
+TimeLocker.file_selections.FileSelection --> TimeLocker.file_selections.SelectionType
+TimeLocker.restic.restic_repository.ResticRepository --> TimeLocker.backup_repository.RetentionPolicy
+TimeLocker.restic.restic_repository.ResticRepository --> TimeLocker.backup_target.BackupTarget
 
 @enduml
