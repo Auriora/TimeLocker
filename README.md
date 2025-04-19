@@ -1,6 +1,6 @@
-# Python Restic Backup Manager: A High-Level Interface for Restic Backup Operations
+# TimeLocker: A High-Level Interface for Backup Operations
 
-The Python Restic Backup Manager provides a robust, object-oriented interface for managing backups using the Restic backup tool. It simplifies backup operations by providing a high-level API that handles repository management, file selection patterns, and backup configurations across multiple storage backends including local, S3, and B2.
+TimeLocker provides a robust, object-oriented interface for managing backups using the Restic backup tool (in future other backup tools maybe supported). It simplifies backup operations by providing a high-level GUI that handles repository management, file selection patterns, and backup configurations across multiple storage backends including local, network, S3, and B2.
 
 The library abstracts away the complexity of managing Restic commands and configurations while providing type-safe interfaces and comprehensive error handling. It supports multiple storage backends (Local, S3, Backblaze B2) with automatic credential management and validation.
 
@@ -47,7 +47,7 @@ Key features include:
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd restic-backup-manager
+cd timelocker
 
 # Install dependencies
 pip install -r requirements.txt
@@ -164,18 +164,9 @@ Key component interactions:
 - Environment: Requires write access to target directory
 
 ---
+## License
+This project is licensed under the [GNU General Public License v3.0 (GPL-3.0)](https://www.gnu.org/licenses/gpl-3.0.html). See the [LICENSE](LICENSE) file for details.
+
+The GPL-3.0 is a strong copyleft license that requires anyone who distributes your code or a derivative work to make the source available under the same terms. This is particularly suitable for libraries and applications that you want to remain open source.
 
 > Copyright © Bruce Cherrington
->
-> This program is free software: you can redistribute it and/or modify
-> it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-> 
-> This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-> 
-> You should have received a copy of the GNU General Public License
-along with this program. If not, see <https://www.gnu.org/licenses/>.
