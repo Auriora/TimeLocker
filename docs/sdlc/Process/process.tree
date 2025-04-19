@@ -61,7 +61,28 @@
     <toc-element topic="Implementation-Development.md"/>
     <toc-element topic="Testing.md"/>
     <toc-element topic="Deployment.md"/>
-    <toc-element topic="Maintenance-Continuous-Improvement.md"/>
+    <toc-element topic="Maintenance-Continuous-Improvement.md">
+        <toc-element topic="Maintenance-Continuous-Improvement-Objective.md"/>
+        <toc-element topic="Maintenance-Continuous-Improvement-Activities.md">
+            <toc-element topic="Maintenance-Continuous-Improvement-Activities-Change-Management-Processes.md"/>
+            <toc-element topic="Maintenance-Continuous-Improvement-Activities-Version-Control-Strategies.md"/>
+            <toc-element topic="Maintenance-Continuous-Improvement-Activities-Security-Updates-Patches.md"/>
+            <toc-element topic="Maintenance-Continuous-Improvement-Activities-Performance-Optimization.md"/>
+            <toc-element topic="Maintenance-Continuous-Improvement-Activities-User-Feedback-Collection.md"/>
+            <toc-element topic="Maintenance-Continuous-Improvement-Activities-CICD-Practices.md"/>
+            <toc-element topic="Maintenance-Continuous-Improvement-Activities-Technical-Debt-Management.md"/>
+            <toc-element topic="Maintenance-Continuous-Improvement-Activities-Documentation-Updates.md"/>
+            <toc-element topic="Maintenance-Continuous-Improvement-Activities-End-of-Life-Planning.md"/>
+            <toc-element topic="Maintenance-Continuous-Improvement-Activities-Application-Monitoring.md"/>
+            <toc-element topic="Maintenance-Continuous-Improvement-Activities-Issue-Tracking-Management.md"/>
+            <toc-element topic="Maintenance-Continuous-Improvement-Activities-Continuous-Improvement-Reviews.md"/>
+            <toc-element topic="Maintenance-Continuous-Improvement-Activities-Operation-Process.md"/>
+            <toc-element topic="Maintenance-Continuous-Improvement-Activities-Maintenance-Process.md"/>
+            <toc-element topic="Maintenance-Continuous-Improvement-Activities-Disposal-Process.md"/>
+        </toc-element>
+        <toc-element topic="Maintenance-Continuous-Improvement-Documentation-Produced.md"/>
+        <toc-element topic="Maintenance-Continuous-Improvement-Checkpoint-Sample-Review-Prompts.md"/>
+    </toc-element>
     <toc-element topic="Additional-Considerations.md"/>
     <toc-element topic="Standards-Compliance.md"/>
 </instance-profile>
