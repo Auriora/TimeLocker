@@ -7,7 +7,7 @@ The `CommandBuilder` class provides a flexible way to construct command line arg
 The command builder is based on three main concepts:
 
 1. `CommandParameter` - Defines a single parameter or flag that can be passed to a command
-2. `CommandDefinition` - Defines the structure of a command, including its parameters and subcommands
+2. `CommandDefinition` - Defines the structure of a command, including its parameters and sub-commands
 3. `CommandBuilder` - The builder itself that constructs command lines based on the definition
 
 ## Parameter Styles
