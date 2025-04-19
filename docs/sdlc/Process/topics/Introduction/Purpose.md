@@ -1,0 +1,2 @@
+# Purpose
+This document defines a comprehensive Software Development Life Cycle (SDLC) process for the TimeLocker backup management application. The purpose of this SDLC process is to provide a structured framework that guides the development team through all phases of software development, from requirements gathering to maintenance, ensuring consistent quality, traceability, and compliance with relevant standards.

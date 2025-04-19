@@ -1,0 +1,2 @@
+# Objective
+Ensure that all requirements—including those specific for a Desktop GUI—are clearly understood, properly documented, validated, and agreed upon by all stakeholders. The SRS document in docs/sdlc/SRS/ is the foundation, so its content (e.g., traceability matrices, external interface definitions, usability and security requirements) will be referenced throughout this process.

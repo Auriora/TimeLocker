@@ -1,0 +1,14 @@
+# Documentation Produced
+- Requirements Elicitation Report (interview summaries, workshop results)
+- Stakeholder Analysis Document
+- Requirements Prioritization Matrix
+- Requirements Validation Report
+- Requirements Management Plan
+- Requirements Traceability Matrix
+- Requirements Quality Assessment Report
+- Assumptions and Constraints Document
+- Requirements Risk Assessment
+- Requirements Confirmation Document (with annotations linking back to the SRS)
+- Updated user stories and acceptance criteria (if applicable)
+- Business Requirements Document
+- System Requirements Specification

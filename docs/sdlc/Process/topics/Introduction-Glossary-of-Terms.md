@@ -1,0 +1,11 @@
+# Glossary of Terms
+- **SRS**: Software Requirements Specification
+- **UX**: User Experience
+- **UI**: User Interface
+- **UAT**: User Acceptance Testing
+- **CI/CD**: Continuous Integration/Continuous Deployment
+- **LLM**: Large Language Model (AI assistant)
+- **Junie**: The AI assistant used in this project
+- **Checkpoint**: A point in the process where review and approval are required before proceeding
+- **Deliverable**: A tangible output produced during a phase of the SDLC
+- **Traceability**: The ability to track requirements through design, implementation, and testing
