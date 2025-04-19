@@ -1,0 +1,15 @@
+# Activities
+
+- [Coding Standards and Guidelines](Implementation-Development-Activities-Coding-Standards-and-Guidelines.md)
+- [Development Environment Setup](Implementation-Development-Activities-Development-Environment-Setup.md)
+- [Security Practices During Development](Implementation-Development-Activities-Security-Practices-During-Development.md)
+- [Error Handling and Logging](Implementation-Development-Activities-Error-Handling-and-Logging.md)
+- [Performance Considerations](Implementation-Development-Activities-Performance-Considerations.md)
+- [Code Documentation Standards](Implementation-Development-Activities-Code-Documentation-Standards.md)
+- [Code-Requirements Traceability](Implementation-Development-Activities-Code-Requirements-Traceability.md)
+- [Code Review Criteria and Process](Implementation-Development-Activities-Code-Review-Criteria-and-Process.md)
+- [Version Control Best Practices](Implementation-Development-Activities-Version-Control-Best-Practices.md)
+- [Continuous Integration Practices](Implementation-Development-Activities-Continuous-Integration-Practices.md)
+- [Implementation Process](Implementation-Development-Activities-Implementation-Process.md)
+- [Integration Process](Implementation-Development-Activities-Integration-Process.md)
+- [Construction Process](Implementation-Development-Activities-Construction-Process.md)

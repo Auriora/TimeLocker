@@ -19,13 +19,41 @@
     </toc-element>
     <toc-element topic="Requirements-Gathering-Analysis.md">
         <toc-element topic="Requirements-Gathering-Analysis-Objective.md"/>
-        <toc-element topic="Requirements-Gathering-Analysis-Activities.md"/>
+        <toc-element topic="Requirements-Gathering-Analysis-Activities.md">
+            <toc-element topic="Requirements-Gathering-Analysis-Activities-Requirements-Elicitation-Techniques.md"/>
+            <toc-element topic="Requirements-Gathering-Analysis-Activities-Stakeholder-Identification-and-Involvement.md"/>
+            <toc-element topic="Requirements-Gathering-Analysis-Activities-Requirements-Prioritization-Methods.md"/>
+            <toc-element topic="Requirements-Gathering-Analysis-Activities-Requirements-Validation-Techniques.md"/>
+            <toc-element topic="Requirements-Gathering-Analysis-Activities-Requirements-Management-Processes.md"/>
+            <toc-element topic="Requirements-Gathering-Analysis-Activities-Requirements-Traceability.md"/>
+            <toc-element topic="Requirements-Gathering-Analysis-Activities-Requirements-Quality-Attributes.md"/>
+            <toc-element topic="Requirements-Gathering-Analysis-Activities-Documenting-Assumptions-and-Constraints.md"/>
+            <toc-element topic="Requirements-Gathering-Analysis-Activities-Requirements-Risk-Assessment.md"/>
+            <toc-element topic="Requirements-Gathering-Analysis-Activities-Stakeholder-Requirements-Definition-Process.md"/>
+            <toc-element topic="Requirements-Gathering-Analysis-Activities-Business-or-Mission-Analysis-Process.md"/>
+            <toc-element topic="Requirements-Gathering-Analysis-Activities-System-Requirements-Definition-Process.md"/>
+            <toc-element topic="Requirements-Gathering-Analysis-Activities-Requirements-Analysis-Process.md"/>
+        </toc-element>
         <toc-element topic="Requirements-Gathering-Analysis-Documentation-Produced.md"/>
         <toc-element topic="Requirements-Gathering-Analysis-Checkpoint-Sample-Review-Prompts.md"/>
     </toc-element>
     <toc-element topic="UX-UI-Design.md">
         <toc-element topic="UX-UI-Design-Objective.md"/>
-        <toc-element topic="UX-UI-Design-Activities.md"/>
+        <toc-element topic="UX-UI-Design-Activities.md">
+            <toc-element topic="UX-UI-Design-Activities-User-Research-Methods.md"/>
+            <toc-element topic="UX-UI-Design-Activities-UX-Design.md"/>
+            <toc-element topic="UX-UI-Design-Activities-UI-Design.md"/>
+            <toc-element topic="UX-UI-Design-Activities-Usability-Testing-Techniques-and-Metrics.md"/>
+            <toc-element topic="UX-UI-Design-Activities-Accessibility-Considerations-and-Standards.md"/>
+            <toc-element topic="UX-UI-Design-Activities-User-Feedback-Collection-and-Incorporation.md"/>
+            <toc-element topic="UX-UI-Design-Activities-Design-Validation-Against-Requirements.md"/>
+            <toc-element topic="UX-UI-Design-Activities-Design-Iterations-Based-on-User-Feedback.md"/>
+            <toc-element topic="UX-UI-Design-Activities-Design-Patterns-and-Best-Practices.md"/>
+            <toc-element topic="UX-UI-Design-Activities-Design-Documentation-Standards.md"/>
+            <toc-element topic="UX-UI-Design-Activities-Human-System-Integration-Process.md"/>
+            <toc-element topic="UX-UI-Design-Activities-Architectural-Design-Process-for-User-Interfaces.md"/>
+            <toc-element topic="UX-UI-Design-Activities-Human-Factors-Engineering-Principles.md"/>
+        </toc-element>
         <toc-element topic="UX-UI-Design-Documentation-Produced.md"/>
         <toc-element topic="UX-UI-Design-Checkpoint-Sample-Review-Prompts.md"/>
     </toc-element>
