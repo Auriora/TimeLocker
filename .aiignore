@@ -10,3 +10,9 @@
 dist/
 build/
 out/
+
+/sandbox/
+.venv/
+*.bak
+temp/
+.obsidian/

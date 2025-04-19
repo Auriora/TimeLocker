@@ -2,3 +2,6 @@
 /.venv/
 *.bak
 /temp/
+.obsidian/
+.output.txt
+output/
