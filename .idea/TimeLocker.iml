@@ -12,7 +12,7 @@
       <excludeFolder url="file://$MODULE_DIR$/sandbox" />
       <excludeFolder url="file://$MODULE_DIR$/temp" />
     </content>
-    <orderEntry type="jdk" jdkName="Python 3.12 virtualenv at ~/Projects/Pycharm/TimeLocker/.venv" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="Python 3.12 (TimeLocker)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>
