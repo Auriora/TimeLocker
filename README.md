@@ -245,6 +245,7 @@ For more detailed documentation, please refer to:
 
 - [Installation Guide](docs/INSTALLATION.md) - Detailed instructions for installing TimeLocker
 - [Command Builder Documentation](docs/command_builder.md) - Details on using the command builder
+- [Documentation Organization](docs/DOCUMENTATION_ORGANIZATION.md) - Guidelines for organizing documentation
 - [SDLC Documentation](docs/SDLC/) - Software Development Lifecycle documentation
 - [SRS Documentation](docs/SDLC/SRS/) - Software Requirements Specification
 
