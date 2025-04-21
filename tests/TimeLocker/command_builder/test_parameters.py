@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
-from TimeLocker.utils.command_builder import CommandBuilder, CommandDefinition, CommandParameter, ParameterStyle
+from TimeLocker.command_builder import CommandBuilder, CommandDefinition, CommandParameter, ParameterStyle
 
 
 class TestParameterStyles:
@@ -30,7 +30,7 @@ class TestParameterStyles:
             default_param_style=ParameterStyle.SINGLE_DASH
         )
         builder = CommandBuilder(cmd_def)
-        
+
         result = (builder
                 .param("v")
                 .param("output", "file.txt")

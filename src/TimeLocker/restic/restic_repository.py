@@ -29,7 +29,7 @@ from TimeLocker.backup_target import BackupTarget
 from TimeLocker.restic.errors import RepositoryError, ResticError
 from TimeLocker.restic.logging import logger
 from TimeLocker.restic.restic_command_definition import restic_command_def
-from TimeLocker.utils.command_builder import CommandBuilder
+from TimeLocker.command_builder import CommandBuilder
 
 RESTIC_COMMAND = "restic"
 RESTIC_VERSION_COMMAND = f"{RESTIC_COMMAND} --json version"
@@ -182,4 +182,3 @@ class ResticRepository(BackupRepository):
     def _on_backup_status(self, status: Dict):
         # Placeholder for event handling logic
         print(f"Backup Status: {status}")
-

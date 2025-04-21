@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 
-from TimeLocker.utils.command_builder import CommandBuilder, CommandDefinition, CommandParameter, ParameterStyle
+from TimeLocker.command_builder import CommandBuilder, CommandDefinition, CommandParameter, ParameterStyle
 
 
 @pytest.fixture

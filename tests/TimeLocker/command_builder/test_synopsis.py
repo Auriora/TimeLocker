@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 
-from TimeLocker.utils.command_builder import CommandBuilder, CommandDefinition, CommandParameter, ParameterStyle
+from TimeLocker.command_builder import CommandBuilder, CommandDefinition, CommandParameter, ParameterStyle
 
 
 class TestSynopsisParameters:
@@ -42,15 +42,15 @@ class TestSynopsisParameters:
         # Test with required synopsis parameter
         result = builder.build(synopsis_values={"snapshotID": "abc123"})
         assert result == ["test-cmd", "abc123"]
-        
+
         # Test with optional synopsis parameter
         result = builder.build(synopsis_values={"snapshotID": "abc123", "dir": "/path/to/dir"})
         assert result == ["test-cmd", "abc123", "/path/to/dir"]
-        
+
         # Test with flags and synopsis parameters
         result = builder.param("verbose").build(synopsis_values={"snapshotID": "abc123"})
         assert result == ["test-cmd", "--verbose", "abc123"]
-        
+
         # Test missing required synopsis parameter
         with pytest.raises(ValueError):
             builder.build(synopsis_values={})
@@ -70,7 +70,7 @@ class TestSynopsisParameters:
             }
         )
         builder = CommandBuilder(cmd_def)
-        
+
         # Test subcommand with synopsis parameter
         result = (builder
                 .command("restore")

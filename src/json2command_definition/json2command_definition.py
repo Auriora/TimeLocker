@@ -19,7 +19,7 @@ import json
 from pathlib import Path
 from typing import List, Dict, Any
 
-from TimeLocker.utils.command_builder import CommandParameter, ParameterStyle, CommandDefinition
+from TimeLocker.command_builder import CommandParameter, ParameterStyle, CommandDefinition
 
 # Get the project root directory (two levels up from this script)
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -185,8 +185,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-
-

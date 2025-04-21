@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import pytest
 
-from TimeLocker.utils.command_builder import CommandBuilder, CommandDefinition, CommandParameter, ParameterStyle
+from TimeLocker.command_builder import CommandBuilder, CommandDefinition, CommandParameter, ParameterStyle
 
 
 class TestCommandShortForm:
@@ -50,7 +50,7 @@ class TestCommandShortForm:
 
     def test_short_form_parameters(self, builder):
         """Test building command with short form parameters
-        
+
         Verifies that when use_short_form=True:
         - Long parameter names are converted to their short forms
         - Parameter styles are adjusted according to short_style
@@ -63,7 +63,7 @@ class TestCommandShortForm:
 
     def test_long_form_parameters(self, builder):
         """Test building command with long form parameters
-        
+
         Verifies that when use_short_form=False:
         - Long parameter names are used
         - Original parameter styles are preserved
