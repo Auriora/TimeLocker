@@ -75,6 +75,7 @@
 - [6.4 Onboarding Notice Consent Copy Deck](6-4-Onboarding-Notice-Consent-Copy-Deck.md)
 - [6.5 Repository Configuration Schema](6-5-Repository-Configuration-Schema.md)
 - [6.6 OWASP ASVS v4.0](6-6-OWASP-ASVS-v4-0.md)
+- [6.7 Requirement Prioritization Matrix](Requirements-Prioritization-Matrix.md)
 
 ---
 

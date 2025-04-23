@@ -1,4 +1,4 @@
-# Requirements Prioritization Matrix
+# 6.7 Requirements Prioritization Matrix
 
 This document provides a prioritization framework for the TimeLocker project requirements, helping to make informed decisions about what to implement and in what order.
 
