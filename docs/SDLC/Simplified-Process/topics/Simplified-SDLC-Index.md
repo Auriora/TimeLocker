@@ -19,7 +19,7 @@ Traditional SDLC processes are designed for teams with multiple roles and stakeh
 The simplified SDLC consists of the following components, each with its own detailed documentation:
 
 1. **[Simplified SDLC Process](Simplified-SDLC-Process.md)**: The overall process framework
-2. **[Simplified SRS Template](Simplified-SRS-Template.md)**: Template for requirements documentation
+2. **Software Requirements Specification (SRS)**: Comprehensive requirements documentation
 3. **[Simplified UX/UI Design Guide](Simplified-UX-UI-Design-Guide.md)**: Streamlined approach to design
 4. **[Simplified Testing Approach](Simplified-Testing-Approach.md)**: Testing strategies for solo developers
 
@@ -39,7 +39,7 @@ The simplified SDLC follows this general flow:
 1. **Requirements Definition**
    - Document your own needs and goals
    - Use AI to help identify and refine requirements
-   - Create a simplified SRS using the provided template
+   - Use the comprehensive SRS documentation in the Writerside docs/SDLC/SRS
    - Prioritize requirements based on value and feasibility
 
 2. **Design**

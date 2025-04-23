@@ -1,48 +1,29 @@
-# SRS Template
+# SRS Reference
 
-This document provides a streamlined Software Requirements Specification (SRS) template designed for a solo developer working with AI assistance. It maintains the essential elements of a comprehensive SRS while eliminating components that require multiple stakeholders or extensive user research.
+This document now serves as a reference to the comprehensive Software Requirements Specification (SRS) documentation available in the Writerside docs/SDLC/SRS.
 
-## 1. Introduction
+## Comprehensive SRS Documentation
 
-This section provides an introduction to the software system and the SRS document.
+The complete SRS documentation is available in the Writerside docs/SDLC/SRS directory. This documentation provides a comprehensive approach to requirements specification, including:
 
-[Learn more about Introduction](Simplified-SRS-Introduction.md)
+- Detailed functional and non-functional requirements
+- Use cases and user stories
+- Data models and external interfaces
+- Compliance mappings for standards like GDPR, ASVS, and WCAG
 
-## 2. Overall Description
+[Access the Complete SRS Documentation]()
 
-This section provides a high-level overview of the software system, its context, and major functions.
+## Key Sections in the SRS Documentation
 
-[Learn more about Overall Description](Simplified-SRS-Overall-Description.md)
+The SRS documentation is organized into the following main sections:
 
-## 3. Specific Requirements
-
-This section details the specific functional and non-functional requirements of the system.
-
-[Learn more about Specific Requirements](Simplified-SRS-Specific-Requirements.md)
-
-## 4. Simplified Use Cases
-
-This section describes the key use cases for the system, focusing on user interactions and expected outcomes.
-
-[Learn more about Simplified Use Cases](Simplified-SRS-Use-Cases.md)
-
-## 5. Data Model
-
-This section describes the data structures and relationships used in the system.
-
-[Learn more about Data Model](Simplified-SRS-Data-Model.md)
-
-## 6. External Interfaces
-
-This section describes the interfaces between the system and external entities, including user interfaces and APIs.
-
-[Learn more about External Interfaces](Simplified-SRS-External-Interfaces.md)
-
-## 7. Prioritization Matrix
-
-This section provides a framework for prioritizing requirements based on their importance, complexity, and value.
-
-[Learn more about Prioritization Matrix](Simplified-SRS-Prioritization-Matrix.md)
+1. **Introduction**: Purpose, scope, references, and overview
+2. **Overall Description**: Product perspective, functions, user characteristics, constraints, and assumptions
+3. **Specific Requirements**: Detailed functional and non-functional requirements
+4. **Use Cases**: Detailed use cases for the system
+5. **Compliance & Traceability**: Mappings to various standards and regulations
+6. **Appendices**: Glossary, analysis models, and other supporting information
+7. **Document Change Management**: History of changes to the document
 
 ## AI Assistance Prompts for SRS Development
 
