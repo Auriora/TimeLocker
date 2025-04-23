@@ -8,9 +8,8 @@
 
     <toc-element topic="timelocker-testing.md"/>
     <toc-element topic="timelocker-test-plan.md"/>
-    <toc-element topic="timelocker-test-results.md"/>
 
-    <toc-element toc-title="Test Cases">
+  <toc-element toc-title="Test Cases">
         <toc-element topic="repository-management-test-cases.md"/>
         <toc-element topic="backup-operations-test-cases.md"/>
         <toc-element topic="recovery-operations-test-cases.md"/>
@@ -23,4 +22,5 @@
         <toc-element topic="RecoveryOperations.t.md"/>
         <toc-element topic="SecurityOperations.t.md"/>
     </toc-element>
+  <toc-element topic="timelocker-test-results.md"/>
 </instance-profile>

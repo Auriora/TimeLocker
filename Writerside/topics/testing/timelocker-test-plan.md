@@ -1,4 +1,4 @@
-# Test Plan for TimeLocker
+# Test Plan
 
 ## Project Information
 - **Project Name**: TimeLocker

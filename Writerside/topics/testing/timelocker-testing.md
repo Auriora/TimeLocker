@@ -1,4 +1,4 @@
-# TimeLocker Testing Guide
+# Testing Guide
 
 This document provides comprehensive guidance for testing the TimeLocker project, including testing approaches, frameworks, and best practices.
 

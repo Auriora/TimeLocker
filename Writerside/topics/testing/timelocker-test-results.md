@@ -1,4 +1,4 @@
-# TimeLocker Test Results
+# Results
 
 ## Test Results Summary
 - **Project Name**: TimeLocker
