@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE buildprofiles SYSTEM "https://resources.jetbrains.com/writerside/1.0/build-profiles.dtd">
+<buildprofiles xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/build-profiles.xsd"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+    <variables></variables>
+    <build-profile instance="srs">
+        <variables>
+            <offline-docs>true</offline-docs>
+          <color-preset>soft</color-preset>
+            <resizable-sidebar>true</resizable-sidebar>
+          <noindex-content>false</noindex-content>
+        </variables>
+        <footer>
+            <copyright>2025 Bruce Cherrington</copyright>
+        </footer>
+        <sitemap priority="0.35" change-frequency="monthly"/>
+        <llms-txt single-file="true"/>
+    </build-profile>
+    <build-profile instance="simplifiedprocess">
+            <variables>
+                <offline-docs>true</offline-docs>
+              <color-preset>soft</color-preset>
+                <resizable-sidebar>true</resizable-sidebar>
+              <noindex-content>false</noindex-content>
+            </variables>
+            <footer>
+                <copyright>2025 Bruce Cherrington</copyright>
+            </footer>
+            <sitemap priority="0.35" change-frequency="monthly"/>
+            <llms-txt single-file="true"/>
+        </build-profile>
+  <build-profile instance="td">
+    <variables>
+      <noindex-content>false</noindex-content>
+    </variables>
+  </build-profile>
+  <build-profile instance="tpt">
+    <variables>
+      <noindex-content>true</noindex-content>
+    </variables>
+  </build-profile>
+</buildprofiles>
