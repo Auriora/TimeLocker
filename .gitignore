@@ -1,7 +1,7 @@
 /sandbox/
 /.venv/
 *.bak
-/temp/
+temp/
 .obsidian/
 .output.txt
 output/

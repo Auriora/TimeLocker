@@ -25,14 +25,14 @@ This checklist helps track progress and deliverables against the simplified SDLC
 ## 2. Design
 
 ### Activities
-- [ ] Create technical architecture with AI assistance
+- [x] Create technical architecture with AI assistance
 - [ ] Develop UX/UI designs
 - [ ] Design data models and APIs
 - [ ] Document key design decisions
 
 ### Deliverables
-- [ ] Technical architecture documentation
-  - Notes: _______________________
+- [x] Technical architecture documentation
+  - Notes: Created in docs/SDLC/Simplified-Process/topics/Technical-Architecture.md
 - [ ] UX/UI design mockups or wireframes
   - Notes: _______________________
 - [ ] Data model documentation
