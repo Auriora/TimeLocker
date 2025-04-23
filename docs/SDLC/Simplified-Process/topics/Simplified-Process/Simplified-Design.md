@@ -23,7 +23,7 @@ Create a technical and user experience design that satisfies the requirements wi
 ## Documentation Produced
 - System architecture diagram
 - Component break-down diagram
-- [UX flow diagrams and descriptions](../templates/UXFlow-Template.md)
+- [UX flow diagrams and descriptions](UXFlow-Template.md)
 - Basic wireframes or UI mockups
 - Data model diagram
 - [API specifications using OpenAPI standard](https://www.openapis.org/)
