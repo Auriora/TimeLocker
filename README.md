@@ -247,6 +247,7 @@ For more detailed documentation, please refer to:
 - [**Command Builder Documentation**](docs/command_builder.md) Details on using the command builder
 - [**Documentation Organization**](docs/DOCUMENTATION_ORGANIZATION.md) Guidelines for organizing documentation
 - [**SDLC Documentation**](docs/SDLC/) Software Development Lifecycle documentation
+- [**Simplified SDLC for Solo Developers**](docs/SDLC/Simplified-SDLC-Index.md) Streamlined process for solo developers with AI assistance
 - [**SRS Documentation**](docs/SDLC/SRS/) Software Requirements Specification
 
 ## Contributing

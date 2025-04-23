@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE instance-profile
+        SYSTEM "https://resources.jetbrains.com/writerside/1.0/product-profile.dtd">
+
+<instance-profile id="simplifiedprocess"
+                  name="Simplified SDLC Process for Solo Developers with AI Assistance"
+                  start-page="Simplified-SDLC-Index.md">
+
+    <toc-element topic="Simplified-SDLC-Index.md"/>
+    <toc-element topic="Simplified-SDLC-Process.md"/>
+    <toc-element topic="Simplified-UX-UI-Design-Guide.md"/>
+    <toc-element topic="Simplified-SRS-Template.md"/>
+    <toc-element topic="Simplified-Testing-Approach.md"/>
+</instance-profile>

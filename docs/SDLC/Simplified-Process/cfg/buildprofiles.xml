@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE buildprofiles SYSTEM "https://resources.jetbrains.com/writerside/1.0/build-profiles.dtd">
+<buildprofiles xsi:noNamespaceSchemaLocation="https://resources.jetbrains.com/writerside/1.0/build-profiles.xsd"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+    <variables></variables>
+    <build-profile instance="simplifiedprocess">
+        <variables>
+            <offline-docs>true</offline-docs>
+            <noindex-content>false</noindex-content>
+            <color-preset>soft</color-preset>
+            <resizable-sidebar>true</resizable-sidebar>
+            <product-web-url>https://github.com/bcherrington/TimeLocker</product-web-url>
+            <download-title>TimeLocker</download-title>
+            <download-page>https://github.com/bcherrington/TimeLocker/archive/refs/heads/master.zip</download-page>
+            <showDownloadButton>true</showDownloadButton>
+        </variables>
+        <footer>
+            <copyright>2025 Bruce Cherrington</copyright>
+            <link href="https://github.com/bcherrington/TimeLocker">Compliance</link>
+        </footer>
+        <sitemap priority="0.35" change-frequency="monthly"/>
+        <llms-txt single-file="true"/>
+    </build-profile>
+
+</buildprofiles>
