@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE instance-profile
+        SYSTEM "https://resources.jetbrains.com/writerside/1.0/product-profile.dtd">
+
+<instance-profile id="tpt"
+                 name="Timelocker Project Tracking"
+                 start-page="timelocker-project-tracking.md">
+
+    <toc-element topic="timelocker-project-tracking.md"/>
+  <toc-element topic="simplified-process-checklist.md"/>
+  <toc-element topic="ROADMAP.md"/>
+  <toc-element topic="Requirements-Traceability-Matrix.md"/>
+</instance-profile>
