@@ -6,14 +6,14 @@ This document provides a comprehensive overview of the TimeLocker project's curr
 
 TimeLocker is a high-level Python interface for backup operations, primarily using the Restic backup tool. The project is currently in the early development stages, with the following status:
 
-| Phase                   | Status      |  Completion  |
-|-------------------------|-------------|:------------:|
-| Requirements Definition | Complete    |     100%     |
-| Design                  | In Progress |     25%      |
-| Implementation          | Not Started |      0%      |
-| Testing                 | Not Started |      0%      |
-| Deployment              | Not Started |      0%      |
-| Maintenance             | Not Started |      0%      |
+| Phase                   | Status      | Completion |
+|-------------------------|-------------|:----------:|
+| Requirements Definition | Complete    |    100%    |
+| Design                  | In Progress |    25%     |
+| Implementation          | Not Started |     0%     |
+| Testing                 | Not Started |     0%     |
+| Deployment              | Not Started |     0%     |
+| Maintenance             | Not Started |     0%     |
 
 ## Requirements Traceability
 
