@@ -32,7 +32,7 @@ This checklist helps track progress and deliverables against the simplified SDLC
 
 ### Deliverables
 - [x] Technical architecture documentation
-  - Notes: Created in docs/SDLC/Simplified-Process/topics/Technical-Architecture.md
+  - Notes: Created in docs/Technical-Architecture.md
 - [ ] UX/UI design mockups or wireframes
   - Notes: _______________________
 - [ ] Data model documentation
