@@ -3,7 +3,7 @@
         SYSTEM "https://resources.jetbrains.com/writerside/1.0/product-profile.dtd">
 
 <instance-profile id="simplifiedprocess"
-                  name="Simplified SDLC Process for Solo Developers with AI Assistance"
+                  name="Simplified SDLC Process"
                   start-page="Simplified-SDLC-Index.md">
 
     <toc-element topic="Simplified-SDLC-Index.md"/>
