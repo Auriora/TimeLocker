@@ -40,4 +40,14 @@
       <noindex-content>true</noindex-content>
     </variables>
   </build-profile>
+  <build-profile instance="tt">
+    <variables>
+      <noindex-content>true</noindex-content>
+    </variables>
+  </build-profile>
+  <build-profile instance="user">
+    <variables>
+      <noindex-content>true</noindex-content>
+    </variables>
+  </build-profile>
 </buildprofiles>
