@@ -7,4 +7,20 @@
                  start-page="timelocker-testing.md">
 
     <toc-element topic="timelocker-testing.md"/>
+    <toc-element topic="timelocker-test-plan.md"/>
+    <toc-element topic="timelocker-test-results.md"/>
+
+    <toc-element toc-title="Test Cases">
+        <toc-element topic="repository-management-test-cases.md"/>
+        <toc-element topic="backup-operations-test-cases.md"/>
+        <toc-element topic="recovery-operations-test-cases.md"/>
+        <toc-element topic="security-operations-test-cases.md"/>
+    </toc-element>
+
+    <toc-element toc-title="Acceptance Tests">
+        <toc-element topic="RepositoryManagement.t.md"/>
+        <toc-element topic="BackupOperations.t.md"/>
+        <toc-element topic="RecoveryOperations.t.md"/>
+        <toc-element topic="SecurityOperations.t.md"/>
+    </toc-element>
 </instance-profile>
