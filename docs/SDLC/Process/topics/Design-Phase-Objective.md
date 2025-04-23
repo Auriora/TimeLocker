@@ -1,2 +1,0 @@
-# Objective
-Develop a technical design that integrates system architecture with the approved UX/UI designs, following established design principles and patterns to ensure a robust, maintainable, and secure system.

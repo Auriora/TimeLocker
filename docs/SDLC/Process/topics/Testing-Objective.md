@@ -1,2 +1,0 @@
-# Objective
-Confirm that the application meets all functional, performance, security, and usability requirements specified in the SRS through comprehensive testing at multiple levels, ensuring a high-quality, reliable, and user-friendly product.

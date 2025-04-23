@@ -1,2 +1,0 @@
-# Objective
-Convert approved designs into actual code while aligning with security, quality, and usability standards defined in the SRS, ensuring maintainable, efficient, and secure implementation that meets all functional and non-functional requirements.
