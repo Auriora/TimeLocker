@@ -1,4 +1,4 @@
-# Simplified UX/UI Design Guide for Solo Developers with AI Assistance
+# UX/UI Design Guide
 
 This guide provides a streamlined approach to UX/UI design for solo developers working with AI assistance. It eliminates the need for user research sessions and stakeholder workshops while maintaining the essential elements of good design practice.
 
@@ -12,101 +12,15 @@ This guide provides a streamlined approach to UX/UI design for solo developers w
 
 ## Simplified UX Design Process
 
-### 1. User Persona Development
+This section outlines a streamlined approach to UX design for solo developers working with AI assistance, including user persona development, journey mapping, and information architecture.
 
-Instead of conducting user interviews, create simplified personas based on:
-
-- Your understanding of the target users
-- Industry knowledge and best practices
-- AI-generated insights about typical users
-
-**AI Prompts for Persona Development:**
-- "Based on this application type, what user personas should I consider?"
-- "What are the key characteristics, goals, and pain points for a typical user of this application?"
-- "How would different types of users interact with this feature?"
-
-### 2. User Journey Mapping
-
-Create simplified user journeys that outline:
-
-- Entry points to the application
-- Key tasks users need to accomplish
-- Potential pain points in the process
-- Exit points and desired outcomes
-
-**AI Prompts for Journey Mapping:**
-- "What would a typical user journey look like for accomplishing [task] in this application?"
-- "What are the potential pain points in this user journey?"
-- "How can I simplify this journey to require fewer steps?"
-
-### 3. Information Architecture
-
-Organize application content and functionality in a logical structure:
-
-- Create a simple site map or application flow
-- Define navigation patterns
-- Organize content hierarchically
-- Establish naming conventions
-
-**AI Prompts for Information Architecture:**
-- "What would be a logical organization for these features and content?"
-- "What navigation pattern would work best for this type of application?"
-- "How should I name these sections to be intuitive for users?"
+[Learn more about the UX Design Process](Simplified-UX-Design-Process.md)
 
 ## Simplified UI Design Process
 
-### 1. Design System Creation
+This section outlines a streamlined approach to UI design for solo developers working with AI assistance, including design system creation, wireframing, UI mockups, and prototype creation.
 
-Establish a minimal design system to maintain consistency:
-
-- Color palette (primary, secondary, accent, neutral colors)
-- Typography (1-2 font families with defined sizes for headings and body text)
-- Component library (buttons, inputs, cards, etc.)
-- Spacing and layout guidelines
-
-**AI Prompts for Design System:**
-- "What color palette would work well for this type of application?"
-- "What typography choices would be appropriate for this application?"
-- "What are the essential UI components I need to design for this application?"
-
-### 2. Wireframing
-
-Create low-fidelity representations of key screens:
-
-- Focus on layout and information hierarchy
-- Use simple shapes and placeholders
-- Annotate with functional notes
-
-**AI Prompts for Wireframing:**
-- "What layout would work best for this screen with these elements?"
-- "How should I organize these elements to create a clear visual hierarchy?"
-- "What patterns do similar applications use for this type of screen?"
-
-### 3. UI Mockups
-
-Develop higher-fidelity designs based on wireframes:
-
-- Apply the design system elements
-- Focus on a few key screens first
-- Maintain consistency across screens
-
-**AI Prompts for UI Mockups:**
-- "How can I apply my design system to this wireframe?"
-- "What visual treatments would make this interface more intuitive?"
-- "How can I visually distinguish between primary and secondary actions?"
-
-### 4. Prototype Creation (Optional)
-
-For complex interactions, create simple prototypes:
-
-- Focus on critical user flows
-- Test navigation patterns
-- Validate complex interactions
-
-**AI Prompts for Prototyping:**
-- "What are the essential interactions I should prototype for this feature?"
-- "How should this transition or animation work to improve usability?"
-- "What feedback should the user receive during this interaction?"
+[Learn more about the UI Design Process](Simplified-UI-Design-Process.md)
 
 ## Accessibility Considerations
 

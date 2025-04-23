@@ -1,4 +1,4 @@
-# Simplified SDLC for Solo Developers with AI Assistance
+# Guide
 
 This document serves as an index and guide to the simplified Software Development Life Cycle (SDLC) process designed specifically for solo developers working with AI assistance (such as GPT LLM AI like JetBrains Junie). The process removes the need for interviews, workshops, and multi-stakeholder activities while maintaining the essential elements of a robust SDLC.
 
