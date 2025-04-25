@@ -1,10 +1,21 @@
-# Log Analysis Flow
+# UX Flow Diagram and Description: Log Analysis Flow
 
 This document details the Log Analysis Flow for the TimeLocker application, which enables users to review, filter, search, and export operation logs.
+
+## Flow Information
+
+- **Flow ID**: UXF-007
+- **Flow Name**: Log Analysis Flow
+- **Created By**: TimeLocker Team
+- **Creation Date**: 2023-11-15
+- **Last Updated**: 2023-11-16
+- **Related Requirements**: Log Management, Troubleshooting, Audit Trails, Compliance Reporting
+- **Priority**: Medium
 
 ## Flow Objective
 
 The Log Analysis Flow aims to:
+
 - Provide comprehensive visibility into application operations
 - Enable users to troubleshoot issues through detailed log analysis
 - Support filtering and searching logs by various criteria
@@ -14,6 +25,7 @@ The Log Analysis Flow aims to:
 ## Entry Points
 
 Users enter this flow when:
+
 - Selecting "View Logs" from the dashboard
 - Clicking on an error notification to view related logs
 - Investigating issues during troubleshooting
@@ -22,7 +34,7 @@ Users enter this flow when:
 
 ## Flow Diagram
 
-```
+```plantuml
 @startuml
 actor "User" as U
 participant "Dashboard" as D
@@ -66,35 +78,36 @@ U -> LE: Save export file
 
 ## Step-by-Step Flow: Viewing Logs
 
-| Step # | Actor | Action | System Response | UI Elements | Notes |
-|--------|-------|--------|-----------------|------------|-------|
-| 1 | User | Selects "View Logs" from dashboard | System opens log viewer interface | Log viewer with recent entries | Shows most recent logs by default |
-| 2 | User | Scrolls through log entries | System loads additional entries as needed | Scrollable log list with lazy loading | Efficiently handles large log volumes |
-| 3 | User | Selects log entry | System displays detailed information | Log detail panel | Shows complete information for selected entry |
-| 4 | User | Navigates between related logs | System highlights related entries | Navigation links, highlighted entries | Helps track sequence of related events |
+| Step # | Actor | Action                             | System Response                           | UI Elements                           | Notes                                         |
+|--------|-------|------------------------------------|-------------------------------------------|---------------------------------------|-----------------------------------------------|
+| 1      | User  | Selects "View Logs" from dashboard | System opens log viewer interface         | Log viewer with recent entries        | Shows most recent logs by default             |
+| 2      | User  | Scrolls through log entries        | System loads additional entries as needed | Scrollable log list with lazy loading | Efficiently handles large log volumes         |
+| 3      | User  | Selects log entry                  | System displays detailed information      | Log detail panel                      | Shows complete information for selected entry |
+| 4      | User  | Navigates between related logs     | System highlights related entries         | Navigation links, highlighted entries | Helps track sequence of related events        |
 
 ## Step-by-Step Flow: Filtering Logs
 
-| Step # | Actor | Action | System Response | UI Elements | Notes |
-|--------|-------|--------|-----------------|------------|-------|
-| 1 | User | Selects "Filter" in log viewer | System displays filter options | Filter panel with multiple criteria | Includes date range, severity, component, etc. |
-| 2 | User | Sets filter criteria | System applies filters in real-time | Interactive filter controls | Shows matching count as filters are adjusted |
-| 3 | User | Applies filters | System displays filtered log entries | Filtered log list with filter indicator | Clearly shows active filters |
-| 4 | User | Saves filter preset (optional) | System stores filter configuration | Save filter button, preset name input | Allows quick access to common filters |
+| Step # | Actor | Action                         | System Response                      | UI Elements                             | Notes                                          |
+|--------|-------|--------------------------------|--------------------------------------|-----------------------------------------|------------------------------------------------|
+| 1      | User  | Selects "Filter" in log viewer | System displays filter options       | Filter panel with multiple criteria     | Includes date range, severity, component, etc. |
+| 2      | User  | Sets filter criteria           | System applies filters in real-time  | Interactive filter controls             | Shows matching count as filters are adjusted   |
+| 3      | User  | Applies filters                | System displays filtered log entries | Filtered log list with filter indicator | Clearly shows active filters                   |
+| 4      | User  | Saves filter preset (optional) | System stores filter configuration   | Save filter button, preset name input   | Allows quick access to common filters          |
 
 ## Step-by-Step Flow: Exporting Logs
 
-| Step # | Actor | Action | System Response | UI Elements | Notes |
-|--------|-------|--------|-----------------|------------|-------|
-| 1 | User | Selects "Export" in log viewer | System displays export options | Export panel with format options | Supports multiple export formats |
-| 2 | User | Configures export (format, range) | System validates export settings | Export configuration form | Includes current filters in export |
-| 3 | User | Initiates export | System generates export file | Progress indicator | Processes logs according to export settings |
-| 4 | System | Completes export | System prompts for save location | File save dialog | Default filename includes date range |
-| 5 | User | Saves export file | System writes file to selected location | Save confirmation | Option to open exported file |
+| Step # | Actor  | Action                            | System Response                         | UI Elements                      | Notes                                       |
+|--------|--------|-----------------------------------|-----------------------------------------|----------------------------------|---------------------------------------------|
+| 1      | User   | Selects "Export" in log viewer    | System displays export options          | Export panel with format options | Supports multiple export formats            |
+| 2      | User   | Configures export (format, range) | System validates export settings        | Export configuration form        | Includes current filters in export          |
+| 3      | User   | Initiates export                  | System generates export file            | Progress indicator               | Processes logs according to export settings |
+| 4      | System | Completes export                  | System prompts for save location        | File save dialog                 | Default filename includes date range        |
+| 5      | User   | Saves export file                 | System writes file to selected location | Save confirmation                | Option to open exported file                |
 
 ## Exit Points
 
 Users exit this flow when:
+
 - Navigating back to the dashboard
 - Proceeding to related troubleshooting tools
 - Completing a log export process
@@ -102,17 +115,18 @@ Users exit this flow when:
 
 ## Error Scenarios
 
-| Error Scenario | Trigger | System Response | User Recovery Action |
-|----------------|---------|-----------------|---------------------|
-| Log Access Failure | Permission issue or corruption | Error with specific cause | Check permissions or repair log database |
-| No Matching Logs | Filter criteria too restrictive | Empty result with suggestion | Broaden filter criteria |
-| Export Failure | Insufficient disk space or permissions | Error with specific cause | Free disk space or change export location |
-| Log Database Corruption | Database file damage | Warning with repair option | Initiate log database repair |
-| Large Export Timeout | Export size exceeds processing limit | Warning with pagination suggestion | Export smaller chunks or use different format |
+| Error Scenario          | Trigger                                | System Response                    | User Recovery Action                          |
+|-------------------------|----------------------------------------|------------------------------------|-----------------------------------------------|
+| Log Access Failure      | Permission issue or corruption         | Error with specific cause          | Check permissions or repair log database      |
+| No Matching Logs        | Filter criteria too restrictive        | Empty result with suggestion       | Broaden filter criteria                       |
+| Export Failure          | Insufficient disk space or permissions | Error with specific cause          | Free disk space or change export location     |
+| Log Database Corruption | Database file damage                   | Warning with repair option         | Initiate log database repair                  |
+| Large Export Timeout    | Export size exceeds processing limit   | Warning with pagination suggestion | Export smaller chunks or use different format |
 
 ## UI Components
 
 ### Log Entry List
+
 - **Entry Cards**: Visual representation of each log entry
 - **Severity Indicators**: Color-coded icons for different log levels
 - **Timestamp Display**: Clear date/time formatting with relative time
@@ -120,6 +134,7 @@ Users exit this flow when:
 - **Quick Filters**: One-click filtering by common criteria
 
 ### Log Detail Panel
+
 - **Complete Message**: Full log message with formatting
 - **Metadata Section**: All associated log metadata
 - **Stack Trace**: Expandable technical details for errors
@@ -127,6 +142,7 @@ Users exit this flow when:
 - **Related Logs**: Links to connected log entries
 
 ### Filter Panel
+
 - **Date Range Selector**: Visual calendar for time filtering
 - **Severity Filters**: Checkboxes for log levels
 - **Component Filters**: Select specific application components
@@ -134,6 +150,7 @@ Users exit this flow when:
 - **Filter Presets**: Saved filter configurations
 
 ### Search Tool
+
 - **Search Input**: Field for entering search terms
 - **Advanced Syntax**: Support for complex search queries
 - **Result Highlighting**: Visual highlighting of matches
@@ -141,6 +158,7 @@ Users exit this flow when:
 - **Suggestions**: Auto-complete for common search terms
 
 ### Export Configuration
+
 - **Format Selector**: Choose between CSV, JSON, PDF, etc.
 - **Range Selector**: Select which logs to include
 - **Field Selector**: Choose which data fields to export
@@ -148,6 +166,7 @@ Users exit this flow when:
 - **Compression Settings**: Options for large exports
 
 ### Timeline View
+
 - **Visual Timeline**: Graphical representation of log events
 - **Density Indicators**: Show periods of high activity
 - **Event Markers**: Highlight significant events
@@ -157,12 +176,14 @@ Users exit this flow when:
 ## Design Considerations
 
 ### For Everyday Users (Sarah)
+
 - Simplified log view with plain-language descriptions
 - Pre-configured filters for common troubleshooting scenarios
 - Guided interpretation of error messages
 - Simple export options with sensible defaults
 
 ### For Power Users (Michael)
+
 - Advanced filtering and search capabilities
 - Detailed technical information readily available
 - Batch operations for log management
@@ -170,6 +191,7 @@ Users exit this flow when:
 - Command-line equivalent actions shown for learning
 
 ### For Business Users (Elena)
+
 - Compliance-focused views and exports
 - Summary reports of key metrics
 - Audit trail capabilities

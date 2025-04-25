@@ -3,8 +3,8 @@
         SYSTEM "https://resources.jetbrains.com/writerside/1.0/product-profile.dtd">
 
 <instance-profile id="td"
-                 name="TimeLocker Design"
-                 start-page="timelocker-design.md">
+                  name="TimeLocker Design"
+                  start-page="timelocker-design.md">
 
   <toc-element topic="timelocker-design.md"/>
   <toc-element topic="SRS-Based-Technical-Architecture.md">
@@ -12,6 +12,7 @@
     <toc-element topic="system-architecture.md"/>
     <toc-element topic="component-breakdown.md"/>
     <toc-element topic="design-patterns.md"/>
+    <toc-element topic="data-model.md"/>
     <toc-element topic="data-flow.md"/>
     <toc-element topic="security-considerations.md"/>
     <toc-element topic="scalability-performance.md"/>
@@ -35,4 +36,6 @@
     <toc-element topic="accessibility-performance.md"/>
     <toc-element topic="ui-components.md"/>
   </toc-element>
+  <toc-element topic="TimeLocker-UI-Mockups.md"/>
+  <toc-element topic="API_Reference.topic"/>
 </instance-profile>

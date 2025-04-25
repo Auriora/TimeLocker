@@ -1,6 +1,7 @@
 # Accessibility & Performance
 
-This document details the accessibility considerations and performance expectations for the TimeLocker application, ensuring it is usable by all users and performs efficiently across different environments.
+This document details the accessibility considerations and performance expectations for the TimeLocker application, ensuring it is usable by all users and
+performs efficiently across different environments.
 
 ## Accessibility Considerations
 
@@ -55,38 +56,38 @@ TimeLocker is designed to perform efficiently across different devices and netwo
 
 ### Response Times
 
-| Operation | Target Response Time | Maximum Acceptable Time |
-|-----------|----------------------|-------------------------|
-| Initial application launch | < 3 seconds | 5 seconds |
-| Dashboard loading | < 2 seconds | 3 seconds |
-| Status information refresh | < 1 second | 2 seconds |
-| File browsing navigation | < 500ms | 1 second |
-| Backup operation start | < 3 seconds | 5 seconds |
-| Restore operation start | < 3 seconds | 5 seconds |
-| Settings application | < 1 second | 2 seconds |
-| Search results | < 2 seconds | 4 seconds |
+| Operation                  | Target Response Time | Maximum Acceptable Time |
+|----------------------------|:--------------------:|:-----------------------:|
+| Initial application launch |     < 3 seconds      |        5 seconds        |
+| Dashboard loading          |     < 2 seconds      |        3 seconds        |
+| Status information refresh |      < 1 second      |        2 seconds        |
+| File browsing navigation   |       < 500ms        |        1 second         |
+| Backup operation start     |     < 3 seconds      |        5 seconds        |
+| Restore operation start    |     < 3 seconds      |        5 seconds        |
+| Settings application       |      < 1 second      |        2 seconds        |
+| Search results             |     < 2 seconds      |        4 seconds        |
 
 ### Resource Utilization
 
-- **CPU Usage**: 
-  - Idle: < 1% of system CPU
-  - Active backup: < 30% of system CPU
-  - Background operation: < 10% of system CPU
+- **CPU Usage**:
+    - Idle: < 1% of system CPU
+    - Active backup: < 30% of system CPU
+    - Background operation: < 10% of system CPU
 
 - **Memory Usage**:
-  - Base application: < 200MB
-  - During backup operations: < 500MB
-  - Large restore operations: < 1GB
+    - Base application: < 200MB
+    - During backup operations: < 500MB
+    - Large restore operations: < 1GB
 
 - **Disk I/O**:
-  - Prioritized to minimize impact on other applications
-  - Configurable I/O limits to prevent system slowdown
-  - Efficient caching to reduce redundant operations
+    - Prioritized to minimize impact on other applications
+    - Configurable I/O limits to prevent system slowdown
+    - Efficient caching to reduce redundant operations
 
 - **Network Usage**:
-  - Bandwidth throttling options for remote repositories
-  - Resumable transfers for interrupted operations
-  - Compression to reduce data transfer volume
+    - Bandwidth throttling options for remote repositories
+    - Resumable transfers for interrupted operations
+    - Compression to reduce data transfer volume
 
 ### Scalability
 

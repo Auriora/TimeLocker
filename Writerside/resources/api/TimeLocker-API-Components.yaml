@@ -1,0 +1,831 @@
+components:
+  schemas:
+    Repository:
+      type: object
+      properties:
+        id:
+          type:        string
+          description: Unique identifier for the repository
+        name:
+          type:        string
+          description: User-friendly name for the repository
+        location:
+          type:        string
+          description: URI location of the repository
+        type:
+          type:        string
+          enum: [local, s3, b2, sftp, rest]
+          description: Repository type
+        created_at:
+          type:        string
+          format:      date-time
+          description: When the repository was created
+        last_accessed:
+          type:        string
+          format:      date-time
+          description: When the repository was last accessed
+        initialized:
+          type:        boolean
+          description: Whether the repository has been initialized
+        owner_id:
+          type:        string
+          description: ID of the user who owns this repository
+      required:
+        - id
+        - name
+        - location
+        - type
+        - created_at
+        - initialized
+        - owner_id
+
+    RepositoryCreate:
+      type: object
+      properties:
+        name:
+          type:        string
+          description: User-friendly name for the repository
+        location:
+          type:        string
+          description: URI location of the repository
+        type:
+          type:        string
+          enum: [local, s3, b2, sftp, rest]
+          description: Repository type
+        password:
+          type:        string
+          description: Password for the repository (will be hashed)
+        credentials:
+          type:        object
+          description: Credentials for accessing the repository (will be encrypted)
+      required:
+        - name
+        - location
+        - type
+        - password
+
+    RepositoryUpdate:
+      type: object
+      properties:
+        name:
+          type:        string
+          description: User-friendly name for the repository
+        password:
+          type:        string
+          description: Password for the repository (will be hashed)
+        credentials:
+          type:        object
+          description: Credentials for accessing the repository (will be encrypted)
+
+    RepositoryCheck:
+      type: object
+      properties:
+        id:
+          type:        string
+          description: Unique identifier for the check
+        repository_id:
+          type:        string
+          description: ID of the repository
+        timestamp:
+          type:        string
+          format:      date-time
+          description: When the check was performed
+        success:
+          type:        boolean
+          description: Whether the check was successful
+        error_message:
+          type:        string
+          description: Error message if the check failed
+        details:
+          type:        object
+          description: Additional details about the check
+      required:
+        - id
+        - repository_id
+        - timestamp
+        - success
+
+    RepositoryStats:
+      type: object
+      properties:
+        repository_id:
+          type:        string
+          description: ID of the repository
+        total_size:
+          type:        integer
+          format:      int64
+          description: Total size of all snapshots in bytes
+        snapshot_count:
+          type:        integer
+          description: Number of snapshots in the repository
+        latest_snapshot:
+          type:        string
+          format:      date-time
+          description: Timestamp of the latest snapshot
+        oldest_snapshot:
+          type:        string
+          format:      date-time
+          description: Timestamp of the oldest snapshot
+      required:
+        - repository_id
+        - total_size
+        - snapshot_count
+
+    BackupJob:
+      type: object
+      properties:
+        id:
+          type:        string
+          description: Unique identifier for the backup job
+        repository_id:
+          type:        string
+          description: ID of the repository
+        name:
+          type:        string
+          description: User-friendly name for the job
+        tags:
+          type:        array
+          items:
+            type: string
+          description: Tags to apply to the resulting snapshot
+        scheduled_time:
+          type:        string
+          format:      date-time
+          description: When the job is scheduled to run
+        status:
+          type:        string
+          enum: [pending, running, completed, failed]
+          description: Current status of the job
+        start_time:
+          type:        string
+          format:      date-time
+          description: When the job started
+        end_time:
+          type:        string
+          format:      date-time
+          description: When the job completed
+        bytes_processed:
+          type:        integer
+          format:      int64
+          description: Number of bytes processed
+        files_processed:
+          type:        integer
+          description: Number of files processed
+        error_message:
+          type:        string
+          description: Error message if the job failed
+        targets:
+          type:        array
+          items:
+            $ref: '#/components/schemas/BackupTarget'
+          description: Targets to be backed up
+      required:
+        - id
+        - repository_id
+        - name
+        - status
+
+    BackupJobCreate:
+      type: object
+      properties:
+        name:
+          type:        string
+          description: User-friendly name for the job
+        tags:
+          type:        array
+          items:
+            type: string
+          description: Tags to apply to the resulting snapshot
+        scheduled_time:
+          type:        string
+          format:      date-time
+          description: When the job is scheduled to run
+        targets:
+          type:        array
+          items:
+            $ref: '#/components/schemas/BackupTargetCreate'
+          description: Targets to be backed up
+      required:
+        - name
+        - targets
+
+    BackupTarget:
+      type: object
+      properties:
+        id:
+          type:        string
+          description: Unique identifier for the backup target
+        backup_job_id:
+          type:        string
+          description: ID of the backup job
+        name:
+          type:        string
+          description: User-friendly name for the target
+        tags:
+          type:        array
+          items:
+            type: string
+          description: Tags associated with the target
+        file_selection_id:
+          type:        string
+          description: ID of the file selection
+      required:
+        - id
+        - backup_job_id
+        - name
+        - file_selection_id
+
+    BackupTargetCreate:
+      type: object
+      properties:
+        name:
+          type:        string
+          description: User-friendly name for the target
+        tags:
+          type:        array
+          items:
+            type: string
+          description: Tags associated with the target
+        file_selection_id:
+          type:        string
+          description: ID of the file selection
+      required:
+        - name
+        - file_selection_id
+
+    BackupLog:
+      type: object
+      properties:
+        id:
+          type:        string
+          description: Unique identifier for the log entry
+        backup_job_id:
+          type:        string
+          description: ID of the backup job
+        timestamp:
+          type:        string
+          format:      date-time
+          description: When the log entry was created
+        level:
+          type:        string
+          enum: [info, warning, error]
+          description: Log level
+        message:
+          type:        string
+          description: Log message
+        details:
+          type:        object
+          description: Additional details about the log entry
+      required:
+        - id
+        - backup_job_id
+        - timestamp
+        - level
+        - message
+
+    Snapshot:
+      type: object
+      properties:
+        id:
+          type:        string
+          description: Unique identifier for the snapshot
+        repository_id:
+          type:        string
+          description: ID of the repository
+        short_id:
+          type:        string
+          description: Short identifier used by Restic
+        timestamp:
+          type:        string
+          format:      date-time
+          description: When the snapshot was created
+        tags:
+          type:        array
+          items:
+            type: string
+          description: Tags associated with the snapshot
+        paths:
+          type:        array
+          items:
+            type: string
+          description: Paths included in the snapshot
+        total_size:
+          type:        integer
+          format:      int64
+          description: Total size of the snapshot in bytes
+        file_count:
+          type:        integer
+          description: Number of files in the snapshot
+        metadata:
+          type:        object
+          description: Additional metadata about the snapshot
+      required:
+        - id
+        - repository_id
+        - short_id
+        - timestamp
+        - paths
+
+    RestoreRequest:
+      type: object
+      properties:
+        target_path:
+          type:        string
+          description: Path where files should be restored
+        include_paths:
+          type:        array
+          items:
+            type: string
+          description: Paths to include in the restore (if empty, all paths are included)
+        exclude_paths:
+          type:        array
+          items:
+            type: string
+          description: Paths to exclude from the restore
+        overwrite:
+          type:        boolean
+          default:     false
+          description: Whether to overwrite existing files
+      required:
+        - target_path
+
+    RestoreOperation:
+      type: object
+      properties:
+        id:
+          type:        string
+          description: Unique identifier for the restore operation
+        repository_id:
+          type:        string
+          description: ID of the repository
+        snapshot_id:
+          type:        string
+          description: ID of the snapshot being restored
+        target_path:
+          type:        string
+          description: Path where files are being restored
+        status:
+          type:        string
+          enum: [pending, running, completed, failed]
+          description: Current status of the operation
+        start_time:
+          type:        string
+          format:      date-time
+          description: When the operation started
+        end_time:
+          type:        string
+          format:      date-time
+          description: When the operation completed
+        bytes_processed:
+          type:        integer
+          format:      int64
+          description: Number of bytes processed
+        files_processed:
+          type:        integer
+          description: Number of files processed
+        error_message:
+          type:        string
+          description: Error message if the operation failed
+      required:
+        - id
+        - repository_id
+        - snapshot_id
+        - target_path
+        - status
+
+    PruneOperation:
+      type: object
+      properties:
+        id:
+          type:        string
+          description: Unique identifier for the prune operation
+        repository_id:
+          type:        string
+          description: ID of the repository
+        status:
+          type:        string
+          enum: [pending, running, completed, failed]
+          description: Current status of the operation
+        start_time:
+          type:        string
+          format:      date-time
+          description: When the operation started
+        end_time:
+          type:        string
+          format:      date-time
+          description: When the operation completed
+        bytes_freed:
+          type:        integer
+          format:      int64
+          description: Number of bytes freed
+        error_message:
+          type:        string
+          description: Error message if the operation failed
+      required:
+        - id
+        - repository_id
+        - status
+
+    RetentionPolicy:
+      type: object
+      properties:
+        id:
+          type:        string
+          description: Unique identifier for the retention policy
+        repository_id:
+          type:        string
+          description: ID of the repository
+        name:
+          type:        string
+          description: User-friendly name for the policy
+        hourly:
+          type:        integer
+          description: Number of hourly snapshots to keep
+        daily:
+          type:        integer
+          description: Number of daily snapshots to keep
+        weekly:
+          type:        integer
+          description: Number of weekly snapshots to keep
+        monthly:
+          type:        integer
+          description: Number of monthly snapshots to keep
+        yearly:
+          type:        integer
+          description: Number of yearly snapshots to keep
+        last:
+          type:        integer
+          description: Number of most recent snapshots to keep
+      required:
+        - id
+        - repository_id
+        - name
+
+    RetentionPolicyCreate:
+      type: object
+      properties:
+        name:
+          type:        string
+          description: User-friendly name for the policy
+        hourly:
+          type:        integer
+          description: Number of hourly snapshots to keep
+        daily:
+          type:        integer
+          description: Number of daily snapshots to keep
+        weekly:
+          type:        integer
+          description: Number of weekly snapshots to keep
+        monthly:
+          type:        integer
+          description: Number of monthly snapshots to keep
+        yearly:
+          type:        integer
+          description: Number of yearly snapshots to keep
+        last:
+          type:        integer
+          description: Number of most recent snapshots to keep
+      required:
+        - name
+
+    RetentionPolicyUpdate:
+      type: object
+      properties:
+        name:
+          type:        string
+          description: User-friendly name for the policy
+        hourly:
+          type:        integer
+          description: Number of hourly snapshots to keep
+        daily:
+          type:        integer
+          description: Number of daily snapshots to keep
+        weekly:
+          type:        integer
+          description: Number of weekly snapshots to keep
+        monthly:
+          type:        integer
+          description: Number of monthly snapshots to keep
+        yearly:
+          type:        integer
+          description: Number of yearly snapshots to keep
+        last:
+          type:        integer
+          description: Number of most recent snapshots to keep
+
+    PolicyApplication:
+      type: object
+      properties:
+        id:
+          type:        string
+          description: Unique identifier for the policy application
+        repository_id:
+          type:        string
+          description: ID of the repository
+        policy_id:
+          type:        string
+          description: ID of the retention policy
+        status:
+          type:        string
+          enum: [pending, running, completed, failed]
+          description: Current status of the operation
+        start_time:
+          type:        string
+          format:      date-time
+          description: When the operation started
+        end_time:
+          type:        string
+          format:      date-time
+          description: When the operation completed
+        snapshots_removed:
+          type:        integer
+          description: Number of snapshots removed
+        error_message:
+          type:        string
+          description: Error message if the operation failed
+      required:
+        - id
+        - repository_id
+        - policy_id
+        - status
+
+    FileSelection:
+      type: object
+      properties:
+        id:
+          type:        string
+          description: Unique identifier for the file selection
+        name:
+          type:        string
+          description: User-friendly name for the selection
+        base_paths:
+          type:        array
+          items:
+            type: string
+          description: Base paths to include in the selection
+        case_sensitive:
+          type:        boolean
+          description: Whether pattern matching is case-sensitive
+        patterns:
+          type:        array
+          items:
+            $ref: '#/components/schemas/Pattern'
+          description: Patterns for file selection
+        pattern_groups:
+          type:        array
+          items:
+            type: string
+          description: IDs of pattern groups referenced by this selection
+      required:
+        - id
+        - name
+        - base_paths
+
+    FileSelectionCreate:
+      type: object
+      properties:
+        name:
+          type:        string
+          description: User-friendly name for the selection
+        base_paths:
+          type:        array
+          items:
+            type: string
+          description: Base paths to include in the selection
+        case_sensitive:
+          type:        boolean
+          default:     true
+          description: Whether pattern matching is case-sensitive
+        patterns:
+          type:        array
+          items:
+            $ref: '#/components/schemas/PatternCreate'
+          description: Patterns for file selection
+        pattern_groups:
+          type:        array
+          items:
+            type: string
+          description: IDs of pattern groups to include
+      required:
+        - name
+        - base_paths
+
+    FileSelectionUpdate:
+      type: object
+      properties:
+        name:
+          type:        string
+          description: User-friendly name for the selection
+        base_paths:
+          type:        array
+          items:
+            type: string
+          description: Base paths to include in the selection
+        case_sensitive:
+          type:        boolean
+          description: Whether pattern matching is case-sensitive
+        patterns:
+          type:        array
+          items:
+            $ref: '#/components/schemas/PatternCreate'
+          description: Patterns for file selection
+        pattern_groups:
+          type:        array
+          items:
+            type: string
+          description: IDs of pattern groups to include
+
+    Pattern:
+      type: object
+      properties:
+        id:
+          type:        string
+          description: Unique identifier for the pattern
+        pattern:
+          type:        string
+          description: The pattern string
+        type:
+          type:        string
+          enum: [include, exclude]
+          description: Type of pattern
+        file_selection_id:
+          type:        string
+          description: ID of the file selection
+        pattern_group_id:
+          type:        string
+          description: ID of the pattern group (if part of a group)
+      required:
+        - id
+        - pattern
+        - type
+
+    PatternCreate:
+      type: object
+      properties:
+        pattern:
+          type:        string
+          description: The pattern string
+        type:
+          type:        string
+          enum: [include, exclude]
+          description: Type of pattern
+      required:
+        - pattern
+        - type
+
+    PatternGroup:
+      type: object
+      properties:
+        id:
+          type:        string
+          description: Unique identifier for the pattern group
+        name:
+          type:        string
+          description: User-friendly name for the group
+        description:
+          type:        string
+          description: Description of the pattern group
+        patterns:
+          type:        array
+          items:
+            $ref: '#/components/schemas/Pattern'
+          description: Patterns in the group
+      required:
+        - id
+        - name
+        - patterns
+
+    PatternGroupCreate:
+      type: object
+      properties:
+        name:
+          type:        string
+          description: User-friendly name for the group
+        description:
+          type:        string
+          description: Description of the pattern group
+        patterns:
+          type:        array
+          items:
+            $ref: '#/components/schemas/PatternCreate'
+          description: Patterns to include in the group
+      required:
+        - name
+        - patterns
+
+    PatternGroupUpdate:
+      type: object
+      properties:
+        name:
+          type:        string
+          description: User-friendly name for the group
+        description:
+          type:        string
+          description: Description of the pattern group
+        patterns:
+          type:        array
+          items:
+            $ref: '#/components/schemas/PatternCreate'
+          description: Patterns to include in the group
+
+    User:
+      type: object
+      properties:
+        id:
+          type:        string
+          description: Unique identifier for the user
+        username:
+          type:        string
+          description: User's login name
+        email:
+          type:        string
+          format:      email
+          description: User's email address
+        created_at:
+          type:        string
+          format:      date-time
+          description: When the user account was created
+        last_login:
+          type:        string
+          format:      date-time
+          description: When the user last logged in
+        is_admin:
+          type:        boolean
+          description: Whether the user has admin privileges
+      required:
+        - id
+        - username
+        - email
+        - created_at
+
+    UserCreate:
+      type: object
+      properties:
+        username:
+          type:        string
+          description: User's login name
+        email:
+          type:        string
+          format:      email
+          description: User's email address
+        password:
+          type:        string
+          format:      password
+          description: User's password
+        is_admin:
+          type:        boolean
+          default:     false
+          description: Whether the user has admin privileges
+      required:
+        - username
+        - email
+        - password
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  securitySchemes:
+    bearerAuth:
+      type:         http
+      scheme:       bearer
+      bearerFormat: JWT
+
+    Error:
+      type: object
+      properties:
+        code:
+          type:        integer
+          format:      int32
+          description: HTTP status code
+        message:
+          type:        string
+          description: Error message
+        details:
+          type:        object
+          description: Additional error details
+      required:
+        - code
+        - message

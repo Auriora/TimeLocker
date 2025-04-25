@@ -1,0 +1,1156 @@
+openapi: 3.0.3
+info:
+  title:       TimeLocker API
+  description: |
+               This is the API specification for TimeLocker, a high-level interface for backup operations.
+               It provides endpoints for managing repositories, backup jobs, snapshots, and more.
+  version:     1.0.0
+  contact:
+    name:  TimeLocker Support
+    email: support@timelocker.example.com
+  license:
+    name: GNU General Public License v3.0
+    url:  https://www.gnu.org/licenses/gpl-3.0.html
+
+servers:
+  - url:         http://localhost:8080/api/v1
+    description: Local development server
+  - url:         https://api.timelocker.example.com/v1
+    description: Production server
+
+tags:
+  - name:        repositories
+    description: Repository management operations
+  - name:        backups
+    description: Backup operations
+  - name:        snapshots
+    description: Snapshot management operations
+  - name:        restore
+    description: Restore operations
+  - name:        policies
+    description: Retention policy management
+  - name:        monitoring
+    description: Monitoring and reporting
+  - name:        users
+    description: User management
+  - name:        file-selections
+    description: File selection management
+  - name:        pattern-groups
+    description: Pattern group management
+
+paths:
+  /repositories:
+    get:
+      summary:     List all repositories
+      description: Returns a list of all repositories accessible to the authenticated user
+      operationId: listRepositories
+      tags:
+        - repositories
+      parameters:
+        - name:        type
+          in:          query
+          description: Filter repositories by type
+          schema:
+            type: string
+            enum: [local, s3, b2, sftp, rest]
+        - name:        initialized
+          in:          query
+          description: Filter repositories by initialization status
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: A list of repositories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Repository'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      security:
+        - bearerAuth: []
+    post:
+      summary:     Create a new repository
+      description: Creates a new backup repository
+      operationId: createRepository
+      tags:
+        - repositories
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RepositoryCreate'
+      responses:
+        '201':
+          description: Repository created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      security:
+        - bearerAuth: []
+
+  /repositories/{repositoryId}:
+    get:
+      summary:     Get repository details
+      description: Returns details for a specific repository
+      operationId: getRepository
+      tags:
+        - repositories
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository to retrieve
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Repository details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+    put:
+      summary:     Update repository
+      description: Updates an existing repository
+      operationId: updateRepository
+      tags:
+        - repositories
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository to update
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RepositoryUpdate'
+      responses:
+        '200':
+          description: Repository updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+    delete:
+      summary:     Delete repository
+      description: Deletes a repository (does not delete the actual backup data)
+      operationId: deleteRepository
+      tags:
+        - repositories
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository to delete
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Repository deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /repositories/{repositoryId}/initialize:
+    post:
+      summary:     Initialize repository
+      description: Initializes a repository for first use
+      operationId: initializeRepository
+      tags:
+        - repositories
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository to initialize
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Repository initialized successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Repository'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /repositories/{repositoryId}/check:
+    post:
+      summary:     Check repository
+      description: Performs an integrity check on the repository
+      operationId: checkRepository
+      tags:
+        - repositories
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository to check
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Repository check results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryCheck'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /repositories/{repositoryId}/stats:
+    get:
+      summary:     Get repository statistics
+      description: Returns statistics for a repository
+      operationId: getRepositoryStats
+      tags:
+        - repositories
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Repository statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RepositoryStats'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /repositories/{repositoryId}/backup-jobs:
+    get:
+      summary:     List backup jobs
+      description: Returns a list of backup jobs for a repository
+      operationId: listBackupJobs
+      tags:
+        - backups
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository
+          schema:
+            type: string
+        - name:        status
+          in:          query
+          description: Filter by job status
+          schema:
+            type: string
+            enum: [pending, running, completed, failed]
+      responses:
+        '200':
+          description: A list of backup jobs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BackupJob'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+    post:
+      summary:     Create backup job
+      description: Creates a new backup job
+      operationId: createBackupJob
+      tags:
+        - backups
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BackupJobCreate'
+      responses:
+        '201':
+          description: Backup job created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /repositories/{repositoryId}/backup-jobs/{jobId}:
+    get:
+      summary:     Get backup job details
+      description: Returns details for a specific backup job
+      operationId: getBackupJob
+      tags:
+        - backups
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository
+          schema:
+            type: string
+        - name:        jobId
+          in:          path
+          required:    true
+          description: ID of the backup job
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Backup job details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupJob'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+    delete:
+      summary:     Delete backup job
+      description: Deletes a backup job
+      operationId: deleteBackupJob
+      tags:
+        - backups
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository
+          schema:
+            type: string
+        - name:        jobId
+          in:          path
+          required:    true
+          description: ID of the backup job
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Backup job deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /repositories/{repositoryId}/backup-jobs/{jobId}/execute:
+    post:
+      summary:     Execute backup job
+      description: Executes a backup job immediately
+      operationId: executeBackupJob
+      tags:
+        - backups
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository
+          schema:
+            type: string
+        - name:        jobId
+          in:          path
+          required:    true
+          description: ID of the backup job
+          schema:
+            type: string
+      responses:
+        '202':
+          description: Backup job execution started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupJob'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /repositories/{repositoryId}/backup-jobs/{jobId}/logs:
+    get:
+      summary:     Get backup job logs
+      description: Returns logs for a specific backup job
+      operationId: getBackupJobLogs
+      tags:
+        - backups
+        - monitoring
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository
+          schema:
+            type: string
+        - name:        jobId
+          in:          path
+          required:    true
+          description: ID of the backup job
+          schema:
+            type: string
+        - name:        level
+          in:          query
+          description: Filter by log level
+          schema:
+            type: string
+            enum: [info, warning, error]
+      responses:
+        '200':
+          description: Backup job logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BackupLog'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /repositories/{repositoryId}/snapshots:
+    get:
+      summary:     List snapshots
+      description: Returns a list of snapshots in a repository
+      operationId: listSnapshots
+      tags:
+        - snapshots
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository
+          schema:
+            type: string
+        - name:        tags
+          in:          query
+          description: Filter by tags (comma-separated)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of snapshots
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Snapshot'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /repositories/{repositoryId}/snapshots/{snapshotId}:
+    get:
+      summary:     Get snapshot details
+      description: Returns details for a specific snapshot
+      operationId: getSnapshot
+      tags:
+        - snapshots
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository
+          schema:
+            type: string
+        - name:        snapshotId
+          in:          path
+          required:    true
+          description: ID of the snapshot
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Snapshot details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Snapshot'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+    delete:
+      summary:     Delete snapshot
+      description: Deletes a snapshot
+      operationId: deleteSnapshot
+      tags:
+        - snapshots
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository
+          schema:
+            type: string
+        - name:        snapshotId
+          in:          path
+          required:    true
+          description: ID of the snapshot
+          schema:
+            type: string
+        - name:        prune
+          in:          query
+          description: Whether to prune the repository after deleting the snapshot
+          schema:
+            type:    boolean
+            default: false
+      responses:
+        '204':
+          description: Snapshot deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /repositories/{repositoryId}/snapshots/{snapshotId}/restore:
+    post:
+      summary:     Restore from snapshot
+      description: Restores files from a snapshot
+      operationId: restoreSnapshot
+      tags:
+        - restore
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository
+          schema:
+            type: string
+        - name:        snapshotId
+          in:          path
+          required:    true
+          description: ID of the snapshot
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestoreRequest'
+      responses:
+        '202':
+          description: Restore operation started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestoreOperation'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /repositories/{repositoryId}/prune:
+    post:
+      summary:     Prune repository
+      description: Removes unreferenced data from the repository
+      operationId: pruneRepository
+      tags:
+        - repositories
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository
+          schema:
+            type: string
+      responses:
+        '202':
+          description: Prune operation started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PruneOperation'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /repositories/{repositoryId}/policies:
+    get:
+      summary:     List retention policies
+      description: Returns a list of retention policies for a repository
+      operationId: listPolicies
+      tags:
+        - policies
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of retention policies
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RetentionPolicy'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+    post:
+      summary:     Create retention policy
+      description: Creates a new retention policy
+      operationId: createPolicy
+      tags:
+        - policies
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetentionPolicyCreate'
+      responses:
+        '201':
+          description: Retention policy created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetentionPolicy'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /repositories/{repositoryId}/policies/{policyId}:
+    get:
+      summary:     Get retention policy
+      description: Returns details for a specific retention policy
+      operationId: getPolicy
+      tags:
+        - policies
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository
+          schema:
+            type: string
+        - name:        policyId
+          in:          path
+          required:    true
+          description: ID of the retention policy
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Retention policy details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetentionPolicy'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+    put:
+      summary:     Update retention policy
+      description: Updates an existing retention policy
+      operationId: updatePolicy
+      tags:
+        - policies
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository
+          schema:
+            type: string
+        - name:        policyId
+          in:          path
+          required:    true
+          description: ID of the retention policy
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RetentionPolicyUpdate'
+      responses:
+        '200':
+          description: Retention policy updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RetentionPolicy'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+    delete:
+      summary:     Delete retention policy
+      description: Deletes a retention policy
+      operationId: deletePolicy
+      tags:
+        - policies
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository
+          schema:
+            type: string
+        - name:        policyId
+          in:          path
+          required:    true
+          description: ID of the retention policy
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Retention policy deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /repositories/{repositoryId}/policies/{policyId}/apply:
+    post:
+      summary:     Apply retention policy
+      description: Applies a retention policy to a repository
+      operationId: applyPolicy
+      tags:
+        - policies
+      parameters:
+        - name:        repositoryId
+          in:          path
+          required:    true
+          description: ID of the repository
+          schema:
+            type: string
+        - name:        policyId
+          in:          path
+          required:    true
+          description: ID of the retention policy
+          schema:
+            type: string
+        - name:        prune
+          in:          query
+          description: Whether to prune the repository after applying the policy
+          schema:
+            type:    boolean
+            default: false
+      responses:
+        '202':
+          description: Policy application started
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PolicyApplication'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /file-selections:
+    get:
+      summary:     List file selections
+      description: Returns a list of file selections
+      operationId: listFileSelections
+      tags:
+        - file-selections
+      responses:
+        '200':
+          description: A list of file selections
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FileSelection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      security:
+        - bearerAuth: []
+    post:
+      summary:     Create file selection
+      description: Creates a new file selection
+      operationId: createFileSelection
+      tags:
+        - file-selections
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileSelectionCreate'
+      responses:
+        '201':
+          description: File selection created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileSelection'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      security:
+        - bearerAuth: []
+
+  /file-selections/{selectionId}:
+    get:
+      summary:     Get file selection
+      description: Returns details for a specific file selection
+      operationId: getFileSelection
+      tags:
+        - file-selections
+      parameters:
+        - name:        selectionId
+          in:          path
+          required:    true
+          description: ID of the file selection
+          schema:
+            type: string
+      responses:
+        '200':
+          description: File selection details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileSelection'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+    put:
+      summary:     Update file selection
+      description: Updates an existing file selection
+      operationId: updateFileSelection
+      tags:
+        - file-selections
+      parameters:
+        - name:        selectionId
+          in:          path
+          required:    true
+          description: ID of the file selection
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FileSelectionUpdate'
+      responses:
+        '200':
+          description: File selection updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FileSelection'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+    delete:
+      summary:     Delete file selection
+      description: Deletes a file selection
+      operationId: deleteFileSelection
+      tags:
+        - file-selections
+      parameters:
+        - name:        selectionId
+          in:          path
+          required:    true
+          description: ID of the file selection
+          schema:
+            type: string
+      responses:
+        '204':
+          description: File selection deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /pattern-groups:
+    get:
+      summary:     List pattern groups
+      description: Returns a list of pattern groups
+      operationId: listPatternGroups
+      tags:
+        - pattern-groups
+      responses:
+        '200':
+          description: A list of pattern groups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PatternGroup'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      security:
+        - bearerAuth: []
+    post:
+      summary:     Create pattern group
+      description: Creates a new pattern group
+      operationId: createPatternGroup
+      tags:
+        - pattern-groups
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatternGroupCreate'
+      responses:
+        '201':
+          description: Pattern group created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatternGroup'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+      security:
+        - bearerAuth: []
+
+  /pattern-groups/{groupId}:
+    get:
+      summary:     Get pattern group
+      description: Returns details for a specific pattern group
+      operationId: getPatternGroup
+      tags:
+        - pattern-groups
+      parameters:
+        - name:        groupId
+          in:          path
+          required:    true
+          description: ID of the pattern group
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pattern group details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatternGroup'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+    put:
+      summary:     Update pattern group
+      description: Updates an existing pattern group
+      operationId: updatePatternGroup
+      tags:
+        - pattern-groups
+      parameters:
+        - name:        groupId
+          in:          path
+          required:    true
+          description: ID of the pattern group
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatternGroupUpdate'
+      responses:
+        '200':
+          description: Pattern group updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatternGroup'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+    delete:
+      summary:     Delete pattern group
+      description: Deletes a pattern group
+      operationId: deletePatternGroup
+      tags:
+        - pattern-groups
+      parameters:
+        - name:        groupId
+          in:          path
+          required:    true
+          description: ID of the pattern group
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Pattern group deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+      security:
+        - bearerAuth: []
+
+  /users:
+    get:
+      summary:     List users
+      description: Returns a list of users (admin only)
+      operationId: listUsers
+      tags:
+        - users
+      responses:
+        '200':
+          description: A list of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+      security:
+        - bearerAuth: []
+    post:
+      summary:     Create user
+      description: Creates a new user (admin only)
+      operationId: createUser
+      tags:
+        - users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:

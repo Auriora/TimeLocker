@@ -6,7 +6,7 @@ This document serves as an index and guide to the simplified Software Developmen
 
 Traditional SDLC processes are designed for teams with multiple roles and stakeholders. This simplified approach adapts those processes for a solo developer context, leveraging AI assistance to compensate for limited human resources.
 
-### Key Benefits
+### Key Benefits {id="overview-key-benefits"}
 
 - **Streamlined Process**: Eliminates unnecessary overhead while maintaining quality
 - **AI Integration**: Leverages AI capabilities throughout the development lifecycle
@@ -25,14 +25,14 @@ The simplified SDLC consists of the following components, each with its own deta
 
 ## How to Use This Process
 
-### Getting Started
+### Getting Started {id="how-to-use-this-process-getting-started"}
 
 1. Begin by reviewing the [Simplified SDLC Process](Simplified-SDLC-Process.md) document to understand the overall framework
 2. For each phase of your project, refer to the corresponding detailed document
 3. Use the AI prompts provided in each document to get assistance at each step
 4. Adapt the process to fit your specific project needs and personal workflow
 
-### Process Flow
+### Process Flow {id="how-to-use-this-process-process-flow"}
 
 The simplified SDLC follows this general flow:
 
@@ -80,7 +80,7 @@ To effectively use AI assistance throughout this process:
 4. **Learn**: Use AI explanations to build your own understanding
 5. **Combine Approaches**: Use AI alongside your own expertise and judgment
 
-### Example AI Interaction Flow
+### Example AI Interaction Flow {id="ai-assistance-strategy-example-ai-interaction-flow"}
 
 1. **Initial Query**: "Based on this project description, what functional requirements should I consider?"
 2. **Follow-up**: "Can you help me prioritize these requirements using the MoSCoW method?"

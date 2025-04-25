@@ -1,6 +1,17 @@
-# Core Flows
+# UX Flow Diagram and Description: Core Flows
 
-This document provides an overview of the core user flows in the TimeLocker application. These flows represent the primary interactions that users will have with the application.
+This document provides an overview of the core user flows in the TimeLocker application. These flows represent the primary interactions that users will have
+with the application.
+
+## Flow Information
+
+- **Flow ID**: UXF-008
+- **Flow Name**: Core Flows
+- **Created By**: TimeLocker Team
+- **Creation Date**: 2023-11-15
+- **Last Updated**: 2023-11-16
+- **Related Requirements**: User Experience, Navigation, Application Structure
+- **Priority**: High
 
 ## Overview
 
@@ -16,7 +27,7 @@ These flows are designed to accommodate the needs of different user personas whi
 
 The following diagram illustrates the relationships between the core flows:
 
-```
+```plantuml
 @startuml
 actor "User" as U
 participant "Dashboard" as D
