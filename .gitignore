@@ -5,3 +5,4 @@ temp/
 .obsidian/
 .output.txt
 output/
+__pycache__
