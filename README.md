@@ -4,7 +4,11 @@
 [![Python 3.12+](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Status: Alpha](https://img.shields.io/badge/Status-Alpha-yellow.svg)]()
 
-TimeLocker provides a robust, object-oriented interface for managing backups using the Restic backup tool (in future other backup tools maybe supported). It simplifies backup operations by providing a high-level GUI that handles repository management, file selection patterns, and backup configurations across multiple storage backends including local, network, S3, and B2.
+![TimeLocker](resources/images/TimeLocker-Logo-Color-White-64.png)
+
+TimeLocker provides a robust, object-oriented interface for managing backups using the Restic backup tool (in future other backup tools maybe supported). It
+simplifies backup operations by providing a high-level GUI that handles repository management, file selection patterns, and backup configurations across
+multiple storage backends including local, network, S3, and B2.
 
 ## Table of Contents
 
@@ -13,9 +17,9 @@ TimeLocker provides a robust, object-oriented interface for managing backups usi
 - [Features](#features)
 - [Repository Structure](#repository-structure)
 - [Instructions for using TimeLocker](#instructions-for-using-timelocker)
-  - [Project dependencies](#project-dependencies)
-  - [Installation](#installation)
-  - [Quick Start](#quick-start)
+    - [Project dependencies](#project-dependencies)
+    - [Installation](#installation)
+    - [Quick Start](#quick-start)
 - [More Detailed Examples](#more-detailed-examples)
 - [Troubleshooting](#troubleshooting)
 - [Data Flow](#data-flow)
@@ -29,11 +33,13 @@ TimeLocker provides a robust, object-oriented interface for managing backups usi
 
 ## Project description
 
-The library abstracts away the complexity of managing Restic commands and configurations while providing type-safe interfaces and comprehensive error handling. It supports multiple storage backends (Local, S3, Backblaze B2) with automatic credential management and validation.
+The library abstracts away the complexity of managing Restic commands and configurations while providing type-safe interfaces and comprehensive error handling.
+It supports multiple storage backends (Local, S3, Backblaze B2) with automatic credential management and validation.
 
 ## Who this project is for
 
 This project is intended for:
+
 - System administrators who need to set up backup solutions
 - Developers who want to integrate backup functionality into their applications
 - End users who want a more user-friendly interface for Restic backups
@@ -49,6 +55,7 @@ This project is intended for:
 - Extensible architecture for adding new repository types
 
 ## Repository Structure
+
 ```
 .
 ├── src/                                # Main source code
@@ -108,14 +115,17 @@ This project is intended for:
 ## Instructions for using TimeLocker
 
 ### Project dependencies
+
 - Python 3.12 or higher
 - Restic backup tool installed and accessible in PATH
 - For cloud storage:
-  - S3: boto3 package (`pip install boto3`)
-  - B2: b2sdk package (`pip install b2sdk`)
+    - S3: boto3 package (`pip install boto3`)
+    - B2: b2sdk package (`pip install b2sdk`)
 
 ### Installation
+
 For basic installation:
+
 ```bash
 # Clone the repository
 git clone <repository-url>
@@ -125,9 +135,11 @@ cd timelocker
 pip install -r requirements.txt
 ```
 
-For detailed installation instructions, including platform-specific guidance, configuration, and troubleshooting, please refer to our [Installation Guide](docs/INSTALLATION.md).
+For detailed installation instructions, including platform-specific guidance, configuration, and troubleshooting, please refer to
+our [Installation Guide](docs/INSTALLATION.md).
 
 ### Quick Start
+
 ```python
 from TimeLocker.backup_manager import BackupManager
 from TimeLocker.backup_target import BackupTarget
@@ -151,6 +163,7 @@ repo.backup(target)
 ```
 
 ### More Detailed Examples
+
 ```python
 # Using B2 backend
 repo = manager.from_uri(
@@ -171,9 +184,11 @@ snapshot.restore("/path/to/restore")
 ```
 
 ### Troubleshooting
+
 Common issues and solutions:
 
 1. Repository Authentication Failures
+
 ```python
 try:
     repo = manager.from_uri("s3:bucket/backup")
@@ -183,6 +198,7 @@ except RepositoryError as e:
 ```
 
 2. File Selection Validation
+
 ```python
 try:
     selection = FileSelection()
@@ -192,13 +208,16 @@ except ValueError:
 ```
 
 3. Debug Logging
+
 ```python
 import logging
 logging.getLogger('restic').setLevel(logging.DEBUG)
 ```
 
 ## Data Flow
+
 The backup process follows this general flow:
+
 1. Configuration of backup target and file selection patterns
 2. Repository initialization and validation
 3. Execution of backup operation with selected files
@@ -212,6 +231,7 @@ The backup process follows this general flow:
 ```
 
 Key component interactions:
+
 - BackupManager orchestrates repository creation and management
 - BackupRepository handles storage backend operations
 - FileSelection manages include/exclude patterns
@@ -222,17 +242,21 @@ Key component interactions:
 ## Infrastructure
 
 ![Infrastructure diagram](./docs/resources/images/infra.svg)
+
 ### S3 Repository
+
 - Type: `S3ResticRepository`
 - Purpose: Manages backups in Amazon S3 buckets
 - Environment: Requires AWS credentials (access key, secret key, region)
 
 ### B2 Repository
+
 - Type: `B2ResticRepository`
 - Purpose: Manages backups in Backblaze B2 storage
 - Environment: Requires B2 credentials (account ID, application key)
 
 ### Local Repository
+
 - Type: `LocalResticRepository`
 - Purpose: Manages backups in local filesystem
 - Environment: Requires write access to target directory
@@ -252,13 +276,15 @@ For more detailed documentation, please refer to:
 
 ## Contributing
 
-Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull requests.
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on our code of conduct and the process for submitting pull
+requests.
 
 By participating in this project, you agree to abide by the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Support
 
-If you're experiencing issues with TimeLocker or have questions about its usage, please check our [Support Guide](SUPPORT.md) for information on how to get help.
+If you're experiencing issues with TimeLocker or have questions about its usage, please check our [Support Guide](SUPPORT.md) for information on how to get
+help.
 
 For security-related issues, please refer to our [Security Policy](SECURITY.md) and follow the instructions there instead of filing a public issue.
 
@@ -269,9 +295,11 @@ For security-related issues, please refer to our [Security Policy](SECURITY.md) 
 
 ## Terms of use
 
-This project is licensed under the [GNU General Public License v3.0 (GPL-3.0)](https://www.gnu.org/licenses/gpl-3.0.html). See the [LICENSE](LICENSE) file for details.
+This project is licensed under the [GNU General Public License v3.0 (GPL-3.0)](https://www.gnu.org/licenses/gpl-3.0.html). See the [LICENSE](LICENSE) file for
+details.
 
-The GPL-3.0 is a strong copyleft license that requires anyone who distributes your code or a derivative work to make the source available under the same terms. This is particularly suitable for libraries and applications that you want to remain open source.
+The GPL-3.0 is a strong copyleft license that requires anyone who distributes your code or a derivative work to make the source available under the same terms.
+This is particularly suitable for libraries and applications that you want to remain open source.
 
 ## Document Information
 
