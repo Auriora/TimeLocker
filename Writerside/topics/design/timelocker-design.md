@@ -9,7 +9,7 @@ object-oriented API that handles repository management, file selection patterns,
 - [UX Flow Documentation](uxflow-overview.md) - User experience flows and interface design
 - [UI Mockups](TimeLocker-UI-Mockups.md) - User interface design mockups
 - [API Documentation](API_Reference.topic) - API documentation
-- [Software Requirements Specification (SRS)](Contents.md) - Comprehensive requirements documentation
+- Software Requirements Specification (SRS) - Comprehensive requirements documentation
 
 This documentation is organized to help developers, designers, and stakeholders understand the TimeLocker application's design, requirements, and implementation
 details.
