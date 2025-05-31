@@ -1,0 +1,101 @@
+# Coverage configuration for TimeLocker MVP
+
+[run]
+# Source code directory
+source = src
+
+# Include patterns
+include = 
+    src/TimeLocker/*
+    src/TimeLocker/**/*
+
+# Exclude patterns
+omit = 
+    */tests/*
+    */test_*
+    */__pycache__/*
+    */.*
+    */venv/*
+    */env/*
+    */build/*
+    */dist/*
+    */docs/*
+    */examples/*
+    setup.py
+    conftest.py
+
+# Branch coverage
+branch = True
+
+# Parallel processing
+parallel = True
+
+# Data file location
+data_file = .coverage
+
+[report]
+# Reporting options
+show_missing = True
+skip_covered = False
+skip_empty = True
+sort = Cover
+
+# Precision for percentages
+precision = 1
+
+# Exclude lines from coverage
+exclude_lines =
+    # Have to re-enable the standard pragma
+    pragma: no cover
+    
+    # Don't complain about missing debug-only code:
+    def __repr__
+    if self\.debug
+    
+    # Don't complain if tests don't hit defensive assertion code:
+    raise AssertionError
+    raise NotImplementedError
+    
+    # Don't complain if non-runnable code isn't run:
+    if 0:
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+    
+    # Don't complain about abstract methods
+    @(abc\.)?abstractmethod
+    
+    # Don't complain about platform specific code
+    if sys.platform
+    
+    # Don't complain about deprecated code
+    @deprecated
+    warnings.warn
+
+# Minimum coverage percentages
+fail_under = 80
+
+[html]
+# HTML report configuration
+directory = htmlcov
+title = TimeLocker Test Coverage Report
+
+[xml]
+# XML report configuration
+output = coverage.xml
+
+[json]
+# JSON report configuration
+output = coverage.json
+pretty_print = True
+
+# Coverage thresholds for different components
+[coverage:paths]
+source =
+    src/TimeLocker
+    */site-packages/TimeLocker
+
+# Component-specific coverage requirements
+[tool:coverage.report]
+# Critical components requiring higher coverage
+precision = 1
+show_missing = True
