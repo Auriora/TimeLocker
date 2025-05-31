@@ -1,8 +1,30 @@
 # TimeLocker: A High-Level Interface for Backup Operations
 
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Python 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg?logo=python&logoColor=#3776AB)](https://www.python.org/downloads/)
-[![Status: Alpha](https://img.shields.io/badge/Status-Development-lightgrey.svg)]()
+<!-- Project Status & Build Badges -->
+[![GitHub Actions CI](https://img.shields.io/github/actions/workflow/status/Auriora/TimeLocker/test-suite.yml?branch=main&label=CI&logo=github)](https://github.com/Auriora/TimeLocker/actions/workflows/test-suite.yml)
+[![Code Coverage](https://img.shields.io/codecov/c/github/Auriora/TimeLocker?logo=codecov)](https://codecov.io/gh/Auriora/TimeLocker)
+[![Quality Gate](https://img.shields.io/badge/Quality%20Gate-80%25%20Coverage-brightgreen?logo=sonarqube)](https://github.com/Auriora/TimeLocker/actions)
+
+<!-- Project Info Badges -->
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?logo=gnu)](https://www.gnu.org/licenses/gpl-3.0)
+[![Python 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![Status: Development](https://img.shields.io/badge/Status-Development-orange.svg?logo=git)](https://github.com/Auriora/TimeLocker)
+
+<!-- Community & Activity Badges -->
+[![GitHub Stars](https://img.shields.io/github/stars/Auriora/TimeLocker?style=social)](https://github.com/Auriora/TimeLocker/stargazers)
+[![GitHub Forks](https://img.shields.io/github/forks/Auriora/TimeLocker?style=social)](https://github.com/Auriora/TimeLocker/network/members)
+[![GitHub Issues](https://img.shields.io/github/issues/Auriora/TimeLocker?logo=github)](https://github.com/Auriora/TimeLocker/issues)
+[![Last Commit](https://img.shields.io/github/last-commit/Auriora/TimeLocker?logo=github)](https://github.com/Auriora/TimeLocker/commits/main)
+
+<!-- Security & Dependencies Badges -->
+[![Security Scan](https://img.shields.io/badge/Security-Bandit%20%26%20Safety-green?logo=security)](https://github.com/Auriora/TimeLocker/actions)
+[![Dependencies](https://img.shields.io/badge/Dependencies-Up%20to%20Date-brightgreen?logo=dependabot)](https://github.com/Auriora/TimeLocker/network/dependencies)
+[![Code Style](https://img.shields.io/badge/Code%20Style-Black%20%26%20Flake8-black?logo=python)](https://github.com/psf/black)
+
+<!-- Documentation & Support Badges -->
+[![Documentation](https://img.shields.io/badge/Documentation-Available-brightgreen?logo=gitbook)](https://github.com/Auriora/TimeLocker/tree/main/docs)
+[![Contributing](https://img.shields.io/badge/Contributing-Welcome-brightgreen?logo=github)](CONTRIBUTING.md)
+[![Support](https://img.shields.io/badge/Support-Available-blue?logo=github)](SUPPORT.md)
 
 ![TimeLocker](resources/images/TimeLocker-Logo-Color-White-64.png)
 
