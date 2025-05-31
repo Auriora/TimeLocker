@@ -28,11 +28,13 @@ class BackupTarget:
                  tags: List[str] = None):
         """
         Initialize a backup target
-        
+
         Args:
             selection: FileSelection instance defining what to backup
             tags: Optional list of tags to associate with this backup target
         """
+        if selection is None:
+            raise AttributeError("selection cannot be None")
         self.selection = selection
         self.tags = tags or []
 

@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from typing import Type
 from urllib.parse import urlparse
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -30,11 +31,13 @@ def test_init_creates_empty_repository_factories():
     assert isinstance(manager._repository_factories, dict)
     assert len(manager._repository_factories) == 0
 
+
 def test_redact_sensitive_info_no_username():
     """Test redacting sensitive info from URL without username"""
     uri = "https://example.com/path"
     result = BackupManager.redact_sensitive_info(uri)
     assert result == uri, "URL without username should not be modified"
+
 
 def test_redact_sensitive_info_with_username():
     """Test redacting username and password from URL"""
@@ -43,11 +46,13 @@ def test_redact_sensitive_info_with_username():
     result = BackupManager.redact_sensitive_info(uri)
     assert result == expected_result
 
+
 def test_get_repository_factory_nonexistent():
     """Test getting nonexistent repository factory"""
     manager = BackupManager()
     result = manager.get_repository_factory("nonexistent", "some_type")
     assert result is None
+
 
 def test_get_repository_factory_nonexistent_type():
     """Test getting nonexistent repository type from existing factory"""
@@ -55,6 +60,7 @@ def test_get_repository_factory_nonexistent_type():
     manager.register_repository_factory("existing", "existing_type", BackupRepository)
     result = manager.get_repository_factory("existing", "nonexistent_type")
     assert result is None
+
 
 def test_register_repository_factory():
     """Test registering a new repository factory"""
@@ -76,6 +82,7 @@ def test_register_repository_factory():
     manager.register_repository_factory(name, repo_type, MockRepository)
     assert manager._repository_factories[name][repo_type] == MockRepository
 
+
 def test_register_repository_factory_overwrite_warning(capfd):
     """Test warning when overwriting existing repository factory"""
     manager = BackupManager()
@@ -83,6 +90,7 @@ def test_register_repository_factory_overwrite_warning(capfd):
     manager.register_repository_factory("test", "repo_type", BackupRepository)
     captured = capfd.readouterr()
     assert "Warning: Overwriting existing repository class for test/repo_type" in captured.out
+
 
 def test_list_registered_backends():
     """Test listing registered backends and their types"""
@@ -93,10 +101,11 @@ def test_list_registered_backends():
 
     result = manager.list_registered_backends()
     expected = {
-        "backend1": ["type1", "type2"],
-        "backend2": ["type3"]
+            "backend1": ["type1", "type2"],
+            "backend2": ["type3"]
     }
     assert result == expected
+
 
 def test_list_registered_backends_empty():
     """Test listing backends when none are registered"""
@@ -105,20 +114,32 @@ def test_list_registered_backends_empty():
     assert isinstance(result, dict)
     assert len(result) == 0
 
-def test_from_uri_supported_scheme():
+
+@patch('TimeLocker.restic.Repositories.s3.client')
+def test_from_uri_supported_scheme(mock_boto_client):
     """Test creating repository from supported URI scheme"""
+    # Mock the S3 client to avoid AWS authentication
+    mock_s3_client = Mock()
+    mock_s3_client.head_bucket.return_value = {}  # Successful bucket validation
+    mock_boto_client.return_value = mock_s3_client
+
     uri = "s3://test-bucket/backup"
     password = "test-password"
 
-    # Mock the repo_classes dictionary
-    BackupManager.from_uri.__func__.repo_classes = {
-        's3': MockS3Repository
-    }
-
     result = BackupManager.from_uri(uri, password)
-    assert isinstance(result, MockS3Repository)
-    assert result.parsed_uri == urlparse(uri)
-    assert result.password == password
+
+    # Should create an S3ResticRepository instance
+    from TimeLocker.restic.Repositories.s3 import S3ResticRepository
+    assert isinstance(result, S3ResticRepository)
+    assert result._location == "s3:test-bucket/backup"
+
+    # Verify S3 client was called for validation
+    mock_boto_client.assert_called_with('s3')
+    mock_s3_client.head_bucket.assert_called_with(Bucket='test-bucket')
+
+    # The main goal is that we can create an S3 repository without AWS errors
+    # The password handling is tested in the S3ResticRepository tests
+
 
 def test_from_uri_unsupported_scheme():
     """Test error when using unsupported URI scheme"""
@@ -126,6 +147,7 @@ def test_from_uri_unsupported_scheme():
     with pytest.raises(BackupManagerError) as excinfo:
         BackupManager.from_uri(unsupported_uri)
     assert str(excinfo.value) == "Unsupported repository scheme: unsupported"
+
 
 class MockS3Repository:
     def __init__(self, parsed_uri, password):

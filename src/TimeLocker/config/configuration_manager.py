@@ -19,6 +19,7 @@ import json
 import logging
 import os
 import shutil
+import copy
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
@@ -169,14 +170,14 @@ class ConfigurationManager:
                 logger.info("Configuration loaded successfully")
             else:
                 # Use defaults for new installation
-                self._config = self._defaults.copy()
+                self._config = copy.deepcopy(self._defaults)
                 self.save_config()
                 logger.info("Created default configuration")
 
         except Exception as e:
             logger.error(f"Failed to load configuration: {e}")
             # Fall back to defaults
-            self._config = self._defaults.copy()
+            self._config = copy.deepcopy(self._defaults)
             raise ConfigurationError(f"Failed to load configuration: {e}")
 
     def save_config(self):
@@ -267,18 +268,18 @@ class ConfigurationManager:
     def reset_section(self, section: Union[ConfigSection, str]):
         """
         Reset section to defaults
-        
+
         Args:
             section: Configuration section to reset
         """
         section_name = section.value if isinstance(section, ConfigSection) else section
 
         if section_name in self._defaults:
-            self._config[section_name] = self._defaults[section_name].copy()
+            self._config[section_name] = copy.deepcopy(self._defaults[section_name])
 
     def reset_all(self):
         """Reset all configuration to defaults"""
-        self._config = self._defaults.copy()
+        self._config = copy.deepcopy(self._defaults)
 
     def export_config(self, export_path: Path) -> bool:
         """
@@ -346,7 +347,7 @@ class ConfigurationManager:
 
     def _merge_config(self, defaults: Dict[str, Any], user_config: Dict[str, Any]) -> Dict[str, Any]:
         """Merge user configuration with defaults"""
-        merged = defaults.copy()
+        merged = copy.deepcopy(defaults)
 
         for section, values in user_config.items():
             if section in merged:
