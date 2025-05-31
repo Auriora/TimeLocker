@@ -69,7 +69,7 @@ class ResticRepository(BackupRepository):
                 raise ResticError(f"restic version {restic_version} is below the required minimum version {min_version}.")
 
             return restic_version
-        except Exception as e:
+        except (json.JSONDecodeError, FileNotFoundError) as e:
             # If JSON parsing fails, try without JSON flag for basic version check
             logger.warning(f"JSON version check failed: {e}, trying basic version check")
             try:
