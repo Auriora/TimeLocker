@@ -6,3 +6,4 @@ temp/
 .output.txt
 output/
 __pycache__
+/.coverage

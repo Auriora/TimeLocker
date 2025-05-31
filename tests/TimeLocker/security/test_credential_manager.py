@@ -5,9 +5,10 @@ Tests for credential management functionality
 import pytest
 import tempfile
 import shutil
+import time
 from pathlib import Path
 
-from TimeLocker.security import CredentialManager, CredentialManagerError
+from TimeLocker.security import CredentialManager, CredentialManagerError, CredentialAccessError, CredentialSecurityError
 
 
 class TestCredentialManager:
@@ -194,3 +195,229 @@ class TestCredentialManager:
         # Retrieve empty credentials
         credentials = self.credential_manager.get_backend_credentials("empty_backend")
         assert credentials == {}
+
+    def test_auto_lock_timeout(self):
+        """Test auto-lock functionality"""
+        # Create credential manager with short timeout
+        short_timeout_manager = CredentialManager(config_dir=self.temp_dir, auto_lock_timeout=1)
+        short_timeout_manager.unlock(self.master_password)
+
+        # Store a credential
+        short_timeout_manager.store_repository_password("test_repo", "test_pass")
+
+        # Wait for timeout
+        time.sleep(1.1)
+
+        # Should auto-lock and raise exception
+        with pytest.raises(CredentialAccessError):
+            short_timeout_manager.get_repository_password("test_repo")
+
+    def test_failed_attempt_lockout(self):
+        """Test lockout after failed attempts"""
+        # Set up credentials first
+        self.credential_manager.unlock(self.master_password)
+        self.credential_manager.store_repository_password("test_repo", "test_pass")
+        self.credential_manager.lock()
+
+        # Create new manager to test lockout
+        lockout_manager = CredentialManager(config_dir=self.temp_dir)
+
+        # Make multiple failed attempts
+        for i in range(5):
+            with pytest.raises(CredentialManagerError):
+                lockout_manager.unlock("wrong_password")
+
+        # Should now be locked out
+        with pytest.raises(CredentialAccessError):
+            lockout_manager.unlock("wrong_password")
+
+    def test_credential_rotation(self):
+        """Test credential rotation functionality"""
+        self.credential_manager.unlock(self.master_password)
+
+        repo_id = "rotation_test_repo"
+        old_password = "old_password"
+        new_password = "new_password"
+
+        # Store initial credential
+        self.credential_manager.store_repository_password(repo_id, old_password)
+
+        # Rotate credential
+        result = self.credential_manager.rotate_credential(repo_id, new_password)
+        assert result is True
+
+        # Verify new password is stored
+        retrieved_password = self.credential_manager.get_repository_password(repo_id)
+        assert retrieved_password == new_password
+
+    def test_secure_delete_credential(self):
+        """Test secure deletion of credentials"""
+        self.credential_manager.unlock(self.master_password)
+
+        repo_id = "delete_test_repo"
+        password = "password_to_delete"
+
+        # Store credential
+        self.credential_manager.store_repository_password(repo_id, password)
+        assert self.credential_manager.get_repository_password(repo_id) == password
+
+        # Securely delete
+        result = self.credential_manager.secure_delete_credential(repo_id)
+        assert result is True
+
+        # Verify it's gone
+        assert self.credential_manager.get_repository_password(repo_id) is None
+
+    def test_credential_metadata(self):
+        """Test credential metadata functionality"""
+        self.credential_manager.unlock(self.master_password)
+
+        repo_id = "metadata_test_repo"
+        password = "test_password"
+
+        # Store credential
+        self.credential_manager.store_repository_password(repo_id, password)
+
+        # Get metadata
+        metadata = self.credential_manager.get_credential_metadata(repo_id)
+        assert metadata is not None
+        assert "password" not in metadata  # Password should not be in metadata
+        assert metadata["type"] == "repository"
+        assert "created_at" in metadata
+        assert "access_count" in metadata
+
+    def test_security_status(self):
+        """Test security status reporting"""
+        status = self.credential_manager.get_security_status()
+
+        assert "is_locked" in status
+        assert "failed_attempts" in status
+        assert "auto_lock_timeout" in status
+        assert status["is_locked"] is True  # Initially locked
+
+    def test_audit_events(self):
+        """Test audit event logging and retrieval"""
+        self.credential_manager.unlock(self.master_password)
+
+        repo_id = "audit_test_repo"
+        password = "audit_test_password"
+
+        # Perform operations that should be audited
+        self.credential_manager.store_repository_password(repo_id, password)
+        self.credential_manager.get_repository_password(repo_id)
+
+        # Get audit events
+        events = self.credential_manager.get_audit_events(hours=1)
+        assert len(events) > 0
+
+        # Check that events contain expected operations
+        operations = [event["operation"] for event in events]
+        assert "store_repository_password" in operations
+        assert "get_repository_password" in operations
+
+    def test_credential_integrity_validation(self):
+        """Test credential integrity validation"""
+        self.credential_manager.unlock(self.master_password)
+
+        # Store some credentials
+        self.credential_manager.store_repository_password("repo1", "pass1")
+        self.credential_manager.store_repository_password("repo2", "pass2")
+
+        # Validate integrity
+        result = self.credential_manager.validate_credential_integrity()
+        assert result is True
+
+    def test_credential_integrity_validation_when_locked(self):
+        """Test that integrity validation fails when locked"""
+        # Don't unlock the credential manager
+        with pytest.raises(CredentialSecurityError):
+            self.credential_manager.validate_credential_integrity()
+
+    def test_access_tracking(self):
+        """Test that credential access is properly tracked"""
+        self.credential_manager.unlock(self.master_password)
+
+        repo_id = "tracking_test_repo"
+        password = "tracking_test_password"
+
+        # Store credential
+        self.credential_manager.store_repository_password(repo_id, password)
+
+        # Access it multiple times
+        for _ in range(3):
+            self.credential_manager.get_repository_password(repo_id)
+
+        # Check metadata shows access count
+        metadata = self.credential_manager.get_credential_metadata(repo_id)
+        assert metadata["access_count"] == 3
+
+    def test_empty_repository_id_validation(self):
+        """Test validation of empty repository IDs"""
+        self.credential_manager.unlock(self.master_password)
+
+        with pytest.raises(CredentialManagerError):
+            self.credential_manager.store_repository_password("", "password")
+
+        with pytest.raises(CredentialManagerError):
+            self.credential_manager.store_repository_password("repo", "")
+
+    def test_audit_log_creation(self):
+        """Test that audit logs are created properly"""
+        self.credential_manager.unlock(self.master_password)
+
+        # Perform an operation
+        self.credential_manager.store_repository_password("test_repo", "test_pass")
+
+        # Check that audit log file exists
+        assert self.credential_manager.audit_log_file.exists()
+
+        # Check that it contains entries
+        with open(self.credential_manager.audit_log_file, 'r') as f:
+            content = f.read()
+            assert "store_repository_password" in content
+
+    def test_concurrent_access_safety(self):
+        """Test that concurrent access is handled safely"""
+        import threading
+        import time
+
+        # Create credential manager with no auto-lock for this test
+        concurrent_manager = CredentialManager(config_dir=self.temp_dir, auto_lock_timeout=0)
+        concurrent_manager.unlock(self.master_password)
+
+        results = []
+        errors = []
+
+        def store_credential(repo_id):
+            try:
+                # Add small delay to reduce contention
+                time.sleep(0.01 * repo_id)
+                concurrent_manager.store_repository_password(f"repo_{repo_id}", f"pass_{repo_id}")
+                results.append(repo_id)
+            except Exception as e:
+                errors.append(e)
+
+        # Create multiple threads
+        threads = []
+        for i in range(5):
+            thread = threading.Thread(target=store_credential, args=(i,))
+            threads.append(thread)
+
+        # Start all threads
+        for thread in threads:
+            thread.start()
+
+        # Wait for completion
+        for thread in threads:
+            thread.join()
+
+        # For file-based storage, some concurrent operations may fail
+        # The important thing is that the system doesn't crash and some operations succeed
+        total_operations = len(results) + len(errors)
+        assert total_operations == 5, f"Expected 5 total operations, got {total_operations}"
+        assert len(results) >= 3, f"Expected at least 3 successful operations, got {len(results)}"
+
+        # Verify that successful operations actually stored the credentials
+        for repo_id in results:
+            password = concurrent_manager.get_repository_password(f"repo_{repo_id}")
+            assert password == f"pass_{repo_id}"

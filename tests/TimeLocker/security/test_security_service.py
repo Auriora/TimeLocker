@@ -347,3 +347,127 @@ class TestSecurityService:
         with open(self.security_service.audit_log_file, 'r') as f:
             content = f.read()
             assert "test_event" in content
+
+    def test_audit_backup_operation(self):
+        """Test backup operation auditing"""
+        # Mock repository
+        mock_repository = Mock()
+        mock_repository._location = "/test/repo"
+        mock_repository.id = "test_repo_id"
+
+        # Test successful backup audit
+        self.security_service.audit_backup_operation(
+                repository=mock_repository,
+                operation_type="full",
+                targets=["/home/user/docs", "/home/user/photos"],
+                success=True,
+                metadata={"duration": 120, "size": "1.5GB"}
+        )
+
+        # Verify event was logged
+        with open(self.security_service.audit_log_file, 'r') as f:
+            content = f.read()
+            assert "backup_operation" in content
+            assert "full" in content
+            assert "SUCCESS" in content
+
+    def test_audit_restore_operation(self):
+        """Test restore operation auditing"""
+        # Mock repository
+        mock_repository = Mock()
+        mock_repository._location = "/test/repo"
+        mock_repository.id = "test_repo_id"
+
+        # Test successful restore audit
+        self.security_service.audit_restore_operation(
+                repository=mock_repository,
+                snapshot_id="snapshot123",
+                target_path="/restore/path",
+                success=True,
+                metadata={"files_restored": 150}
+        )
+
+        # Verify event was logged
+        with open(self.security_service.audit_log_file, 'r') as f:
+            content = f.read()
+            assert "restore_operation" in content
+            assert "snapshot123" in content
+            assert "SUCCESS" in content
+
+    def test_validate_security_config_valid(self):
+        """Test security configuration validation with valid config"""
+        valid_config = {
+                "encryption_enabled":  True,
+                "audit_logging":       True,
+                "credential_timeout":  3600,
+                "max_failed_attempts": 3,
+                "lockout_duration":    300
+        }
+
+        result = self.security_service.validate_security_config(valid_config)
+
+        assert result["valid"] is True
+        assert len(result["issues"]) == 0
+
+    def test_validate_security_config_invalid(self):
+        """Test security configuration validation with invalid config"""
+        invalid_config = {
+                "encryption_enabled":  False,
+                "credential_timeout":  30,  # Too short
+                "max_failed_attempts": 0  # Too low
+        }
+
+        result = self.security_service.validate_security_config(invalid_config)
+
+        assert result["valid"] is False
+        assert len(result["issues"]) > 0
+        assert any("Encryption is disabled" in issue for issue in result["issues"])
+
+    def test_emergency_lockdown(self):
+        """Test emergency lockdown functionality"""
+        # Test emergency lockdown
+        result = self.security_service.emergency_lockdown(
+                reason="Security breach detected",
+                metadata={"source": "intrusion_detection"}
+        )
+
+        assert result is True
+
+        # Verify lockdown marker file was created
+        lockdown_file = self.security_service.config_dir / "emergency_lockdown.marker"
+        assert lockdown_file.exists()
+
+        # Verify event was logged
+        with open(self.security_service.audit_log_file, 'r') as f:
+            content = f.read()
+            assert "emergency_lockdown" in content
+            assert "Security breach detected" in content
+
+    def test_audit_integrity_check(self):
+        """Test integrity check auditing"""
+        # Mock repository
+        mock_repository = Mock()
+        mock_repository._location = "/test/repo"
+        mock_repository.id = "test_repo_id"
+
+        # Test successful integrity check audit
+        check_results = {
+                "errors_found":   0,
+                "warnings_found": 2,
+                "items_checked":  1000,
+                "check_duration": 45.5
+        }
+
+        self.security_service.audit_integrity_check(
+                repository=mock_repository,
+                check_type="full",
+                success=True,
+                results=check_results
+        )
+
+        # Verify event was logged
+        with open(self.security_service.audit_log_file, 'r') as f:
+            content = f.read()
+            assert "integrity_check" in content
+            assert "full" in content
+            assert "SUCCESS" in content

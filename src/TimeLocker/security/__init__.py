@@ -15,7 +15,8 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .credential_manager import CredentialManager, CredentialManagerError
+from .credential_manager import CredentialManager, CredentialManagerError, CredentialAccessError, CredentialSecurityError
 from .security_service import SecurityService, SecurityError, SecurityEvent, SecurityLevel
 
-__all__ = ['CredentialManager', 'CredentialManagerError', 'SecurityService', 'SecurityError', 'SecurityEvent', 'SecurityLevel']
+__all__ = ['CredentialManager', 'CredentialManagerError', 'CredentialAccessError', 'CredentialSecurityError', 'SecurityService', 'SecurityError',
+           'SecurityEvent', 'SecurityLevel']

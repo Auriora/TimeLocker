@@ -19,6 +19,7 @@ import hashlib
 import logging
 import os
 import time
+import json
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Callable
@@ -319,3 +320,291 @@ class SecurityService:
         except Exception as e:
             logger.error(f"Failed to generate security summary: {e}")
             raise SecurityError(f"Failed to generate security summary: {e}")
+
+    def audit_backup_operation(self, repository, operation_type: str, targets: List[str],
+                               success: bool, metadata: Optional[Dict[str, Any]] = None):
+        """
+        Audit backup operations for security monitoring
+
+        Args:
+            repository: Repository instance
+            operation_type: Type of backup operation (full, incremental, etc.)
+            targets: List of backup targets
+            success: Whether the operation was successful
+            metadata: Additional operation metadata
+        """
+        try:
+            audit_metadata = {
+                    "operation_type":      operation_type,
+                    "target_count":        len(targets),
+                    "targets":             targets[:5],  # Limit to first 5 for logging
+                    "success":             success,
+                    "repository_location": str(getattr(repository, '_location', 'unknown'))
+            }
+
+            if metadata:
+                audit_metadata.update(metadata)
+
+            self.log_security_event(SecurityEvent(
+                    timestamp=datetime.now(),
+                    event_type="backup_operation",
+                    level=SecurityLevel.MEDIUM if success else SecurityLevel.HIGH,
+                    description=f"Backup operation {operation_type}: {'SUCCESS' if success else 'FAILED'}",
+                    repository_id=getattr(repository, 'id', str(repository._location)),
+                    metadata=audit_metadata
+            ))
+
+        except Exception as e:
+            logger.error(f"Failed to audit backup operation: {e}")
+
+    def audit_restore_operation(self, repository, snapshot_id: str, target_path: str,
+                                success: bool, metadata: Optional[Dict[str, Any]] = None):
+        """
+        Audit restore operations for security monitoring
+
+        Args:
+            repository: Repository instance
+            snapshot_id: ID of the snapshot being restored
+            target_path: Target path for restore
+            success: Whether the operation was successful
+            metadata: Additional operation metadata
+        """
+        try:
+            audit_metadata = {
+                    "snapshot_id":         snapshot_id,
+                    "target_path":         str(target_path),
+                    "success":             success,
+                    "repository_location": str(getattr(repository, '_location', 'unknown'))
+            }
+
+            if metadata:
+                audit_metadata.update(metadata)
+
+            self.log_security_event(SecurityEvent(
+                    timestamp=datetime.now(),
+                    event_type="restore_operation",
+                    level=SecurityLevel.HIGH,  # Restore operations are always high security
+                    description=f"Restore operation: {'SUCCESS' if success else 'FAILED'}",
+                    repository_id=getattr(repository, 'id', str(repository._location)),
+                    metadata=audit_metadata
+            ))
+
+        except Exception as e:
+            logger.error(f"Failed to audit restore operation: {e}")
+
+    def validate_security_config(self, config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """
+        Validate security configuration settings
+
+        Args:
+            config: Security configuration to validate (optional, loads from file if not provided)
+
+        Returns:
+            Dict containing validation results and any issues found
+        """
+        validation_result = {
+                "valid":           True,
+                "issues":          [],
+                "warnings":        [],
+                "recommendations": []
+        }
+
+        try:
+            # Load config if not provided
+            if config is None:
+                if self.security_config_file.exists():
+                    with open(self.security_config_file, 'r') as f:
+                        config = json.load(f)
+                else:
+                    config = {}
+
+            # Validate encryption settings
+            encryption_enabled = config.get("encryption_enabled", True)
+            if not encryption_enabled:
+                validation_result["issues"].append("Encryption is disabled")
+                validation_result["valid"] = False
+
+            # Validate audit logging
+            audit_logging = config.get("audit_logging", True)
+            if not audit_logging:
+                validation_result["warnings"].append("Audit logging is disabled")
+
+            # Validate credential timeout
+            credential_timeout = config.get("credential_timeout", 3600)
+            if credential_timeout < 60:
+                validation_result["issues"].append("Credential timeout is too short (minimum 60 seconds)")
+                validation_result["valid"] = False
+            elif credential_timeout > 86400:  # 24 hours
+                validation_result["warnings"].append("Credential timeout is very long (>24 hours)")
+
+            # Validate failed attempt limits
+            max_failed_attempts = config.get("max_failed_attempts", 3)
+            if max_failed_attempts < 1:
+                validation_result["issues"].append("Max failed attempts must be at least 1")
+                validation_result["valid"] = False
+            elif max_failed_attempts > 10:
+                validation_result["warnings"].append("Max failed attempts is very high (>10)")
+
+            # Validate lockout duration
+            lockout_duration = config.get("lockout_duration", 300)
+            if lockout_duration < 60:
+                validation_result["warnings"].append("Lockout duration is very short (<60 seconds)")
+
+            # Security recommendations
+            if credential_timeout > 7200:  # 2 hours
+                validation_result["recommendations"].append("Consider reducing credential timeout for better security")
+
+            if max_failed_attempts > 5:
+                validation_result["recommendations"].append("Consider reducing max failed attempts for better security")
+
+            # Log validation event
+            self.log_security_event(SecurityEvent(
+                    timestamp=datetime.now(),
+                    event_type="security_config_validation",
+                    level=SecurityLevel.MEDIUM if validation_result["valid"] else SecurityLevel.HIGH,
+                    description=f"Security configuration validation: {'PASSED' if validation_result['valid'] else 'FAILED'}",
+                    metadata={
+                            "issues_count":   len(validation_result["issues"]),
+                            "warnings_count": len(validation_result["warnings"]),
+                            "valid":          validation_result["valid"]
+                    }
+            ))
+
+            return validation_result
+
+        except Exception as e:
+            logger.error(f"Failed to validate security configuration: {e}")
+            validation_result["valid"] = False
+            validation_result["issues"].append(f"Validation error: {str(e)}")
+            return validation_result
+
+    def emergency_lockdown(self, reason: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
+        """
+        Initiate emergency lockdown procedures
+
+        Args:
+            reason: Reason for the emergency lockdown
+            metadata: Additional metadata about the emergency
+
+        Returns:
+            bool: True if lockdown was successful
+        """
+        try:
+            lockdown_metadata = {
+                    "reason":           reason,
+                    "initiated_at":     datetime.now().isoformat(),
+                    "lockdown_actions": []
+            }
+
+            if metadata:
+                lockdown_metadata.update(metadata)
+
+            # Lock credential manager
+            try:
+                self.credential_manager.lock()
+                lockdown_metadata["lockdown_actions"].append("credential_manager_locked")
+                logger.warning("Emergency lockdown: Credential manager locked")
+            except Exception as e:
+                logger.error(f"Failed to lock credential manager during emergency: {e}")
+                lockdown_metadata["lockdown_actions"].append(f"credential_manager_lock_failed: {str(e)}")
+
+            # Clear any cached credentials or sensitive data
+            try:
+                # Force garbage collection of sensitive data
+                import gc
+                gc.collect()
+                lockdown_metadata["lockdown_actions"].append("memory_cleared")
+            except Exception as e:
+                logger.error(f"Failed to clear memory during emergency: {e}")
+
+            # Create emergency lockdown marker file
+            try:
+                lockdown_file = self.config_dir / "emergency_lockdown.marker"
+                with open(lockdown_file, 'w') as f:
+                    json.dump(lockdown_metadata, f, indent=2)
+                lockdown_metadata["lockdown_actions"].append("lockdown_marker_created")
+            except Exception as e:
+                logger.error(f"Failed to create lockdown marker: {e}")
+
+            # Log critical security event
+            self.log_security_event(SecurityEvent(
+                    timestamp=datetime.now(),
+                    event_type="emergency_lockdown",
+                    level=SecurityLevel.CRITICAL,
+                    description=f"Emergency lockdown initiated: {reason}",
+                    metadata=lockdown_metadata
+            ))
+
+            logger.critical(f"Emergency lockdown completed: {reason}")
+            return True
+
+        except Exception as e:
+            logger.critical(f"Emergency lockdown failed: {e}")
+            # Still try to log the failure
+            try:
+                self.log_security_event(SecurityEvent(
+                        timestamp=datetime.now(),
+                        event_type="emergency_lockdown_failed",
+                        level=SecurityLevel.CRITICAL,
+                        description=f"Emergency lockdown failed: {str(e)}",
+                        metadata={"reason": reason, "error": str(e)}
+                ))
+            except:
+                pass  # If we can't even log, we're in serious trouble
+            return False
+
+    def audit_integrity_check(self, repository, check_type: str, success: bool,
+                              results: Optional[Dict[str, Any]] = None):
+        """
+        Audit integrity check operations
+
+        Args:
+            repository: Repository instance
+            check_type: Type of integrity check (full, snapshot, metadata, etc.)
+            success: Whether the check was successful
+            results: Results of the integrity check
+        """
+        try:
+            audit_metadata = {
+                    "check_type":          check_type,
+                    "success":             success,
+                    "repository_location": str(getattr(repository, '_location', 'unknown')),
+                    "check_timestamp":     datetime.now().isoformat()
+            }
+
+            if results:
+                # Include key results but limit size for logging
+                audit_metadata["results_summary"] = {
+                        "errors_found":   results.get("errors_found", 0),
+                        "warnings_found": results.get("warnings_found", 0),
+                        "items_checked":  results.get("items_checked", 0),
+                        "check_duration": results.get("check_duration", 0)
+                }
+
+                # Include first few errors/warnings for context
+                if "errors" in results and results["errors"]:
+                    audit_metadata["sample_errors"] = results["errors"][:3]
+                if "warnings" in results and results["warnings"]:
+                    audit_metadata["sample_warnings"] = results["warnings"][:3]
+
+            # Determine security level based on results
+            if not success:
+                level = SecurityLevel.CRITICAL
+            elif results and results.get("errors_found", 0) > 0:
+                level = SecurityLevel.HIGH
+            elif results and results.get("warnings_found", 0) > 0:
+                level = SecurityLevel.MEDIUM
+            else:
+                level = SecurityLevel.LOW
+
+            self.log_security_event(SecurityEvent(
+                    timestamp=datetime.now(),
+                    event_type="integrity_check",
+                    level=level,
+                    description=f"Integrity check {check_type}: {'SUCCESS' if success else 'FAILED'}",
+                    repository_id=getattr(repository, 'id', str(repository._location)),
+                    metadata=audit_metadata
+            ))
+
+        except Exception as e:
+            logger.error(f"Failed to audit integrity check: {e}")
