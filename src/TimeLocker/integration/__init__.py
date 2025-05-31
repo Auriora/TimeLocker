@@ -15,7 +15,6 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .credential_manager import CredentialManager, CredentialManagerError
-from .security_service import SecurityService, SecurityError, SecurityEvent, SecurityLevel
+from .integration_service import IntegrationService, IntegrationError
 
-__all__ = ['CredentialManager', 'CredentialManagerError', 'SecurityService', 'SecurityError', 'SecurityEvent', 'SecurityLevel']
+__all__ = ['IntegrationService', 'IntegrationError']

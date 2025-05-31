@@ -15,7 +15,10 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
-from .credential_manager import CredentialManager, CredentialManagerError
-from .security_service import SecurityService, SecurityError, SecurityEvent, SecurityLevel
+from .status_reporter import StatusReporter, OperationStatus, StatusLevel
+from .notification_service import NotificationService, NotificationError, NotificationType
 
-__all__ = ['CredentialManager', 'CredentialManagerError', 'SecurityService', 'SecurityError', 'SecurityEvent', 'SecurityLevel']
+__all__ = [
+        'StatusReporter', 'OperationStatus', 'StatusLevel',
+        'NotificationService', 'NotificationError', 'NotificationType'
+]
