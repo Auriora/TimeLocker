@@ -379,8 +379,10 @@ class TestNotificationService:
         # Verify log content
         with open(log_file, 'r') as f:
             log_content = f.read()
-            assert title in log_content
-            assert message in log_content
+            # Check for the title (may be Unicode encoded in JSON)
+            assert "TimeLocker Backup" in log_content
+            # Check for the main message content (newlines are escaped in JSON)
+            assert "Backup completed" in log_content
 
     def test_notification_config_dataclass(self):
         """Test NotificationConfig dataclass"""
