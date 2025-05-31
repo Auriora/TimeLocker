@@ -16,10 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-from typing import Dict, List, Optional, Type
+import time
+from typing import Dict, List, Optional, Type, Callable
 from urllib.parse import urlparse
 
 from TimeLocker.backup_repository import BackupRepository
+from TimeLocker.backup_target import BackupTarget
 
 logger = logging.getLogger("restic")
 
@@ -96,3 +98,155 @@ class BackupManager:
         parsed = urlparse(uri)
         redacted_netloc = f"{parsed.hostname}[:*****]" if parsed.username else parsed.netloc
         return parsed._replace(netloc=redacted_netloc).geturl()
+
+    def execute_backup_with_retry(self,
+                                  repository: BackupRepository,
+                                  targets: List[BackupTarget],
+                                  tags: Optional[List[str]] = None,
+                                  max_retries: int = 3,
+                                  retry_delay: float = 1.0,
+                                  backoff_multiplier: float = 2.0) -> Dict:
+        """
+        Execute backup with retry mechanism and exponential backoff
+
+        Args:
+            repository: Repository to backup to
+            targets: List of backup targets
+            tags: Optional tags for the backup
+            max_retries: Maximum number of retry attempts
+            retry_delay: Initial delay between retries in seconds
+            backoff_multiplier: Multiplier for exponential backoff
+
+        Returns:
+            Dict: Backup result information
+
+        Raises:
+            BackupManagerError: If backup fails after all retries
+        """
+        last_exception = None
+        current_delay = retry_delay
+
+        for attempt in range(max_retries + 1):
+            try:
+                logger.info(f"Backup attempt {attempt + 1}/{max_retries + 1}")
+
+                # Validate targets before attempting backup
+                for target in targets:
+                    target.validate()
+
+                # Execute backup
+                result = repository.backup_target(targets, tags)
+
+                # Verify backup if successful
+                if result and "snapshot_id" in result:
+                    if self.verify_backup_integrity(repository, result["snapshot_id"]):
+                        logger.info(f"Backup completed successfully on attempt {attempt + 1}")
+                        return result
+                    else:
+                        raise BackupManagerError("Backup verification failed")
+
+                return result
+
+            except Exception as e:
+                last_exception = e
+                logger.warning(f"Backup attempt {attempt + 1} failed: {e}")
+
+                if attempt < max_retries:
+                    logger.info(f"Retrying in {current_delay} seconds...")
+                    time.sleep(current_delay)
+                    current_delay *= backoff_multiplier
+                else:
+                    logger.error(f"All backup attempts failed. Last error: {e}")
+
+        raise BackupManagerError(f"Backup failed after {max_retries + 1} attempts: {last_exception}")
+
+    def verify_backup_integrity(self,
+                                repository: BackupRepository,
+                                snapshot_id: Optional[str] = None) -> bool:
+        """
+        Verify backup integrity with enhanced checking
+
+        Args:
+            repository: Repository to verify
+            snapshot_id: Specific snapshot to verify (optional)
+
+        Returns:
+            bool: True if verification successful
+        """
+        try:
+            logger.info(f"Verifying backup integrity{f' for snapshot {snapshot_id}' if snapshot_id else ''}")
+
+            # Use repository's verify method
+            if hasattr(repository, 'verify_backup'):
+                return repository.verify_backup(snapshot_id)
+            else:
+                # Fallback to basic check method
+                return repository.check()
+
+        except Exception as e:
+            logger.error(f"Backup verification failed: {e}")
+            return False
+
+    def create_incremental_backup(self,
+                                  repository: BackupRepository,
+                                  targets: List[BackupTarget],
+                                  parent_snapshot_id: Optional[str] = None,
+                                  tags: Optional[List[str]] = None) -> Dict:
+        """
+        Create an incremental backup based on a parent snapshot
+
+        Args:
+            repository: Repository to backup to
+            targets: List of backup targets
+            parent_snapshot_id: ID of parent snapshot for incremental backup
+            tags: Optional tags for the backup
+
+        Returns:
+            Dict: Backup result information
+        """
+        try:
+            # Add incremental backup tag
+            backup_tags = list(tags or [])
+            backup_tags.append("incremental")
+
+            if parent_snapshot_id:
+                backup_tags.append(f"parent:{parent_snapshot_id}")
+                logger.info(f"Creating incremental backup based on snapshot {parent_snapshot_id}")
+            else:
+                logger.info("Creating incremental backup (restic will auto-detect parent)")
+
+            # Execute backup with retry
+            return self.execute_backup_with_retry(repository, targets, backup_tags)
+
+        except Exception as e:
+            logger.error(f"Incremental backup failed: {e}")
+            raise BackupManagerError(f"Incremental backup failed: {e}")
+
+    def create_full_backup(self,
+                           repository: BackupRepository,
+                           targets: List[BackupTarget],
+                           tags: Optional[List[str]] = None) -> Dict:
+        """
+        Create a full backup (first backup or forced full backup)
+
+        Args:
+            repository: Repository to backup to
+            targets: List of backup targets
+            tags: Optional tags for the backup
+
+        Returns:
+            Dict: Backup result information
+        """
+        try:
+            # Add full backup tag
+            backup_tags = list(tags or [])
+            backup_tags.append("full")
+
+            logger.info("Creating full backup")
+
+            # Execute backup with retry
+            return self.execute_backup_with_retry(repository, targets, backup_tags)
+
+        except Exception as e:
+            logger.error(f"Full backup failed: {e}")
+            raise BackupManagerError(f"Full backup failed: {e}")

@@ -15,9 +15,12 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
+import fnmatch
+import logging
+import os
 from enum import auto, Enum
 from pathlib import Path
-from typing import Dict, List, Set, Union
+from typing import Dict, List, Set, Union, Optional
 
 
 class SelectionType(Enum):
@@ -265,6 +268,145 @@ class FileSelection:
             args.extend(["--exclude", str(path)])
 
         return args
+
+    def matches_pattern(self, file_path: Union[str, Path], patterns: Set[str]) -> bool:
+        """
+        Check if a file path matches any of the given patterns
+
+        Args:
+            file_path: Path to check
+            patterns: Set of patterns to match against
+
+        Returns:
+            bool: True if path matches any pattern
+        """
+        path_str = str(file_path)
+        path_name = os.path.basename(path_str)
+
+        for pattern in patterns:
+            # Check both full path and filename
+            if fnmatch.fnmatch(path_str, pattern) or fnmatch.fnmatch(path_name, pattern):
+                return True
+        return False
+
+    def should_include_file(self, file_path: Union[str, Path]) -> bool:
+        """
+        Determine if a file should be included in the backup based on selection rules
+
+        Args:
+            file_path: Path to evaluate
+
+        Returns:
+            bool: True if file should be included
+        """
+        path_obj = Path(file_path)
+
+        # Check if path is explicitly excluded
+        if path_obj in self._excludes:
+            return False
+
+        # Check if path is under any excluded directory
+        for exclude_path in self._excludes:
+            try:
+                path_obj.relative_to(exclude_path)
+                return False  # Path is under an excluded directory
+            except ValueError:
+                continue
+
+        # Check if path matches exclude patterns
+        if self.matches_pattern(file_path, self._exclude_patterns):
+            return False
+
+        # Check if path is explicitly included
+        if path_obj in self._includes:
+            return True
+
+        # Check if path is under any included directory
+        for include_path in self._includes:
+            try:
+                path_obj.relative_to(include_path)
+                return True  # File is under an included directory
+            except ValueError:
+                continue
+
+        # Check if path matches include patterns (if any)
+        if self._include_patterns:
+            return self.matches_pattern(file_path, self._include_patterns)
+
+        return False
+
+    def get_effective_paths(self) -> Dict[str, List[Path]]:
+        """
+        Get the effective paths that will be included/excluded after pattern resolution
+
+        Returns:
+            Dict with 'included' and 'excluded' lists of resolved paths
+        """
+        result = {"included": [], "excluded": []}
+
+        # Start with explicitly included paths
+        for path in self._includes:
+            if path.exists():
+                if path.is_dir():
+                    # Add all files in directory that match criteria
+                    for root, dirs, files in os.walk(path):
+                        for file in files:
+                            file_path = Path(root) / file
+                            if self.should_include_file(file_path):
+                                result["included"].append(file_path)
+                else:
+                    # Single file
+                    if self.should_include_file(path):
+                        result["included"].append(path)
+
+        # Add explicitly excluded paths
+        result["excluded"] = list(self._excludes)
+
+        return result
+
+    def estimate_backup_size(self) -> Dict[str, int]:
+        """
+        Estimate the total size of files that would be backed up
+
+        Returns:
+            Dict with size statistics in bytes
+        """
+        stats = {"total_size": 0, "file_count": 0, "directory_count": 0}
+        visited_dirs = set()
+
+        # Start with explicitly included paths
+        for path in self._includes:
+            if path.exists():
+                if path.is_dir():
+                    # Walk through directory and count files that would be included
+                    for root, dirs, files in os.walk(path):
+                        root_path = Path(root)
+
+                        # Count this directory if we haven't seen it
+                        if root_path not in visited_dirs:
+                            visited_dirs.add(root_path)
+                            stats["directory_count"] += 1
+
+                        # Check each file
+                        for file in files:
+                            file_path = root_path / file
+                            if self.should_include_file(file_path):
+                                try:
+                                    stats["total_size"] += file_path.stat().st_size
+                                    stats["file_count"] += 1
+                                except (OSError, PermissionError):
+                                    # Skip files we can't access
+                                    continue
+                else:
+                    # Single file
+                    if self.should_include_file(path):
+                        try:
+                            stats["total_size"] += path.stat().st_size
+                            stats["file_count"] += 1
+                        except (OSError, PermissionError):
+                            continue
+
+        return stats
 
     def __repr__(self) -> str:
         return (f"<FileSelection includes={self._includes}, "

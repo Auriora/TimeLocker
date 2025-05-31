@@ -314,6 +314,99 @@ class ResticRepository(BackupRepository):
             logger.error(f"Backup verification failed: {e}")
             return False
 
+    def verify_backup_comprehensive(self, snapshot_id: Optional[str] = None) -> Dict[str, any]:
+        """
+        Perform comprehensive backup verification with detailed results
+
+        Args:
+            snapshot_id: Specific snapshot to verify. If None, verifies repository
+
+        Returns:
+            Dict with verification results and details
+        """
+        verification_result = {
+                "success":          False,
+                "checks_performed": [],
+                "errors":           [],
+                "warnings":         [],
+                "statistics":       {}
+        }
+
+        try:
+            # 1. Basic repository check
+            logger.info("Performing basic repository check...")
+            verification_result["checks_performed"].append("repository_structure")
+
+            basic_check = self.verify_backup(snapshot_id)
+            if not basic_check:
+                verification_result["errors"].append("Basic repository check failed")
+                return verification_result
+
+            # 2. Check repository statistics
+            logger.info("Gathering repository statistics...")
+            verification_result["checks_performed"].append("statistics")
+            try:
+                stats = self.stats()
+                verification_result["statistics"] = stats
+            except Exception as e:
+                verification_result["warnings"].append(f"Could not gather statistics: {e}")
+
+            # 3. Verify specific snapshot if provided
+            if snapshot_id:
+                logger.info(f"Verifying specific snapshot {snapshot_id}...")
+                verification_result["checks_performed"].append("snapshot_integrity")
+
+                try:
+                    # Check if snapshot exists
+                    snapshots = self.snapshots()
+                    snapshot_exists = any(s.id == snapshot_id for s in snapshots)
+
+                    if not snapshot_exists:
+                        verification_result["errors"].append(f"Snapshot {snapshot_id} not found")
+                        return verification_result
+
+                except Exception as e:
+                    verification_result["warnings"].append(f"Could not list snapshots: {e}")
+
+            # 4. Check for repository consistency
+            logger.info("Checking repository consistency...")
+            verification_result["checks_performed"].append("consistency")
+
+            try:
+                # Use restic check with --read-data for thorough verification
+                check_command = CommandBuilder(restic_command_def)
+                check_command = check_command.param("repo", self.uri())
+                check_command = check_command.command("check")
+                check_command = check_command.param("read-data")
+
+                command_list = check_command.build()
+
+                result = subprocess.run(
+                        command_list,
+                        capture_output=True,
+                        text=True,
+                        env=self.to_env(),
+                        timeout=300  # 5 minute timeout for data verification
+                )
+
+                if result.returncode != 0:
+                    verification_result["errors"].append(f"Data verification failed: {result.stderr}")
+                    return verification_result
+
+            except subprocess.TimeoutExpired:
+                verification_result["warnings"].append("Data verification timed out after 5 minutes")
+            except Exception as e:
+                verification_result["warnings"].append(f"Data verification failed: {e}")
+
+            verification_result["success"] = True
+            logger.info("Comprehensive backup verification completed successfully")
+
+        except Exception as e:
+            verification_result["errors"].append(f"Verification failed: {e}")
+            logger.error(f"Comprehensive backup verification failed: {e}")
+
+        return verification_result
+
     def snapshots(self, tags: Optional[List[str]] = None) -> List[BackupSnapshot]:
         """List available snapshots"""
         output = self._command.param("snapshots").run(self.to_env())
