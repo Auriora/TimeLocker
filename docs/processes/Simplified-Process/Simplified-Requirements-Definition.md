@@ -9,7 +9,7 @@ Define clear, concise requirements for the software without the need for stakeho
 - **Self-reflection on needs**: Document your own needs and goals for the software
 - **AI-assisted requirements elicitation**: Use AI to help identify additional requirements
 - **Requirements prioritization**: Categorize requirements as must-have, should-have, could-have, won't-have
-- **Requirements documentation**: Use the comprehensive SRS documentation in the Writerside docs/SDLC/SRS
+- **Requirements documentation**: Use the comprehensive SRS documentation in the docs/1-requirements/
 
 ## AI Prompts for Requirements Definition
 
@@ -17,7 +17,7 @@ Define clear, concise requirements for the software without the need for stakeho
 - "What non-functional requirements are critical for this type of application?"
 - "Help me prioritize these requirements based on technical feasibility and value."
 - "What edge cases or potential issues should I consider for these requirements?"
-- "Review the comprehensive SRS documentation in the Writerside docs/SDLC/SRS."
+- "Review the comprehensive SRS documentation in the docs/1-requirements/."
 
 ## Documentation Produced
 

@@ -28,7 +28,15 @@ Compliance mappings, traceability matrices, and regulatory documentation.
 
 ## 📖 [Guidelines](guidelines/)
 
-Development process guidelines, simplified SDLC, and best practices.
+High-level development guidelines and best practices.
+
+## 🔄 [Processes](processes/)
+
+Detailed development processes, methodologies, and workflows.
+
+## 📋 [Templates](templates/)
+
+Document templates for consistent project documentation.
 
 ---
 
@@ -38,8 +46,8 @@ Development process guidelines, simplified SDLC, and best practices.
 
 - [Technical Architecture](2-design/technical-architecture.md)
 - [API Reference](2-design/api-reference.md)
-- [Implementation Guidelines](guidelines/simplified-sdlc-process.md)
-- [Testing Approach](guidelines/simplified-testing-approach.md)
+- [Development Process](processes/simplified-sdlc-process.md)
+- [Testing Approach](processes/simplified-testing-approach.md)
 
 ### For Project Management
 

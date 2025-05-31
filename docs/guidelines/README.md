@@ -1,149 +1,121 @@
 # 📖 Guidelines
 
-This section contains development process guidelines, simplified SDLC, and best practices for the TimeLocker project.
+This section contains high-level development guidelines and best practices for the TimeLocker project.
 
 ## Overview
 
-This documentation serves as a guide to the simplified Software Development Life Cycle (SDLC) process designed specifically for solo developers working with AI
-assistance. The process removes the need for interviews, workshops, and multi-stakeholder activities while maintaining the essential elements of a robust SDLC.
+This documentation provides general guidance and principles for developing the TimeLocker backup management system. For detailed process documentation,
+see [docs/processes/](../processes/README.md).
 
-## Core Guidelines
+## Development Philosophy
 
-Traditional SDLC processes are designed for teams with multiple roles and stakeholders. This simplified approach adapts those processes for a solo developer
-context, leveraging AI assistance to compensate for limited human resources.
+The TimeLocker project follows a simplified approach designed for solo developers working with AI assistance, emphasizing practical solutions over complex
+methodologies.
 
-### Key Benefits {id="overview-key-benefits"}
+### Core Principles
 
-- **Streamlined Process**: Eliminates unnecessary overhead while maintaining quality
-- **AI Integration**: Leverages AI capabilities throughout the development lifecycle
-- **Practical Guidance**: Provides specific prompts and techniques for each phase
-- **Flexible Adaptation**: Can be tailored to different project types and personal preferences
-- **Quality Focus**: Maintains essential quality practices despite limited resources
+- **Simplicity First**: Choose simple, maintainable solutions over complex architectures
+- **AI-Assisted Development**: Leverage AI tools for code generation, testing, and documentation
+- **Quality Focus**: Maintain high code quality through testing and code review
+- **User-Centric Design**: Prioritize user experience and accessibility
+- **Security by Design**: Integrate security considerations from the beginning
 
-## Process Components
+## Development Guidelines
 
-The simplified SDLC consists of the following components, each with its own detailed documentation:
+### Code Quality Standards
 
-### Core Process Documents
+- **Python Standards**: Follow PEP 8 style guidelines
+- **Type Hints**: Use type annotations for better code clarity
+- **Documentation**: Document all public APIs and complex logic
+- **Testing**: Maintain minimum 80% test coverage
+- **Code Review**: Review all changes before merging
 
-1. **[Simplified SDLC Process](simplified-sdlc-process.md)**: The overall process framework and methodology
-2. **[Simplified Testing Approach](simplified-testing-approach.md)**: Testing strategies for solo developers
-3. **[Simplified UX/UI Design Guide](simplified-ux-ui-design-guide.md)**: Streamlined approach to design
+### Project Structure
 
-### Supporting Documentation
+- **Modular Design**: Organize code into logical modules and packages
+- **Separation of Concerns**: Keep business logic separate from UI and data layers
+- **Configuration Management**: Use configuration files for environment-specific settings
+- **Resource Management**: Properly handle file operations and system resources
 
-- **[Software Requirements Specification](../1-requirements/README.md)**: Comprehensive requirements documentation
-- **[Technical Architecture](../2-design/technical-architecture.md)**: System design and architecture
-- **[Implementation Guides](../3-implementation/README.md)**: Development and coding guidelines
+### Security Guidelines
 
-## How to Use This Process
+- **Input Validation**: Validate all user inputs and external data
+- **Encryption**: Use strong encryption for sensitive data
+- **Access Control**: Implement proper authentication and authorization
+- **Error Handling**: Avoid exposing sensitive information in error messages
+- **Dependency Management**: Keep dependencies updated and secure
 
-### Getting Started {id="how-to-use-this-process-getting-started"}
+## Best Practices
 
-1. Begin by reviewing the [Simplified SDLC Process](simplified-sdlc-process.md) document to understand the overall framework
-2. For each phase of your project, refer to the corresponding detailed document
-3. Use the AI prompts provided in each document to get assistance at each step
-4. Adapt the process to fit your specific project needs and personal workflow
+### Development Workflow
 
-### Process Flow {id="how-to-use-this-process-process-flow"}
+1. **Plan**: Define requirements and design before coding
+2. **Implement**: Write clean, testable code with proper documentation
+3. **Test**: Verify functionality through automated and manual testing
+4. **Review**: Conduct code review and quality checks
+5. **Deploy**: Use consistent deployment processes
+6. **Monitor**: Track application performance and user feedback
 
-The simplified SDLC follows this general flow:
+### Documentation Standards
 
-1. **Requirements Definition**
-    - Document your own needs and goals
-    - Use AI to help identify and refine requirements
-    - Use the comprehensive [SRS documentation](../1-requirements/README.md)
-    - Prioritize requirements based on value and feasibility
+- **README Files**: Provide clear setup and usage instructions
+- **API Documentation**: Document all public interfaces
+- **Code Comments**: Explain complex logic and business rules
+- **Change Logs**: Track significant changes and releases
+- **User Guides**: Create user-friendly documentation for end users
 
-2. **Design**
-    - Create a technical architecture with AI assistance
-    - Develop simplified UX/UI designs following the [design guide](simplified-ux-ui-design-guide.md)
-    - Design data models and APIs
-    - Document key design decisions
+### Testing Strategy
 
-3. **Implementation**
-    - Develop code with AI assistance for problem-solving
-    - Follow good coding practices and organization
-    - Document as you go
-    - Use version control effectively
+- **Unit Tests**: Test individual components in isolation
+- **Integration Tests**: Verify component interactions
+- **End-to-End Tests**: Test complete user workflows
+- **Performance Tests**: Ensure acceptable performance under load
+- **Security Tests**: Validate security controls and measures
 
-4. **Testing**
-    - Follow the [simplified testing approach](simplified-testing-approach.md)
-    - Focus on high-risk and high-value areas
-    - Use AI to help identify test cases and potential issues
-    - Automate where possible
+## Related Documentation
 
-5. **Deployment**
-    - Plan and execute deployment with minimal complexity
-    - Verify deployment success
-    - Monitor for issues
+### Detailed Processes
 
-6. **Maintenance**
-    - Address bugs and implement enhancements
-    - Use AI to help diagnose and fix issues
-    - Update documentation as needed
+- **[Development Processes](../processes/README.md)** - Detailed SDLC processes and methodologies
+- **[Document Templates](../templates/README.md)** - Standardized templates for project documentation
 
-## AI Assistance Strategy
+### Project Documentation
 
-To effectively use AI assistance throughout this process:
+- **[Requirements](../1-requirements/README.md)** - System requirements and specifications
+- **[Design](../2-design/README.md)** - Architecture and design documentation
+- **[Implementation](../3-implementation/README.md)** - Implementation guides and code documentation
+- **[Testing](../4-testing/README.md)** - Testing strategies and results
 
-1. **Be Specific**: Provide clear context when asking for AI assistance
-2. **Iterate**: Refine AI outputs through follow-up questions
-3. **Verify**: Always review and validate AI suggestions
-4. **Learn**: Use AI explanations to build your own understanding
-5. **Combine Approaches**: Use AI alongside your own expertise and judgment
+### Project Management
 
-### Example AI Interaction Flow {id="ai-assistance-strategy-example-ai-interaction-flow"}
+- **[Planning & Execution](../0-planning-and-execution/README.md)** - Project planning and tracking
+- **[Traceability](../A-traceability/README.md)** - Compliance and traceability documentation
 
-1. **Initial Query**: "Based on this project description, what functional requirements should I consider?"
-2. **Follow-up**: "Can you help me prioritize these requirements using the MoSCoW method?"
-3. **Refinement**: "For this specific requirement, what edge cases should I consider?"
-4. **Implementation**: "Help me design a class structure to implement this requirement."
-5. **Validation**: "Review this implementation for potential issues or improvements."
+## Quick Reference
 
-## Adapting the Process
+### For New Developers
 
-This simplified SDLC can be adapted based on:
+1. Review [Project Overview](../README.md) for context
+2. Check [Implementation Guidelines](../3-implementation/README.md) for setup
+3. Follow [Development Processes](../processes/simplified-sdlc-process.md) for workflow
 
-- **Project Size**: For very small projects, further simplify documentation
-- **Technical Domain**: Add domain-specific activities for specialized areas
-- **Personal Preferences**: Adjust to match your working style and strengths
-- **Time Constraints**: Focus on the most critical elements when time is limited
+### For Quality Assurance
 
-Remember that the goal is to maintain software quality while eliminating unnecessary overhead for a solo developer working with AI assistance.
+1. Use [Testing Processes](../processes/simplified-testing-approach.md) for strategy
+2. Apply [Test Templates](../templates/README.md) for documentation
+3. Follow [Testing Guidelines](../4-testing/README.md) for execution
 
-## Quick Navigation
+### For Project Management
 
-### For Solo Developers
+1. Track progress with [Project Tracking](../0-planning-and-execution/project-tracking.md)
+2. Monitor compliance via [Traceability](../A-traceability/README.md)
+3. Plan releases using [Roadmap](../0-planning-and-execution/roadmap.md)
 
-- Start with [Simplified SDLC Process](simplified-sdlc-process.md) for overall framework
-- Use [Simplified Testing Approach](simplified-testing-approach.md) for quality assurance
-- Follow [Simplified UX/UI Design Guide](simplified-ux-ui-design-guide.md) for user experience
+## Continuous Improvement
 
-### For Project Planning
+These guidelines evolve with the project:
 
-- Review [Process Checklist](../0-planning-and-execution/simplified-process-checklist.md) for tracking progress
-- Check [Project Tracking](../0-planning-and-execution/project-tracking.md) for current status
-
-### For Implementation
-
-- See [Implementation Guidelines](../3-implementation/README.md) for development practices
-- Review [Technical Architecture](../2-design/technical-architecture.md) for system design
-
-## Document Maintenance
-
-As you use this process, you may identify improvements or adaptations that work better for your specific context. Feel free to:
-
-1. Update these documents with your own insights
-2. Add new templates or guides for specific needs
-3. Refine the AI prompts based on what works best
-4. Share your improvements with the community
-
-## Getting Help
-
-If you encounter challenges while using this process:
-
-1. Review the detailed documentation for the specific phase
-2. Use the AI prompts provided to get assistance
-3. Adapt the process as needed for your specific situation
-4. Remember that the process serves you, not the other way around
+- **Regular Review**: Assess guideline effectiveness quarterly
+- **Team Feedback**: Incorporate lessons learned from development
+- **Industry Updates**: Stay current with best practices and standards
+- **Tool Evolution**: Adapt to new tools and technologies as appropriate
