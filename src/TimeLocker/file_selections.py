@@ -211,6 +211,61 @@ class FileSelection:
         """Get the set of exclusion patterns"""
         return self._exclude_patterns.copy()
 
+    def to_restic_args(self) -> List[str]:
+        """
+        Convert file selection to restic command arguments
+
+        Returns:
+            List[str]: List of command line arguments for restic backup command
+        """
+        args = []
+
+        # Add include paths (these are positional arguments for restic backup)
+        for path in self._includes:
+            args.append(str(path))
+
+        # Add exclude patterns
+        for pattern in self._exclude_patterns:
+            args.extend(["--exclude", pattern])
+
+        # Add exclude paths
+        for path in self._excludes:
+            args.extend(["--exclude", str(path)])
+
+        # Add include patterns (if any - restic doesn't have explicit include patterns,
+        # but we can use them to filter the included paths)
+        # Note: Restic backup works by specifying paths to backup, then excluding patterns
+
+        return args
+
+    def get_backup_paths(self) -> List[str]:
+        """
+        Get the list of paths to backup (for restic positional arguments)
+
+        Returns:
+            List[str]: List of paths to include in backup
+        """
+        return [str(path) for path in self._includes]
+
+    def get_exclude_args(self) -> List[str]:
+        """
+        Get exclude arguments for restic command
+
+        Returns:
+            List[str]: List of --exclude arguments
+        """
+        args = []
+
+        # Add exclude patterns
+        for pattern in self._exclude_patterns:
+            args.extend(["--exclude", pattern])
+
+        # Add exclude paths
+        for path in self._excludes:
+            args.extend(["--exclude", str(path)])
+
+        return args
+
     def __repr__(self) -> str:
         return (f"<FileSelection includes={self._includes}, "
                 f"excludes={self._excludes}, "

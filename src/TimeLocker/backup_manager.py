@@ -27,6 +27,7 @@ logger = logging.getLogger("restic")
 class BackupManagerError(Exception):
     pass
 
+
 class BackupManager:
     """Central manager for backup operations and plugin registration"""
 
@@ -53,8 +54,8 @@ class BackupManager:
     def list_registered_backends(self) -> Dict[str, List[str]]:
         """List all registered backends and their supported repository types"""
         return {
-            name: list(types.keys())
-            for name, types in self._repository_factories.items()
+                name: list(types.keys())
+                for name, types in self._repository_factories.items()
         }
 
     @classmethod
@@ -63,16 +64,29 @@ class BackupManager:
         parsed = urlparse(uri)
         scheme = parsed.scheme.lower()
 
-        # Repository classes are registered here
-        repo_classes = getattr(cls.from_uri, 'repo_classes', {
-            's3': None,  # Will be set in tests
-            'b2': None,
-            'local': None,
-            '': None
-        })
+        # Import repository classes with graceful handling of optional dependencies
+        from TimeLocker.restic.Repositories.local import LocalResticRepository
+
+        repo_classes = {
+                'local': LocalResticRepository,
+                '':      LocalResticRepository  # Default to local for empty scheme
+        }
+
+        # Try to import optional cloud storage repositories
+        try:
+            from TimeLocker.restic.Repositories.s3 import S3ResticRepository
+            repo_classes['s3'] = S3ResticRepository
+        except ImportError:
+            logger.warning("S3 support not available - missing dependencies")
+
+        try:
+            from TimeLocker.restic.Repositories.b2 import B2ResticRepository
+            repo_classes['b2'] = B2ResticRepository
+        except ImportError:
+            logger.warning("B2 support not available - missing dependencies")
 
         if scheme not in repo_classes:
-            raise BackupManagerError(f"Unsupported repository scheme: {scheme}") # Implement UnsupportedSchemeError
+            raise BackupManagerError(f"Unsupported repository scheme: {scheme}")
 
         repo_class = repo_classes[scheme]
         return repo_class.from_parsed_uri(parsed, password)
