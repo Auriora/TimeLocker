@@ -34,12 +34,10 @@ class S3ResticRepository(ResticRepository):
         aws_secret_access_key: Optional[str] = None,
         aws_default_region: Optional[str] = None,
     ):
-        super().__init__(location, password)
-        self.aws_access_key_id = aws_access_key_id or os.getenv("AWS_ACCESS_KEY_ID")
-        self.aws_secret_access_key = aws_secret_access_key or os.getenv(
-            "AWS_SECRET_ACCESS_KEY"
-        )
-        self.aws_default_region = aws_default_region or os.getenv("AWS_DEFAULT_REGION")
+        super().__init__(location, password=password)
+        self.aws_access_key_id = aws_access_key_id if aws_access_key_id is not None else os.getenv("AWS_ACCESS_KEY_ID")
+        self.aws_secret_access_key = aws_secret_access_key if aws_secret_access_key is not None else os.getenv("AWS_SECRET_ACCESS_KEY")
+        self.aws_default_region = aws_default_region if aws_default_region is not None else os.getenv("AWS_DEFAULT_REGION")
 
     @classmethod
     def from_parsed_uri(
@@ -48,7 +46,7 @@ class S3ResticRepository(ResticRepository):
         bucket = parsed_uri.netloc
         path = parsed_uri.path.lstrip("/")
         location = f"s3:{bucket}/{path}"
-        query_params = parse_qs(parsed_uri.query)
+        query_params = parse_qs(parsed_uri.query, keep_blank_values=True)
 
         return cls(
             location=location,

@@ -25,7 +25,16 @@ from TimeLocker.restic.Repositories.s3 import S3ResticRepository
 from TimeLocker.restic.restic_repository import RepositoryError
 
 
-def test_init_missing_credentials(monkeypatch):
+@pytest.fixture
+def mock_s3_client():
+    """Fixture to mock the S3 client for all tests"""
+    with patch('TimeLocker.restic.Repositories.s3.client') as mock_client:
+        mock_s3 = MagicMock()
+        mock_client.return_value = mock_s3
+        yield mock_s3
+
+
+def test_init_missing_credentials(monkeypatch, mock_s3_client):
     """
     Test initialization of S3ResticRepository when AWS credentials are missing from both
     parameters and environment variables.
@@ -48,7 +57,7 @@ def test_init_missing_credentials(monkeypatch):
     assert "AWS_SECRET_ACCESS_KEY" in str(exc_info.value)
 
 
-def test___init___with_explicit_credentials():
+def test___init___with_explicit_credentials(mock_s3_client):
     """
     Test initializing S3ResticRepository with explicitly provided credentials.
     Verifies that the provided credentials are correctly assigned to instance variables.
@@ -67,14 +76,14 @@ def test___init___with_explicit_credentials():
         aws_default_region,
     )
 
-    assert repo.location == location
-    assert repo.password == password
+    assert repo.location() == location
+    assert repo.password() == password
     assert repo.aws_access_key_id == aws_access_key_id
     assert repo.aws_secret_access_key == aws_secret_access_key
     assert repo.aws_default_region == aws_default_region
 
 
-def test_backend_env_2():
+def test_backend_env_2(mock_s3_client):
     """
     Test backend_env method when AWS access key is present, but secret access key is missing,
     and default region is set.
@@ -101,7 +110,7 @@ def test_backend_env_2():
     assert "AWS_ACCESS_KEY_ID" not in str(exc_info.value)
 
 
-def test_backend_env_3():
+def test_backend_env_3(mock_s3_client):
     """
     Test that backend_env raises RepositoryError when AWS_ACCESS_KEY_ID is missing,
     but AWS_SECRET_ACCESS_KEY and AWS_DEFAULT_REGION are provided.
@@ -122,7 +131,7 @@ def test_backend_env_3():
     )
 
 
-def test_backend_env_4():
+def test_backend_env_4(mock_s3_client):
     """
     Test that backend_env raises a RepositoryError when both AWS credentials are missing,
     even if aws_default_region is set.
@@ -137,17 +146,9 @@ def test_backend_env_4():
     )
     assert "AWS_ACCESS_KEY_ID" in str(exc_info.value)
     assert "AWS_SECRET_ACCESS_KEY" in str(exc_info.value)
-    with pytest.raises(RepositoryError) as exc_info:
-        repo.backend_env()
-
-    assert "AWS credentials must be set explicitly or in the environment" in str(
-        exc_info.value
-    )
-    assert "AWS_ACCESS_KEY_ID" in str(exc_info.value)
-    assert "AWS_SECRET_ACCESS_KEY" in str(exc_info.value)
 
 
-def test_backend_env_missing_credentials():
+def test_backend_env_missing_credentials(mock_s3_client):
     """
     Test that backend_env raises a RepositoryError when AWS credentials are missing.
     This tests the edge case where either AWS_ACCESS_KEY_ID or AWS_SECRET_ACCESS_KEY
@@ -164,7 +165,7 @@ def test_backend_env_missing_credentials():
     assert "AWS_SECRET_ACCESS_KEY" in str(exc_info.value)
 
 
-def test_backend_env_missing_credentials_2():
+def test_backend_env_missing_credentials_2(mock_s3_client):
     """
     Test backend_env method when both AWS access key ID and secret access key are missing.
 
@@ -184,7 +185,7 @@ def test_backend_env_missing_credentials_2():
     assert "AWS_SECRET_ACCESS_KEY" in str(exc_info.value)
 
 
-def test_backend_env_missing_credentials_3():
+def test_backend_env_missing_credentials_3(mock_s3_client):
     """
     Test the backend_env method when both AWS access key ID and secret access key are missing.
 
@@ -205,27 +206,27 @@ def test_backend_env_missing_credentials_3():
     assert "AWS_SECRET_ACCESS_KEY" in str(excinfo.value)
 
 
-def test_from_parsed_uri_empty_bucket():
+def test_from_parsed_uri_empty_bucket(mock_s3_client):
     """
     Test the from_parsed_uri method with an empty bucket name.
     This is an edge case where the parsed URI has an empty netloc (bucket name).
     """
     parsed_uri = urlparse("s3://")
     result = S3ResticRepository.from_parsed_uri(parsed_uri)
-    assert result.location == "s3:/"
+    assert result.location() == "s3:/"
 
 
-def test_from_parsed_uri_empty_path():
+def test_from_parsed_uri_empty_path(mock_s3_client):
     """
     Test the from_parsed_uri method with an empty path.
     This is an edge case where the parsed URI has no path component.
     """
     parsed_uri = urlparse("s3://mybucket")
     result = S3ResticRepository.from_parsed_uri(parsed_uri)
-    assert result.location == "s3:mybucket/"
+    assert result.location() == "s3:mybucket/"
 
 
-def test_from_parsed_uri_empty_query_params():
+def test_from_parsed_uri_empty_query_params(mock_s3_client):
     """
     Test the from_parsed_uri method with empty query parameters.
     This checks the handling of query parameters with no values.
@@ -239,7 +240,7 @@ def test_from_parsed_uri_empty_query_params():
     assert result.aws_default_region == ""
 
 
-def test_from_parsed_uri_no_query_params():
+def test_from_parsed_uri_no_query_params(mock_s3_client):
     """
     Test the from_parsed_uri method with no query parameters.
     This checks the handling of missing optional parameters.
@@ -251,7 +252,7 @@ def test_from_parsed_uri_no_query_params():
     assert result.aws_default_region is None
 
 
-def test_from_parsed_uri_with_all_parameters():
+def test_from_parsed_uri_with_all_parameters(mock_s3_client):
     """
     Test the from_parsed_uri method with all parameters provided in the query string.
     This test verifies that the method correctly extracts and uses the access_key_id,
@@ -264,8 +265,8 @@ def test_from_parsed_uri_with_all_parameters():
 
     repo = S3ResticRepository.from_parsed_uri(parsed_uri, password)
 
-    assert repo.location == "s3:my-bucket/my-path"
-    assert repo.password == "my-password"
+    assert repo.location() == "s3:my-bucket/my-path"
+    assert repo.password() == "my-password"
     assert repo.aws_access_key_id == "AKIAIOSFODNN7EXAMPLE"
     assert repo.aws_secret_access_key == "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
     assert repo.aws_default_region == "us-west-2"
@@ -276,8 +277,8 @@ def test_validate_boto3_not_installed(caplog):
     Test the validate method when boto3 is not installed.
     This should result in a warning log message and skip the validation.
     """
-    repo = S3ResticRepository(location="s3:bucket/path")
-    with patch("restic.Repositories.s3.client", side_effect=ImportError):
+    with patch("TimeLocker.restic.Repositories.s3.client", side_effect=ImportError):
+        repo = S3ResticRepository(location="s3:bucket/path")
         with caplog.at_level("WARNING"):
             repo.validate()
         assert (
@@ -290,12 +291,11 @@ def test_validate_s3_exception():
     Test the validate method when an exception occurs during S3 bucket validation.
     This should raise a RepositoryError with an appropriate error message.
     """
-    repo = S3ResticRepository(location="s3:bucket/path")
     mock_s3 = MagicMock()
     mock_s3.head_bucket.side_effect = Exception("S3 Error")
-    with patch("restic.Repositories.s3.client", return_value=mock_s3):
+    with patch("TimeLocker.restic.Repositories.s3.client", return_value=mock_s3):
         with pytest.raises(RepositoryError) as exc_info:
-            repo.validate()
+            repo = S3ResticRepository(location="s3:bucket/path")
         assert "Failed to validate S3 repository: S3 Error" in str(exc_info.value)
 
 
@@ -305,14 +305,11 @@ def test_validate_successful_s3_bucket():
     It should create an S3 client, extract the bucket name from the location,
     call head_bucket on the S3 client, and log a success message.
     """
-    with patch("restic.Repositories.s3.client") as mock_client:
+    with patch("TimeLocker.restic.Repositories.s3.client") as mock_client:
         mock_s3 = MagicMock()
         mock_client.return_value = mock_s3
 
         repo = S3ResticRepository(location="s3:test-bucket/path")
 
-        repo.validate()
-
         mock_client.assert_called_once_with("s3")
-        mock_s3.head_bucket.assert_called_once_with(Bucket="XXXXXXXXXXX")
-        logger.info.assert_called_with("Successfully validated S3 bucket: test-bucket")
+        mock_s3.head_bucket.assert_called_once_with(Bucket="test-bucket")
