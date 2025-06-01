@@ -282,14 +282,26 @@ class NotificationService:
 
     def _send_windows_notification(self, title: str, message: str):
         """Send notification on Windows using PowerShell"""
+        # Escape quotes and special characters for PowerShell
+        escaped_title = title.replace('"', '""').replace("'", "''")
+        escaped_message = message.replace('"', '""').replace("'", "''")
+
+        # Use a more robust PowerShell approach with proper error handling
         script = f'''
-        Add-Type -AssemblyName System.Windows.Forms
-        $notification = New-Object System.Windows.Forms.NotifyIcon
-        $notification.Icon = [System.Drawing.SystemIcons]::Information
-        $notification.BalloonTipTitle = "{title}"
-        $notification.BalloonTipText = "{message}"
-        $notification.Visible = $true
-        $notification.ShowBalloonTip(5000)
+        try {{
+            Add-Type -AssemblyName System.Windows.Forms
+            $notification = New-Object System.Windows.Forms.NotifyIcon
+            $notification.Icon = [System.Drawing.SystemIcons]::Information
+            $notification.BalloonTipTitle = "{escaped_title}"
+            $notification.BalloonTipText = "{escaped_message}"
+            $notification.Visible = $true
+            $notification.ShowBalloonTip(5000)
+            Start-Sleep -Seconds 1
+            $notification.Dispose()
+        }} catch {{
+            Write-Error "Failed to show notification: $_"
+            exit 1
+        }}
         '''
         subprocess.run(["powershell", "-Command", script], check=True)
 
