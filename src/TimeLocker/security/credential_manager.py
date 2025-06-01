@@ -21,6 +21,7 @@ import base64
 import time
 import hashlib
 import secrets
+import threading
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
@@ -75,6 +76,9 @@ class CredentialManager:
         self._last_failed_attempt: Optional[float] = None
         self._max_failed_attempts = 5
         self._lockout_duration = 300  # 5 minutes
+
+        # Thread safety for concurrent access
+        self._file_lock = threading.RLock()
 
         # Initialize audit logging
         self._initialize_audit_log()
@@ -240,26 +244,27 @@ class CredentialManager:
         if not repository_id or not password:
             raise CredentialManagerError("Repository ID and password cannot be empty")
 
-        try:
-            credentials = self._load_credentials()
-            if "repositories" not in credentials:
-                credentials["repositories"] = {}
+        with self._file_lock:
+            try:
+                credentials = self._load_credentials()
+                if "repositories" not in credentials:
+                    credentials["repositories"] = {}
 
-            # Add metadata for credential tracking
-            credentials["repositories"][repository_id] = {
-                    "password":      password,
-                    "type":          "repository",
-                    "created_at":    datetime.now().isoformat(),
-                    "last_accessed": datetime.now().isoformat(),
-                    "access_count":  0
-            }
+                # Add metadata for credential tracking
+                credentials["repositories"][repository_id] = {
+                        "password":      password,
+                        "type":          "repository",
+                        "created_at":    datetime.now().isoformat(),
+                        "last_accessed": datetime.now().isoformat(),
+                        "access_count":  0
+                }
 
-            self._save_credentials(credentials)
-            self._log_audit_event("store_repository_password", repository_id, success=True)
+                self._save_credentials(credentials)
+                self._log_audit_event("store_repository_password", repository_id, success=True)
 
-        except Exception as e:
-            self._log_audit_event("store_repository_password", repository_id, success=False, details=str(e))
-            raise
+            except Exception as e:
+                self._log_audit_event("store_repository_password", repository_id, success=False, details=str(e))
+                raise
 
     def get_repository_password(self, repository_id: str) -> Optional[str]:
         """
@@ -273,26 +278,27 @@ class CredentialManager:
         """
         self._check_auto_lock()
 
-        try:
-            credentials = self._load_credentials()
-            repo_creds = credentials.get("repositories", {}).get(repository_id)
+        with self._file_lock:
+            try:
+                credentials = self._load_credentials()
+                repo_creds = credentials.get("repositories", {}).get(repository_id)
 
-            if repo_creds:
-                # Update access tracking
-                repo_creds["last_accessed"] = datetime.now().isoformat()
-                repo_creds["access_count"] = repo_creds.get("access_count", 0) + 1
-                self._save_credentials(credentials)
+                if repo_creds:
+                    # Update access tracking
+                    repo_creds["last_accessed"] = datetime.now().isoformat()
+                    repo_creds["access_count"] = repo_creds.get("access_count", 0) + 1
+                    self._save_credentials(credentials)
 
-                self._log_audit_event("get_repository_password", repository_id, success=True)
-                return repo_creds.get("password")
-            else:
-                self._log_audit_event("get_repository_password", repository_id, success=False,
-                                      details="Repository not found")
-                return None
+                    self._log_audit_event("get_repository_password", repository_id, success=True)
+                    return repo_creds.get("password")
+                else:
+                    self._log_audit_event("get_repository_password", repository_id, success=False,
+                                          details="Repository not found")
+                    return None
 
-        except Exception as e:
-            self._log_audit_event("get_repository_password", repository_id, success=False, details=str(e))
-            raise
+            except Exception as e:
+                self._log_audit_event("get_repository_password", repository_id, success=False, details=str(e))
+                raise
 
     def store_backend_credentials(self, backend_type: str, credentials_dict: Dict[str, str]) -> None:
         """
@@ -330,21 +336,22 @@ class CredentialManager:
     def remove_repository(self, repository_id: str) -> bool:
         """
         Remove stored credentials for a repository
-        
+
         Args:
             repository_id: Unique identifier for the repository
-            
+
         Returns:
             bool: True if removed, False if not found
         """
-        credentials = self._load_credentials()
-        repositories = credentials.get("repositories", {})
+        with self._file_lock:
+            credentials = self._load_credentials()
+            repositories = credentials.get("repositories", {})
 
-        if repository_id in repositories:
-            del repositories[repository_id]
-            self._save_credentials(credentials)
-            return True
-        return False
+            if repository_id in repositories:
+                del repositories[repository_id]
+                self._save_credentials(credentials)
+                return True
+            return False
 
     def is_locked(self) -> bool:
         """Check if credential store is locked"""
