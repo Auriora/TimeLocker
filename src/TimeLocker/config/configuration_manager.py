@@ -366,6 +366,15 @@ class ConfigurationManager:
             logger.error(f"Failed to save configuration to {config_path}: {e}")
             return False
 
+    def get_configuration(self) -> Dict[str, Any]:
+        """
+        Get the complete configuration data
+
+        Returns:
+            Dict: Complete configuration data
+        """
+        return self._config.copy()
+
     def get_config_summary(self) -> Dict[str, Any]:
         """Get a summary of current configuration"""
         summary = {

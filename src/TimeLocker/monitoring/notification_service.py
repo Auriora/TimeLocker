@@ -440,3 +440,43 @@ class NotificationService:
                 results['email'] = False
 
         return results
+
+    def notify(self, title: str, message: str, level: str = "info") -> bool:
+        """
+        Simple notification method for backward compatibility
+
+        Args:
+            title: Notification title
+            message: Notification message
+            level: Notification level (info, success, warning, error, critical)
+
+        Returns:
+            bool: True if notification was sent successfully
+        """
+        try:
+            # Map string level to StatusLevel
+            level_map = {
+                "info": StatusLevel.INFO,
+                "success": StatusLevel.SUCCESS,
+                "warning": StatusLevel.WARNING,
+                "error": StatusLevel.ERROR,
+                "critical": StatusLevel.CRITICAL
+            }
+
+            status_level = level_map.get(level.lower(), StatusLevel.INFO)
+
+            # Create a simple OperationStatus for the notification
+            status = OperationStatus(
+                operation_id="manual_notification",
+                operation_type="notification",
+                status=status_level,
+                message=message,
+                timestamp=datetime.now()
+            )
+
+            self.send_notification(status)
+            return True
+
+        except Exception as e:
+            logger.error(f"Failed to send notification: {e}")
+            return False
