@@ -266,6 +266,273 @@
         "current_attempt": 1,
         "successful_attempt": 1
       }
+    },
+    {
+      "operation_id": "backup_retry_140651798290528_1748774330.094407",
+      "operation_type": "backup_with_retry",
+      "start_time": "2025-06-01T12:38:50.094430",
+      "end_time": "2025-06-01T12:38:50.094643",
+      "duration_seconds": 0.000213,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 0,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {
+        "max_retries": 3,
+        "targets_count": 1,
+        "current_attempt": 1,
+        "successful_attempt": 1
+      }
+    },
+    {
+      "operation_id": "backup_retry_140651798486032_1748774330.2006218",
+      "operation_type": "backup_with_retry",
+      "start_time": "2025-06-01T12:38:50.200646",
+      "end_time": "2025-06-01T12:38:50.301622",
+      "duration_seconds": 0.100976,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 1,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {
+        "max_retries": 2,
+        "targets_count": 1,
+        "current_attempt": 2,
+        "successful_attempt": 2
+      }
+    },
+    {
+      "operation_id": "backup_retry_140651798369520_1748774330.4068925",
+      "operation_type": "backup_with_retry",
+      "start_time": "2025-06-01T12:38:50.406920",
+      "end_time": "2025-06-01T12:38:50.709208",
+      "duration_seconds": 0.302288,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 3,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {
+        "max_retries": 2,
+        "targets_count": 1,
+        "current_attempt": 3
+      }
+    },
+    {
+      "operation_id": "backup_retry_140651798545568_1748774330.8133476",
+      "operation_type": "backup_with_retry",
+      "start_time": "2025-06-01T12:38:50.813364",
+      "end_time": "2025-06-01T12:38:50.813843",
+      "duration_seconds": 0.000479,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 0,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {
+        "max_retries": 3,
+        "targets_count": 1,
+        "current_attempt": 1,
+        "successful_attempt": 1
+      }
+    },
+    {
+      "operation_id": "backup_retry_140651798548208_1748774330.9183517",
+      "operation_type": "backup_with_retry",
+      "start_time": "2025-06-01T12:38:50.918364",
+      "end_time": "2025-06-01T12:38:50.918514",
+      "duration_seconds": 0.00015,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 0,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {
+        "max_retries": 3,
+        "targets_count": 1,
+        "current_attempt": 1,
+        "successful_attempt": 1
+      }
+    },
+    {
+      "operation_id": "backup_retry_130522657739296_1748774690.053203",
+      "operation_type": "backup_with_retry",
+      "start_time": "2025-06-01T12:44:50.053216",
+      "end_time": "2025-06-01T12:44:50.053386",
+      "duration_seconds": 0.00017,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 0,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {
+        "max_retries": 3,
+        "targets_count": 1,
+        "current_attempt": 1,
+        "successful_attempt": 1
+      }
+    },
+    {
+      "operation_id": "backup_retry_130522657666352_1748774690.1561575",
+      "operation_type": "backup_with_retry",
+      "start_time": "2025-06-01T12:44:50.156166",
+      "end_time": "2025-06-01T12:44:50.256909",
+      "duration_seconds": 0.100743,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 1,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {
+        "max_retries": 2,
+        "targets_count": 1,
+        "current_attempt": 2,
+        "successful_attempt": 2
+      }
+    },
+    {
+      "operation_id": "backup_retry_130522657749856_1748774690.3601537",
+      "operation_type": "backup_with_retry",
+      "start_time": "2025-06-01T12:44:50.360161",
+      "end_time": "2025-06-01T12:44:50.661542",
+      "duration_seconds": 0.301381,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 3,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {
+        "max_retries": 2,
+        "targets_count": 1,
+        "current_attempt": 3
+      }
+    },
+    {
+      "operation_id": "backup_retry_130522657818672_1748774690.767379",
+      "operation_type": "backup_with_retry",
+      "start_time": "2025-06-01T12:44:50.767394",
+      "end_time": "2025-06-01T12:44:50.767614",
+      "duration_seconds": 0.00022,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 0,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {
+        "max_retries": 3,
+        "targets_count": 1,
+        "current_attempt": 1,
+        "successful_attempt": 1
+      }
+    },
+    {
+      "operation_id": "backup_retry_130522657823904_1748774690.8714383",
+      "operation_type": "backup_with_retry",
+      "start_time": "2025-06-01T12:44:50.871447",
+      "end_time": "2025-06-01T12:44:50.871757",
+      "duration_seconds": 0.00031,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 0,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {
+        "max_retries": 3,
+        "targets_count": 1,
+        "current_attempt": 1,
+        "successful_attempt": 1
+      }
+    },
+    {
+      "operation_id": "backup_retry_134987607169296_1748778347.0761347",
+      "operation_type": "backup_with_retry",
+      "start_time": "2025-06-01T13:45:47.076152",
+      "end_time": "2025-06-01T13:45:47.076353",
+      "duration_seconds": 0.000201,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 0,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {
+        "max_retries": 3,
+        "targets_count": 1,
+        "current_attempt": 1,
+        "successful_attempt": 1
+      }
+    },
+    {
+      "operation_id": "backup_retry_134987591790768_1748778347.1803036",
+      "operation_type": "backup_with_retry",
+      "start_time": "2025-06-01T13:45:47.180321",
+      "end_time": "2025-06-01T13:45:47.281492",
+      "duration_seconds": 0.101171,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 1,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {
+        "max_retries": 2,
+        "targets_count": 1,
+        "current_attempt": 2,
+        "successful_attempt": 2
+      }
+    },
+    {
+      "operation_id": "backup_retry_134987591892768_1748778347.385401",
+      "operation_type": "backup_with_retry",
+      "start_time": "2025-06-01T13:45:47.385408",
+      "end_time": "2025-06-01T13:45:47.687429",
+      "duration_seconds": 0.302021,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 3,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {
+        "max_retries": 2,
+        "targets_count": 1,
+        "current_attempt": 3
+      }
+    },
+    {
+      "operation_id": "backup_retry_134987620455184_1748778347.7934983",
+      "operation_type": "backup_with_retry",
+      "start_time": "2025-06-01T13:45:47.793520",
+      "end_time": "2025-06-01T13:45:47.793756",
+      "duration_seconds": 0.000236,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 0,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {
+        "max_retries": 3,
+        "targets_count": 1,
+        "current_attempt": 1,
+        "successful_attempt": 1
+      }
+    },
+    {
+      "operation_id": "backup_retry_134987591996896_1748778347.8970044",
+      "operation_type": "backup_with_retry",
+      "start_time": "2025-06-01T13:45:47.897013",
+      "end_time": "2025-06-01T13:45:47.897157",
+      "duration_seconds": 0.000144,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 0,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {
+        "max_retries": 3,
+        "targets_count": 1,
+        "current_attempt": 1,
+        "successful_attempt": 1
+      }
     }
   ]
 }
