@@ -282,28 +282,47 @@ class NotificationService:
 
     def _send_windows_notification(self, title: str, message: str):
         """Send notification on Windows using PowerShell"""
-        # Escape quotes and special characters for PowerShell
-        escaped_title = title.replace('"', '""').replace("'", "''")
-        escaped_message = message.replace('"', '""').replace("'", "''")
+        try:
+            # Escape quotes and special characters for PowerShell
+            escaped_title = title.replace('"', '""').replace("'", "''")
+            escaped_message = message.replace('"', '""').replace("'", "''")
 
-        # Use a more robust PowerShell approach with proper error handling
-        script = f'''
-        try {{
-            Add-Type -AssemblyName System.Windows.Forms
-            $notification = New-Object System.Windows.Forms.NotifyIcon
-            $notification.Icon = [System.Drawing.SystemIcons]::Information
-            $notification.BalloonTipTitle = "{escaped_title}"
-            $notification.BalloonTipText = "{escaped_message}"
-            $notification.Visible = $true
-            $notification.ShowBalloonTip(5000)
-            Start-Sleep -Seconds 1
-            $notification.Dispose()
-        }} catch {{
-            Write-Error "Failed to show notification: $_"
-            exit 1
-        }}
-        '''
-        subprocess.run(["powershell", "-Command", script], check=True)
+            # Use a more robust PowerShell approach with proper error handling
+            script = f'''
+            try {{
+                Add-Type -AssemblyName System.Windows.Forms
+                $notification = New-Object System.Windows.Forms.NotifyIcon
+                $notification.Icon = [System.Drawing.SystemIcons]::Information
+                $notification.BalloonTipTitle = "{escaped_title}"
+                $notification.BalloonTipText = "{escaped_message}"
+                $notification.Visible = $true
+                $notification.ShowBalloonTip(5000)
+                Start-Sleep -Seconds 1
+                $notification.Dispose()
+            }} catch {{
+                Write-Error "Failed to show notification: $_"
+                exit 1
+            }}
+            '''
+
+            # Run PowerShell with additional error handling
+            result = subprocess.run(
+                ["powershell", "-Command", script],
+                check=False,  # Don't raise exception on non-zero exit
+                capture_output=True,
+                text=True,
+                timeout=10  # 10 second timeout
+            )
+
+            if result.returncode != 0:
+                logger.warning(f"PowerShell notification failed: {result.stderr}")
+
+        except subprocess.TimeoutExpired:
+            logger.warning("Windows notification timed out")
+        except FileNotFoundError:
+            logger.warning("PowerShell not found - Windows notifications unavailable")
+        except Exception as e:
+            logger.warning(f"Windows notification failed: {e}")
 
     def _send_email_notification(self, title: str, message: str, status: OperationStatus):
         """Send email notification"""
