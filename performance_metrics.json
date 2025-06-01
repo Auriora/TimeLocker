@@ -533,6 +533,97 @@
         "current_attempt": 1,
         "successful_attempt": 1
       }
+    },
+    {
+      "operation_id": "backup_perf_1748783688",
+      "operation_type": "backup_performance_test",
+      "start_time": "2025-06-01T15:14:48.999784",
+      "end_time": "2025-06-01T15:14:49.100165",
+      "duration_seconds": 0.100381,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 0,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {}
+    },
+    {
+      "operation_id": "large_fileset_1748783848",
+      "operation_type": "large_fileset_processing",
+      "start_time": "2025-06-01T15:17:28.755634",
+      "end_time": "2025-06-01T15:17:28.901419",
+      "duration_seconds": 0.145785,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 0,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {}
+    },
+    {
+      "operation_id": "backup_perf_1748783849",
+      "operation_type": "backup_performance_test",
+      "start_time": "2025-06-01T15:17:29.599353",
+      "end_time": "2025-06-01T15:17:29.699706",
+      "duration_seconds": 0.100353,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 0,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {}
+    },
+    {
+      "operation_id": "e2e_large_dataset_1748783851",
+      "operation_type": "large_dataset_backup_restore",
+      "start_time": "2025-06-01T15:17:31.186157",
+      "end_time": "2025-06-01T15:17:31.230810",
+      "duration_seconds": 0.044653,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 0,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {}
+    },
+    {
+      "operation_id": "e2e_large_dataset_1748784926",
+      "operation_type": "large_dataset_backup_restore",
+      "start_time": "2025-06-01T15:35:26.614828",
+      "end_time": "2025-06-01T15:35:26.670627",
+      "duration_seconds": 0.055799,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 0,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {}
+    },
+    {
+      "operation_id": "large_fileset_1748784928",
+      "operation_type": "large_fileset_processing",
+      "start_time": "2025-06-01T15:35:28.614115",
+      "end_time": "2025-06-01T15:35:28.776156",
+      "duration_seconds": 0.162041,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 0,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {}
+    },
+    {
+      "operation_id": "backup_perf_1748784929",
+      "operation_type": "backup_performance_test",
+      "start_time": "2025-06-01T15:35:29.621277",
+      "end_time": "2025-06-01T15:35:29.721574",
+      "duration_seconds": 0.100297,
+      "files_processed": 0,
+      "bytes_processed": 0,
+      "errors_count": 0,
+      "throughput_files_per_sec": 0.0,
+      "throughput_mb_per_sec": 0.0,
+      "metadata": {}
     }
   ]
 }

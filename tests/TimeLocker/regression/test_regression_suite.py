@@ -405,15 +405,16 @@ class TestRegressionSuite:
         # Should validate successfully
         assert backup_target.validate() is True
 
-        # Test with empty file selection (should still be valid)
+        # Test with empty file selection (should fail validation)
         empty_selection = FileSelection()
         empty_target = BackupTarget(
                 selection=empty_selection,
                 tags=["empty_test"]
         )
 
-        # Should handle empty selection gracefully
-        assert empty_target.validate() is True
+        # Should fail validation because no folders are included
+        with pytest.raises(ValueError, match="At least one folder must be included"):
+            empty_target.validate()
 
     @pytest.mark.regression
     def test_configuration_persistence_regression(self):

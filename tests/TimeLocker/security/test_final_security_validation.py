@@ -370,10 +370,10 @@ class TestFinalSecurityValidation:
                 }
         ]
 
-        for config in invalid_configs:
+        for i, config in enumerate(invalid_configs):
             result = self.security_service.validate_security_config(config)
-            assert result["valid"] is False
-            assert len(result["issues"]) > 0
+            assert result["valid"] is False, f"Config {i} should be invalid but got valid=True: {result}"
+            assert len(result["issues"]) > 0, f"Config {i} should have issues but got: {result}"
 
     @pytest.mark.security
     def test_security_event_tampering_protection(self):
