@@ -151,8 +151,8 @@ pip install timelocker[aws,b2,dev]
 git clone https://github.com/Auriora/TimeLocker.git
 cd TimeLocker
 
-# Install in development mode
-pip install -e .
+# Install in development mode with all dependencies
+pip install -e .[dev]
 ```
 
 For detailed installation instructions, including platform-specific guidance, configuration, and troubleshooting, please refer to
