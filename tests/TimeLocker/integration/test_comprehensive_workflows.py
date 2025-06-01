@@ -462,6 +462,28 @@ class TestComprehensiveWorkflows:
         ]
 
         for error_type, error_message in error_scenarios:
+            with patch.object(self.backup_manager, 'create_backup') as mock_backup:
+                # Simulate error
+                mock_backup.side_effect = Exception(error_message)
+
+                # Attempt backup and verify error handling
+                with pytest.raises(Exception) as exc_info:
+                    self.backup_manager.create_backup(
+                            targets=[self.backup_target],
+                            backup_type="full"
+                    )
+
+                assert error_message in str(exc_info.value)
+
+                # Verify error was logged
+                audit_log = self.security_service.audit_log_file
+                if audit_log.exists():
+                    with open(audit_log, 'r') as f:
+                        content = f.read()
+                        # Should contain error logging
+                        assert "ERROR" in content or "FAILED" in content
+
+        for error_type, error_message in error_scenarios:
             with patch.object(self.integration_service, '_execute_backup_operation') as mock_backup:
                 mock_backup.side_effect = Exception(error_message)
 
