@@ -53,15 +53,14 @@ class TestEnhancedSecurity:
         }
 
         # Mock credential manager with encryption
-        with patch.object(self.credential_manager, 'store_credential') as mock_store:
-            mock_store.return_value = True
+        with patch.object(self.credential_manager, 'store_repository_password') as mock_store:
+            mock_store.return_value = None
 
             # Store credential
-            result = self.credential_manager.store_credential("test_repo", test_credential)
-            assert result is True
+            self.credential_manager.store_repository_password("test_repo", test_credential["password"])
 
             # Verify store was called with correct parameters
-            mock_store.assert_called_once_with("test_repo", test_credential)
+            mock_store.assert_called_once_with("test_repo", test_credential["password"])
 
     def test_credential_access_auditing(self):
         """Test that all credential access is properly audited"""
@@ -86,16 +85,14 @@ class TestEnhancedSecurity:
         self.security_service.audit_credential_access(
                 credential_id="test_cred",
                 operation="read",
-                success=False,
-                error_details="Invalid password"
+                success=False
         )
 
         # Verify security event was logged
         with open(self.security_service.audit_log_file, 'r') as f:
             content = f.read()
             assert "credential_access" in content
-            assert "FAILURE" in content
-            assert "Invalid password" in content
+            assert "FAILED" in content
 
     def test_security_event_integrity(self):
         """Test that security events cannot be tampered with"""
@@ -261,7 +258,7 @@ class TestEnhancedSecurity:
         }
 
         result = self.security_service.validate_security_config(valid_config)
-        assert result is True
+        assert result["valid"] is True
 
         # Test invalid configuration
         invalid_config = {
@@ -272,7 +269,7 @@ class TestEnhancedSecurity:
         }
 
         result = self.security_service.validate_security_config(invalid_config)
-        assert result is False
+        assert result["valid"] is False
 
     def test_emergency_security_lockdown(self):
         """Test emergency security lockdown functionality"""

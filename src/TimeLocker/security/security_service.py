@@ -103,7 +103,7 @@ class SecurityService:
             with open(self.audit_log_file, 'w') as f:
                 f.write("# TimeLocker Security Audit Log\n")
                 f.write(f"# Initialized: {datetime.now().isoformat()}\n")
-                f.write("# Format: timestamp|event_type|level|description|metadata\n")
+                f.write("# Format: timestamp|event_type|level|description|user_id|repository_id|metadata\n")
 
     def add_event_handler(self, handler: Callable[[SecurityEvent], None]):
         """Add a security event handler"""
@@ -128,6 +128,8 @@ class SecurityService:
                     f"{event.event_type}|"
                     f"{event.level.value}|"
                     f"{event.description}|"
+                    f"{event.user_id or ''}|"
+                    f"{event.repository_id or ''}|"
                     f"{event.metadata or {} }"
             )
 
@@ -321,26 +323,48 @@ class SecurityService:
             logger.error(f"Failed to generate security summary: {e}")
             raise SecurityError(f"Failed to generate security summary: {e}")
 
-    def audit_backup_operation(self, repository, operation_type: str, targets: List[str],
-                               success: bool, metadata: Optional[Dict[str, Any]] = None):
+    def audit_backup_operation(self, repository=None, operation_type: str = None, targets: List[str] = None,
+                               success: bool = True, metadata: Optional[Dict[str, Any]] = None,
+                               operation_id: str = None, repository_id: str = None, status: str = None,
+                               file_count: int = None, total_size: int = None):
         """
         Audit backup operations for security monitoring
 
         Args:
-            repository: Repository instance
+            repository: Repository instance (optional)
             operation_type: Type of backup operation (full, incremental, etc.)
-            targets: List of backup targets
+            targets: List of backup targets (optional)
             success: Whether the operation was successful
             metadata: Additional operation metadata
+            operation_id: ID of the backup operation
+            repository_id: ID of the repository
+            status: Status of the operation
+            file_count: Number of files in the backup
+            total_size: Total size of the backup
         """
         try:
-            audit_metadata = {
-                    "operation_type":      operation_type,
-                    "target_count":        len(targets),
-                    "targets":             targets[:5],  # Limit to first 5 for logging
-                    "success":             success,
-                    "repository_location": str(getattr(repository, '_location', 'unknown'))
-            }
+            # Handle both old and new calling conventions
+            if operation_id or repository_id or status or file_count or total_size:
+                # New calling convention from tests
+                audit_metadata = {
+                        "operation_id":   operation_id,
+                        "operation_type": operation_type,
+                        "status":         status,
+                        "file_count":     file_count,
+                        "total_size":     total_size,
+                        "success":        success
+                }
+                repo_id = repository_id or (getattr(repository, 'id', str(repository._location)) if repository else 'unknown')
+            else:
+                # Original calling convention
+                audit_metadata = {
+                        "operation_type":      operation_type,
+                        "target_count":        len(targets) if targets else 0,
+                        "targets":             targets[:5] if targets else [],  # Limit to first 5 for logging
+                        "success":             success,
+                        "repository_location": str(getattr(repository, '_location', 'unknown')) if repository else 'unknown'
+                }
+                repo_id = getattr(repository, 'id', str(repository._location)) if repository else 'unknown'
 
             if metadata:
                 audit_metadata.update(metadata)
@@ -349,33 +373,54 @@ class SecurityService:
                     timestamp=datetime.now(),
                     event_type="backup_operation",
                     level=SecurityLevel.MEDIUM if success else SecurityLevel.HIGH,
-                    description=f"Backup operation {operation_type}: {'SUCCESS' if success else 'FAILED'}",
-                    repository_id=getattr(repository, 'id', str(repository._location)),
+                    description=f"Backup operation {operation_type or 'unknown'}: {'SUCCESS' if success else 'FAILED'}",
+                    repository_id=repo_id,
                     metadata=audit_metadata
             ))
 
         except Exception as e:
             logger.error(f"Failed to audit backup operation: {e}")
 
-    def audit_restore_operation(self, repository, snapshot_id: str, target_path: str,
-                                success: bool, metadata: Optional[Dict[str, Any]] = None):
+    def audit_restore_operation(self, repository=None, snapshot_id: str = None, target_path: str = None,
+                                success: bool = True, metadata: Optional[Dict[str, Any]] = None,
+                                operation_id: str = None, repository_id: str = None, status: str = None,
+                                files_restored: int = None):
         """
         Audit restore operations for security monitoring
 
         Args:
-            repository: Repository instance
+            repository: Repository instance (optional)
             snapshot_id: ID of the snapshot being restored
             target_path: Target path for restore
             success: Whether the operation was successful
             metadata: Additional operation metadata
+            operation_id: ID of the restore operation
+            repository_id: ID of the repository
+            status: Status of the operation
+            files_restored: Number of files restored
         """
         try:
-            audit_metadata = {
-                    "snapshot_id":         snapshot_id,
-                    "target_path":         str(target_path),
-                    "success":             success,
-                    "repository_location": str(getattr(repository, '_location', 'unknown'))
-            }
+            # Handle both old and new calling conventions
+            if operation_id or repository_id or status or files_restored:
+                # New calling convention from tests
+                audit_metadata = {
+                        "operation_id":    operation_id,
+                        "snapshot_id":     snapshot_id,
+                        "target_path":     str(target_path) if target_path else None,
+                        "status":          status,
+                        "files_restored":  files_restored,
+                        "success":         success
+                }
+                repo_id = repository_id or (getattr(repository, 'id', str(repository._location)) if repository else 'unknown')
+            else:
+                # Original calling convention
+                audit_metadata = {
+                        "snapshot_id":         snapshot_id,
+                        "target_path":         str(target_path) if target_path else None,
+                        "success":             success,
+                        "repository_location": str(getattr(repository, '_location', 'unknown')) if repository else 'unknown'
+                }
+                repo_id = getattr(repository, 'id', str(repository._location)) if repository else 'unknown'
 
             if metadata:
                 audit_metadata.update(metadata)
@@ -385,7 +430,7 @@ class SecurityService:
                     event_type="restore_operation",
                     level=SecurityLevel.HIGH,  # Restore operations are always high security
                     description=f"Restore operation: {'SUCCESS' if success else 'FAILED'}",
-                    repository_id=getattr(repository, 'id', str(repository._location)),
+                    repository_id=repo_id,
                     metadata=audit_metadata
             ))
 
@@ -478,13 +523,14 @@ class SecurityService:
             validation_result["issues"].append(f"Validation error: {str(e)}")
             return validation_result
 
-    def emergency_lockdown(self, reason: str, metadata: Optional[Dict[str, Any]] = None) -> bool:
+    def emergency_lockdown(self, reason: str, metadata: Optional[Dict[str, Any]] = None, triggered_by: str = None) -> bool:
         """
         Initiate emergency lockdown procedures
 
         Args:
             reason: Reason for the emergency lockdown
             metadata: Additional metadata about the emergency
+            triggered_by: Who or what triggered the lockdown
 
         Returns:
             bool: True if lockdown was successful
@@ -492,6 +538,7 @@ class SecurityService:
         try:
             lockdown_metadata = {
                     "reason":           reason,
+                    "triggered_by":     triggered_by,
                     "initiated_at":     datetime.now().isoformat(),
                     "lockdown_actions": []
             }
@@ -553,56 +600,84 @@ class SecurityService:
                 pass  # If we can't even log, we're in serious trouble
             return False
 
-    def audit_integrity_check(self, repository, check_type: str, success: bool,
-                              results: Optional[Dict[str, Any]] = None):
+    def audit_integrity_check(self, repository=None, check_type: str = None, success: bool = None,
+                              results: Optional[Dict[str, Any]] = None, file_path: str = None,
+                              expected_hash: str = None, actual_hash: str = None, status: str = None, **kwargs):
         """
         Audit integrity check operations
 
         Args:
-            repository: Repository instance
+            repository: Repository instance (for original calling convention)
             check_type: Type of integrity check (full, snapshot, metadata, etc.)
             success: Whether the check was successful
             results: Results of the integrity check
+            file_path: Path to the file being checked (for simplified calling convention)
+            expected_hash: Expected hash value
+            actual_hash: Actual hash value
+            status: Status of the check (passed/failed)
         """
         try:
-            audit_metadata = {
-                    "check_type":          check_type,
-                    "success":             success,
-                    "repository_location": str(getattr(repository, '_location', 'unknown')),
-                    "check_timestamp":     datetime.now().isoformat()
-            }
-
-            if results:
-                # Include key results but limit size for logging
-                audit_metadata["results_summary"] = {
-                        "errors_found":   results.get("errors_found", 0),
-                        "warnings_found": results.get("warnings_found", 0),
-                        "items_checked":  results.get("items_checked", 0),
-                        "check_duration": results.get("check_duration", 0)
+            # Determine which calling convention is being used
+            if repository is not None and check_type is not None and success is not None:
+                # Original calling convention
+                audit_metadata = {
+                        "check_type":          check_type,
+                        "success":             success,
+                        "repository_location": str(getattr(repository, '_location', 'unknown')),
+                        "check_timestamp":     datetime.now().isoformat()
                 }
 
-                # Include first few errors/warnings for context
-                if "errors" in results and results["errors"]:
-                    audit_metadata["sample_errors"] = results["errors"][:3]
-                if "warnings" in results and results["warnings"]:
-                    audit_metadata["sample_warnings"] = results["warnings"][:3]
+                if results:
+                    # Include key results but limit size for logging
+                    audit_metadata["results_summary"] = {
+                            "errors_found":   results.get("errors_found", 0),
+                            "warnings_found": results.get("warnings_found", 0),
+                            "items_checked":  results.get("items_checked", 0),
+                            "check_duration": results.get("check_duration", 0)
+                    }
 
-            # Determine security level based on results
-            if not success:
-                level = SecurityLevel.CRITICAL
-            elif results and results.get("errors_found", 0) > 0:
-                level = SecurityLevel.HIGH
-            elif results and results.get("warnings_found", 0) > 0:
-                level = SecurityLevel.MEDIUM
+                    # Include first few errors/warnings for context
+                    if "errors" in results and results["errors"]:
+                        audit_metadata["sample_errors"] = results["errors"][:3]
+                    if "warnings" in results and results["warnings"]:
+                        audit_metadata["sample_warnings"] = results["warnings"][:3]
+
+                # Determine security level based on results
+                if not success:
+                    level = SecurityLevel.CRITICAL
+                elif results and results.get("errors_found", 0) > 0:
+                    level = SecurityLevel.HIGH
+                elif results and results.get("warnings_found", 0) > 0:
+                    level = SecurityLevel.MEDIUM
+                else:
+                    level = SecurityLevel.LOW
+
+                description = f"Integrity check {check_type}: {'SUCCESS' if success else 'FAILED'}"
+                repo_id = getattr(repository, 'id', str(repository._location))
             else:
-                level = SecurityLevel.LOW
+                # Simplified calling convention
+                audit_metadata = {
+                        "file_path":      file_path,
+                        "expected_hash":  expected_hash,
+                        "actual_hash":    actual_hash,
+                        "status":         status,
+                        "check_timestamp": datetime.now().isoformat()
+                }
+
+                # Add any additional kwargs to metadata
+                audit_metadata.update(kwargs)
+
+                success = status == "passed" if status else (expected_hash == actual_hash)
+                level = SecurityLevel.LOW if success else SecurityLevel.HIGH
+                description = f"Integrity check: {status or ('PASSED' if success else 'FAILED')}"
+                repo_id = None
 
             self.log_security_event(SecurityEvent(
                     timestamp=datetime.now(),
                     event_type="integrity_check",
                     level=level,
-                    description=f"Integrity check {check_type}: {'SUCCESS' if success else 'FAILED'}",
-                    repository_id=getattr(repository, 'id', str(repository._location)),
+                    description=description,
+                    repository_id=repo_id,
                     metadata=audit_metadata
             ))
 
