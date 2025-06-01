@@ -1,0 +1,143 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "timelocker"
+version = "1.0.0"
+description = "High-level Python interface for backup operations using Restic"
+readme = "README.md"
+license = { text = "GPL-3.0" }
+authors = [
+    { name = "Bruce Cherrington", email = "bruce.cherrington@outlook.com" }
+]
+maintainers = [
+    { name = "Bruce Cherrington", email = "bruce.cherrington@outlook.com" }
+]
+keywords = [
+    "backup", "restic", "archive", "storage", "cloud", "encryption",
+    "deduplication", "incremental", "snapshot", "restore", "recovery",
+    "aws", "s3", "backblaze", "b2", "security", "automation"
+]
+classifiers = [
+    # Development Status
+    "Development Status :: 5 - Production/Stable",
+    # Intended Audience
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Intended Audience :: End Users/Desktop",
+    # Topic
+    "Topic :: System :: Archiving :: Backup",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Utilities",
+    # License
+    "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
+    # Operating System
+    "Operating System :: OS Independent",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    # Programming Language
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3 :: Only",
+    # Environment
+    "Environment :: Console",
+    "Environment :: No Input/Output (Daemon)",
+    # Natural Language
+    "Natural Language :: English",
+]
+requires-python = ">=3.12"
+dependencies = [
+    "packaging~=24.2",
+    "b2sdk~=2.8.0",
+    "boto3~=1.37.29",
+    "plantuml~=0.3.0",
+    "cryptography~=44.0.1",
+    "typing_extensions>=4.9.0",
+    "typer>=0.12.0",
+    "rich>=13.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.5",
+    "pytest-cov>=6.0.0",
+    "pytest-mock>=3.14.0",
+    "pytest-xdist>=3.6.0",
+    "pytest-benchmark>=4.0.0",
+]
+aws = ["boto3>=1.37.29"]
+b2 = ["b2sdk>=2.8.0"]
+diagrams = ["plantuml>=0.3.0"]
+
+[project.scripts]
+timelocker = "TimeLocker.cli:main"
+tl = "TimeLocker.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/Auriora/TimeLocker"
+"Bug Reports" = "https://github.com/Auriora/TimeLocker/issues"
+Source = "https://github.com/Auriora/TimeLocker"
+Documentation = "https://github.com/Auriora/TimeLocker/tree/main/docs"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+TimeLocker = [
+    "restic/*.json",
+    "config/*.json",
+    "*.md",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "--verbose",
+    "--tb=short",
+    "--cov=TimeLocker",
+    "--cov-report=term-missing",
+    "--cov-report=html:test-results/coverage",
+    "--cov-report=xml:test-results/coverage.xml",
+]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/venv/*",
+    "*/.venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "if settings.DEBUG",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if 0:",
+    "if __name__ == .__main__.:",
+    "class .*\\bProtocol\\):",
+    "@(abc\\.)?abstractmethod",
+]

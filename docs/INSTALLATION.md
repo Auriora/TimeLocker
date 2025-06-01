@@ -104,6 +104,27 @@ brew install restic
 
 ### Installing TimeLocker
 
+#### Option 1: From PyPI (Recommended)
+
+```bash
+# Basic installation
+pip install timelocker
+
+# With development dependencies
+pip install timelocker[dev]
+
+# With AWS S3 support
+pip install timelocker[aws]
+
+# With Backblaze B2 support
+pip install timelocker[b2]
+
+# With all optional dependencies
+pip install timelocker[aws,b2,dev]
+```
+
+#### Option 2: From Source (Development)
+
 1. Clone the repository:
 
 ```bash
@@ -111,32 +132,50 @@ git clone https://github.com/Auriora/TimeLocker.git
 cd TimeLocker
 ```
 
-2. Install dependencies:
+2. Install in development mode:
 
 ```bash
-pip install -r requirements.txt
+# Install with all development dependencies
+pip install -e .[dev]
 ```
 
 3. Verify the installation:
 
 ```bash
-# Set PYTHONPATH for development installation
-export PYTHONPATH=src
+# Test CLI commands
+timelocker --help
+tl --help
 
 # Test basic import
 python -c "from TimeLocker.backup_manager import BackupManager; print('TimeLocker installed successfully')"
 
 # Run full test suite to verify installation
-python -m pytest --tb=short
+pytest --tb=short
 
 # Check test coverage
-python -m pytest --cov=TimeLocker --cov-report=term-missing
+pytest --cov=TimeLocker --cov-report=term-missing
 ```
 
 Expected results:
 
 - All 367 tests should pass
 - Test coverage should be ≥ 80% (currently 83.3%)
+
+#### Modern Python Packaging
+
+TimeLocker uses modern Python packaging standards:
+
+- **pyproject.toml**: Modern configuration file following PEP 517/518 standards
+- **Editable installs**: Development installations use modern editable install method
+- **Optional dependencies**: Organized into logical groups (dev, aws, b2, diagrams)
+- **Entry points**: CLI commands (`timelocker` and `tl`) are automatically installed
+
+This approach provides:
+
+- Faster and more reliable installations
+- Better dependency resolution
+- Improved compatibility with modern Python tools
+- No deprecation warnings
 
 ## Configuration
 
