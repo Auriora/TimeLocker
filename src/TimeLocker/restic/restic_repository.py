@@ -54,7 +54,7 @@ class ResticRepository(BackupRepository):
         self.validate()
         self._command = self._command.param("repo", self.uri)
 
-    def _verify_restic_executable(self, min_version: str) -> str | None:
+    def _verify_restic_executable(self, min_version: str) -> Optional[str]:
         try:
             logger.info("Verifying restic executable...")
             # Build version command - json is a global parameter, so add it first
