@@ -128,15 +128,31 @@ This project is intended for:
 
 ### Installation
 
-For basic installation:
+#### From PyPI (Recommended)
+
+```bash
+# Basic installation
+pip install timelocker
+
+# With AWS S3 support
+pip install timelocker[aws]
+
+# With Backblaze B2 support
+pip install timelocker[b2]
+
+# With all optional dependencies
+pip install timelocker[aws,b2,dev]
+```
+
+#### From Source
 
 ```bash
 # Clone the repository
 git clone https://github.com/Auriora/TimeLocker.git
 cd TimeLocker
 
-# Install dependencies
-pip install -r requirements.txt
+# Install in development mode
+pip install -e .
 ```
 
 For detailed installation instructions, including platform-specific guidance, configuration, and troubleshooting, please refer to
@@ -144,26 +160,51 @@ our [Installation Guide](docs/INSTALLATION.md).
 
 ### Quick Start
 
+#### Command Line Interface
+
+```bash
+# Initialize a new repository
+timelocker init --repository /path/to/repo --password mypassword
+
+# Create a backup
+timelocker backup --repository /path/to/repo --password mypassword /home/user/documents
+
+# List snapshots
+timelocker list --repository /path/to/repo --password mypassword
+
+# Restore from backup
+timelocker restore --repository /path/to/repo --password mypassword --snapshot abc123 /restore/path
+```
+
+#### Python API
+
 ```python
-from TimeLocker.backup_manager import BackupManager
-from TimeLocker.backup_target import BackupTarget
-from TimeLocker.file_selections import FileSelection, SelectionType
+from TimeLocker import BackupManager, BackupTarget, FileSelection, SelectionType
 
 # Initialize backup manager
 manager = BackupManager()
 
-# Create a backup target
-selection = FileSelection()
-selection.add_path("/path/to/backup")
-selection.add_pattern("*.txt", SelectionType.INCLUDE)
-selection.add_pattern("*.tmp", SelectionType.EXCLUDE)
-target = BackupTarget(selection, tags=["documents"])
+# Create backup target
+target = BackupTarget(
+    name="my_backup",
+    source_paths=["/home/user/documents"],
+    repository_uri="local:/path/to/repo",
+    password="mypassword"
+)
 
-# Create and initialize repository
-repo = manager.from_uri("s3:bucket-name/backup", password="your-password")
+# Add file selections
+target.add_file_selection(FileSelection(
+    pattern="*.txt",
+    selection_type=SelectionType.INCLUDE
+))
+target.add_file_selection(FileSelection(
+    pattern="*.tmp",
+    selection_type=SelectionType.EXCLUDE
+))
 
 # Perform backup
-repo.backup(target)
+result = manager.backup(target, tags=["documents"])
+print(f"Backup completed: {result.success}")
 ```
 
 ### More Detailed Examples
