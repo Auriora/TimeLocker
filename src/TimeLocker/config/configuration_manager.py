@@ -330,6 +330,42 @@ class ConfigurationManager:
             logger.error(f"Failed to import configuration: {e}")
             return False
 
+    def load_configuration(self, config_path: str) -> Dict[str, Any]:
+        """
+        Load configuration from a specific file path
+
+        Args:
+            config_path: Path to configuration file
+
+        Returns:
+            Dict: Loaded configuration data
+        """
+        try:
+            with open(config_path, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            logger.error(f"Failed to load configuration from {config_path}: {e}")
+            return {}
+
+    def save_configuration(self, config_data: Dict[str, Any], config_path: str) -> bool:
+        """
+        Save configuration data to a specific file path
+
+        Args:
+            config_data: Configuration data to save
+            config_path: Path to save configuration file
+
+        Returns:
+            bool: True if successful
+        """
+        try:
+            with open(config_path, 'w') as f:
+                json.dump(config_data, f, indent=2, default=str)
+            return True
+        except Exception as e:
+            logger.error(f"Failed to save configuration to {config_path}: {e}")
+            return False
+
     def get_config_summary(self) -> Dict[str, Any]:
         """Get a summary of current configuration"""
         summary = {
