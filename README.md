@@ -132,8 +132,8 @@ For basic installation:
 
 ```bash
 # Clone the repository
-git clone <repository-url>
-cd timelocker
+git clone https://github.com/Auriora/TimeLocker.git
+cd TimeLocker
 
 # Install dependencies
 pip install -r requirements.txt
