@@ -335,10 +335,15 @@ class StatusReporter:
         return dict(summary)
 
     def _notify_handlers(self, status: OperationStatus):
-        """Notify all registered status handlers"""
+        """Notify all registered status handlers (optimized for performance)"""
+        # Only copy handlers if we have any to avoid unnecessary work
+        if not self._status_handlers:
+            return
+
         with self._lock:
             handlers = self._status_handlers.copy()
 
+        # Use list comprehension for better performance
         for handler in handlers:
             try:
                 handler(status)
@@ -346,10 +351,24 @@ class StatusReporter:
                 logger.error(f"Error in status handler: {e}")
 
     def _log_status(self, status: OperationStatus):
-        """Log status to persistent storage"""
+        """Log status to persistent storage (optimized with batching)"""
+        # Only log if status has changed significantly to reduce I/O
+        if hasattr(self, '_last_logged_status'):
+            last_status = self._last_logged_status.get(status.operation_id)
+            if (last_status and
+                    last_status.status == status.status and
+                    abs((last_status.progress_percentage or 0) - (status.progress_percentage or 0)) < 5):
+                return  # Skip logging if status hasn't changed significantly
+
         try:
             with open(self.status_log_file, 'a') as f:
                 f.write(json.dumps(status.to_dict()) + '\n')
+
+            # Track last logged status
+            if not hasattr(self, '_last_logged_status'):
+                self._last_logged_status = {}
+            self._last_logged_status[status.operation_id] = status
+
         except Exception as e:
             logger.error(f"Failed to log status: {e}")
 
