@@ -121,6 +121,7 @@ markers = [
     "performance: marks tests as performance tests",
     "regression: marks tests as regression tests",
     "security: marks tests as security tests",
+    "stress: marks tests as stress tests",
 ]
 
 [tool.coverage.run]
