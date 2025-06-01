@@ -23,6 +23,29 @@ from urllib.parse import urlparse
 from TimeLocker.backup_repository import BackupRepository
 from TimeLocker.backup_target import BackupTarget
 
+try:
+    from TimeLocker.performance.profiler import profile_operation
+    from TimeLocker.performance.metrics import start_operation_tracking, update_operation_tracking, complete_operation_tracking
+except ImportError:
+    # Fallback for when performance module is not available
+    def profile_operation(name):
+        def decorator(func):
+            return func
+
+        return decorator
+
+
+    def start_operation_tracking(operation_id, operation_type, metadata=None):
+        return None
+
+
+    def update_operation_tracking(operation_id, files_processed=None, bytes_processed=None, errors_count=None, metadata=None):
+        pass
+
+
+    def complete_operation_tracking(operation_id):
+        return None
+
 logger = logging.getLogger("restic")
 
 
@@ -99,6 +122,7 @@ class BackupManager:
         redacted_netloc = f"{parsed.hostname}[:*****]" if parsed.username else parsed.netloc
         return parsed._replace(netloc=redacted_netloc).geturl()
 
+    @profile_operation("execute_backup_with_retry")
     def execute_backup_with_retry(self,
                                   repository: BackupRepository,
                                   targets: List[BackupTarget],
@@ -123,42 +147,53 @@ class BackupManager:
         Raises:
             BackupManagerError: If backup fails after all retries
         """
+        operation_id = f"backup_retry_{id(repository)}_{time.time()}"
+        metrics = start_operation_tracking(operation_id, "backup_with_retry",
+                                           metadata={"max_retries": max_retries, "targets_count": len(targets)})
+
         last_exception = None
         current_delay = retry_delay
 
-        for attempt in range(max_retries + 1):
-            try:
-                logger.info(f"Backup attempt {attempt + 1}/{max_retries + 1}")
+        try:
+            for attempt in range(max_retries + 1):
+                try:
+                    logger.info(f"Backup attempt {attempt + 1}/{max_retries + 1}")
+                    update_operation_tracking(operation_id, metadata={"current_attempt": attempt + 1})
 
-                # Validate targets before attempting backup
-                for target in targets:
-                    target.validate()
+                    # Validate targets before attempting backup
+                    for target in targets:
+                        target.validate()
 
-                # Execute backup
-                result = repository.backup_target(targets, tags)
+                    # Execute backup
+                    result = repository.backup_target(targets, tags)
 
-                # Verify backup if successful
-                if result and "snapshot_id" in result:
-                    if self.verify_backup_integrity(repository, result["snapshot_id"]):
-                        logger.info(f"Backup completed successfully on attempt {attempt + 1}")
-                        return result
+                    # Verify backup if successful
+                    if result and "snapshot_id" in result:
+                        if self.verify_backup_integrity(repository, result["snapshot_id"]):
+                            logger.info(f"Backup completed successfully on attempt {attempt + 1}")
+                            update_operation_tracking(operation_id, metadata={"successful_attempt": attempt + 1})
+                            return result
+                        else:
+                            raise BackupManagerError("Backup verification failed")
+
+                    return result
+
+                except Exception as e:
+                    last_exception = e
+                    logger.warning(f"Backup attempt {attempt + 1} failed: {e}")
+                    update_operation_tracking(operation_id, errors_count=attempt + 1)
+
+                    if attempt < max_retries:
+                        logger.info(f"Retrying in {current_delay} seconds...")
+                        time.sleep(current_delay)
+                        current_delay *= backoff_multiplier
                     else:
-                        raise BackupManagerError("Backup verification failed")
+                        logger.error(f"All backup attempts failed. Last error: {e}")
 
-                return result
+            raise BackupManagerError(f"Backup failed after {max_retries + 1} attempts: {last_exception}")
 
-            except Exception as e:
-                last_exception = e
-                logger.warning(f"Backup attempt {attempt + 1} failed: {e}")
-
-                if attempt < max_retries:
-                    logger.info(f"Retrying in {current_delay} seconds...")
-                    time.sleep(current_delay)
-                    current_delay *= backoff_multiplier
-                else:
-                    logger.error(f"All backup attempts failed. Last error: {e}")
-
-        raise BackupManagerError(f"Backup failed after {max_retries + 1} attempts: {last_exception}")
+        finally:
+            complete_operation_tracking(operation_id)
 
     def verify_backup_integrity(self,
                                 repository: BackupRepository,
