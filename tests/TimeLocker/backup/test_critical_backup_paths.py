@@ -316,29 +316,46 @@ class TestCriticalBackupPaths:
 
     def test_backup_with_unicode_filenames(self):
         """Test backup behavior with Unicode filenames"""
+        import sys
+
         # Create files with Unicode characters
         unicode_files = [
                 "файл.txt",  # Cyrillic
                 "文件.txt",  # Chinese
                 "ファイル.txt",  # Japanese
                 "αρχείο.txt",  # Greek
-                "🎉emoji🎊.txt"  # Emoji
         ]
 
+        # Add emoji files only on non-Windows platforms
+        # Windows file systems have more restrictions on Unicode characters
+        if sys.platform != "win32":
+            unicode_files.append("🎉emoji🎊.txt")  # Emoji
+
+        created_files = []
         for filename in unicode_files:
             try:
                 unicode_file = self.source_path / filename
                 unicode_file.write_text(f"Content of {filename}")
 
                 # Verify file was created
-                assert unicode_file.exists()
+                if unicode_file.exists():
+                    created_files.append(unicode_file)
 
-            except (UnicodeError, OSError):
+            except (UnicodeError, OSError, ValueError) as e:
                 # Skip individual files that can't be created
+                # This is expected on some platforms/file systems
                 continue
+
+        # Only proceed with test if at least one Unicode file was created
+        if not created_files:
+            pytest.skip("No Unicode filenames could be created on this platform")
 
         selection = FileSelection()
         selection.add_path(self.source_path, SelectionType.INCLUDE)
+
+        # Verify that the selection can handle Unicode filenames
+        effective_paths = selection.get_effective_paths()
+        assert len(effective_paths["included"]) > 0
 
     def test_concurrent_backup_operations(self):
         """Test behavior when multiple backup operations run concurrently"""
