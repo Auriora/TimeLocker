@@ -352,25 +352,31 @@ class StatusReporter:
 
     def _log_status(self, status: OperationStatus):
         """Log status to persistent storage (optimized with batching)"""
-        # Only log if status has changed significantly to reduce I/O
+        # Always log completion status and significant status changes
+        should_log = True
+
         if hasattr(self, '_last_logged_status'):
             last_status = self._last_logged_status.get(status.operation_id)
             if (last_status and
                     last_status.status == status.status and
-                    abs((last_status.progress_percentage or 0) - (status.progress_percentage or 0)) < 5):
-                return  # Skip logging if status hasn't changed significantly
+                    status.progress_percentage is not None and
+                    last_status.progress_percentage is not None and
+                    abs(last_status.progress_percentage - status.progress_percentage) < 5 and
+                    status.progress_percentage < 100):  # Always log completion (100%)
+                should_log = False  # Skip logging if status hasn't changed significantly
 
-        try:
-            with open(self.status_log_file, 'a') as f:
-                f.write(json.dumps(status.to_dict()) + '\n')
+        if should_log:
+            try:
+                with open(self.status_log_file, 'a') as f:
+                    f.write(json.dumps(status.to_dict()) + '\n')
 
-            # Track last logged status
-            if not hasattr(self, '_last_logged_status'):
-                self._last_logged_status = {}
-            self._last_logged_status[status.operation_id] = status
+                # Track last logged status
+                if not hasattr(self, '_last_logged_status'):
+                    self._last_logged_status = {}
+                self._last_logged_status[status.operation_id] = status
 
-        except Exception as e:
-            logger.error(f"Failed to log status: {e}")
+            except Exception as e:
+                logger.error(f"Failed to log status: {e}")
 
     def _save_current_operations(self):
         """Save current operations to disk"""

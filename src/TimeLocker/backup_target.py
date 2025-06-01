@@ -24,19 +24,32 @@ class BackupTarget:
     """Represents a backup target with paths and metadata"""
 
     def __init__(self,
-                 selection: FileSelection,
-                 tags: List[str] = None):
+                 selection: FileSelection = None,
+                 tags: List[str] = None,
+                 name: str = None,
+                 **kwargs):
         """
         Initialize a backup target
 
         Args:
             selection: FileSelection instance defining what to backup
             tags: Optional list of tags to associate with this backup target
+            name: Optional name for the backup target (for backward compatibility)
+            **kwargs: Additional parameters for backward compatibility
         """
+        # Handle backward compatibility for old API
+        if selection is None and 'source_paths' in kwargs:
+            # Create FileSelection from old API parameters
+            from TimeLocker.file_selections import SelectionType
+            selection = FileSelection()
+            for path in kwargs.get('source_paths', []):
+                selection.add_path(path, SelectionType.INCLUDE)
+
         if selection is None:
             raise AttributeError("selection cannot be None")
         self.selection = selection
         self.tags = tags or []
+        self.name = name
 
     def validate(self) -> bool:
         """

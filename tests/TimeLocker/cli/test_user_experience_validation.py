@@ -16,6 +16,7 @@ from typer.testing import CliRunner
 from TimeLocker.cli import app
 from TimeLocker.config import ConfigurationManager
 from TimeLocker.monitoring import StatusReporter
+from TimeLocker.monitoring.status_reporter import StatusLevel
 
 
 class TestUserExperienceValidation:
@@ -143,8 +144,8 @@ class TestUserExperienceValidation:
                 # Complete the operation
                 try:
                     status_reporter.complete_operation(
-                            operation=scenario["operation"],
-                            success=True,
+                            operation_id=f"{scenario['operation']}_test",
+                            status=StatusLevel.SUCCESS,
                             message=f"Completed {scenario['operation']}"
                     )
                 except AttributeError:
