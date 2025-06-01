@@ -43,7 +43,13 @@ jobs:
         if:   matrix.os == 'ubuntu-latest'
         run:  |
               sudo apt-get update
-              sudo apt-get install -y restic
+              # Install restic 0.18.0 or later (Ubuntu repos have older version)
+              RESTIC_VERSION="0.18.0"
+              wget https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_linux_amd64.bz2
+              bunzip2 restic_${RESTIC_VERSION}_linux_amd64.bz2
+              sudo mv restic_${RESTIC_VERSION}_linux_amd64 /usr/local/bin/restic
+              sudo chmod +x /usr/local/bin/restic
+              restic version
 
       - name: Install system dependencies (macOS)
         if:   matrix.os == 'macos-latest'
@@ -169,7 +175,13 @@ jobs:
               python -m pip install --upgrade pip
               pip install -r requirements.txt
               sudo apt-get update
-              sudo apt-get install -y restic
+              # Install restic 0.18.0 or later (Ubuntu repos have older version)
+              RESTIC_VERSION="0.18.0"
+              wget https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_linux_amd64.bz2
+              bunzip2 restic_${RESTIC_VERSION}_linux_amd64.bz2
+              sudo mv restic_${RESTIC_VERSION}_linux_amd64 /usr/local/bin/restic
+              sudo chmod +x /usr/local/bin/restic
+              restic version
 
       - name: Run performance benchmarks
         env:
