@@ -270,5 +270,9 @@ class TestEnhancedFileSelection:
 
         repr_str = repr(selection)
         assert "FileSelection" in repr_str
-        assert str(self.test_dir) in repr_str
+        # Check for path in a platform-independent way - the path should be present
+        # either as forward slashes (Unix/repr) or backslashes (Windows/str)
+        test_dir_str = str(self.test_dir)
+        test_dir_posix = self.test_dir.as_posix()
+        assert test_dir_str in repr_str or test_dir_posix in repr_str
         assert "*.tmp" in repr_str
