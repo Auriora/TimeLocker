@@ -20,6 +20,24 @@ Brief description of the changes in this PR.
 - [ ] Test coverage maintained or improved
 - [ ] Manual testing completed
 
+## Security Impact
+
+- [ ] No sensitive data exposed in logs or error messages
+- [ ] Encryption/decryption functionality tested
+- [ ] No security vulnerabilities introduced
+
+## Data Safety
+
+- [ ] Backup integrity verified
+- [ ] Recovery operations tested
+- [ ] No data loss scenarios identified
+
+## Performance Impact
+
+- [ ] Backup/restore performance tested
+- [ ] Memory usage verified for large files
+- [ ] No significant performance regression
+
 ## Checklist
 
 - [ ] Code follows the project's coding standards
