@@ -274,24 +274,24 @@ class TestFinalPerformanceValidation:
         mock_repository.id = "performance_test_repo"
         mock_repository.is_repository_initialized.return_value = True
 
-        # Create backup target
+        # Create backup target with proper file selection
+        from TimeLocker.file_selections import FileSelection, SelectionType
+        selection = FileSelection()
+        selection.add_path(self.large_dataset_dir, SelectionType.INCLUDE)
+
         backup_target = BackupTarget(
-                name="performance_test_target",
-                paths=[str(self.large_dataset_dir)],
-                repository=mock_repository
+                selection=selection,
+                tags=["performance_test"]
         )
 
         # Initialize backup manager
-        backup_manager = BackupManager(
-                repository=mock_repository,
-                credential_manager=Mock()
-        )
+        backup_manager = BackupManager()
 
         # Simulate backup operation with performance tracking
         operation_id = f"backup_perf_{int(time.time())}"
         metrics = start_operation_tracking(operation_id, "backup_performance_test")
 
-        with patch.object(backup_manager, 'create_backup') as mock_backup:
+        with patch.object(backup_manager, 'create_full_backup') as mock_backup:
             # Simulate realistic backup timing
             def simulate_backup(*args, **kwargs):
                 time.sleep(0.1)  # Simulate processing time
@@ -309,9 +309,9 @@ class TestFinalPerformanceValidation:
 
             # Perform backup
             start_time = time.perf_counter()
-            backup_result = backup_manager.create_backup(
-                    targets=[backup_target],
-                    backup_type="full"
+            backup_result = backup_manager.create_full_backup(
+                    repository=mock_repository,
+                    targets=[backup_target]
             )
             backup_time = time.perf_counter() - start_time
 

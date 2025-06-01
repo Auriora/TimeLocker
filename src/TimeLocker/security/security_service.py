@@ -323,6 +323,63 @@ class SecurityService:
             logger.error(f"Failed to generate security summary: {e}")
             raise SecurityError(f"Failed to generate security summary: {e}")
 
+    def validate_security_config(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Validate security configuration settings
+
+        Args:
+            config: Security configuration to validate
+
+        Returns:
+            Dict containing validation results with 'valid', 'issues', 'warnings', 'recommendations'
+        """
+        issues = []
+        warnings = []
+        recommendations = []
+
+        # Check encryption settings
+        if not config.get("encryption_enabled", True):
+            issues.append("Encryption is disabled - this is a security risk")
+
+        # Check audit logging
+        if not config.get("audit_logging", True):
+            issues.append("Audit logging is disabled - this reduces security monitoring")
+
+        # Check credential timeout
+        timeout = config.get("credential_timeout", 3600)
+        if timeout < 0:  # Negative timeout
+            issues.append(f"Credential timeout ({timeout}s) cannot be negative")
+        elif timeout < 300:  # Less than 5 minutes
+            issues.append(f"Credential timeout ({timeout}s) is too short - minimum 300s recommended")
+        elif timeout < 900:  # Less than 15 minutes
+            warnings.append(f"Credential timeout ({timeout}s) is quite short - consider increasing")
+
+        # Check max failed attempts
+        max_attempts = config.get("max_failed_attempts", 3)
+        if max_attempts <= 0:
+            issues.append("Max failed attempts must be greater than 0")
+        elif max_attempts > 10:
+            warnings.append(f"Max failed attempts ({max_attempts}) is quite high - consider reducing")
+
+        # Check lockout duration
+        lockout = config.get("lockout_duration", 300)
+        if lockout < 60:  # Less than 1 minute
+            warnings.append(f"Lockout duration ({lockout}s) is very short")
+
+        # Recommendations
+        if config.get("encryption_enabled", True) and not config.get("key_rotation_enabled", False):
+            recommendations.append("Consider enabling automatic key rotation for enhanced security")
+
+        if not config.get("two_factor_enabled", False):
+            recommendations.append("Consider enabling two-factor authentication")
+
+        return {
+            "valid": len(issues) == 0,
+            "issues": issues,
+            "warnings": warnings,
+            "recommendations": recommendations
+        }
+
     def audit_backup_operation(self, repository=None, operation_type: str = None, targets: List[str] = None,
                                success: bool = True, metadata: Optional[Dict[str, Any]] = None,
                                operation_id: str = None, repository_id: str = None, status: str = None,
@@ -437,91 +494,7 @@ class SecurityService:
         except Exception as e:
             logger.error(f"Failed to audit restore operation: {e}")
 
-    def validate_security_config(self, config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        """
-        Validate security configuration settings
 
-        Args:
-            config: Security configuration to validate (optional, loads from file if not provided)
-
-        Returns:
-            Dict containing validation results and any issues found
-        """
-        validation_result = {
-                "valid":           True,
-                "issues":          [],
-                "warnings":        [],
-                "recommendations": []
-        }
-
-        try:
-            # Load config if not provided
-            if config is None:
-                if self.security_config_file.exists():
-                    with open(self.security_config_file, 'r') as f:
-                        config = json.load(f)
-                else:
-                    config = {}
-
-            # Validate encryption settings
-            encryption_enabled = config.get("encryption_enabled", True)
-            if not encryption_enabled:
-                validation_result["issues"].append("Encryption is disabled")
-                validation_result["valid"] = False
-
-            # Validate audit logging
-            audit_logging = config.get("audit_logging", True)
-            if not audit_logging:
-                validation_result["warnings"].append("Audit logging is disabled")
-
-            # Validate credential timeout
-            credential_timeout = config.get("credential_timeout", 3600)
-            if credential_timeout < 60:
-                validation_result["issues"].append("Credential timeout is too short (minimum 60 seconds)")
-                validation_result["valid"] = False
-            elif credential_timeout > 86400:  # 24 hours
-                validation_result["warnings"].append("Credential timeout is very long (>24 hours)")
-
-            # Validate failed attempt limits
-            max_failed_attempts = config.get("max_failed_attempts", 3)
-            if max_failed_attempts < 1:
-                validation_result["issues"].append("Max failed attempts must be at least 1")
-                validation_result["valid"] = False
-            elif max_failed_attempts > 10:
-                validation_result["warnings"].append("Max failed attempts is very high (>10)")
-
-            # Validate lockout duration
-            lockout_duration = config.get("lockout_duration", 300)
-            if lockout_duration < 60:
-                validation_result["warnings"].append("Lockout duration is very short (<60 seconds)")
-
-            # Security recommendations
-            if credential_timeout > 7200:  # 2 hours
-                validation_result["recommendations"].append("Consider reducing credential timeout for better security")
-
-            if max_failed_attempts > 5:
-                validation_result["recommendations"].append("Consider reducing max failed attempts for better security")
-
-            # Log validation event
-            self.log_security_event(SecurityEvent(
-                    timestamp=datetime.now(),
-                    event_type="security_config_validation",
-                    level=SecurityLevel.MEDIUM if validation_result["valid"] else SecurityLevel.HIGH,
-                    description=f"Security configuration validation: {'PASSED' if validation_result['valid'] else 'FAILED'}",
-                    metadata={
-                            "issues_count":   len(validation_result["issues"]),
-                            "warnings_count": len(validation_result["warnings"]),
-                            "valid":          validation_result["valid"]
-                    }
-            ))
-
-            return validation_result
-
-        except Exception as e:
-            logger.error(f"Failed to validate security configuration: {e}")
-            validation_result["valid"] = False
-            validation_result["issues"].append(f"Validation error: {str(e)}")
-            return validation_result
 
     def emergency_lockdown(self, reason: str, metadata: Optional[Dict[str, Any]] = None, triggered_by: str = None) -> bool:
         """
