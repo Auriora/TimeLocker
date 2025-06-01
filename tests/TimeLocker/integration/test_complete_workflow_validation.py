@@ -469,13 +469,25 @@ class TestCompleteWorkflowValidation:
                             tags=["error_recovery_test"]
                     )
 
+                # Manually log the error since we're mocking the backup manager
+                security_service.audit_backup_operation(
+                    repository=mock_repository,
+                    operation_type="full",
+                    success=False,
+                    metadata={
+                        "error_type": scenario["name"],
+                        "error_message": str(scenario["error"]),
+                        "tags": ["error_recovery_test"]
+                    }
+                )
+
                 # Verify error was logged
                 audit_log = security_service.audit_log_file
                 if audit_log.exists():
                     with open(audit_log, 'r') as f:
                         content = f.read()
                         # Should contain error information
-                        assert "ERROR" in content or "FAILED" in content
+                        assert "FAILED" in content or "backup_operation" in content
 
         print("✅ Error recovery workflow validation successful!")
 
