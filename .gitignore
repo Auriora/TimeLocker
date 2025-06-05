@@ -6,7 +6,6 @@ temp/
 .output.txt
 output/
 __pycache__
-/.coverage
 .idea/
 
 # Build artifacts
