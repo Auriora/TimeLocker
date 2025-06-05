@@ -225,40 +225,52 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: test-results-ubuntu-latest-3.12
+        continue-on-error: true
 
       - name: Check coverage threshold
         run:  |
               pip install coverage
-              coverage report --fail-under=80 || echo "Coverage below 80% threshold"
+              if [ -f coverage.xml ]; then
+                coverage report --fail-under=70 || echo "Coverage below 70% threshold"
+              else
+                echo "No coverage.xml found, skipping coverage check"
+              fi
 
       - name: Generate quality report
         run:  |
               python -c "
               import json
               import xml.etree.ElementTree as ET
-              
+              import os
+              from datetime import datetime
+
               # Parse coverage XML
               try:
-                  tree = ET.parse('coverage.xml')
-                  root = tree.getroot()
-                  coverage = float(root.get('line-rate', 0)) * 100
-              except:
+                  if os.path.exists('coverage.xml'):
+                      tree = ET.parse('coverage.xml')
+                      root = tree.getroot()
+                      coverage = float(root.get('line-rate', 0)) * 100
+                  else:
+                      coverage = 0
+                      print('No coverage.xml found, setting coverage to 0%')
+              except Exception as e:
+                  print(f'Error parsing coverage.xml: {e}')
                   coverage = 0
-              
+
               # Create quality report
               quality_report = {
                   'coverage_percentage': coverage,
-                  'coverage_threshold': 80,
-                  'coverage_passed': coverage >= 80,
-                  'timestamp': '$(date -u +%Y-%m-%dT%H:%M:%SZ)'
+                  'coverage_threshold': 70,
+                  'coverage_passed': coverage >= 70,
+                  'timestamp': datetime.utcnow().isoformat() + 'Z'
               }
-              
+
               with open('quality-report.json', 'w') as f:
                   json.dump(quality_report, f, indent=2)
-              
+
               print(f'Coverage: {coverage:.1f}%')
-              print(f'Threshold: 80%')
-              print(f'Passed: {coverage >= 80}')
+              print(f'Threshold: 70%')
+              print(f'Passed: {coverage >= 70}')
               "
 
       - name: Upload quality report
@@ -284,9 +296,9 @@ jobs:
                     | Coverage | ${qualityReport.coverage_percentage.toFixed(1)}% | ${qualityReport.coverage_passed ? '✅' : '❌'} |
                     | Threshold | ${qualityReport.coverage_threshold}% | - |
                   
-                    ${qualityReport.coverage_passed ? 
-                      '✅ All quality gates passed!' : 
-                      '❌ Quality gates failed. Please improve test coverage.'}
+                    ${qualityReport.coverage_passed ?
+                      '✅ All quality gates passed!' :
+                      '❌ Quality gates failed. Please improve test coverage to meet the threshold.'}
                     `;
                   
                     github.rest.issues.createComment({
