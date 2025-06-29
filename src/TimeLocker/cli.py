@@ -7,6 +7,7 @@ using Typer for type-safe commands and Rich for beautiful terminal output.
 """
 
 import sys
+import json
 import logging
 from pathlib import Path
 from typing import Optional, List, Annotated
@@ -771,6 +772,238 @@ def config_list(
         show_error_panel("Configuration Error", f"Failed to load configuration: {e}")
         if verbose:
             console.print_exception()
+        raise typer.Exit(1)
+
+
+@config_app.command("import-restic")
+def config_import_restic(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        repository_name: Annotated[str, typer.Option("--name", "-n", help="Name for the imported repository")] = "imported_restic",
+        target_name: Annotated[str, typer.Option("--target", "-t", help="Name for the backup target")] = "imported_backup",
+        paths: Annotated[Optional[List[str]], typer.Option("--paths", "-p", help="Backup paths (if not using current directory)")] = None,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be imported without making changes")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Import configuration from restic environment variables.
+
+    This command reads RESTIC_REPOSITORY, RESTIC_PASSWORD, and AWS credentials
+    from environment variables and creates a TimeLocker configuration.
+
+    Required environment variables:
+    - RESTIC_REPOSITORY: Repository URI (e.g., s3:s3.region.amazonaws.com/bucket)
+    - RESTIC_PASSWORD: Repository password
+
+    Optional AWS environment variables:
+    - AWS_ACCESS_KEY_ID: AWS access key
+    - AWS_SECRET_ACCESS_KEY: AWS secret key
+    - AWS_DEFAULT_REGION: AWS region
+    """
+    import os
+    from urllib.parse import urlparse
+
+    setup_logging(verbose)
+
+    if not config_dir:
+        config_dir = Path.home() / ".timelocker"
+
+    console.print()
+    console.print(Panel(
+            "📥 Import Restic Configuration from Environment\n\n"
+            "This will read restic settings from environment variables\n"
+            "and create a TimeLocker configuration.",
+            title="[bold green]Import from Restic Environment[/bold green]",
+            border_style="green"
+    ))
+    console.print()
+
+    # Check required environment variables
+    required_vars = {
+            'RESTIC_REPOSITORY': 'Repository URI',
+            'RESTIC_PASSWORD':   'Repository password'
+    }
+
+    missing_vars = []
+    env_config = {}
+
+    for var, description in required_vars.items():
+        value = os.getenv(var)
+        if not value:
+            missing_vars.append(f"  • {var}: {description}")
+        else:
+            env_config[var] = value
+
+    if missing_vars:
+        show_error_panel(
+                "Missing Environment Variables",
+                "The following required environment variables are not set:\n\n" +
+                "\n".join(missing_vars) +
+                "\n\nPlease set these variables and try again."
+        )
+        raise typer.Exit(1)
+
+    # Check optional AWS variables
+    aws_vars = {
+            'AWS_ACCESS_KEY_ID':     'AWS Access Key ID',
+            'AWS_SECRET_ACCESS_KEY': 'AWS Secret Access Key',
+            'AWS_DEFAULT_REGION':    'AWS Default Region'
+    }
+
+    for var, description in aws_vars.items():
+        value = os.getenv(var)
+        if value:
+            env_config[var] = value
+
+    # Parse repository URI
+    repo_uri = env_config['RESTIC_REPOSITORY']
+    parsed_uri = urlparse(repo_uri)
+
+    # Determine repository type
+    if parsed_uri.scheme == 's3':
+        repo_type = 's3'
+        aws_region = env_config.get('AWS_DEFAULT_REGION', 'us-east-1')
+    elif parsed_uri.scheme in ['', 'file']:
+        repo_type = 'local'
+        aws_region = None
+    else:
+        repo_type = 'remote'
+        aws_region = None
+
+    # Create configuration
+    config = {
+            "repositories":   {
+                    repository_name: {
+                            "type":                      repo_type,
+                            "uri":                       repo_uri,
+                            "description":               f"Imported from restic environment ({repo_type})",
+                            "encryption":                True,
+                            "imported_from_environment": True
+                    }
+            },
+            "backup_targets": {
+                    target_name: {
+                            "paths":       paths or [str(Path.cwd())],
+                            "repository":  repository_name,
+                            "description": "Imported backup target from restic environment",
+                            "patterns":    {
+                                    "exclude": [
+                                            "**/.git/**",
+                                            "**/__pycache__/**",
+                                            "**/node_modules/**",
+                                            "**/.DS_Store",
+                                            "**/Thumbs.db"
+                                    ]
+                            }
+                    }
+            },
+            "settings":       {
+                    "default_repository":  repository_name,
+                    "notification_level":  "normal",
+                    "auto_verify_backups": True
+            }
+    }
+
+    if aws_region:
+        config["repositories"][repository_name]["aws_region"] = aws_region
+
+    # Display what will be imported
+    console.print("📋 Configuration to be imported:")
+    console.print()
+
+    # Repository info
+    repo_table = Table(title="Repository Configuration")
+    repo_table.add_column("Setting", style="cyan")
+    repo_table.add_column("Value", style="green")
+
+    repo_table.add_row("Name", repository_name)
+    repo_table.add_row("Type", repo_type)
+    repo_table.add_row("URI", repo_uri)
+    if aws_region:
+        repo_table.add_row("AWS Region", aws_region)
+    repo_table.add_row("Encryption", "✅ Enabled")
+
+    console.print(repo_table)
+    console.print()
+
+    # Backup target info
+    target_table = Table(title="Backup Target Configuration")
+    target_table.add_column("Setting", style="cyan")
+    target_table.add_column("Value", style="green")
+
+    target_table.add_row("Name", target_name)
+    target_table.add_row("Repository", repository_name)
+    target_table.add_row("Paths", ", ".join(config["backup_targets"][target_name]["paths"]))
+    target_table.add_row("Exclude Patterns", str(len(config["backup_targets"][target_name]["patterns"]["exclude"])))
+
+    console.print(target_table)
+    console.print()
+
+    # Environment variables info
+    env_table = Table(title="Environment Variables Found")
+    env_table.add_column("Variable", style="cyan")
+    env_table.add_column("Status", style="green")
+
+    for var in required_vars.keys():
+        if var in env_config:
+            masked_value = env_config[var][:8] + "..." if len(env_config[var]) > 8 else "***"
+            env_table.add_row(var, f"✅ Set ({masked_value})")
+        else:
+            env_table.add_row(var, "❌ Not set")
+
+    for var in aws_vars.keys():
+        if var in env_config:
+            masked_value = env_config[var][:8] + "..." if len(env_config[var]) > 8 else "***"
+            env_table.add_row(var, f"✅ Set ({masked_value})")
+        else:
+            env_table.add_row(var, "⚠️  Not set")
+
+    console.print(env_table)
+    console.print()
+
+    if dry_run:
+        console.print("🔍 [bold yellow]Dry run mode - no changes made[/bold yellow]")
+        console.print("Configuration would be saved to:", str(config_dir / "timelocker.json"))
+        return
+
+    # Confirm before proceeding
+    if not Confirm.ask("Import this configuration?"):
+        console.print("❌ Import cancelled")
+        raise typer.Exit(0)
+
+    try:
+        # Ensure config directory exists
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_file = config_dir / "timelocker.json"
+
+        # Load existing config if it exists
+        if config_file.exists():
+            with open(config_file, 'r') as f:
+                existing_config = json.load(f)
+
+            # Merge configurations
+            existing_config.setdefault("repositories", {}).update(config["repositories"])
+            existing_config.setdefault("backup_targets", {}).update(config["backup_targets"])
+            existing_config.setdefault("settings", {}).update(config["settings"])
+
+            config = existing_config
+
+        # Save configuration
+        with open(config_file, 'w') as f:
+            json.dump(config, f, indent=2)
+
+        console.print()
+        show_success_panel(
+                "Configuration Imported Successfully!",
+                f"✅ Repository '{repository_name}' added\n"
+                f"✅ Backup target '{target_name}' created\n"
+                f"✅ Configuration saved to {config_file}\n\n"
+                f"💡 Next steps:\n"
+                f"   • Test connection: timelocker snapshots -r {repo_uri}\n"
+                f"   • Create backup: timelocker backup {target_name}\n"
+                f"   • List config: timelocker config list"
+        )
+
+    except Exception as e:
+        show_error_panel("Import Failed", f"Failed to save configuration: {e}")
         raise typer.Exit(1)
 
 
