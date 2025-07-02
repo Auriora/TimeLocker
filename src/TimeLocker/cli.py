@@ -31,6 +31,13 @@ from .file_selections import FileSelection, SelectionType
 from .restore_manager import RestoreManager
 from .snapshot_manager import SnapshotManager
 from .config import ConfigurationManager
+from .completion import (
+    repository_name_completer,
+    target_name_completer,
+    snapshot_id_completer,
+    repository_uri_completer,
+    file_path_completer,
+)
 
 # Initialize Rich console for consistent output
 console = Console()
@@ -44,9 +51,37 @@ app = typer.Typer(
         no_args_is_help=True,
 )
 
-# Create sub-apps for better organization
+# Create sub-apps for new hierarchy
+backup_app = typer.Typer(help="Backup operations")
+snapshot_app = typer.Typer(help="Single snapshot operations")
+snapshots_app = typer.Typer(help="Multiple snapshot operations")
+repo_app = typer.Typer(help="Single repository operations")
+repos_app = typer.Typer(help="Multiple repository operations")
 config_app = typer.Typer(help="Configuration management commands")
+
+# Add sub-apps to main app
+app.add_typer(backup_app, name="backup")
+app.add_typer(snapshot_app, name="snapshot")
+app.add_typer(snapshots_app, name="snapshots")
+app.add_typer(repo_app, name="repo")
+app.add_typer(repos_app, name="repos")
 app.add_typer(config_app, name="config")
+
+# Add main command aliases
+app.add_typer(repo_app, name="repository")
+app.add_typer(repos_app, name="repositories")
+
+# Create config sub-apps
+config_repositories_app = typer.Typer(help="Repository configuration commands")
+config_target_app = typer.Typer(help="Single target configuration commands")
+config_targets_app = typer.Typer(help="Multiple target configuration commands")
+config_import_app = typer.Typer(help="Import configuration commands")
+
+# Add config sub-apps
+config_app.add_typer(config_repositories_app, name="repositories")
+config_app.add_typer(config_target_app, name="target")
+config_app.add_typer(config_targets_app, name="targets")
+config_app.add_typer(config_import_app, name="import")
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -121,12 +156,12 @@ def show_info_panel(title: str, message: str) -> None:
     console.print(panel)
 
 
-@app.command()
-def backup(
-        sources: Annotated[Optional[List[Path]], typer.Argument(help="Source paths to backup")] = None,
-        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+@backup_app.command("create")
+def backup_create(
+        sources: Annotated[Optional[List[Path]], typer.Argument(help="Source paths to backup", autocompletion=file_path_completer)] = None,
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_uri_completer)] = None,
         password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
-        target: Annotated[Optional[str], typer.Option("--target", "-t", help="Use configured backup target")] = None,
+        target: Annotated[Optional[str], typer.Option("--target", "-t", help="Use configured backup target", autocompletion=target_name_completer)] = None,
         name: Annotated[Optional[str], typer.Option("--name", "-n", help="Backup target name")] = None,
         exclude: Annotated[Optional[List[str]], typer.Option("--exclude", "-e", help="Exclude pattern")] = None,
         include: Annotated[Optional[List[str]], typer.Option("--include", "-i", help="Include pattern")] = None,
@@ -276,19 +311,19 @@ def backup(
         raise typer.Exit(1)
 
 
-@app.command()
-def restore(
-        target: Annotated[Path, typer.Argument(help="Target path for restore")],
-        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+@snapshot_app.command("restore")
+def snapshot_restore(
+        snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID", autocompletion=snapshot_id_completer)],
+        target: Annotated[Path, typer.Argument(help="Target path for restore", autocompletion=file_path_completer)],
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_uri_completer)] = None,
         password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
-        snapshot: Annotated[str, typer.Option("--snapshot", "-s", help="Snapshot ID to restore (or 'latest')")] = None,
         exclude: Annotated[Optional[List[str]], typer.Option("--exclude", "-e", help="Exclude pattern")] = None,
         include: Annotated[Optional[List[str]], typer.Option("--include", "-i", help="Include pattern")] = None,
         preview: Annotated[bool, typer.Option("--preview", help="Preview restore without executing")] = False,
         confirm: Annotated[bool, typer.Option("--confirm", help="Skip confirmation prompts")] = False,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
-    """Restore files from a backup snapshot with progress tracking."""
+    """Restore files from this snapshot."""
     setup_logging(verbose)
 
     try:
@@ -305,8 +340,9 @@ def restore(
         show_error_panel("Repository Error", str(e))
         raise typer.Exit(1)
 
-    # Handle latest snapshot
-    if snapshot == "latest" or not snapshot:
+    # Use the provided snapshot_id directly
+    snapshot = snapshot_id
+    if snapshot == "latest":
         with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
@@ -417,9 +453,9 @@ def restore(
         raise typer.Exit(1)
 
 
-@app.command("list")
-def list_snapshots(
-        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+@snapshots_app.command("list")
+def snapshots_list(
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_uri_completer)] = None,
         password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
@@ -520,13 +556,14 @@ def list_snapshots(
         raise typer.Exit(1)
 
 
-@app.command()
-def init(
-        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+@repo_app.command("init")
+def repo_init(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI", autocompletion=repository_uri_completer)] = None,
         password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
-    """Initialize a new backup repository."""
+    """Initialize this repository."""
     setup_logging(verbose)
 
     try:
@@ -607,6 +644,151 @@ def version() -> None:
     console.print()
     console.print(panel)
     console.print()
+
+
+@app.command()
+def completion(
+        shell: Annotated[str, typer.Argument(help="Shell type (bash, zsh, fish)")] = "bash",
+        install: Annotated[bool, typer.Option("--install", help="Install completion script")] = False,
+) -> None:
+    """Generate shell completion scripts for TimeLocker."""
+
+    # Generate completion script based on shell type
+    if shell.lower() == "bash":
+        script_name = "timelocker-completion.bash"
+        completion_script = '''# TimeLocker bash completion
+_timelocker_completion() {
+    local IFS=$'\\n'
+    local response
+
+    response=$(env COMP_WORDS="${COMP_WORDS[*]}" COMP_CWORD=${COMP_CWORD} _TIMELOCKER_COMPLETE=bash_complete $1)
+
+    for completion in $response; do
+        IFS=',' read type value <<< "$completion"
+
+        if [[ $type == 'dir' ]]; then
+            COMPREPLY=()
+            compopt -o dirnames
+        elif [[ $type == 'file' ]]; then
+            COMPREPLY=()
+            compopt -o default
+        elif [[ $type == 'plain' ]]; then
+            COMPREPLY+=($value)
+        fi
+    done
+
+    return 0
+}
+
+complete -o nosort -F _timelocker_completion timelocker
+complete -o nosort -F _timelocker_completion tl
+'''
+    elif shell.lower() == "zsh":
+        script_name = "_timelocker"
+        completion_script = '''#compdef timelocker tl
+
+_timelocker_completion() {
+    local -a completions
+    local -a completions_with_descriptions
+    local -a response
+    (( ! $+commands[timelocker] )) && return 1
+
+    response=("${(@f)$(env COMP_WORDS="${words[*]}" COMP_CWORD=${#words[@]} _TIMELOCKER_COMPLETE=zsh_complete timelocker)}")
+
+    for type_and_completion in "${response[@]}"; do
+        completions+=("${type_and_completion#*,}")
+    done
+
+    if [ "${#completions[@]}" -eq 0 ]; then
+        _files
+    else
+        _describe '' completions
+    fi
+}
+
+compdef _timelocker_completion timelocker
+compdef _timelocker_completion tl
+'''
+    elif shell.lower() == "fish":
+        script_name = "timelocker.fish"
+        completion_script = '''function _timelocker_completion
+    set -l response (env _TIMELOCKER_COMPLETE=fish_complete COMP_WORDS=(commandline -cp) COMP_CWORD=(commandline -t) timelocker)
+
+    for completion in $response
+        set -l metadata (string split "," $completion)
+
+        if test $metadata[1] = "dir"
+            __fish_complete_directories $metadata[2]
+        else if test $metadata[1] = "file"
+            __fish_complete_path $metadata[2]
+        else if test $metadata[1] = "plain"
+            echo $metadata[2]
+        end
+    end
+end
+
+complete --no-files --command timelocker --arguments "(_timelocker_completion)"
+complete --no-files --command tl --arguments "(_timelocker_completion)"
+'''
+    else:
+        console.print(f"[red]Error:[/red] Unsupported shell: {shell}")
+        console.print("Supported shells: bash, zsh, fish")
+        raise typer.Exit(1)
+
+    if install:
+        # Try to install the completion script
+        try:
+            if shell.lower() == "bash":
+                completion_dir = Path.home() / ".bash_completion.d"
+                completion_dir.mkdir(exist_ok=True)
+                completion_file = completion_dir / script_name
+            elif shell.lower() == "zsh":
+                # Try common zsh completion directories
+                zsh_dirs = [
+                        Path.home() / ".zsh" / "completions",
+                        Path("/usr/local/share/zsh/site-functions"),
+                        Path("/usr/share/zsh/site-functions"),
+                ]
+                completion_dir = None
+                for zsh_dir in zsh_dirs:
+                    if zsh_dir.exists() or zsh_dir.parent.exists():
+                        completion_dir = zsh_dir
+                        break
+
+                if not completion_dir:
+                    completion_dir = Path.home() / ".zsh" / "completions"
+                    completion_dir.mkdir(parents=True, exist_ok=True)
+
+                completion_file = completion_dir / script_name
+            elif shell.lower() == "fish":
+                completion_dir = Path.home() / ".config" / "fish" / "completions"
+                completion_dir.mkdir(parents=True, exist_ok=True)
+                completion_file = completion_dir / script_name
+
+            # Write completion script
+            completion_file.write_text(completion_script)
+            console.print(f"[green]✓[/green] Completion script installed to: {completion_file}")
+
+            if shell.lower() == "bash":
+                console.print("\n[yellow]Next steps:[/yellow]")
+                console.print("Add this to your ~/.bashrc:")
+                console.print(f"[dim]source {completion_file}[/dim]")
+            elif shell.lower() == "zsh":
+                console.print("\n[yellow]Next steps:[/yellow]")
+                console.print("Make sure your ~/.zshrc includes:")
+                console.print(f"[dim]fpath=({completion_dir} $fpath)[/dim]")
+                console.print("[dim]autoload -U compinit && compinit[/dim]")
+            elif shell.lower() == "fish":
+                console.print("\n[green]✓[/green] Fish completion is automatically loaded")
+
+        except Exception as e:
+            console.print(f"[red]Error installing completion:[/red] {e}")
+            console.print("\nYou can manually save the script below:")
+            console.print(completion_script)
+    else:
+        # Just print the completion script
+        console.print(f"# {shell.title()} completion script for TimeLocker")
+        console.print(completion_script)
 
 
 # Configuration Management Commands
@@ -705,8 +887,8 @@ def config_setup(
         raise typer.Exit(1)
 
 
-@config_app.command("list")
-def config_list(
+@config_app.command("show")
+def config_show(
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
@@ -792,7 +974,7 @@ def config_list(
         raise typer.Exit(1)
 
 
-@config_app.command("import-restic")
+@config_import_app.command("restic")
 def config_import_restic(
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         repository_name: Annotated[str, typer.Option("--name", "-n", help="Name for the imported repository")] = "imported_restic",
@@ -1027,8 +1209,8 @@ def config_import_restic(
         raise typer.Exit(1)
 
 
-@config_app.command("list-repos")
-def config_list_repos(
+@config_repositories_app.command("list")
+def config_repositories_list(
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
@@ -1092,10 +1274,10 @@ def config_list_repos(
         raise typer.Exit(1)
 
 
-@config_app.command("add-repo")
-def config_add_repo(
+@config_repositories_app.command("add")
+def config_repositories_add(
         name: Annotated[str, typer.Argument(help="Repository name")],
-        uri: Annotated[str, typer.Argument(help="Repository URI")],
+        uri: Annotated[str, typer.Argument(help="Repository URI", autocompletion=repository_uri_completer)],
         description: Annotated[Optional[str], typer.Option("--description", "-d", help="Repository description")] = None,
         set_default: Annotated[bool, typer.Option("--set-default", help="Set as default repository")] = False,
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
@@ -1146,9 +1328,9 @@ def config_add_repo(
         raise typer.Exit(1)
 
 
-@config_app.command("remove-repo")
-def config_remove_repo(
-        name: Annotated[str, typer.Argument(help="Repository name to remove")],
+@config_repositories_app.command("remove")
+def config_repositories_remove(
+        name: Annotated[str, typer.Argument(help="Repository name to remove", autocompletion=repository_name_completer)],
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
@@ -1199,9 +1381,9 @@ def config_remove_repo(
         raise typer.Exit(1)
 
 
-@config_app.command("set-default-repo")
-def config_set_default_repo(
-        name: Annotated[str, typer.Argument(help="Repository name to set as default")],
+@config_repositories_app.command("default")
+def config_repositories_default(
+        name: Annotated[str, typer.Argument(help="Repository name to set as default", autocompletion=repository_name_completer)],
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
@@ -1237,10 +1419,10 @@ def config_set_default_repo(
         raise typer.Exit(1)
 
 
-@config_app.command("add-target")
-def config_add_target(
+@config_targets_app.command("add")
+def config_targets_add(
         name: Annotated[str, typer.Argument(help="Target name")],
-        paths: Annotated[List[str], typer.Argument(help="Source paths to backup")],
+        paths: Annotated[List[str], typer.Argument(help="Source paths to backup", autocompletion=file_path_completer)],
         description: Annotated[Optional[str], typer.Option("--description", "-d", help="Target description")] = None,
         include: Annotated[Optional[List[str]], typer.Option("--include", "-i", help="Include patterns")] = None,
         exclude: Annotated[Optional[List[str]], typer.Option("--exclude", "-e", help="Exclude patterns")] = None,
@@ -1299,8 +1481,8 @@ def config_add_target(
         raise typer.Exit(1)
 
 
-@app.command("verify")
-def verify(
+@backup_app.command("verify")
+def backup_verify(
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
         password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
         snapshot: Annotated[Optional[str], typer.Option("--snapshot", "-s", help="Specific snapshot to verify")] = None,
@@ -1394,6 +1576,273 @@ def verify(
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
+
+
+# ============================================================================
+# SNAPSHOT COMMANDS (Single snapshot operations)
+# ============================================================================
+
+@snapshot_app.command("show")
+def snapshot_show(
+        snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID")],
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Show snapshot details."""
+    console.print(f"[yellow]🚧 Command stub: snapshot {snapshot_id} show[/yellow]")
+    console.print("This command will show details for the specified snapshot.")
+
+
+@snapshot_app.command("list")
+def snapshot_list(
+        snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID")],
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """List contents of snapshot."""
+    console.print(f"[yellow]🚧 Command stub: snapshot {snapshot_id} list[/yellow]")
+    console.print("This command will list the file contents of the specified snapshot.")
+
+
+@snapshot_app.command("mount")
+def snapshot_mount(
+        snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID")],
+        path: Annotated[Path, typer.Argument(help="Mount path")],
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Mount this snapshot as filesystem."""
+    console.print(f"[yellow]🚧 Command stub: snapshot {snapshot_id} mount {path}[/yellow]")
+    console.print("This command will mount the specified snapshot as a filesystem.")
+
+
+@snapshot_app.command("umount")
+def snapshot_umount(
+        snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID")],
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Unmount this snapshot."""
+    console.print(f"[yellow]🚧 Command stub: snapshot {snapshot_id} umount[/yellow]")
+    console.print("This command will unmount the specified snapshot.")
+
+
+@snapshot_app.command("find")
+def snapshot_find(
+        snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID")],
+        pattern: Annotated[str, typer.Argument(help="Search pattern")],
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Search within this snapshot."""
+    console.print(f"[yellow]🚧 Command stub: snapshot {snapshot_id} find {pattern}[/yellow]")
+    console.print("This command will search for files matching the pattern within the specified snapshot.")
+
+
+@snapshot_app.command("forget")
+def snapshot_forget(
+        snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID")],
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Remove this specific snapshot."""
+    console.print(f"[yellow]🚧 Command stub: snapshot {snapshot_id} forget[/yellow]")
+    console.print("This command will remove the specified snapshot.")
+
+
+# ============================================================================
+# SNAPSHOTS COMMANDS (Multiple snapshot operations)
+# ============================================================================
+
+@snapshots_app.command("prune")
+def snapshots_prune(
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+        keep_daily: Annotated[int, typer.Option("--keep-daily", help="Number of daily snapshots to keep")] = 7,
+        keep_weekly: Annotated[int, typer.Option("--keep-weekly", help="Number of weekly snapshots to keep")] = 4,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Remove old snapshots across repos."""
+    console.print("[yellow]🚧 Command stub: snapshots prune[/yellow]")
+    console.print("This command will prune old snapshots according to retention policies.")
+
+
+@snapshots_app.command("diff")
+def snapshots_diff(
+        id1: Annotated[str, typer.Argument(help="First snapshot ID")],
+        id2: Annotated[str, typer.Argument(help="Second snapshot ID")],
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Compare two snapshots."""
+    console.print(f"[yellow]🚧 Command stub: snapshots diff {id1} {id2}[/yellow]")
+    console.print("This command will compare two snapshots and show differences.")
+
+
+@snapshots_app.command("find")
+def snapshots_find(
+        pattern: Annotated[str, typer.Argument(help="Search pattern")],
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Search across all snapshots."""
+    console.print(f"[yellow]🚧 Command stub: snapshots find {pattern}[/yellow]")
+    console.print("This command will search for files matching the pattern across all snapshots.")
+
+
+# ============================================================================
+# REPO COMMANDS (Single repository operations)
+# ============================================================================
+
+@repo_app.command("check")
+def repo_check(
+        name: Annotated[str, typer.Argument(help="Repository name")],
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Check this repository integrity."""
+    console.print(f"[yellow]🚧 Command stub: repo {name} check[/yellow]")
+    console.print("This command will check the integrity of the specified repository.")
+
+
+@repo_app.command("stats")
+def repo_stats(
+        name: Annotated[str, typer.Argument(help="Repository name")],
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Show this repository statistics."""
+    console.print(f"[yellow]🚧 Command stub: repo {name} stats[/yellow]")
+    console.print("This command will show statistics for the specified repository.")
+
+
+@repo_app.command("unlock")
+def repo_unlock(
+        name: Annotated[str, typer.Argument(help="Repository name")],
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Remove locks from this repository."""
+    console.print(f"[yellow]🚧 Command stub: repo {name} unlock[/yellow]")
+    console.print("This command will remove locks from the specified repository.")
+
+
+@repo_app.command("migrate")
+def repo_migrate(
+        name: Annotated[str, typer.Argument(help="Repository name")],
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Migrate this repository format."""
+    console.print(f"[yellow]🚧 Command stub: repo {name} migrate[/yellow]")
+    console.print("This command will migrate the repository format.")
+
+
+@repo_app.command("forget")
+def repo_forget(
+        name: Annotated[str, typer.Argument(help="Repository name")],
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
+        keep_daily: Annotated[int, typer.Option("--keep-daily", help="Number of daily snapshots to keep")] = 7,
+        keep_weekly: Annotated[int, typer.Option("--keep-weekly", help="Number of weekly snapshots to keep")] = 4,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Apply retention policy to this repo."""
+    console.print(f"[yellow]🚧 Command stub: repo {name} forget[/yellow]")
+    console.print("This command will apply retention policies to the specified repository.")
+
+
+# ============================================================================
+# REPOS COMMANDS (Multiple repository operations)
+# ============================================================================
+
+@repos_app.command("list")
+def repos_list(
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """List all repositories."""
+    console.print("[yellow]🚧 Command stub: repos list[/yellow]")
+    console.print("This command will list all configured repositories.")
+
+
+@repos_app.command("check")
+def repos_check(
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Check all repositories."""
+    console.print("[yellow]🚧 Command stub: repos check[/yellow]")
+    console.print("This command will check the integrity of all repositories.")
+
+
+@repos_app.command("stats")
+def repos_stats(
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Show stats for all repositories."""
+    console.print("[yellow]🚧 Command stub: repos stats[/yellow]")
+    console.print("This command will show statistics for all repositories.")
+
+
+# ============================================================================
+# CONFIG COMMANDS (Configuration management)
+# ============================================================================
+
+# Config repositories commands (already moved above)
+
+@config_repositories_app.command("show")
+def config_repositories_show(
+        name: Annotated[str, typer.Argument(help="Repository name")],
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Show repository config details."""
+    console.print(f"[yellow]🚧 Command stub: config repositories show {name}[/yellow]")
+    console.print("This command will show configuration details for the specified repository.")
+
+
+# Config target commands (single target operations)
+
+@config_target_app.command("show")
+def config_target_show(
+        name: Annotated[str, typer.Argument(help="Target name")],
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Show target details."""
+    console.print(f"[yellow]🚧 Command stub: config target {name} show[/yellow]")
+    console.print("This command will show details for the specified backup target.")
+
+
+@config_target_app.command("edit")
+def config_target_edit(
+        name: Annotated[str, typer.Argument(help="Target name")],
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Edit target configuration."""
+    console.print(f"[yellow]🚧 Command stub: config target {name} edit[/yellow]")
+    console.print("This command will open an editor to modify the specified backup target.")
+
+
+@config_target_app.command("remove")
+def config_target_remove(
+        name: Annotated[str, typer.Argument(help="Target name")],
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Remove this target."""
+    console.print(f"[yellow]🚧 Command stub: config target {name} remove[/yellow]")
+    console.print("This command will remove the specified backup target.")
+
+
+# Config targets commands (multiple target operations)
+
+@config_targets_app.command("list")
+def config_targets_list(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """List all targets."""
+    console.print("[yellow]🚧 Command stub: config targets list[/yellow]")
+    console.print("This command will list all configured backup targets.")
 
 
 def main() -> None:
