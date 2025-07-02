@@ -31,6 +31,7 @@ from .file_selections import FileSelection, SelectionType
 from .restore_manager import RestoreManager
 from .snapshot_manager import SnapshotManager
 from .config import ConfigurationManager
+from .cli_services import get_cli_service_manager, CLIBackupRequest
 from .completion import (
     repository_name_completer,
     target_name_completer,
@@ -241,61 +242,55 @@ def backup_create(
                 console=console,
         ) as progress:
 
-            # Initialize backup manager
+            # Initialize service manager
             task = progress.add_task("Initializing backup...", total=None)
-            manager = BackupManager()
+            service_manager = get_cli_service_manager()
 
-            # Create repository
-            progress.update(task, description="Connecting to repository...")
-            repo = manager.from_uri(repository_uri, password=password)
-
-            # Create backup target
-            progress.update(task, description="Creating backup target...")
-
-            # Create file selection
-            selection = FileSelection()
-
-            # Add source paths
-            for source in sources:
-                selection.add_path(source, SelectionType.INCLUDE)
-
-            # Add exclusion patterns if specified
-            if exclude:
-                progress.update(task, description="Adding exclusion patterns...")
-                for pattern in exclude:
-                    selection.add_pattern(pattern, SelectionType.EXCLUDE)
-
-            # Add inclusion patterns if specified
-            if include:
-                progress.update(task, description="Adding inclusion patterns...")
-                for pattern in include:
-                    selection.add_pattern(pattern, SelectionType.INCLUDE)
-
-            # Create backup target with file selection
-            target = BackupTarget(
-                    selection=selection,
-                    name=name or "cli_backup",
-                    tags=tags
+            # Create backup request
+            progress.update(task, description="Preparing backup request...")
+            backup_request = CLIBackupRequest(
+                    sources=sources,
+                    repository_uri=repository_uri,
+                    password=password,
+                    target_name=target,
+                    backup_name=name,
+                    tags=tags or [],
+                    include_patterns=include or [],
+                    exclude_patterns=exclude or [],
+                    dry_run=dry_run
             )
 
-            # Perform backup
+            # Execute backup using modern orchestrator
             progress.update(task, description="Executing backup...")
-            result = manager.execute_backup_with_retry(repo, [target], tags)
+            result = service_manager.execute_backup_from_cli(backup_request)
 
             progress.remove_task(task)
 
-        # Display results
-        if result and "snapshot_id" in result:
+        # Display results using new BackupResult data model
+        if result.is_successful:
             details = {
-                    "Snapshot ID":     result.get("snapshot_id", "Unknown"),
-                    "Files processed": f"{result.get('files_new', 0) + result.get('files_changed', 0) + result.get('files_unmodified', 0):,}",
-                    "Data added":      result.get("data_added_formatted", "Unknown"),
-                    "Duration":        f"{result.get('duration_seconds', 0):.1f}s"
+                    "Snapshot ID":     result.snapshot_id or "Unknown",
+                    "Files processed": f"{result.files_processed:,}",
+                    "Data processed":  f"{result.bytes_processed:,} bytes" if result.bytes_processed else "Unknown",
+                    "Duration":        f"{result.duration:.1f}s" if result.duration else "Unknown"
             }
-            show_success_panel("Backup Completed", "Backup operation completed successfully!", details)
+
+            success_msg = "Backup operation completed successfully!"
+            if result.has_warnings:
+                success_msg += f" ({len(result.warnings)} warnings)"
+
+            show_success_panel("Backup Completed", success_msg, details)
+
+            # Show warnings if any
+            if result.has_warnings:
+                for warning in result.warnings:
+                    console.print(f"⚠️  [yellow]Warning:[/yellow] {warning}")
         else:
-            error_msg = result.get("error", "Unknown error") if isinstance(result, dict) else "Backup failed"
-            show_error_panel("Backup Failed", f"Backup operation failed: {error_msg}")
+            error_msg = "Backup operation failed"
+            if result.errors:
+                error_msg += f": {'; '.join(result.errors)}"
+
+            show_error_panel("Backup Failed", error_msg)
             raise typer.Exit(1)
 
     except KeyboardInterrupt:
@@ -1597,17 +1592,15 @@ def backup_verify(
         ) as progress:
 
             task = progress.add_task("Initializing verification...", total=None)
-            backup_manager = BackupManager()
+            service_manager = get_cli_service_manager()
 
-            # Create repository
-            progress.update(task, description="Connecting to repository...")
-            repo = backup_manager.from_uri(repository_uri, password=password)
-
-            # Initialize snapshot manager
-            snapshot_manager = SnapshotManager(repo)
-
+            # Handle latest snapshot resolution if needed
             if latest:
                 progress.update(task, description="Finding latest snapshot...")
+                # Use legacy manager for snapshot listing until we have snapshot service
+                backup_manager = BackupManager()
+                repo = backup_manager.from_uri(repository_uri, password=password)
+                snapshot_manager = SnapshotManager(repo)
                 snapshots = snapshot_manager.list_snapshots()
                 if not snapshots:
                     show_error_panel("No Snapshots", "No snapshots found in repository")
@@ -1617,19 +1610,13 @@ def backup_verify(
             if not snapshot:
                 snapshot = Prompt.ask("Snapshot ID to verify")
 
-            # Perform verification
+            # Perform verification using modern service
             progress.update(task, description=f"Verifying snapshot {snapshot[:12]}...")
-
-            # Note: This is a simplified verification - actual implementation would depend on
-            # the specific verification methods available in the backup system
-            try:
-                # Attempt to read snapshot metadata as a basic verification
-                snapshot_info = snapshot_manager.get_snapshot_info(snapshot)
-                verification_passed = True
-                error_details = []
-            except Exception as e:
-                verification_passed = False
-                error_details = [str(e)]
+            verification_passed = service_manager.verify_backup_integrity(
+                    repository_input=repository_uri,
+                    snapshot_id=snapshot,
+                    password=password
+            )
 
             progress.remove_task(task)
 
@@ -1646,8 +1633,7 @@ def backup_verify(
         else:
             show_error_panel(
                     "Verification Failed",
-                    f"Snapshot {snapshot[:12]} verification failed",
-                    error_details
+                    f"Snapshot {snapshot[:12]} verification failed"
             )
             raise typer.Exit(1)
 
@@ -1672,19 +1658,117 @@ def snapshot_show(
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Show snapshot details."""
-    console.print(f"[yellow]🚧 Command stub: snapshot {snapshot_id} show[/yellow]")
-    console.print("This command will show details for the specified snapshot.")
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+
+        # Resolve repository
+        from .utils.repository_resolver import resolve_repository_uri
+        repository_uri = resolve_repository_uri(repository)
+
+        # Get repository instance
+        repo = service_manager.repository_factory.create_repository(repository_uri)
+
+        # Get snapshot details using service
+        snapshot_info = service_manager.snapshot_service.get_snapshot_details(repo, snapshot_id)
+
+        # Create detailed display
+        table = Table(title=f"Snapshot Details: {snapshot_info.id[:12]}")
+        table.add_column("Property", style="cyan", no_wrap=True)
+        table.add_column("Value", style="white")
+
+        # Format timestamp
+        from datetime import datetime
+        timestamp_str = datetime.fromtimestamp(snapshot_info.timestamp).strftime("%Y-%m-%d %H:%M:%S")
+
+        # Format size
+        size_str = f"{snapshot_info.size:,} bytes" if snapshot_info.size else "Unknown"
+
+        table.add_row("Snapshot ID", snapshot_info.id)
+        table.add_row("Short ID", snapshot_info.id[:12])
+        table.add_row("Timestamp", timestamp_str)
+        table.add_row("Hostname", snapshot_info.hostname)
+        table.add_row("Username", snapshot_info.username)
+        table.add_row("Repository", snapshot_info.repository_name)
+        table.add_row("Size", size_str)
+        table.add_row("File Count", str(snapshot_info.file_count))
+        table.add_row("Directory Count", str(snapshot_info.directory_count))
+        table.add_row("Tags", ", ".join(snapshot_info.tags) if snapshot_info.tags else "None")
+
+        console.print(table)
+
+        # Show paths
+        if snapshot_info.paths:
+            paths_table = Table(title="Backup Paths")
+            paths_table.add_column("Path", style="green")
+            for path in snapshot_info.paths:
+                paths_table.add_row(path)
+            console.print(paths_table)
+
+    except Exception as e:
+        show_error_panel("Snapshot Show Error", f"Failed to show snapshot details: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @snapshot_app.command("list")
 def snapshot_list(
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID")],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+        path: Annotated[str, typer.Option("--path", help="Path within snapshot to list")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """List contents of snapshot."""
-    console.print(f"[yellow]🚧 Command stub: snapshot {snapshot_id} list[/yellow]")
-    console.print("This command will list the file contents of the specified snapshot.")
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+
+        # Resolve repository
+        from .utils.repository_resolver import resolve_repository_uri
+        repository_uri = resolve_repository_uri(repository)
+
+        # Get repository instance
+        repo = service_manager.repository_factory.create_repository(repository_uri)
+
+        # List snapshot contents
+        contents = service_manager.snapshot_service.list_snapshot_contents(repo, snapshot_id, path)
+
+        if not contents:
+            console.print(f"[yellow]No contents found in snapshot {snapshot_id[:12]}[/yellow]")
+            return
+
+        # Create table for contents
+        table = Table(title=f"Snapshot Contents: {snapshot_id[:12]}" + (f" - {path}" if path else ""))
+        table.add_column("Type", style="blue", no_wrap=True)
+        table.add_column("Permissions", style="cyan", no_wrap=True)
+        table.add_column("Size", style="green", justify="right")
+        table.add_column("Modified", style="yellow")
+        table.add_column("Path", style="white")
+
+        for item in contents:
+            # Format size
+            size = item.get('size', 0)
+            size_str = f"{size:,}" if size > 0 else "-"
+
+            table.add_row(
+                    "📁" if item.get('type') == 'directory' else "📄",
+                    item.get('permissions', ''),
+                    size_str,
+                    item.get('modified', ''),
+                    item.get('path', '')
+            )
+
+        console.print(table)
+        console.print(f"\n[dim]Total items: {len(contents)}[/dim]")
+
+    except Exception as e:
+        show_error_panel("Snapshot List Error", f"Failed to list snapshot contents: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @snapshot_app.command("mount")
@@ -1695,8 +1779,35 @@ def snapshot_mount(
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Mount this snapshot as filesystem."""
-    console.print(f"[yellow]🚧 Command stub: snapshot {snapshot_id} mount {path}[/yellow]")
-    console.print("This command will mount the specified snapshot as a filesystem.")
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+
+        # Resolve repository
+        from .utils.repository_resolver import resolve_repository_uri
+        repository_uri = resolve_repository_uri(repository)
+
+        # Get repository instance
+        repo = service_manager.repository_factory.create_repository(repository_uri)
+
+        # Mount snapshot
+        with console.status(f"[bold green]Mounting snapshot {snapshot_id[:12]} at {path}..."):
+            result = service_manager.snapshot_service.mount_snapshot(repo, snapshot_id, path)
+
+        if result.status.value == "success":
+            console.print(f"[green]✓[/green] {result.message}")
+            console.print(f"[dim]Mount path: {path}[/dim]")
+            console.print(f"[dim]Process ID: {result.details.get('process_id', 'unknown')}[/dim]")
+        else:
+            show_error_panel("Mount Failed", result.error_message or "Unknown error")
+            raise typer.Exit(1)
+
+    except Exception as e:
+        show_error_panel("Snapshot Mount Error", f"Failed to mount snapshot: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @snapshot_app.command("umount")
@@ -1706,8 +1817,27 @@ def snapshot_umount(
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Unmount this snapshot."""
-    console.print(f"[yellow]🚧 Command stub: snapshot {snapshot_id} umount[/yellow]")
-    console.print("This command will unmount the specified snapshot.")
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+
+        # Unmount snapshot
+        with console.status(f"[bold yellow]Unmounting snapshot {snapshot_id[:12]}..."):
+            result = service_manager.snapshot_service.unmount_snapshot(snapshot_id)
+
+        if result.status.value == "success":
+            console.print(f"[green]✓[/green] {result.message}")
+            console.print(f"[dim]Mount path: {result.details.get('mount_path', 'unknown')}[/dim]")
+        else:
+            show_error_panel("Unmount Failed", result.error_message or "Unknown error")
+            raise typer.Exit(1)
+
+    except Exception as e:
+        show_error_panel("Snapshot Unmount Error", f"Failed to unmount snapshot: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @snapshot_app.command("find")
@@ -1715,11 +1845,57 @@ def snapshot_find(
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID")],
         pattern: Annotated[str, typer.Argument(help="Search pattern")],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+        search_type: Annotated[str, typer.Option("--type", help="Search type: name, content, path")] = "name",
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Search within this snapshot."""
-    console.print(f"[yellow]🚧 Command stub: snapshot {snapshot_id} find {pattern}[/yellow]")
-    console.print("This command will search for files matching the pattern within the specified snapshot.")
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+
+        # Resolve repository
+        from .utils.repository_resolver import resolve_repository_uri
+        repository_uri = resolve_repository_uri(repository)
+
+        # Get repository instance
+        repo = service_manager.repository_factory.create_repository(repository_uri)
+
+        # Search in snapshot
+        with console.status(f"[bold blue]Searching for '{pattern}' in snapshot {snapshot_id[:12]}..."):
+            results = service_manager.snapshot_service.search_in_snapshot(repo, snapshot_id, pattern, search_type)
+
+        if not results:
+            console.print(f"[yellow]No matches found for pattern '{pattern}' in snapshot {snapshot_id[:12]}[/yellow]")
+            return
+
+        # Display results
+        table = Table(title=f"Search Results: '{pattern}' in {snapshot_id[:12]}")
+        table.add_column("Match Type", style="blue", no_wrap=True)
+        table.add_column("File Path", style="white")
+        table.add_column("Context", style="dim")
+
+        for result in results:
+            context = ""
+            if hasattr(result, 'line_number') and result.line_number:
+                context = f"Line {result.line_number}"
+            if hasattr(result, 'context') and result.context:
+                context += f": {result.context[:50]}..." if len(result.context) > 50 else f": {result.context}"
+
+            table.add_row(
+                    result.match_type.title(),
+                    result.file_path,
+                    context
+            )
+
+        console.print(table)
+        console.print(f"\n[dim]Found {len(results)} matches[/dim]")
+
+    except Exception as e:
+        show_error_panel("Snapshot Find Error", f"Failed to search in snapshot: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @snapshot_app.command("forget")
@@ -1740,13 +1916,93 @@ def snapshot_forget(
 @snapshots_app.command("prune")
 def snapshots_prune(
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+        password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be deleted without actually deleting")] = False,
+        keep_last: Annotated[int, typer.Option("--keep-last", help="Number of most recent snapshots to keep")] = 10,
         keep_daily: Annotated[int, typer.Option("--keep-daily", help="Number of daily snapshots to keep")] = 7,
         keep_weekly: Annotated[int, typer.Option("--keep-weekly", help="Number of weekly snapshots to keep")] = 4,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Remove old snapshots across repos."""
-    console.print("[yellow]🚧 Command stub: snapshots prune[/yellow]")
-    console.print("This command will prune old snapshots according to retention policies.")
+    setup_logging(verbose)
+
+    try:
+        # Resolve repository name to URI
+        from .utils.repository_resolver import resolve_repository_uri
+        repository_uri = resolve_repository_uri(repository)
+
+        if not password:
+            # Check TimeLocker environment variable first, then fall back to RESTIC_PASSWORD
+            password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
+            if not password:
+                password = Prompt.ask("Repository password", password=True)
+
+        with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+        ) as progress:
+
+            task = progress.add_task("Initializing prune operation...", total=None)
+
+            # For now, use legacy backup manager for snapshot operations
+            # TODO: Implement snapshot service in Phase 4
+            backup_manager = BackupManager()
+            repo = backup_manager.from_uri(repository_uri, password=password)
+            snapshot_manager = SnapshotManager(repo)
+
+            progress.update(task, description="Analyzing snapshots...")
+            snapshots = snapshot_manager.list_snapshots()
+
+            if not snapshots:
+                progress.remove_task(task)
+                console.print("[yellow]No snapshots found to prune[/yellow]")
+                return
+
+            # Simple retention logic (this would be enhanced in a full implementation)
+            snapshots_to_keep = snapshots[:keep_last]  # Keep most recent
+            snapshots_to_remove = snapshots[keep_last:]
+
+            progress.remove_task(task)
+
+        if not snapshots_to_remove:
+            console.print("[green]No snapshots need to be pruned[/green]")
+            return
+
+        # Display what will be removed
+        table = Table(title=f"Snapshots to {'Remove (Dry Run)' if dry_run else 'Remove'}")
+        table.add_column("Snapshot ID", style="red")
+        table.add_column("Date", style="yellow")
+        table.add_column("Hostname", style="blue")
+
+        for snapshot in snapshots_to_remove:
+            table.add_row(
+                    snapshot.id[:12],
+                    snapshot.time.strftime("%Y-%m-%d %H:%M:%S"),
+                    snapshot.hostname
+            )
+
+        console.print(table)
+
+        if dry_run:
+            console.print(f"[yellow]Dry run: Would remove {len(snapshots_to_remove)} snapshots[/yellow]")
+        else:
+            if not Confirm.ask(f"Remove {len(snapshots_to_remove)} snapshots?"):
+                console.print("[yellow]Operation cancelled[/yellow]")
+                return
+
+            # TODO: Implement actual snapshot removal
+            console.print("[yellow]🚧 Actual snapshot removal not yet implemented[/yellow]")
+            console.print("This would remove the selected snapshots from the repository.")
+
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Prune operation was cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Prune Error", f"Failed to prune snapshots: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @snapshots_app.command("diff")
@@ -1783,8 +2039,49 @@ def repo_check(
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Check this repository integrity."""
-    console.print(f"[yellow]🚧 Command stub: repo {name} check[/yellow]")
-    console.print("This command will check the integrity of the specified repository.")
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+
+        # Resolve repository
+        from .utils.repository_resolver import resolve_repository_uri
+        repository_uri = resolve_repository_uri(repository or name)
+
+        # Get repository instance
+        repo = service_manager.repository_factory.create_repository(repository_uri)
+
+        # Check repository
+        with console.status(f"[bold blue]Checking repository integrity for {name}..."):
+            check_results = service_manager.repository_service.check_repository(repo)
+
+        # Display results
+        if check_results['status'] == 'success':
+            console.print(f"[green]✓[/green] Repository {name} integrity check passed")
+
+            # Show statistics if available
+            if check_results.get('statistics'):
+                stats = check_results['statistics']
+                table = Table(title="Check Statistics")
+                table.add_column("Metric", style="cyan")
+                table.add_column("Value", style="white")
+
+                for key, value in stats.items():
+                    if key != 'message_type':
+                        table.add_row(key.replace('_', ' ').title(), str(value))
+
+                console.print(table)
+        else:
+            console.print(f"[red]✗[/red] Repository {name} integrity check failed")
+            for error in check_results.get('errors', []):
+                console.print(f"[red]Error:[/red] {error}")
+            raise typer.Exit(1)
+
+    except Exception as e:
+        show_error_panel("Repository Check Error", f"Failed to check repository: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @repo_app.command("stats")
@@ -1794,8 +2091,61 @@ def repo_stats(
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Show this repository statistics."""
-    console.print(f"[yellow]🚧 Command stub: repo {name} stats[/yellow]")
-    console.print("This command will show statistics for the specified repository.")
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+
+        # Resolve repository
+        from .utils.repository_resolver import resolve_repository_uri
+        repository_uri = resolve_repository_uri(repository or name)
+
+        # Get repository instance
+        repo = service_manager.repository_factory.create_repository(repository_uri)
+
+        # Get repository statistics
+        with console.status(f"[bold blue]Gathering statistics for repository {name}..."):
+            stats = service_manager.repository_service.get_repository_stats(repo)
+
+        # Display statistics
+        table = Table(title=f"Repository Statistics: {name}")
+        table.add_column("Metric", style="cyan", no_wrap=True)
+        table.add_column("Value", style="white")
+
+        # Format and display key statistics
+        if 'total_size' in stats:
+            size_mb = stats['total_size'] / (1024 * 1024)
+            table.add_row("Total Size", f"{size_mb:.2f} MB ({stats['total_size']:,} bytes)")
+
+        if 'total_file_count' in stats:
+            table.add_row("Total Files", f"{stats['total_file_count']:,}")
+
+        if 'snapshot_count' in stats:
+            table.add_row("Snapshots", f"{stats['snapshot_count']:,}")
+
+        if 'compression_ratio' in stats and stats['compression_ratio'] > 0:
+            table.add_row("Compression Ratio", f"{stats['compression_ratio']:.2f}")
+
+        if 'time_span_days' in stats:
+            table.add_row("Time Span", f"{stats['time_span_days']:.1f} days")
+
+        if 'oldest_snapshot' in stats:
+            from datetime import datetime
+            oldest = datetime.fromtimestamp(stats['oldest_snapshot']).strftime("%Y-%m-%d %H:%M:%S")
+            table.add_row("Oldest Snapshot", oldest)
+
+        if 'newest_snapshot' in stats:
+            from datetime import datetime
+            newest = datetime.fromtimestamp(stats['newest_snapshot']).strftime("%Y-%m-%d %H:%M:%S")
+            table.add_row("Newest Snapshot", newest)
+
+        console.print(table)
+
+    except Exception as e:
+        show_error_panel("Repository Stats Error", f"Failed to get repository statistics: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @repo_app.command("unlock")
@@ -1805,8 +2155,33 @@ def repo_unlock(
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Remove locks from this repository."""
-    console.print(f"[yellow]🚧 Command stub: repo {name} unlock[/yellow]")
-    console.print("This command will remove locks from the specified repository.")
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+
+        # Resolve repository
+        from .utils.repository_resolver import resolve_repository_uri
+        repository_uri = resolve_repository_uri(repository or name)
+
+        # Get repository instance
+        repo = service_manager.repository_factory.create_repository(repository_uri)
+
+        # Unlock repository
+        with console.status(f"[bold yellow]Unlocking repository {name}..."):
+            success = service_manager.repository_service.unlock_repository(repo)
+
+        if success:
+            console.print(f"[green]✓[/green] Repository {name} unlocked successfully")
+        else:
+            console.print(f"[red]✗[/red] Failed to unlock repository {name}")
+            raise typer.Exit(1)
+
+    except Exception as e:
+        show_error_panel("Repository Unlock Error", f"Failed to unlock repository: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @repo_app.command("migrate")
@@ -1826,11 +2201,76 @@ def repo_forget(
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
         keep_daily: Annotated[int, typer.Option("--keep-daily", help="Number of daily snapshots to keep")] = 7,
         keep_weekly: Annotated[int, typer.Option("--keep-weekly", help="Number of weekly snapshots to keep")] = 4,
+        keep_monthly: Annotated[int, typer.Option("--keep-monthly", help="Number of monthly snapshots to keep")] = 12,
+        keep_yearly: Annotated[int, typer.Option("--keep-yearly", help="Number of yearly snapshots to keep")] = 3,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be removed without actually removing")] = False,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Apply retention policy to this repo."""
-    console.print(f"[yellow]🚧 Command stub: repo {name} forget[/yellow]")
-    console.print("This command will apply retention policies to the specified repository.")
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+
+        # Resolve repository
+        from .utils.repository_resolver import resolve_repository_uri
+        repository_uri = resolve_repository_uri(repository or name)
+
+        # Get repository instance
+        repo = service_manager.repository_factory.create_repository(repository_uri)
+
+        # Apply retention policy
+        action = "Analyzing" if dry_run else "Applying"
+        with console.status(f"[bold blue]{action} retention policy for repository {name}..."):
+            results = service_manager.repository_service.apply_retention_policy(
+                    repo, keep_daily, keep_weekly, keep_monthly, keep_yearly, dry_run
+            )
+
+        # Display results
+        if results['status'] == 'success':
+            removed_count = len(results.get('removed_snapshots', []))
+            kept_count = len(results.get('kept_snapshots', []))
+
+            if dry_run:
+                console.print(f"[yellow]Dry run:[/yellow] Would remove {removed_count} snapshots, keep {kept_count}")
+            else:
+                console.print(f"[green]✓[/green] Retention policy applied: removed {removed_count} snapshots, kept {kept_count}")
+
+            # Show policy details
+            table = Table(title="Retention Policy")
+            table.add_column("Period", style="cyan")
+            table.add_column("Keep", style="white")
+
+            table.add_row("Daily", str(keep_daily))
+            table.add_row("Weekly", str(keep_weekly))
+            table.add_row("Monthly", str(keep_monthly))
+            table.add_row("Yearly", str(keep_yearly))
+
+            console.print(table)
+
+            if removed_count > 0 and verbose:
+                # Show removed snapshots
+                removed_table = Table(title="Snapshots to Remove" if dry_run else "Removed Snapshots")
+                removed_table.add_column("Snapshot ID", style="red")
+
+                for snapshot_id in results.get('removed_snapshots', [])[:10]:  # Show first 10
+                    removed_table.add_row(snapshot_id[:12])
+
+                if len(results.get('removed_snapshots', [])) > 10:
+                    removed_table.add_row(f"... and {len(results['removed_snapshots']) - 10} more")
+
+                console.print(removed_table)
+        else:
+            console.print(f"[red]✗[/red] Failed to apply retention policy to repository {name}")
+            for error in results.get('errors', []):
+                console.print(f"[red]Error:[/red] {error}")
+            raise typer.Exit(1)
+
+    except Exception as e:
+        show_error_panel("Repository Forget Error", f"Failed to apply retention policy: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 # ============================================================================
@@ -1842,7 +2282,40 @@ def repos_list(
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """List all repositories."""
-    console.print("[yellow]🚧 Command stub: repos list[/yellow]")
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+        repositories = service_manager.list_repositories()
+
+        if not repositories:
+            console.print("[yellow]No repositories configured[/yellow]")
+            return
+
+        # Create table for repository listing
+        table = Table(title="Configured Repositories")
+        table.add_column("Name", style="cyan", no_wrap=True)
+        table.add_column("URI", style="green")
+        table.add_column("Type", style="blue")
+        table.add_column("Description", style="white")
+
+        for repo in repositories:
+            repo_type = repo.get('type', 'auto')
+            description = repo.get('description', '')
+            table.add_row(
+                    repo['name'],
+                    repo['uri'],
+                    repo_type,
+                    description
+            )
+
+        console.print(table)
+
+    except Exception as e:
+        show_error_panel("Repository List Error", f"Failed to list repositories: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
     console.print("This command will list all configured repositories.")
 
 
@@ -1924,7 +2397,42 @@ def config_targets_list(
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """List all targets."""
-    console.print("[yellow]🚧 Command stub: config targets list[/yellow]")
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+        targets = service_manager.list_backup_targets()
+
+        if not targets:
+            console.print("[yellow]No backup targets configured[/yellow]")
+            return
+
+        # Create table for target listing
+        table = Table(title="Configured Backup Targets")
+        table.add_column("Name", style="cyan", no_wrap=True)
+        table.add_column("Paths", style="green")
+        table.add_column("Include Patterns", style="blue")
+        table.add_column("Exclude Patterns", style="red")
+
+        for target in targets:
+            paths = "\n".join(target.get('paths', []))
+            include_patterns = "\n".join(target.get('include_patterns', []))
+            exclude_patterns = "\n".join(target.get('exclude_patterns', []))
+
+            table.add_row(
+                    target['name'],
+                    paths,
+                    include_patterns or "[dim]None[/dim]",
+                    exclude_patterns or "[dim]None[/dim]"
+            )
+
+        console.print(table)
+
+    except Exception as e:
+        show_error_panel("Target List Error", f"Failed to list backup targets: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
     console.print("This command will list all configured backup targets.")
 
 

@@ -24,28 +24,12 @@ from pathlib import Path
 from typing import Dict, List, Set, Union, Optional
 from functools import lru_cache
 
-try:
-    from .performance.profiler import profile_operation
-    from .performance.metrics import start_operation_tracking, update_operation_tracking, complete_operation_tracking
-except ImportError:
-    # Fallback for when performance module is not available
-    def profile_operation(name):
-        def decorator(func):
-            return func
-
-        return decorator
-
-
-    def start_operation_tracking(operation_id, operation_type, metadata=None):
-        return None
-
-
-    def update_operation_tracking(operation_id, files_processed=None, bytes_processed=None, errors_count=None, metadata=None):
-        pass
-
-
-    def complete_operation_tracking(operation_id):
-        return None
+from .utils import (
+    profile_operation,
+    start_operation_tracking,
+    update_operation_tracking,
+    complete_operation_tracking
+)
 
 
 class SelectionType(Enum):

@@ -1,0 +1,347 @@
+"""
+Advanced Snapshot Service for TimeLocker
+
+This service provides high-level snapshot operations with proper error handling,
+validation, and integration with the service-oriented architecture.
+"""
+
+import os
+import subprocess
+from pathlib import Path
+from typing import List, Dict, Optional, Any, Union
+from dataclasses import dataclass
+from datetime import datetime
+import logging
+
+from ..interfaces.data_models import SnapshotInfo, SnapshotResult, OperationStatus
+from ..interfaces.repository_interface import IRepository
+from ..interfaces.snapshot_interface import ISnapshotService
+from ..utils.error_handling import TimeLockerError, SnapshotError
+from ..utils.validation_service import ValidationService
+from ..utils.performance_monitor import PerformanceMonitor
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class SnapshotSearchResult:
+    """Result of snapshot search operation"""
+    snapshot_id: str
+    file_path: str
+    match_type: str  # 'name', 'content', 'path'
+    line_number: Optional[int] = None
+    context: Optional[str] = None
+
+
+@dataclass
+class SnapshotDiffResult:
+    """Result of snapshot comparison"""
+    added_files: List[str]
+    removed_files: List[str]
+    modified_files: List[str]
+    unchanged_files: List[str]
+    size_changes: Dict[str, Dict[str, int]]  # file -> {'old': size, 'new': size}
+
+
+class SnapshotService(ISnapshotService):
+    """Advanced snapshot management service"""
+
+    def __init__(self, validation_service: ValidationService, performance_monitor: PerformanceMonitor):
+        self.validation_service = validation_service
+        self.performance_monitor = performance_monitor
+        self._mounted_snapshots: Dict[str, Path] = {}  # snapshot_id -> mount_path
+
+    def get_snapshot_details(self, repository: IRepository, snapshot_id: str) -> SnapshotInfo:
+        """
+        Get detailed information about a specific snapshot
+        
+        Args:
+            repository: Repository containing the snapshot
+            snapshot_id: ID of the snapshot to examine
+            
+        Returns:
+            SnapshotInfo: Detailed snapshot information
+            
+        Raises:
+            SnapshotError: If snapshot cannot be found or accessed
+        """
+        with self.performance_monitor.track_operation("get_snapshot_details"):
+            try:
+                # Validate inputs
+                self.validation_service.validate_snapshot_id(snapshot_id)
+
+                # Get snapshot from repository
+                snapshots = repository.list_snapshots()
+                snapshot = next((s for s in snapshots if s.id.startswith(snapshot_id)), None)
+
+                if not snapshot:
+                    raise SnapshotError(f"Snapshot {snapshot_id} not found in repository")
+
+                # Get detailed stats
+                stats = self._get_snapshot_stats(repository, snapshot)
+
+                return SnapshotInfo(
+                        id=snapshot.id,
+                        timestamp=snapshot.timestamp,
+                        paths=snapshot.paths,
+                        tags=getattr(snapshot, 'tags', []),
+                        hostname=getattr(snapshot, 'hostname', 'unknown'),
+                        username=getattr(snapshot, 'username', 'unknown'),
+                        size=stats.get('total_size', 0),
+                        file_count=stats.get('file_count', 0),
+                        directory_count=stats.get('directory_count', 0),
+                        repository_name=repository.name if hasattr(repository, 'name') else 'unknown'
+                )
+
+            except Exception as e:
+                logger.error(f"Failed to get snapshot details for {snapshot_id}: {e}")
+                raise SnapshotError(f"Failed to get snapshot details: {e}")
+
+    def list_snapshot_contents(self, repository: IRepository, snapshot_id: str,
+                               path: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        List contents of a snapshot
+        
+        Args:
+            repository: Repository containing the snapshot
+            snapshot_id: ID of the snapshot to list
+            path: Optional path within snapshot to list (defaults to root)
+            
+        Returns:
+            List of file/directory information dictionaries
+            
+        Raises:
+            SnapshotError: If snapshot cannot be accessed or listed
+        """
+        with self.performance_monitor.track_operation("list_snapshot_contents"):
+            try:
+                # Validate inputs
+                self.validation_service.validate_snapshot_id(snapshot_id)
+
+                # Use restic ls command to list snapshot contents
+                cmd = ['restic', '-r', repository.location, 'ls', snapshot_id]
+                if path:
+                    cmd.append(path)
+
+                # Set environment for repository access
+                env = os.environ.copy()
+                if hasattr(repository, 'password'):
+                    env['RESTIC_PASSWORD'] = repository.password
+
+                result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+
+                if result.returncode != 0:
+                    raise SnapshotError(f"Failed to list snapshot contents: {result.stderr}")
+
+                # Parse output into structured format
+                contents = []
+                for line in result.stdout.strip().split('\n'):
+                    if line:
+                        # Parse restic ls output format
+                        parts = line.split()
+                        if len(parts) >= 4:
+                            contents.append({
+                                    'type':        'file' if parts[0].startswith('-') else 'directory',
+                                    'permissions': parts[0],
+                                    'size':        int(parts[1]) if parts[1].isdigit() else 0,
+                                    'modified':    ' '.join(parts[2:4]),
+                                    'path':        ' '.join(parts[4:]) if len(parts) > 4 else parts[-1]
+                            })
+
+                return contents
+
+            except Exception as e:
+                logger.error(f"Failed to list snapshot contents for {snapshot_id}: {e}")
+                raise SnapshotError(f"Failed to list snapshot contents: {e}")
+
+    def mount_snapshot(self, repository: IRepository, snapshot_id: str,
+                       mount_path: Path) -> SnapshotResult:
+        """
+        Mount a snapshot as a filesystem
+        
+        Args:
+            repository: Repository containing the snapshot
+            snapshot_id: ID of the snapshot to mount
+            mount_path: Path where to mount the snapshot
+            
+        Returns:
+            SnapshotResult: Result of mount operation
+            
+        Raises:
+            SnapshotError: If snapshot cannot be mounted
+        """
+        with self.performance_monitor.track_operation("mount_snapshot"):
+            try:
+                # Validate inputs
+                self.validation_service.validate_snapshot_id(snapshot_id)
+                self.validation_service.validate_path(mount_path)
+
+                # Check if mount path exists and is empty
+                if mount_path.exists() and any(mount_path.iterdir()):
+                    raise SnapshotError(f"Mount path {mount_path} is not empty")
+
+                # Create mount path if it doesn't exist
+                mount_path.mkdir(parents=True, exist_ok=True)
+
+                # Check if snapshot is already mounted
+                if snapshot_id in self._mounted_snapshots:
+                    existing_mount = self._mounted_snapshots[snapshot_id]
+                    raise SnapshotError(f"Snapshot {snapshot_id} is already mounted at {existing_mount}")
+
+                # Mount using restic mount command
+                cmd = ['restic', '-r', repository.location, 'mount', str(mount_path), '--snapshot-template', snapshot_id]
+
+                # Set environment for repository access
+                env = os.environ.copy()
+                if hasattr(repository, 'password'):
+                    env['RESTIC_PASSWORD'] = repository.password
+
+                # Start mount process in background
+                process = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+                # Give it a moment to start
+                import time
+                time.sleep(2)
+
+                # Check if mount was successful
+                if process.poll() is not None:
+                    stdout, stderr = process.communicate()
+                    raise SnapshotError(f"Failed to mount snapshot: {stderr.decode()}")
+
+                # Verify mount is accessible
+                if not mount_path.exists() or not any(mount_path.iterdir()):
+                    raise SnapshotError(f"Mount appears to have failed - {mount_path} is empty")
+
+                # Track mounted snapshot
+                self._mounted_snapshots[snapshot_id] = mount_path
+
+                logger.info(f"Successfully mounted snapshot {snapshot_id} at {mount_path}")
+
+                return SnapshotResult(
+                        status=OperationStatus.SUCCESS,
+                        snapshot_id=snapshot_id,
+                        message=f"Snapshot mounted at {mount_path}",
+                        details={'mount_path': str(mount_path), 'process_id': process.pid}
+                )
+
+            except Exception as e:
+                logger.error(f"Failed to mount snapshot {snapshot_id}: {e}")
+                raise SnapshotError(f"Failed to mount snapshot: {e}")
+
+    def unmount_snapshot(self, snapshot_id: str) -> SnapshotResult:
+        """
+        Unmount a previously mounted snapshot
+        
+        Args:
+            snapshot_id: ID of the snapshot to unmount
+            
+        Returns:
+            SnapshotResult: Result of unmount operation
+            
+        Raises:
+            SnapshotError: If snapshot cannot be unmounted
+        """
+        with self.performance_monitor.track_operation("unmount_snapshot"):
+            try:
+                # Check if snapshot is mounted
+                if snapshot_id not in self._mounted_snapshots:
+                    raise SnapshotError(f"Snapshot {snapshot_id} is not currently mounted")
+
+                mount_path = self._mounted_snapshots[snapshot_id]
+
+                # Unmount using fusermount
+                cmd = ['fusermount', '-u', str(mount_path)]
+                result = subprocess.run(cmd, capture_output=True, text=True)
+
+                if result.returncode != 0:
+                    # Try alternative unmount methods
+                    cmd = ['umount', str(mount_path)]
+                    result = subprocess.run(cmd, capture_output=True, text=True)
+
+                    if result.returncode != 0:
+                        raise SnapshotError(f"Failed to unmount snapshot: {result.stderr}")
+
+                # Remove from tracking
+                del self._mounted_snapshots[snapshot_id]
+
+                logger.info(f"Successfully unmounted snapshot {snapshot_id} from {mount_path}")
+
+                return SnapshotResult(
+                        status=OperationStatus.SUCCESS,
+                        snapshot_id=snapshot_id,
+                        message=f"Snapshot unmounted from {mount_path}",
+                        details={'mount_path': str(mount_path)}
+                )
+
+            except Exception as e:
+                logger.error(f"Failed to unmount snapshot {snapshot_id}: {e}")
+                raise SnapshotError(f"Failed to unmount snapshot: {e}")
+
+    def search_in_snapshot(self, repository: IRepository, snapshot_id: str,
+                           pattern: str, search_type: str = 'name') -> List[SnapshotSearchResult]:
+        """
+        Search for files/content within a snapshot
+        
+        Args:
+            repository: Repository containing the snapshot
+            snapshot_id: ID of the snapshot to search
+            pattern: Search pattern (glob for names, regex for content)
+            search_type: Type of search ('name', 'content', 'path')
+            
+        Returns:
+            List of search results
+            
+        Raises:
+            SnapshotError: If search cannot be performed
+        """
+        with self.performance_monitor.track_operation("search_in_snapshot"):
+            try:
+                # Validate inputs
+                self.validation_service.validate_snapshot_id(snapshot_id)
+
+                results = []
+
+                if search_type == 'name':
+                    # Search by filename using restic find
+                    cmd = ['restic', '-r', repository.location, 'find', pattern, '--snapshot', snapshot_id]
+
+                    # Set environment for repository access
+                    env = os.environ.copy()
+                    if hasattr(repository, 'password'):
+                        env['RESTIC_PASSWORD'] = repository.password
+
+                    result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+
+                    if result.returncode == 0:
+                        for line in result.stdout.strip().split('\n'):
+                            if line:
+                                results.append(SnapshotSearchResult(
+                                        snapshot_id=snapshot_id,
+                                        file_path=line,
+                                        match_type='name'
+                                ))
+
+                elif search_type in ['content', 'path']:
+                    # For content/path search, we need to mount and search
+                    # This is a simplified implementation
+                    logger.warning(f"Search type '{search_type}' requires mounting - not fully implemented")
+
+                return results
+
+            except Exception as e:
+                logger.error(f"Failed to search in snapshot {snapshot_id}: {e}")
+                raise SnapshotError(f"Failed to search in snapshot: {e}")
+
+    def _get_snapshot_stats(self, repository: IRepository, snapshot) -> Dict[str, Any]:
+        """Get detailed statistics for a snapshot"""
+        try:
+            # This would typically call restic stats command
+            # For now, return basic info
+            return {
+                    'total_size':      getattr(snapshot, 'size', 0),
+                    'file_count':      0,  # Would be calculated from restic stats
+                    'directory_count': 0,  # Would be calculated from restic stats
+            }
+        except Exception as e:
+            logger.warning(f"Failed to get snapshot stats: {e}")
+            return {'total_size': 0, 'file_count': 0, 'directory_count': 0}

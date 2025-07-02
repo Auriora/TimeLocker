@@ -23,28 +23,17 @@ from urllib.parse import urlparse
 from TimeLocker.backup_repository import BackupRepository
 from TimeLocker.backup_target import BackupTarget
 
-try:
-    from TimeLocker.performance.profiler import profile_operation
-    from TimeLocker.performance.metrics import start_operation_tracking, update_operation_tracking, complete_operation_tracking
-except ImportError:
-    # Fallback for when performance module is not available
-    def profile_operation(name):
-        def decorator(func):
-            return func
-
-        return decorator
-
-
-    def start_operation_tracking(operation_id, operation_type, metadata=None):
-        return None
-
-
-    def update_operation_tracking(operation_id, files_processed=None, bytes_processed=None, errors_count=None, metadata=None):
-        pass
-
-
-    def complete_operation_tracking(operation_id):
-        return None
+from TimeLocker.utils import (
+    profile_operation,
+    start_operation_tracking,
+    update_operation_tracking,
+    complete_operation_tracking,
+    with_retry,
+    with_error_handling,
+    ErrorContext
+)
+from TimeLocker.interfaces import IRepositoryFactory, IBackupOrchestrator
+from TimeLocker.services import RepositoryFactory
 
 logger = logging.getLogger("restic")
 
@@ -54,9 +43,22 @@ class BackupManagerError(Exception):
 
 
 class BackupManager:
-    """Central manager for backup operations and plugin registration"""
+    """
+    Central manager for backup operations following improved SOLID principles.
 
-    def __init__(self):
+    This class now delegates repository creation to a dedicated factory and
+    focuses on backup coordination and management.
+    """
+
+    def __init__(self, repository_factory: Optional[IRepositoryFactory] = None):
+        """
+        Initialize backup manager with dependency injection.
+
+        Args:
+            repository_factory: Optional repository factory (uses default if None)
+        """
+        self._repository_factory = repository_factory or RepositoryFactory()
+        # Keep legacy factory for backward compatibility
         self._repository_factories: Dict[str, Dict[str, Type[BackupRepository]]] = {}
 
     def register_repository_factory(self,
@@ -85,36 +87,30 @@ class BackupManager:
 
     @classmethod
     def from_uri(cls, uri: str, password: Optional[str] = None) -> 'BackupRepository':
-        logger.info(f"Parsing repository URI: {cls.redact_sensitive_info(uri.replace('{', '{{').replace('}', '}}'))}")  # import re
-        parsed = urlparse(uri)
-        scheme = parsed.scheme.lower()
+        """
+        Create repository from URI using the factory pattern.
 
-        # Import repository classes with graceful handling of optional dependencies
-        from TimeLocker.restic.Repositories.local import LocalResticRepository
+        This method now delegates to the repository factory for better
+        separation of concerns and extensibility.
+        """
+        logger.info(f"Creating repository from URI: {cls.redact_sensitive_info(uri.replace('{', '{{').replace('}', '}}'))}")
 
-        repo_classes = {
-                'local': LocalResticRepository,
-                '':      LocalResticRepository  # Default to local for empty scheme
-        }
+        # Use the global repository factory for backward compatibility
+        from TimeLocker.services import repository_factory
+        return repository_factory.create_repository(uri, password)
 
-        # Try to import optional cloud storage repositories
-        try:
-            from TimeLocker.restic.Repositories.s3 import S3ResticRepository
-            repo_classes['s3'] = S3ResticRepository
-        except ImportError:
-            logger.warning("S3 support not available - missing dependencies")
+    def create_repository(self, uri: str, password: Optional[str] = None) -> 'BackupRepository':
+        """
+        Create repository using the injected factory.
 
-        try:
-            from TimeLocker.restic.Repositories.b2 import B2ResticRepository
-            repo_classes['b2'] = B2ResticRepository
-        except ImportError:
-            logger.warning("B2 support not available - missing dependencies")
+        Args:
+            uri: Repository URI
+            password: Optional password
 
-        if scheme not in repo_classes:
-            raise BackupManagerError(f"Unsupported repository scheme: {scheme}")
-
-        repo_class = repo_classes[scheme]
-        return repo_class.from_parsed_uri(parsed, password)
+        Returns:
+            BackupRepository instance
+        """
+        return self._repository_factory.create_repository(uri, password)
 
     @staticmethod
     def redact_sensitive_info(uri: str) -> str:
@@ -123,6 +119,7 @@ class BackupManager:
         return parsed._replace(netloc=redacted_netloc).geturl()
 
     @profile_operation("execute_backup_with_retry")
+    @with_error_handling("backup_with_retry", "BackupManager")
     def execute_backup_with_retry(self,
                                   repository: BackupRepository,
                                   targets: List[BackupTarget],
@@ -148,49 +145,31 @@ class BackupManager:
             BackupManagerError: If backup fails after all retries
         """
         operation_id = f"backup_retry_{id(repository)}_{time.time()}"
-        metrics = start_operation_tracking(operation_id, "backup_with_retry",
-                                           metadata={"max_retries": max_retries, "targets_count": len(targets)})
-
-        last_exception = None
-        current_delay = retry_delay
+        start_operation_tracking(operation_id, "backup_with_retry",
+                                 metadata={"max_retries": max_retries, "targets_count": len(targets)})
 
         try:
-            for attempt in range(max_retries + 1):
-                try:
-                    logger.info(f"Backup attempt {attempt + 1}/{max_retries + 1}")
-                    update_operation_tracking(operation_id, metadata={"current_attempt": attempt + 1})
+            # Use the centralized retry mechanism
+            @with_retry(max_retries=max_retries, delay=retry_delay, backoff_multiplier=backoff_multiplier)
+            def _execute_single_backup():
+                # Validate targets before attempting backup
+                for target in targets:
+                    target.validate()
 
-                    # Validate targets before attempting backup
-                    for target in targets:
-                        target.validate()
+                # Execute backup
+                result = repository.backup_target(targets, tags)
 
-                    # Execute backup
-                    result = repository.backup_target(targets, tags)
-
-                    # Verify backup if successful
-                    if result and "snapshot_id" in result:
-                        if self.verify_backup_integrity(repository, result["snapshot_id"]):
-                            logger.info(f"Backup completed successfully on attempt {attempt + 1}")
-                            update_operation_tracking(operation_id, metadata={"successful_attempt": attempt + 1})
-                            return result
-                        else:
-                            raise BackupManagerError("Backup verification failed")
-
-                    return result
-
-                except Exception as e:
-                    last_exception = e
-                    logger.warning(f"Backup attempt {attempt + 1} failed: {e}")
-                    update_operation_tracking(operation_id, errors_count=attempt + 1)
-
-                    if attempt < max_retries:
-                        logger.info(f"Retrying in {current_delay} seconds...")
-                        time.sleep(current_delay)
-                        current_delay *= backoff_multiplier
+                # Verify backup if successful
+                if result and "snapshot_id" in result:
+                    if self.verify_backup_integrity(repository, result["snapshot_id"]):
+                        logger.info("Backup completed successfully")
+                        return result
                     else:
-                        logger.error(f"All backup attempts failed. Last error: {e}")
+                        raise BackupManagerError("Backup verification failed")
 
-            raise BackupManagerError(f"Backup failed after {max_retries + 1} attempts: {last_exception}")
+                return result
+
+            return _execute_single_backup()
 
         finally:
             complete_operation_tracking(operation_id)
@@ -310,14 +289,14 @@ class BackupManager:
         if repository is None:
             # Create a mock result for testing
             return {
-                'snapshot_id': f'test_snapshot_{int(time.time())}',
-                'files_new': len(targets) * 10,
-                'files_changed': 0,
-                'files_unmodified': 0,
-                'total_files_processed': len(targets) * 10,
-                'data_added': 1024 * 1024,  # 1MB
-                'total_duration': 1.0,
-                'status': 'completed'
+                    'snapshot_id':           f'test_snapshot_{int(time.time())}',
+                    'files_new':             len(targets) * 10,
+                    'files_changed':         0,
+                    'files_unmodified':      0,
+                    'total_files_processed': len(targets) * 10,
+                    'data_added':            1024 * 1024,  # 1MB
+                    'total_duration':        1.0,
+                    'status':                'completed'
             }
 
         if backup_type == "full":
