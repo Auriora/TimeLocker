@@ -7,6 +7,7 @@ using Typer for type-safe commands and Rich for beautiful terminal output.
 """
 
 import sys
+import os
 import json
 import logging
 from pathlib import Path
@@ -89,11 +90,16 @@ def show_success_panel(title: str, message: str, details: Optional[dict] = None)
 
 def show_error_panel(title: str, message: str, details: Optional[List[str]] = None) -> None:
     """Display an error panel with optional details."""
-    content = f"❌ {message}"
+    # Escape Rich markup in message to prevent markup errors
+    safe_message = message.replace("[", "\\[").replace("]", "\\]")
+    content = f"❌ {safe_message}"
+
     if details:
         content += "\n\n[bold]Details:[/bold]\n"
         for detail in details:
-            content += f"• {detail}\n"
+            # Escape Rich markup in details too
+            safe_detail = detail.replace("[", "\\[").replace("]", "\\]")
+            content += f"• {safe_detail}\n"
 
     panel = Panel(
             content.strip(),
@@ -118,7 +124,7 @@ def show_info_panel(title: str, message: str) -> None:
 @app.command()
 def backup(
         sources: Annotated[Optional[List[Path]], typer.Argument(help="Source paths to backup")] = None,
-        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
         password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
         target: Annotated[Optional[str], typer.Option("--target", "-t", help="Use configured backup target")] = None,
         name: Annotated[Optional[str], typer.Option("--name", "-n", help="Backup target name")] = None,
@@ -136,46 +142,43 @@ def backup(
         if not config_dir:
             config_dir = Path.home() / ".timelocker"
 
-        config_file = config_dir / "timelocker.json"
-        if not config_file.exists():
-            show_error_panel("No Configuration", f"Configuration file not found at {config_file}")
-            console.print("💡 Run [bold]timelocker config setup[/bold] to create a configuration")
-            raise typer.Exit(1)
-
         try:
+            from .config.configuration_manager import ConfigurationManager, ConfigSection
             config_manager = ConfigurationManager(config_dir=config_dir)
-            # Configuration is automatically loaded in __init__
-            config = config_manager._config
 
-            if target not in config.get("backup_targets", {}):
-                show_error_panel("Target Not Found", f"Backup target '{target}' not found in configuration")
-                available_targets = list(config.get("backup_targets", {}).keys())
-                if available_targets:
-                    console.print(f"Available targets: {', '.join(available_targets)}")
-                raise typer.Exit(1)
+            # Get backup target configuration
+            backup_target = config_manager.get_backup_target(target)
 
-            target_config = config["backup_targets"][target]
-            sources = [Path(p) for p in target_config["paths"]]
-            name = name or target_config.get("name", target)
-
-            # Use patterns from target config if not overridden
-            if not include and target_config.get("patterns", {}).get("include"):
-                include = target_config["patterns"]["include"]
-            if not exclude and target_config.get("patterns", {}).get("exclude"):
-                exclude = target_config["patterns"]["exclude"]
-
-            # Use default repository if not specified
-            if not repository and config.get("settings", {}).get("default_repository"):
-                default_repo_name = config["settings"]["default_repository"]
-                if default_repo_name in config.get("repositories", {}):
-                    repository = config["repositories"][default_repo_name].get("uri")
-
-            console.print(f"📁 Using backup target: [bold cyan]{target}[/bold cyan]")
-            console.print(f"📂 Backing up {len(sources)} path(s)")
-
-        except Exception as e:
-            show_error_panel("Configuration Error", f"Failed to load target configuration: {e}")
+        except ValueError as e:
+            show_error_panel("Target Not Found", str(e))
+            console.print("💡 Run [bold]tl config add-target[/bold] to create a backup target")
             raise typer.Exit(1)
+        except Exception as e:
+            show_error_panel("Configuration Error", f"Failed to load configuration: {e}")
+            raise typer.Exit(1)
+
+        # Extract backup target configuration
+        sources = [Path(p) for p in backup_target["paths"]]
+        name = name or backup_target.get("name", target)
+
+        # Use patterns from target config if not overridden
+        if not include and backup_target.get("patterns", {}).get("include"):
+            include = backup_target["patterns"]["include"]
+        if not exclude and backup_target.get("patterns", {}).get("exclude"):
+            exclude = backup_target["patterns"]["exclude"]
+
+        # Use default repository if not specified
+        if not repository:
+            default_repo_name = config_manager.get(ConfigSection.GENERAL, "default_repository")
+            if default_repo_name:
+                try:
+                    default_repo = config_manager.get_repository(default_repo_name)
+                    repository = default_repo.get("uri")
+                except Exception:
+                    pass  # Continue without default repository
+
+        console.print(f"📁 Using backup target: [bold cyan]{target}[/bold cyan]")
+        console.print(f"📂 Backing up {len(sources)} path(s)")
 
     # Validate sources
     if not sources:
@@ -183,11 +186,19 @@ def backup(
         console.print("💡 Either provide source paths or use --target to specify a configured backup target")
         raise typer.Exit(1)
 
-    # Prompt for missing required parameters
-    if not repository:
-        repository = Prompt.ask("Repository URI")
-    if not password:
-        password = Prompt.ask("Repository password", password=True)
+    try:
+        # Resolve repository name to URI
+        from .utils.repository_resolver import resolve_repository_uri
+        repository_uri = resolve_repository_uri(repository)
+
+        if not password:
+            # Check TimeLocker environment variable first, then fall back to RESTIC_PASSWORD
+            password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
+            if not password:
+                password = Prompt.ask("Repository password", password=True)
+    except Exception as e:
+        show_error_panel("Repository Error", str(e))
+        raise typer.Exit(1)
 
     try:
         with Progress(
@@ -204,33 +215,36 @@ def backup(
 
             # Create repository
             progress.update(task, description="Connecting to repository...")
-            repo = manager.from_uri(repository, password=password)
+            repo = manager.from_uri(repository_uri, password=password)
 
             # Create backup target
             progress.update(task, description="Creating backup target...")
-            target = BackupTarget(
-                    name=name or "cli_backup",
-                    source_paths=[str(p) for p in sources],
-                    repository_uri=repository,
-                    password=password
-            )
 
-            # Add file selections if specified
+            # Create file selection
+            selection = FileSelection()
+
+            # Add source paths
+            for source in sources:
+                selection.add_path(source, SelectionType.INCLUDE)
+
+            # Add exclusion patterns if specified
             if exclude:
                 progress.update(task, description="Adding exclusion patterns...")
                 for pattern in exclude:
-                    target.add_file_selection(FileSelection(
-                            pattern=pattern,
-                            selection_type=SelectionType.EXCLUDE
-                    ))
+                    selection.add_pattern(pattern, SelectionType.EXCLUDE)
 
+            # Add inclusion patterns if specified
             if include:
                 progress.update(task, description="Adding inclusion patterns...")
                 for pattern in include:
-                    target.add_file_selection(FileSelection(
-                            pattern=pattern,
-                            selection_type=SelectionType.INCLUDE
-                    ))
+                    selection.add_pattern(pattern, SelectionType.INCLUDE)
+
+            # Create backup target with file selection
+            target = BackupTarget(
+                    selection=selection,
+                    name=name or "cli_backup",
+                    tags=tags
+            )
 
             # Perform backup
             progress.update(task, description="Executing backup...")
@@ -265,7 +279,7 @@ def backup(
 @app.command()
 def restore(
         target: Annotated[Path, typer.Argument(help="Target path for restore")],
-        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
         password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
         snapshot: Annotated[str, typer.Option("--snapshot", "-s", help="Snapshot ID to restore (or 'latest')")] = None,
         exclude: Annotated[Optional[List[str]], typer.Option("--exclude", "-e", help="Exclude pattern")] = None,
@@ -277,11 +291,19 @@ def restore(
     """Restore files from a backup snapshot with progress tracking."""
     setup_logging(verbose)
 
-    # Prompt for missing required parameters
-    if not repository:
-        repository = Prompt.ask("Repository URI")
-    if not password:
-        password = Prompt.ask("Repository password", password=True)
+    try:
+        # Resolve repository name to URI
+        from .utils.repository_resolver import resolve_repository_uri
+        repository_uri = resolve_repository_uri(repository)
+
+        if not password:
+            # Check TimeLocker environment variable first, then fall back to RESTIC_PASSWORD
+            password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
+            if not password:
+                password = Prompt.ask("Repository password", password=True)
+    except Exception as e:
+        show_error_panel("Repository Error", str(e))
+        raise typer.Exit(1)
 
     # Handle latest snapshot
     if snapshot == "latest" or not snapshot:
@@ -292,7 +314,7 @@ def restore(
         ) as progress:
             task = progress.add_task("Finding latest snapshot...", total=None)
             backup_manager = BackupManager()
-            repo = backup_manager.from_uri(repository, password=password)
+            repo = backup_manager.from_uri(repository_uri, password=password)
             snapshot_manager = SnapshotManager(repo)
             snapshots = snapshot_manager.list_snapshots()
 
@@ -349,7 +371,7 @@ def restore(
 
             # Create repository
             progress.update(task, description="Connecting to repository...")
-            repo = backup_manager.from_uri(repository, password=password)
+            repo = backup_manager.from_uri(repository_uri, password=password)
 
             # Initialize restore manager with repository
             restore_manager = RestoreManager(repo)
@@ -397,18 +419,26 @@ def restore(
 
 @app.command("list")
 def list_snapshots(
-        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
         password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """List snapshots in repository with a beautiful table."""
     setup_logging(verbose)
 
-    # Prompt for missing required parameters
-    if not repository:
-        repository = Prompt.ask("Repository URI")
-    if not password:
-        password = Prompt.ask("Repository password", password=True)
+    try:
+        # Resolve repository name to URI
+        from .utils.repository_resolver import resolve_repository_uri
+        repository_uri = resolve_repository_uri(repository)
+
+        if not password:
+            # Check TimeLocker environment variable first, then fall back to RESTIC_PASSWORD
+            password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
+            if not password:
+                password = Prompt.ask("Repository password", password=True)
+    except Exception as e:
+        show_error_panel("Repository Error", str(e))
+        raise typer.Exit(1)
 
     try:
         with Progress(
@@ -422,7 +452,7 @@ def list_snapshots(
 
             # Create repository
             progress.update(task, description="Connecting to repository...")
-            repo = backup_manager.from_uri(repository, password=password)
+            repo = backup_manager.from_uri(repository_uri, password=password)
 
             # Initialize snapshot manager with repository
             snapshot_manager = SnapshotManager(repo)
@@ -492,21 +522,29 @@ def list_snapshots(
 
 @app.command()
 def init(
-        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
         password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Initialize a new backup repository."""
     setup_logging(verbose)
 
-    # Prompt for missing required parameters
-    if not repository:
-        repository = Prompt.ask("Repository URI")
-    if not password:
-        password = Prompt.ask("Repository password", password=True)
+    try:
+        # Resolve repository name to URI
+        from .utils.repository_resolver import resolve_repository_uri
+        repository_uri = resolve_repository_uri(repository)
+
+        if not password:
+            # Check TimeLocker environment variable first, then fall back to RESTIC_PASSWORD
+            password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
+            if not password:
+                password = Prompt.ask("Repository password", password=True)
+    except Exception as e:
+        show_error_panel("Repository Error", str(e))
+        raise typer.Exit(1)
 
     # Confirm repository creation
-    if not Confirm.ask(f"Initialize new repository at [bold]{repository}[/bold]?"):
+    if not Confirm.ask(f"Initialize new repository at [bold]{repository_uri}[/bold]?"):
         show_info_panel("Operation Cancelled", "Repository initialization cancelled by user")
         raise typer.Exit(0)
 
@@ -521,8 +559,9 @@ def init(
             manager = BackupManager()
 
             # Initialize repository
-            repo = manager.from_uri(repository, password=password)
-            repo.init()
+            repo = manager.from_uri(repository_uri, password=password)
+            if not repo.initialize_repository(password):
+                raise Exception("Repository initialization failed")
 
             progress.remove_task(task)
 
@@ -594,21 +633,10 @@ def config_setup(
     try:
         # Ensure config directory exists
         config_dir.mkdir(parents=True, exist_ok=True)
-        config_file = config_dir / "timelocker.json"
 
         # Initialize configuration manager
+        from .config.configuration_manager import ConfigurationManager, ConfigSection
         config_manager = ConfigurationManager(config_dir=config_dir)
-
-        # Create default configuration structure
-        config = {
-                "repositories":   {},
-                "backup_targets": {},
-                "settings":       {
-                        "default_repository":  None,
-                        "notification_level":  "normal",
-                        "auto_verify_backups": True
-                }
-        }
 
         # Repository setup
         if Confirm.ask("Would you like to add a repository?"):
@@ -616,12 +644,9 @@ def config_setup(
             repo_uri = Prompt.ask("Repository URI (e.g., /path/to/backup or s3://bucket/path)")
             repo_desc = Prompt.ask("Repository description", default=f"{repo_name} backup repository")
 
-            config["repositories"][repo_name] = {
-                    "type":        "local" if repo_uri.startswith("/") else "remote",
-                    "uri":         repo_uri,
-                    "description": repo_desc
-            }
-            config["settings"]["default_repository"] = repo_name
+            # Add repository using ConfigurationManager
+            config_manager.add_repository(repo_name, repo_uri, repo_desc)
+            config_manager.set(ConfigSection.GENERAL, "default_repository", repo_name)
 
         # Backup target setup
         if Confirm.ask("Would you like to add a backup target?"):
@@ -645,30 +670,28 @@ def config_setup(
                     paths.append(path)
 
             if paths:
-                config["backup_targets"][target_name] = {
-                        "name":        target_desc,
-                        "description": target_desc,
-                        "paths":       paths,
-                        "patterns":    {
-                                "include": ["*"],
-                                "exclude": ["*.tmp", "*.log", "Thumbs.db", ".DS_Store"]
-                        }
-                }
+                # Add backup target using ConfigurationManager
+                config_manager.add_backup_target(
+                        name=target_name,
+                        paths=paths,
+                        description=target_desc,
+                        include_patterns=["*"],
+                        exclude_patterns=["*.tmp", "*.log", "Thumbs.db", ".DS_Store"]
+                )
 
-        # Update configuration manager with new config
-        for section, data in config.items():
-            config_manager.update_section(section, data)
+        # Configuration is automatically saved by ConfigurationManager methods
 
-        # Save configuration
-        config_manager.save_config()
+        # Get counts for display
+        repositories = config_manager.list_repositories()
+        backup_targets = config_manager.list_backup_targets()
 
         show_success_panel(
                 "Configuration Created",
                 "Configuration setup completed successfully!",
                 {
-                        "Config file":    str(config_file),
-                        "Repositories":   str(len(config["repositories"])),
-                        "Backup targets": str(len(config["backup_targets"]))
+                        "Config file":    str(config_manager.config_file),
+                        "Repositories":   str(len(repositories)),
+                        "Backup targets": str(len(backup_targets))
                 }
         )
 
@@ -693,17 +716,11 @@ def config_list(
     if not config_dir:
         config_dir = Path.home() / ".timelocker"
 
-    config_file = config_dir / "timelocker.json"
-
-    if not config_file.exists():
-        show_info_panel("No Configuration", f"No configuration file found at {config_file}")
-        console.print("💡 Run [bold]timelocker config setup[/bold] to create a configuration")
-        return
-
     try:
         config_manager = ConfigurationManager(config_dir=config_dir)
         # Configuration is automatically loaded in __init__
         config = config_manager._config
+        config_file = config_manager.config_file
 
         console.print()
         console.print(Panel(
@@ -972,38 +989,251 @@ def config_import_restic(
     try:
         # Ensure config directory exists
         config_dir.mkdir(parents=True, exist_ok=True)
-        config_file = config_dir / "timelocker.json"
 
-        # Load existing config if it exists
-        if config_file.exists():
-            with open(config_file, 'r') as f:
-                existing_config = json.load(f)
+        # Use ConfigurationManager to properly handle the configuration
+        from .config.configuration_manager import ConfigurationManager, ConfigSection
+        config_manager = ConfigurationManager(config_dir=config_dir)
 
-            # Merge configurations
-            existing_config.setdefault("repositories", {}).update(config["repositories"])
-            existing_config.setdefault("backup_targets", {}).update(config["backup_targets"])
-            existing_config.setdefault("settings", {}).update(config["settings"])
+        # Update repositories section
+        current_repos = config_manager.get_section(ConfigSection.REPOSITORIES)
+        current_repos.update(config["repositories"])
+        config_manager.set_section(ConfigSection.REPOSITORIES, current_repos)
 
-            config = existing_config
+        # Update backup targets (stored in a custom section)
+        current_config = config_manager.get_configuration()
+        current_config.setdefault("backup_targets", {}).update(config["backup_targets"])
 
-        # Save configuration
-        with open(config_file, 'w') as f:
-            json.dump(config, f, indent=2)
+        # Update settings (stored in a custom section)
+        current_config.setdefault("settings", {}).update(config["settings"])
+
+        # Save the updated configuration
+        config_manager._config = current_config
+        config_manager.save_config()
 
         console.print()
         show_success_panel(
                 "Configuration Imported Successfully!",
                 f"✅ Repository '{repository_name}' added\n"
                 f"✅ Backup target '{target_name}' created\n"
-                f"✅ Configuration saved to {config_file}\n\n"
+                f"✅ Configuration saved to {config_manager.config_file}\n\n"
                 f"💡 Next steps:\n"
-                f"   • Test connection: timelocker snapshots -r {repo_uri}\n"
+                f"   • Test connection: timelocker list -r {repo_uri}\n"
                 f"   • Create backup: timelocker backup {target_name}\n"
                 f"   • List config: timelocker config list"
         )
 
     except Exception as e:
         show_error_panel("Import Failed", f"Failed to save configuration: {e}")
+        raise typer.Exit(1)
+
+
+@config_app.command("list-repos")
+def config_list_repos(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """List configured repositories."""
+    setup_logging(verbose)
+
+    if not config_dir:
+        config_dir = Path.home() / ".timelocker"
+
+    try:
+        config_manager = ConfigurationManager(config_dir=config_dir)
+        config_file = config_manager.config_file
+
+        console.print()
+        console.print(Panel(
+                f"📁 Repositories from: {config_file}",
+                title="[bold green]TimeLocker Repositories[/bold green]",
+                border_style="green"
+        ))
+
+        repositories = config_manager.list_repositories()
+        default_repo = config_manager.get_default_repository()
+
+        if repositories:
+            table = Table(show_header=True, header_style="bold blue")
+            table.add_column("Name", style="cyan", no_wrap=True)
+            table.add_column("Type", style="yellow")
+            table.add_column("URI", style="green")
+            table.add_column("Description", style="white")
+            table.add_column("Default", style="magenta", justify="center")
+
+            for name, repo_config in repositories.items():
+                repo_type = repo_config.get("type", "unknown")
+                uri = repo_config.get("uri", "N/A")
+                description = repo_config.get("description", "")
+                is_default = "✓" if name == default_repo else ""
+
+                table.add_row(name, repo_type, uri, description, is_default)
+
+            console.print(table)
+            console.print()
+
+            if default_repo:
+                console.print(f"🎯 [bold]Default repository:[/bold] {default_repo}")
+            else:
+                console.print("💡 [bold]Set a default repository:[/bold] [cyan]tl config set-default-repo <name>[/cyan]")
+        else:
+            console.print("❌ No repositories configured")
+            console.print()
+            console.print("💡 [bold]Add a repository:[/bold]")
+            console.print("   [cyan]tl config add-repo <name> <uri>[/cyan] - Add a repository")
+            console.print("   [cyan]tl config setup[/cyan] - Interactive setup")
+            console.print("   [cyan]tl config import-restic[/cyan] - Import from restic environment")
+
+        console.print()
+
+    except Exception as e:
+        show_error_panel("Configuration Error", f"Failed to load configuration: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@config_app.command("add-repo")
+def config_add_repo(
+        name: Annotated[str, typer.Argument(help="Repository name")],
+        uri: Annotated[str, typer.Argument(help="Repository URI")],
+        description: Annotated[Optional[str], typer.Option("--description", "-d", help="Repository description")] = None,
+        set_default: Annotated[bool, typer.Option("--set-default", help="Set as default repository")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Add a new repository to configuration."""
+    setup_logging(verbose)
+
+    if not config_dir:
+        config_dir = Path.home() / ".timelocker"
+
+    try:
+        from .config.configuration_manager import ConfigurationManager, RepositoryAlreadyExistsError
+        config_manager = ConfigurationManager(config_dir=config_dir)
+
+        # Add repository
+        config_manager.add_repository(
+                name=name,
+                uri=uri,
+                description=description or f"{name} repository"
+        )
+
+        # Set as default if requested
+        if set_default:
+            config_manager.set_default_repository(name)
+
+        console.print()
+        console.print(Panel(
+                f"✅ Repository '{name}' added successfully!\n\n"
+                f"📍 URI: {uri}\n"
+                f"📝 Description: {description or f'{name} repository'}\n"
+                f"🎯 Default: {'Yes' if set_default else 'No'}",
+                title="[bold green]Repository Added[/bold green]",
+                border_style="green"
+        ))
+
+        # Show usage example
+        console.print()
+        console.print(f"💡 [bold]Usage example:[/bold] [cyan]tl list -r {name}[/cyan]")
+
+    except RepositoryAlreadyExistsError as e:
+        show_error_panel("Repository Exists", str(e))
+        raise typer.Exit(1)
+    except Exception as e:
+        show_error_panel("Configuration Error", f"Failed to add repository: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@config_app.command("remove-repo")
+def config_remove_repo(
+        name: Annotated[str, typer.Argument(help="Repository name to remove")],
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Remove a repository from configuration."""
+    setup_logging(verbose)
+
+    if not config_dir:
+        config_dir = Path.home() / ".timelocker"
+
+    try:
+        from .config.configuration_manager import ConfigurationManager, RepositoryNotFoundError
+        config_manager = ConfigurationManager(config_dir=config_dir)
+
+        # Get repository info before removal
+        repo_info = config_manager.get_repository(name)
+
+        # Confirm removal
+        console.print()
+        console.print(Panel(
+                f"Repository: {name}\n"
+                f"URI: {repo_info['uri']}\n"
+                f"Description: {repo_info.get('description', 'N/A')}",
+                title="[bold yellow]Repository to Remove[/bold yellow]",
+                border_style="yellow"
+        ))
+
+        if not Confirm.ask("Are you sure you want to remove this repository?"):
+            console.print("❌ Repository removal cancelled.")
+            return
+
+        # Remove repository
+        config_manager.remove_repository(name)
+
+        console.print()
+        console.print(Panel(
+                f"✅ Repository '{name}' removed successfully!",
+                title="[bold green]Repository Removed[/bold green]",
+                border_style="green"
+        ))
+
+    except RepositoryNotFoundError as e:
+        show_error_panel("Repository Not Found", str(e))
+        raise typer.Exit(1)
+    except Exception as e:
+        show_error_panel("Configuration Error", f"Failed to remove repository: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@config_app.command("set-default-repo")
+def config_set_default_repo(
+        name: Annotated[str, typer.Argument(help="Repository name to set as default")],
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Set the default repository."""
+    setup_logging(verbose)
+
+    if not config_dir:
+        config_dir = Path.home() / ".timelocker"
+
+    try:
+        from .config.configuration_manager import ConfigurationManager, RepositoryNotFoundError
+        config_manager = ConfigurationManager(config_dir=config_dir)
+
+        # Set default repository
+        config_manager.set_default_repository(name)
+
+        console.print()
+        console.print(Panel(
+                f"✅ Default repository set to '{name}'!\n\n"
+                f"💡 You can now use commands without specifying -r:\n"
+                f"   [cyan]tl list[/cyan] (instead of [cyan]tl list -r {name}[/cyan])",
+                title="[bold green]Default Repository Set[/bold green]",
+                border_style="green"
+        ))
+
+    except RepositoryNotFoundError as e:
+        show_error_panel("Repository Not Found", str(e))
+        raise typer.Exit(1)
+    except Exception as e:
+        show_error_panel("Configuration Error", f"Failed to set default repository: {e}")
+        if verbose:
+            console.print_exception()
         raise typer.Exit(1)
 
 
@@ -1023,25 +1253,9 @@ def config_add_target(
     if not config_dir:
         config_dir = Path.home() / ".timelocker"
 
-    config_file = config_dir / "timelocker.json"
-
     try:
-        # Load existing configuration or create new one
+        # Initialize configuration manager
         config_manager = ConfigurationManager(config_dir=config_dir)
-
-        if config_file.exists():
-            # Configuration is automatically loaded in __init__
-            config = config_manager._config
-        else:
-            config = {
-                    "repositories":   {},
-                    "backup_targets": {},
-                    "settings":       {
-                            "default_repository":  None,
-                            "notification_level":  "normal",
-                            "auto_verify_backups": True
-                    }
-            }
 
         # Validate paths
         valid_paths = []
@@ -1058,32 +1272,23 @@ def config_add_target(
             show_error_panel("No Valid Paths", "No valid paths provided for backup target")
             raise typer.Exit(1)
 
-        # Create target configuration
-        target_config = {
-                "name":        description or name,
-                "description": description or f"Backup target for {name}",
-                "paths":       valid_paths,
-                "patterns":    {
-                        "include": include or ["*"],
-                        "exclude": exclude or ["*.tmp", "*.log", "Thumbs.db", ".DS_Store"]
-                }
-        }
-
-        # Add to configuration
-        config["backup_targets"][name] = target_config
-
-        # Update configuration manager and save
-        config_manager.update_section("backup_targets", config["backup_targets"])
-        config_manager.save_config()
+        # Add backup target using ConfigurationManager
+        config_manager.add_backup_target(
+                name=name,
+                paths=valid_paths,
+                description=description or f"Backup target for {name}",
+                include_patterns=include or ["*"],
+                exclude_patterns=exclude or ["*.tmp", "*.log", "Thumbs.db", ".DS_Store"]
+        )
 
         show_success_panel(
                 "Target Added",
                 f"Backup target '{name}' added successfully!",
                 {
                         "Target name": name,
-                        "Description": target_config["description"],
+                        "Description": description or f"Backup target for {name}",
                         "Paths":       f"{len(valid_paths)} path(s)",
-                        "Config file": str(config_file)
+                        "Config file": str(config_manager.config_file)
                 }
         )
 
@@ -1096,7 +1301,7 @@ def config_add_target(
 
 @app.command("verify")
 def verify(
-        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
         password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
         snapshot: Annotated[Optional[str], typer.Option("--snapshot", "-s", help="Specific snapshot to verify")] = None,
         latest: Annotated[bool, typer.Option("--latest", help="Verify latest snapshot")] = False,
@@ -1105,11 +1310,19 @@ def verify(
     """Verify backup integrity."""
     setup_logging(verbose)
 
-    # Prompt for missing required parameters
-    if not repository:
-        repository = Prompt.ask("Repository URI")
-    if not password:
-        password = Prompt.ask("Repository password", password=True)
+    try:
+        # Resolve repository name to URI
+        from .utils.repository_resolver import resolve_repository_uri
+        repository_uri = resolve_repository_uri(repository)
+
+        if not password:
+            # Check TimeLocker environment variable first, then fall back to RESTIC_PASSWORD
+            password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
+            if not password:
+                password = Prompt.ask("Repository password", password=True)
+    except Exception as e:
+        show_error_panel("Repository Error", str(e))
+        raise typer.Exit(1)
 
     try:
         with Progress(
@@ -1123,7 +1336,7 @@ def verify(
 
             # Create repository
             progress.update(task, description="Connecting to repository...")
-            repo = backup_manager.from_uri(repository, password=password)
+            repo = backup_manager.from_uri(repository_uri, password=password)
 
             # Initialize snapshot manager
             snapshot_manager = SnapshotManager(repo)
@@ -1191,7 +1404,9 @@ def main() -> None:
         show_error_panel("Operation Cancelled", "Operation was cancelled by user")
         raise typer.Exit(130)
     except Exception as e:
-        show_error_panel("Unexpected Error", f"An unexpected error occurred: {e}")
+        # Escape Rich markup in error message to prevent markup errors
+        error_msg = str(e).replace("[", "\\[").replace("]", "\\]")
+        show_error_panel("Unexpected Error", f"An unexpected error occurred: {error_msg}")
         console.print_exception()
         raise typer.Exit(1)
 

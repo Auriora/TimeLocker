@@ -256,17 +256,18 @@ class CommandBuilder:
         """
         command_list = self.build(synopsis_values, use_short_form)
 
-        # Merge environment variables
-        process_env = {}
+        # Merge environment variables with current environment
+        import os
+        process_env = os.environ.copy()  # Start with current environment
         if env:
-            process_env.update(env)
+            process_env.update(env)  # Add/override with provided env vars
 
         # Execute command
         result = subprocess.run(
                 command_list,
                 capture_output=True,
                 text=True,
-                env=process_env if process_env else None,
+                env=process_env,
                 check=True
         )
 

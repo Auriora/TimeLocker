@@ -34,6 +34,16 @@ class ConfigurationError(Exception):
     pass
 
 
+class RepositoryNotFoundError(ConfigurationError):
+    """Raised when a repository name cannot be resolved"""
+    pass
+
+
+class RepositoryAlreadyExistsError(ConfigurationError):
+    """Raised when trying to add a repository with an existing name"""
+    pass
+
+
 class ConfigSection(Enum):
     """Configuration sections"""
     GENERAL = "general"
@@ -44,6 +54,7 @@ class ConfigSection(Enum):
     NOTIFICATIONS = "notifications"
     MONITORING = "monitoring"
     UI = "ui"
+    BACKUP_TARGETS = "backup_targets"
 
 
 @dataclass
@@ -124,30 +135,35 @@ class ConfigurationManager:
         # Load existing configuration
         self.load_config()
 
+        # Check for and migrate legacy configuration files
+        self._migrate_legacy_config()
+
     def _get_default_config(self) -> Dict[str, Any]:
         """Get default configuration values"""
         return {
-                ConfigSection.GENERAL.value:       {
+                ConfigSection.GENERAL.value:        {
                         "app_name":                  "TimeLocker",
                         "version":                   "1.0.0",
                         "log_level":                 "INFO",
                         "data_dir":                  str(self.config_dir / "data"),
                         "temp_dir":                  str(self.config_dir / "temp"),
-                        "max_concurrent_operations": 2
+                        "max_concurrent_operations": 2,
+                        "default_repository":        None
                 },
-                ConfigSection.BACKUP.value:        asdict(BackupDefaults()),
-                ConfigSection.RESTORE.value:       asdict(RestoreDefaults()),
-                ConfigSection.SECURITY.value:      asdict(SecurityDefaults()),
-                ConfigSection.UI.value:            asdict(UIDefaults()),
-                ConfigSection.REPOSITORIES.value:  {},
-                ConfigSection.NOTIFICATIONS.value: {
+                ConfigSection.BACKUP.value:         asdict(BackupDefaults()),
+                ConfigSection.RESTORE.value:        asdict(RestoreDefaults()),
+                ConfigSection.SECURITY.value:       asdict(SecurityDefaults()),
+                ConfigSection.UI.value:             asdict(UIDefaults()),
+                ConfigSection.REPOSITORIES.value:   {},
+                ConfigSection.BACKUP_TARGETS.value: {},
+                ConfigSection.NOTIFICATIONS.value:  {
                         "enabled":           True,
                         "desktop_enabled":   True,
                         "email_enabled":     False,
                         "notify_on_success": True,
                         "notify_on_error":   True
                 },
-                ConfigSection.MONITORING.value:    {
+                ConfigSection.MONITORING.value:     {
                         "status_retention_days":  30,
                         "metrics_enabled":        True,
                         "performance_monitoring": True
@@ -441,3 +457,205 @@ class ConfigurationManager:
 
         except Exception as e:
             logger.warning(f"Failed to backup configuration: {e}")
+
+    def add_repository(self, name: str, uri: str, description: str = "",
+                       repo_type: str = "auto") -> None:
+        """Add a new repository to configuration"""
+        repositories = self.get(ConfigSection.REPOSITORIES, default={})
+
+        if name in repositories:
+            raise RepositoryAlreadyExistsError(f"Repository '{name}' already exists")
+
+        # Auto-detect repository type from URI
+        if repo_type == "auto":
+            if uri.startswith("s3:") or uri.startswith("s3://"):
+                repo_type = "s3"
+            elif uri.startswith("b2:") or uri.startswith("b2://"):
+                repo_type = "b2"
+            elif uri.startswith("sftp:") or uri.startswith("sftp://"):
+                repo_type = "sftp"
+            elif uri.startswith("/") or uri.startswith("file://"):
+                repo_type = "local"
+            else:
+                repo_type = "unknown"
+
+        repositories[name] = {
+                "uri":         uri,
+                "description": description,
+                "type":        repo_type,
+                "created":     datetime.now().isoformat()
+        }
+
+        self.update_section(ConfigSection.REPOSITORIES, repositories)
+        self.save_config()
+        logger.info(f"Added repository '{name}' with URI: {uri}")
+
+    def remove_repository(self, name: str) -> None:
+        """Remove a repository from configuration"""
+        repositories = self.get(ConfigSection.REPOSITORIES, default={})
+
+        if name not in repositories:
+            raise RepositoryNotFoundError(f"Repository '{name}' not found")
+
+        # Check if this is the default repository
+        if self.get(ConfigSection.GENERAL, "default_repository") == name:
+            self.set(ConfigSection.GENERAL, "default_repository", None)
+
+        del repositories[name]
+        self.update_section(ConfigSection.REPOSITORIES, repositories)
+        self.save_config()
+        logger.info(f"Removed repository '{name}'")
+
+    def get_repository(self, name: str) -> Dict[str, Any]:
+        """Get repository configuration by name"""
+        repositories = self.get(ConfigSection.REPOSITORIES, default={})
+
+        if name not in repositories:
+            raise RepositoryNotFoundError(f"Repository '{name}' not found")
+
+        return repositories[name]
+
+    def list_repositories(self) -> Dict[str, Dict[str, Any]]:
+        """List all configured repositories"""
+        return self.get(ConfigSection.REPOSITORIES, default={})
+
+    def _migrate_legacy_config(self):
+        """Migrate legacy timelocker.json configuration to config.json"""
+        legacy_file = self.config_dir / "timelocker.json"
+
+        if not legacy_file.exists():
+            return
+
+        try:
+            logger.info("Found legacy configuration file, migrating...")
+
+            # Load legacy configuration
+            with open(legacy_file, 'r') as f:
+                legacy_config = json.load(f)
+
+            # Backup legacy file
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_legacy = self.config_dir / f"timelocker_backup_{timestamp}.json"
+            shutil.copy2(legacy_file, backup_legacy)
+
+            # Merge legacy config with current config
+            if legacy_config.get("repositories"):
+                current_repos = self.get(ConfigSection.REPOSITORIES, default={})
+                current_repos.update(legacy_config["repositories"])
+                self.update_section(ConfigSection.REPOSITORIES, current_repos)
+
+            if legacy_config.get("backup_targets"):
+                current_targets = self.get(ConfigSection.BACKUP_TARGETS, default={})
+                current_targets.update(legacy_config["backup_targets"])
+                self.update_section(ConfigSection.BACKUP_TARGETS, current_targets)
+
+            if legacy_config.get("settings"):
+                settings = legacy_config["settings"]
+                if settings.get("default_repository"):
+                    self.set(ConfigSection.GENERAL, "default_repository", settings["default_repository"])
+
+            # Save migrated configuration
+            self.save_config()
+
+            # Remove legacy file after successful migration
+            legacy_file.unlink()
+
+            logger.info(f"Successfully migrated configuration from {legacy_file} to {self.config_file}")
+
+        except Exception as e:
+            logger.error(f"Failed to migrate legacy configuration: {e}")
+            # Don't raise exception - continue with current config
+
+    def add_backup_target(self, name: str, paths: List[str], description: str = "",
+                          include_patterns: List[str] = None, exclude_patterns: List[str] = None) -> None:
+        """Add a new backup target to configuration"""
+        backup_targets = self.get(ConfigSection.BACKUP_TARGETS, default={})
+
+        if name in backup_targets:
+            raise ValueError(f"Backup target '{name}' already exists")
+
+        # Set default patterns if not provided
+        if include_patterns is None:
+            include_patterns = ["*"]
+        if exclude_patterns is None:
+            exclude_patterns = ["*.tmp", "*.log", "Thumbs.db", ".DS_Store"]
+
+        backup_targets[name] = {
+                "name":        description or name,
+                "description": description or f"Backup target for {name}",
+                "paths":       paths,
+                "patterns":    {
+                        "include": include_patterns,
+                        "exclude": exclude_patterns
+                },
+                "created":     datetime.now().isoformat()
+        }
+
+        self.update_section(ConfigSection.BACKUP_TARGETS, backup_targets)
+        self.save_config()
+        logger.info(f"Added backup target '{name}' with {len(paths)} path(s)")
+
+    def remove_backup_target(self, name: str) -> None:
+        """Remove a backup target from configuration"""
+        backup_targets = self.get(ConfigSection.BACKUP_TARGETS, default={})
+
+        if name not in backup_targets:
+            raise ValueError(f"Backup target '{name}' not found")
+
+        del backup_targets[name]
+        self.update_section(ConfigSection.BACKUP_TARGETS, backup_targets)
+        self.save_config()
+        logger.info(f"Removed backup target '{name}'")
+
+    def get_backup_target(self, name: str) -> Dict[str, Any]:
+        """Get backup target configuration by name"""
+        backup_targets = self.get(ConfigSection.BACKUP_TARGETS, default={})
+
+        if name not in backup_targets:
+            raise ValueError(f"Backup target '{name}' not found")
+
+        return backup_targets[name]
+
+    def list_backup_targets(self) -> Dict[str, Dict[str, Any]]:
+        """List all configured backup targets"""
+        return self.get(ConfigSection.BACKUP_TARGETS, default={})
+
+    def set_default_repository(self, name: str) -> None:
+        """Set the default repository"""
+        repositories = self.get(ConfigSection.REPOSITORIES, default={})
+
+        if name not in repositories:
+            raise RepositoryNotFoundError(f"Repository '{name}' not found")
+
+        self.set(ConfigSection.GENERAL, "default_repository", name)
+        self.save_config()
+        logger.info(f"Set default repository to '{name}'")
+
+    def get_default_repository(self) -> Optional[str]:
+        """Get the default repository name"""
+        return self.get(ConfigSection.GENERAL, "default_repository")
+
+    def resolve_repository(self, name_or_uri: str) -> str:
+        """Resolve repository name to URI, or return URI if already a URI"""
+        if not name_or_uri:
+            # Try to use default repository
+            default_repo = self.get_default_repository()
+            if default_repo:
+                return self.get_repository(default_repo)["uri"]
+            raise RepositoryNotFoundError("No repository specified and no default repository set")
+
+        # Check if it's already a URI (contains :// or starts with known schemes)
+        if ("://" in name_or_uri or
+                name_or_uri.startswith("s3:") or
+                name_or_uri.startswith("b2:") or
+                name_or_uri.startswith("/") or
+                name_or_uri.startswith("sftp:")):
+            return name_or_uri
+
+        # Try to resolve as repository name
+        repositories = self.get(ConfigSection.REPOSITORIES, default={})
+        if name_or_uri in repositories:
+            return repositories[name_or_uri]["uri"]
+
+        # If not found as name, assume it's a URI
+        return name_or_uri

@@ -25,6 +25,11 @@ from typing import Dict, List, Optional
 
 from packaging import version
 
+try:
+    import dateutil.parser
+except ImportError:
+    dateutil = None
+
 from TimeLocker.backup_repository import BackupRepository, RetentionPolicy
 from TimeLocker.backup_snapshot import BackupSnapshot
 from TimeLocker.backup_target import BackupTarget
@@ -110,7 +115,8 @@ class ResticRepository(BackupRepository):
             if stored_password:
                 return stored_password
 
-        return os.getenv("RESTIC_PASSWORD")
+        # Check TimeLocker environment variable first, then fall back to RESTIC_PASSWORD
+        return os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
 
     def store_password(self, password: str) -> bool:
         """Store password in credential manager if available"""
@@ -128,7 +134,10 @@ class ResticRepository(BackupRepository):
         if self._cached_env:
             return self._cached_env
 
-        env = {}
+        # Start with current environment to preserve PATH and other system variables
+        import os
+        env = os.environ.copy()
+
         pwd = self.password()
         if not pwd:
             raise RepositoryError("RESTIC_PASSWORD must be set explicitly or in the environment.")
@@ -144,7 +153,7 @@ class ResticRepository(BackupRepository):
     def initialize(self) -> bool:
         """Initialize the backup repository"""
         try:
-            result = self._command.param("init").run(self.to_env())
+            result = self._command.command("init").run(self.to_env())
             logger.info("Repository initialized successfully")
             return True
         except Exception as e:
@@ -154,7 +163,7 @@ class ResticRepository(BackupRepository):
     def check(self) -> bool:
         """Check if the backup repository is available"""
         try:
-            self._command.param("check").run(self.to_env())
+            self._command.command("check").run(self.to_env())
             logger.info("Repository check passed")
             return True
         except Exception as e:
@@ -273,24 +282,28 @@ class ResticRepository(BackupRepository):
 
     def verify_backup(self, snapshot_id: Optional[str] = None) -> bool:
         """
-        Verify the integrity of a backup snapshot
+        Verify the integrity of a backup repository
 
         Args:
-            snapshot_id: Specific snapshot to verify. If None, verifies the latest snapshot
+            snapshot_id: Specific snapshot to verify. If None, performs basic repository check.
+                        Note: Snapshot-specific verification is not currently supported.
 
         Returns:
             bool: True if verification successful, False otherwise
         """
         try:
-            # Build check command - need to create new builder without json since check doesn't support it
+            # Build check command with JSON support for better error parsing
             check_command = CommandBuilder(restic_command_def)
+            check_command = check_command.param("json")
             check_command = check_command.param("repo", self.uri())
             check_command = check_command.command("check")
 
+            # Note: We perform basic repository check regardless of snapshot_id
+            # Snapshot-specific verification would require different approach
             if snapshot_id:
-                check_command = check_command.param("read-data-subset", f"{snapshot_id}")
-
-            logger.info(f"Verifying backup integrity{f' for snapshot {snapshot_id}' if snapshot_id else ''}")
+                logger.info(f"Performing repository verification (snapshot-specific verification not supported)")
+            else:
+                logger.info("Verifying backup repository integrity")
 
             # Execute check command
             command_list = check_command.build()
@@ -302,6 +315,22 @@ class ResticRepository(BackupRepository):
                     env=self.to_env(),
                     check=True
             )
+
+            # Parse JSON output for better error reporting
+            if result.stdout.strip():
+                try:
+                    lines = result.stdout.strip().split('\n')
+                    for line in lines:
+                        if line.strip():
+                            data = json.loads(line)
+                            if data.get("message_type") == "summary":
+                                num_errors = data.get("num_errors", 0)
+                                if num_errors > 0:
+                                    logger.warning(f"Repository check found {num_errors} errors")
+                                    return False
+                except json.JSONDecodeError:
+                    # Fallback to basic success if JSON parsing fails
+                    logger.debug("Could not parse JSON output, assuming success based on exit code")
 
             logger.info("Backup verification completed successfully")
             return True
@@ -409,16 +438,67 @@ class ResticRepository(BackupRepository):
 
     def snapshots(self, tags: Optional[List[str]] = None) -> List[BackupSnapshot]:
         """List available snapshots"""
-        output = self._command.param("snapshots").run(self.to_env())
+        output = self._command.command("snapshots").run(self.to_env())
         snapshots_data = json.loads(output)
-        return [BackupSnapshot(repo=self, snapshot_id=s["short_id"], timestamp=s["time"], paths=s["paths"]) for s in snapshots_data]
+
+        snapshots = []
+        for s in snapshots_data:
+            # Parse the timestamp string to datetime object
+            from datetime import datetime
+            timestamp_str = s["time"]
+            # Handle ISO format with timezone
+            if timestamp_str.endswith('Z'):
+                timestamp_str = timestamp_str[:-1] + '+00:00'
+            elif '+' in timestamp_str[-6:] or timestamp_str[-6:].count(':') == 2:
+                # Already has timezone info
+                pass
+            else:
+                # Add UTC timezone if missing
+                timestamp_str += '+00:00'
+
+            try:
+                timestamp = datetime.fromisoformat(timestamp_str)
+            except ValueError:
+                # Fallback for older Python versions or different formats
+                if dateutil:
+                    timestamp = dateutil.parser.parse(timestamp_str)
+                else:
+                    # Basic fallback - try to parse manually
+                    # Format: 2025-03-29T21:09:34.068185654+02:00
+                    import re
+                    # Remove microseconds if too long and parse
+                    clean_str = re.sub(r'\.(\d{6})\d*', r'.\1', timestamp_str)
+                    timestamp = datetime.fromisoformat(clean_str)
+
+            # Convert paths to Path objects
+            from pathlib import Path
+            paths = [Path(p) for p in s["paths"]]
+
+            snapshot = BackupSnapshot(
+                    repo=self,
+                    snapshot_id=s["short_id"],
+                    timestamp=timestamp,
+                    paths=paths
+            )
+
+            # Add additional attributes from restic data
+            if "hostname" in s:
+                snapshot.hostname = s["hostname"]
+            if "tags" in s:
+                snapshot.tags = s["tags"]
+            else:
+                snapshot.tags = []
+
+            snapshots.append(snapshot)
+
+        return snapshots
 
     def restore(self, snapshot_id: str, target_path: Optional[Path] = None) -> str:
-        return self._command.param("restore").param(snapshot_id).param("target", target_path).run(self.to_env())
+        return self._command.command("restore").param(snapshot_id).param("target", target_path).run(self.to_env())
 
     def stats(self) -> dict:
         """Get snapshot stats"""
-        output = self._command.param("stats").run(self.to_env())
+        output = self._command.command("stats").run(self.to_env())
         return json.loads(output)
 
     def location(self) -> str:
@@ -434,7 +514,7 @@ class ResticRepository(BackupRepository):
             policy: Retention policy specifying which snapshots to keep
             prune: If True, automatically run prune after forgetting snapshots
         """
-        cmdline = self._command.param("forget")
+        cmdline = self._command.command("forget")
         if prune:
             cmdline.param("--prune")
         result = cmdline.run(self.to_env())
@@ -452,7 +532,7 @@ class ResticRepository(BackupRepository):
             snapshotid: ID of the Snapshot to remove
             prune: If True, automatically run prune after forgetting snapshots
         """
-        cmdline = self._command.param("forget").param(snapshotid)
+        cmdline = self._command.command("forget").param(snapshotid)
         if prune:
             cmdline.param("--prune")
         result = cmdline.run(self.to_env())
@@ -466,11 +546,13 @@ class ResticRepository(BackupRepository):
         Remove unreferenced data from the repository.
         This removes file chunks that are no longer used by any snapshot.
         """
-        return self._command.param("prune").run(self.to_env())
+        return self._command.command("prune").run(self.to_env())
 
     def validate(self) -> str:
         """Validate repository configuration"""
-        return self._command.param("validate").run(self.to_env())
+        # Use check command to validate repository
+        self.check()
+        return "Repository validation successful"
 
     @abstractmethod
     def backend_env(self) -> Dict[str, str]:
