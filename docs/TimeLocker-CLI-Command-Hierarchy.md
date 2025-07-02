@@ -22,8 +22,6 @@ arguments, options, and usage patterns. This serves as a reference for restructu
 
 - `sources` (optional): Source paths to backup (List[Path])
 
-> CHANGE rename sources to target-paths to backup to be consistent. How does this relate to the --include and --exclude options?
-
 **Options**:
 
 - `--repository, -r`: Repository name or URI
@@ -76,8 +74,7 @@ timelocker restore /restore/path --preview --include "*.pdf"
 
 ### 3. `timelocker list`
 
-> CHANGE: `timelocker repository snapshots list`
-**Purpose**: List snapshots in repository with a beautiful table  
+**Purpose**: List snapshots in repository with a beautiful table
 **Arguments**: None
 
 **Options**:
@@ -97,8 +94,7 @@ timelocker list -r s3://bucket/path
 
 ### 4. `timelocker init`
 
-> CHANGE to `timelocker repository init` also support `timelocker repo init`
-**Purpose**: Initialize a new backup repository  
+**Purpose**: Initialize a new backup repository
 **Arguments**: None
 
 **Options**:
@@ -118,8 +114,7 @@ timelocker init --repository s3://bucket/path --password mypassword
 
 ### 5. `timelocker verify`
 
-> CHANGE this to `timelocker backup verify`
-**Purpose**: Verify backup integrity  
+**Purpose**: Verify backup integrity
 **Arguments**: None
 
 **Options**:
@@ -176,10 +171,7 @@ timelocker config setup --config-dir /custom/path
 
 ### 8. `timelocker config list`
 
-> CHANGE to `timelocker config show` and show config settings excluding repos and backup targets.
-> ADD `timelocker config repositories list` to list repositories. Commands for managing repos will be needed.
-> ADD `timelocker config targets list` to list backup targets. Commands for managing targets will be needed.
-**Purpose**: List current configuration  
+**Purpose**: List current configuration
 **Arguments**: None
 
 **Options**:
@@ -197,8 +189,7 @@ timelocker config list
 
 ### 9. `timelocker config import-restic`
 
-> CHANGE to `timelocker config import restic` so that import from other tools can be added later.
-**Purpose**: Import configuration from existing restic environment  
+**Purpose**: Import configuration from existing restic environment
 **Arguments**: None
 
 **Options**:
@@ -221,8 +212,7 @@ timelocker config import-restic --dry-run
 
 ### 10. `timelocker config list-repos`
 
-> CHANGE could be removed based on `timelocker config repositories list` addition
-**Purpose**: List configured repositories  
+**Purpose**: List configured repositories
 **Arguments**: None
 
 **Options**:
@@ -240,8 +230,7 @@ timelocker config list-repos
 
 ### 11. `timelocker config add-repo`
 
-> CHANGE to `timelocker config repositories add`
-**Purpose**: Add a new repository to configuration  
+**Purpose**: Add a new repository to configuration
 **Arguments**:
 
 - `name`: Repository name (required)
@@ -265,8 +254,7 @@ timelocker config add-repo s3repo s3://bucket/path --set-default
 
 ### 12. `timelocker config remove-repo`
 
-> CHANGE to `timelocker config repositories remove`
-**Purpose**: Remove a repository from configuration  
+**Purpose**: Remove a repository from configuration
 **Arguments**:
 
 - `name`: Repository name to remove (required)
@@ -286,8 +274,7 @@ timelocker config remove-repo myrepo
 
 ### 13. `timelocker config set-default-repo`
 
-> CHANGE to `timelocker config repositories set-default`
-**Purpose**: Set the default repository  
+**Purpose**: Set the default repository
 **Arguments**:
 
 - `name`: Repository name to set as default (required)
@@ -307,8 +294,7 @@ timelocker config set-default-repo myrepo
 
 ### 14. `timelocker config add-target`
 
-> change to `timelocker config targets add`
-**Purpose**: Add a new backup target configuration  
+**Purpose**: Add a new backup target configuration
 **Arguments**:
 
 - `name`: Target name (required)
@@ -331,44 +317,56 @@ timelocker config add-target photos /home/user/Pictures --exclude "*.tmp"
 
 ---
 
-## Proposed Command Tree Structure
+## Revised Command Tree Structure (Singular/Plural Pattern)
 
 ```
 timelocker/ (alias: tl)
-├── backup                           # Create backups
-│   └── verify                       # Verify backup integrity
-├── restore                          # Restore from backups
-├── repository/ (alias: repo)        # Repository operations & management
-│   ├── init                         # Initialize repository
-│   ├── snapshots/
-│   │   └── list (alias: ls)         # List snapshots
-│   ├── prune                        # Remove old snapshots
-│   ├── check                        # Check repository integrity
-│   ├── stats                        # Show repository statistics
-│   ├── forget                       # Remove specific snapshots
-│   ├── diff                         # Show differences between snapshots
-│   ├── find                         # Search for files in snapshots
-│   ├── mount                        # Mount as filesystem
-│   ├── umount                       # Unmount filesystem
-│   ├── unlock                       # Remove repository locks
-│   └── migrate                      # Migrate repository format
-├── config/                          # Configuration management
-│   ├── show                         # Show configuration settings
-│   ├── setup                        # Interactive setup wizard
+├── backup/
+│   ├── create [paths...]           # Create backup (default action)
+│   └── verify [--snapshot]         # Verify backup integrity
+├── snapshot/ <id>                  # Single snapshot operations
+│   ├── show                        # Show snapshot details
+│   ├── list                        # List contents of snapshot (NEW!)
+│   ├── restore <target>            # Restore from this snapshot
+│   ├── mount <path>                # Mount this snapshot as filesystem
+│   ├── umount                      # Unmount this snapshot
+│   ├── find <pattern>              # Search within this snapshot
+│   └── forget                      # Remove this specific snapshot
+├── snapshots/                      # Multiple snapshot operations
+│   ├── list|ls                     # List snapshots from all configured repos
+│   ├── prune                       # Remove old snapshots across repos
+│   ├── diff <id1> <id2>            # Compare two snapshots
+│   └── find <pattern>              # Search across all snapshots
+├── repo/ <name>                    # Single repository operations
+│   ├── init                        # Initialize this repository
+│   ├── check                       # Check this repository integrity
+│   ├── stats                       # Show this repository statistics
+│   ├── unlock                      # Remove locks from this repository
+│   ├── migrate                     # Migrate this repository format
+│   └── forget                      # Apply retention policy to this repo
+├── repos/                          # Multiple repository operations
+│   ├── list|ls                     # List all repositories
+│   ├── check                       # Check all repositories
+│   └── stats                       # Show stats for all repositories
+├── config/                         # Configuration management
+│   ├── show                        # Show configuration settings
+│   ├── setup                       # Interactive setup wizard
 │   ├── import/
-│   │   └── restic                   # Import from restic environment
-│   ├── repositories/ (alias: repos)
-│   │   ├── list (alias: ls)         # List configured repositories
-│   │   ├── add                      # Add repository to config
-│   │   ├── remove (alias: rm)       # Remove repository from config
-│   │   └── set-default              # Set default repository
-│   └── targets/
-│       ├── list (alias: ls)         # List backup targets
-│       ├── add                      # Add backup target
-│       ├── remove (alias: rm)       # Remove backup target
-│       ├── edit                     # Edit backup target
-│       └── show                     # Show target details
-└── version                          # Show version info
+│   │   └── restic                  # Import from restic environment
+│   ├── repositories/
+│   │   ├── list|ls                 # List configured repositories
+│   │   ├── add <name> <uri>        # Add repository to config
+│   │   ├── remove|rm <name>        # Remove repository from config
+│   │   ├── default <name>          # Set default repository
+│   │   └── show <name>             # Show repository config details
+│   ├── target/ <name>              # Single target operations
+│   │   ├── show                    # Show target details
+│   │   ├── edit                    # Edit target configuration
+│   │   └── remove|rm               # Remove this target
+│   └── targets/                    # Multiple target operations
+│       ├── list|ls                 # List all targets
+│       └── add <name> <paths...>   # Add new target
+└── version                         # Show version info
 ```
 
 ## Command Aliases and Shortcuts
@@ -387,14 +385,131 @@ timelocker/ (alias: tl)
 ### Common Usage Shortcuts
 
 ```bash
-# Instead of: timelocker repository snapshots list
-tl repo snapshots ls
+# List snapshots from all configured repositories
+tl snapshots ls
 
-# Instead of: timelocker config repositories list
-tl config repos ls
+# List snapshots from specific repository
+tl snapshots ls --repository myrepo
 
-# Instead of: timelocker config targets list
+# Show details of specific snapshot
+tl snapshot abc123def show
+
+# List contents of specific snapshot
+tl snapshot abc123def list
+
+# Configuration shortcuts
+tl config repositories ls
 tl config targets ls
+```
+
+## Singular/Plural Command Pattern
+
+### Design Philosophy
+
+TimeLocker uses a consistent **singular/plural pattern** to distinguish between operations on single items vs. multiple items:
+
+- **Singular commands**: `snapshot`, `repo`, `target` - operate on a specific item
+- **Plural commands**: `snapshots`, `repos`, `targets` - operate on multiple/all items
+
+### Pattern Examples
+
+#### Snapshots
+
+```bash
+# Single snapshot operations (require snapshot ID)
+tl snapshot <id> show           # Show THIS snapshot's details
+tl snapshot <id> list           # List THIS snapshot's contents
+tl snapshot <id> restore <path> # Restore from THIS snapshot
+tl snapshot <id> mount <path>   # Mount THIS snapshot
+tl snapshot <id> find <pattern> # Search within THIS snapshot
+
+# Multiple snapshot operations (work across all/multiple)
+tl snapshots list               # List ALL snapshots
+tl snapshots prune              # Prune old snapshots across repos
+tl snapshots find <pattern>     # Search across ALL snapshots
+tl snapshots diff <id1> <id2>   # Compare two snapshots
+```
+
+#### Repositories
+
+```bash
+# Single repository operations (require repo name)
+tl repo <name> init             # Initialize THIS repository
+tl repo <name> check            # Check THIS repository
+tl repo <name> stats            # Stats for THIS repository
+
+# Multiple repository operations
+tl repos list                   # List ALL repositories
+tl repos check                  # Check ALL repositories
+tl repos stats                  # Stats for ALL repositories
+```
+
+#### Configuration Targets
+
+```bash
+# Single target operations (require target name)
+tl config target <name> show    # Show THIS target's details
+tl config target <name> edit    # Edit THIS target
+tl config target <name> remove  # Remove THIS target
+
+# Multiple target operations
+tl config targets list          # List ALL targets
+tl config targets add <name>    # Add new target
+```
+
+### Commands Available in Multiple Locations
+
+Some commands appear in both singular and plural forms where relevant:
+
+- **`find`**: Available as both `snapshot <id> find` (search within one) and `snapshots find` (search across all)
+- **`list`**: `snapshot <id> list` (contents) vs `snapshots list` (all snapshots)
+- **`show`**: Available for individual items (`snapshot <id> show`, `repo <name> show`, etc.)
+
+## Default Behavior for Snapshot Operations
+
+### Multi-Repository Default
+
+By default, snapshot operations work across **all configured repositories**:
+
+```bash
+# Shows snapshots from ALL configured repositories
+tl snapshots list
+
+# Searches across ALL configured repositories
+tl snapshots find "*.pdf"
+
+# Prunes old snapshots in ALL configured repositories
+tl snapshots prune --keep-daily 7
+```
+
+### Single Repository Operations
+
+Use `--repository` to target a specific repository:
+
+```bash
+# List snapshots from specific repository only
+tl snapshots list --repository myrepo
+tl snapshots list -r s3://bucket/backup
+
+# Search in specific repository only
+tl snapshots find "*.pdf" --repository local-backup
+
+# Prune specific repository only
+tl snapshots prune --repository myrepo --keep-daily 7
+```
+
+### Output Format for Multi-Repository Operations
+
+When operating across multiple repositories, output clearly indicates the source:
+
+```
+Repository: local-backup (file:///backup/local)
+  abc123def  2024-01-15 10:30  documents/
+  def456ghi  2024-01-14 10:30  documents/
+
+Repository: remote-backup (s3://bucket/backup)
+  ghi789jkl  2024-01-15 11:00  documents/
+  jkl012mno  2024-01-14 11:00  documents/
 ```
 
 ## Commands to Implement
@@ -477,22 +592,28 @@ TimeLocker uses a configuration file located at `~/.timelocker/config.json` (con
 
 ```bash
 # 1. Initialize repository
-tl repo init --repository file:///backup/repo --password mypass
+tl repo myrepo init --repository file:///backup/repo --password mypass
 
 # 2. Add repository to config
-tl config repos add myrepo file:///backup/repo --set-default
+tl config repositories add myrepo file:///backup/repo --default
 
 # 3. Create backup target
 tl config targets add documents /home/user/Documents
 
 # 4. Create backup
-tl backup --target documents
+tl backup create --target documents
 
-# 5. List snapshots
-tl repo snapshots ls
+# 5. List snapshots (shows all configured repositories by default)
+tl snapshots list
 
-# 6. Restore if needed
-tl restore /restore/path --snapshot latest
+# 6. Show details of specific snapshot
+tl snapshot abc123def show
+
+# 7. List contents of specific snapshot
+tl snapshot abc123def list
+
+# 8. Restore from specific snapshot
+tl snapshot abc123def restore /restore/path
 ```
 
 ### Advanced Configuration (Proposed Structure)
