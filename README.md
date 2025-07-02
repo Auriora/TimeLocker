@@ -313,6 +313,7 @@ Key component interactions:
 For more detailed documentation, please refer to:
 
 - [**Installation Guide**](docs/INSTALLATION.md) Detailed instructions for installing TimeLocker
+- [**Version Management Guide**](docs/VERSION_MANAGEMENT.md) How to manage versions and releases
 - [**Command Builder Documentation**](docs/command_builder.md) Details on using the command builder
 - [**Documentation Organization**](docs/DOCUMENTATION_ORGANIZATION.md) Guidelines for organizing documentation
 - [**SDLC Documentation**](docs/SDLC/) Software Development Lifecycle documentation
