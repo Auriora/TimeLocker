@@ -1,0 +1,62 @@
+{
+  "general": {
+    "app_name": "TimeLocker",
+    "version": "1.0.0",
+    "log_level": "INFO",
+    "data_dir": "/home/bcherrington/.cache/timelocker/data",
+    "temp_dir": "/home/bcherrington/.cache/timelocker/temp",
+    "max_concurrent_operations": 2,
+    "default_repository": "local-test"
+  },
+  "backup": {
+    "compression": "auto",
+    "exclude_caches": true,
+    "exclude_if_present": [
+      ".nobackup",
+      "CACHEDIR.TAG"
+    ],
+    "one_file_system": false,
+    "check_before_backup": true,
+    "verify_after_backup": true
+  },
+  "restore": {
+    "verify_after_restore": true,
+    "create_target_directory": true,
+    "preserve_permissions": true,
+    "conflict_resolution": "prompt"
+  },
+  "security": {
+    "encryption_enabled": true,
+    "audit_logging": true,
+    "credential_timeout": 3600,
+    "max_failed_attempts": 3,
+    "lockout_duration": 300
+  },
+  "ui": {
+    "theme": "auto",
+    "show_advanced_options": false,
+    "auto_refresh_interval": 30,
+    "max_log_entries": 1000,
+    "confirm_destructive_actions": true
+  },
+  "notifications": {
+    "enabled": true,
+    "desktop_enabled": true,
+    "email_enabled": false,
+    "notify_on_success": true,
+    "notify_on_error": true
+  },
+  "monitoring": {
+    "status_retention_days": 30,
+    "metrics_enabled": true,
+    "performance_monitoring": true
+  },
+  "repositories": {
+    "local-test": {
+      "name": "local-test",
+      "location": "/tmp/test-backup",
+      "description": "Local test repository"
+    }
+  },
+  "backup_targets": {}
+}

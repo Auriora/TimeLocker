@@ -29,7 +29,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Union
 from dataclasses import dataclass
 
-from TimeLocker.interfaces import (
+from .interfaces import (
     IRepositoryFactory,
     IConfigurationProvider,
     IBackupOrchestrator,
@@ -37,18 +37,18 @@ from TimeLocker.interfaces import (
     BackupStatus,
     ConfigurationError
 )
-from TimeLocker.services import (
+from .services import (
     RepositoryFactory,
     ConfigurationService,
     BackupOrchestrator,
     ValidationService
 )
-from TimeLocker.services.snapshot_service import SnapshotService
-from TimeLocker.services.repository_service import RepositoryService
-from TimeLocker.utils.performance_monitor import PerformanceMonitor
-from TimeLocker.config.configuration_manager import ConfigurationManager, ConfigurationPathResolver
-from TimeLocker.backup_target import BackupTarget
-from TimeLocker.file_selections import FileSelection, SelectionType
+from .services.snapshot_service import SnapshotService
+from .services.repository_service import RepositoryService
+from .utils.performance_utils import PerformanceModule
+from .config.configuration_manager import ConfigurationManager, ConfigurationPathResolver
+from .backup_target import BackupTarget
+from .file_selections import FileSelection, SelectionType
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +88,7 @@ class CLIServiceManager:
         # Initialize modern services
         self._repository_factory = RepositoryFactory()
         self._validation_service = ValidationService()
-        self._performance_monitor = PerformanceMonitor()
+        self._performance_module = PerformanceModule()
 
         # Initialize configuration (hybrid approach for migration)
         self._legacy_config_manager = ConfigurationManager()
@@ -100,13 +100,13 @@ class CLIServiceManager:
         # Initialize snapshot service
         self._snapshot_service = SnapshotService(
                 validation_service=self._validation_service,
-                performance_monitor=self._performance_monitor
+                performance_module=self._performance_module
         )
 
         # Initialize repository service
         self._repository_service = RepositoryService(
                 validation_service=self._validation_service,
-                performance_monitor=self._performance_monitor
+                performance_module=self._performance_module
         )
 
         # Initialize backup orchestrator

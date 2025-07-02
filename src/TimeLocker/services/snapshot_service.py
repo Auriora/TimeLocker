@@ -14,11 +14,11 @@ from datetime import datetime
 import logging
 
 from ..interfaces.data_models import SnapshotInfo, SnapshotResult, OperationStatus
-from ..interfaces.repository_interface import IRepository
+from ..backup_repository import BackupRepository
 from ..interfaces.snapshot_interface import ISnapshotService
-from ..utils.error_handling import TimeLockerError, SnapshotError
-from ..utils.validation_service import ValidationService
-from ..utils.performance_monitor import PerformanceMonitor
+from ..interfaces.exceptions import TimeLockerInterfaceError
+from .validation_service import ValidationService
+from ..utils.performance_utils import PerformanceModule
 
 logger = logging.getLogger(__name__)
 
@@ -46,12 +46,12 @@ class SnapshotDiffResult:
 class SnapshotService(ISnapshotService):
     """Advanced snapshot management service"""
 
-    def __init__(self, validation_service: ValidationService, performance_monitor: PerformanceMonitor):
+    def __init__(self, validation_service: ValidationService, performance_module: PerformanceModule):
         self.validation_service = validation_service
-        self.performance_monitor = performance_monitor
+        self.performance_module = performance_module
         self._mounted_snapshots: Dict[str, Path] = {}  # snapshot_id -> mount_path
 
-    def get_snapshot_details(self, repository: IRepository, snapshot_id: str) -> SnapshotInfo:
+    def get_snapshot_details(self, repository: BackupRepository, snapshot_id: str) -> SnapshotInfo:
         """
         Get detailed information about a specific snapshot
         
@@ -63,9 +63,9 @@ class SnapshotService(ISnapshotService):
             SnapshotInfo: Detailed snapshot information
             
         Raises:
-            SnapshotError: If snapshot cannot be found or accessed
+            TimeLockerInterfaceError: If snapshot cannot be found or accessed
         """
-        with self.performance_monitor.track_operation("get_snapshot_details"):
+        with self.performance_module.track_operation("get_snapshot_details"):
             try:
                 # Validate inputs
                 self.validation_service.validate_snapshot_id(snapshot_id)
@@ -75,7 +75,7 @@ class SnapshotService(ISnapshotService):
                 snapshot = next((s for s in snapshots if s.id.startswith(snapshot_id)), None)
 
                 if not snapshot:
-                    raise SnapshotError(f"Snapshot {snapshot_id} not found in repository")
+                    raise TimeLockerInterfaceError(f"Snapshot {snapshot_id} not found in repository")
 
                 # Get detailed stats
                 stats = self._get_snapshot_stats(repository, snapshot)
@@ -95,9 +95,9 @@ class SnapshotService(ISnapshotService):
 
             except Exception as e:
                 logger.error(f"Failed to get snapshot details for {snapshot_id}: {e}")
-                raise SnapshotError(f"Failed to get snapshot details: {e}")
+                raise TimeLockerInterfaceError(f"Failed to get snapshot details: {e}")
 
-    def list_snapshot_contents(self, repository: IRepository, snapshot_id: str,
+    def list_snapshot_contents(self, repository: BackupRepository, snapshot_id: str,
                                path: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         List contents of a snapshot
@@ -111,9 +111,9 @@ class SnapshotService(ISnapshotService):
             List of file/directory information dictionaries
             
         Raises:
-            SnapshotError: If snapshot cannot be accessed or listed
+            TimeLockerInterfaceError: If snapshot cannot be accessed or listed
         """
-        with self.performance_monitor.track_operation("list_snapshot_contents"):
+        with self.performance_module.track_operation("list_snapshot_contents"):
             try:
                 # Validate inputs
                 self.validation_service.validate_snapshot_id(snapshot_id)
@@ -131,7 +131,7 @@ class SnapshotService(ISnapshotService):
                 result = subprocess.run(cmd, capture_output=True, text=True, env=env)
 
                 if result.returncode != 0:
-                    raise SnapshotError(f"Failed to list snapshot contents: {result.stderr}")
+                    raise TimeLockerInterfaceError(f"Failed to list snapshot contents: {result.stderr}")
 
                 # Parse output into structured format
                 contents = []
@@ -152,9 +152,9 @@ class SnapshotService(ISnapshotService):
 
             except Exception as e:
                 logger.error(f"Failed to list snapshot contents for {snapshot_id}: {e}")
-                raise SnapshotError(f"Failed to list snapshot contents: {e}")
+                raise TimeLockerInterfaceError(f"Failed to list snapshot contents: {e}")
 
-    def mount_snapshot(self, repository: IRepository, snapshot_id: str,
+    def mount_snapshot(self, repository: BackupRepository, snapshot_id: str,
                        mount_path: Path) -> SnapshotResult:
         """
         Mount a snapshot as a filesystem
@@ -168,9 +168,9 @@ class SnapshotService(ISnapshotService):
             SnapshotResult: Result of mount operation
             
         Raises:
-            SnapshotError: If snapshot cannot be mounted
+            TimeLockerInterfaceError: If snapshot cannot be mounted
         """
-        with self.performance_monitor.track_operation("mount_snapshot"):
+        with self.performance_module.track_operation("mount_snapshot"):
             try:
                 # Validate inputs
                 self.validation_service.validate_snapshot_id(snapshot_id)
@@ -178,7 +178,7 @@ class SnapshotService(ISnapshotService):
 
                 # Check if mount path exists and is empty
                 if mount_path.exists() and any(mount_path.iterdir()):
-                    raise SnapshotError(f"Mount path {mount_path} is not empty")
+                    raise TimeLockerInterfaceError(f"Mount path {mount_path} is not empty")
 
                 # Create mount path if it doesn't exist
                 mount_path.mkdir(parents=True, exist_ok=True)
@@ -186,7 +186,7 @@ class SnapshotService(ISnapshotService):
                 # Check if snapshot is already mounted
                 if snapshot_id in self._mounted_snapshots:
                     existing_mount = self._mounted_snapshots[snapshot_id]
-                    raise SnapshotError(f"Snapshot {snapshot_id} is already mounted at {existing_mount}")
+                    raise TimeLockerInterfaceError(f"Snapshot {snapshot_id} is already mounted at {existing_mount}")
 
                 # Mount using restic mount command
                 cmd = ['restic', '-r', repository.location, 'mount', str(mount_path), '--snapshot-template', snapshot_id]
@@ -206,11 +206,11 @@ class SnapshotService(ISnapshotService):
                 # Check if mount was successful
                 if process.poll() is not None:
                     stdout, stderr = process.communicate()
-                    raise SnapshotError(f"Failed to mount snapshot: {stderr.decode()}")
+                    raise TimeLockerInterfaceError(f"Failed to mount snapshot: {stderr.decode()}")
 
                 # Verify mount is accessible
                 if not mount_path.exists() or not any(mount_path.iterdir()):
-                    raise SnapshotError(f"Mount appears to have failed - {mount_path} is empty")
+                    raise TimeLockerInterfaceError(f"Mount appears to have failed - {mount_path} is empty")
 
                 # Track mounted snapshot
                 self._mounted_snapshots[snapshot_id] = mount_path
@@ -226,7 +226,7 @@ class SnapshotService(ISnapshotService):
 
             except Exception as e:
                 logger.error(f"Failed to mount snapshot {snapshot_id}: {e}")
-                raise SnapshotError(f"Failed to mount snapshot: {e}")
+                raise TimeLockerInterfaceError(f"Failed to mount snapshot: {e}")
 
     def unmount_snapshot(self, snapshot_id: str) -> SnapshotResult:
         """
@@ -239,13 +239,13 @@ class SnapshotService(ISnapshotService):
             SnapshotResult: Result of unmount operation
             
         Raises:
-            SnapshotError: If snapshot cannot be unmounted
+            TimeLockerInterfaceError: If snapshot cannot be unmounted
         """
-        with self.performance_monitor.track_operation("unmount_snapshot"):
+        with self.performance_module.track_operation("unmount_snapshot"):
             try:
                 # Check if snapshot is mounted
                 if snapshot_id not in self._mounted_snapshots:
-                    raise SnapshotError(f"Snapshot {snapshot_id} is not currently mounted")
+                    raise TimeLockerInterfaceError(f"Snapshot {snapshot_id} is not currently mounted")
 
                 mount_path = self._mounted_snapshots[snapshot_id]
 
@@ -259,7 +259,7 @@ class SnapshotService(ISnapshotService):
                     result = subprocess.run(cmd, capture_output=True, text=True)
 
                     if result.returncode != 0:
-                        raise SnapshotError(f"Failed to unmount snapshot: {result.stderr}")
+                        raise TimeLockerInterfaceError(f"Failed to unmount snapshot: {result.stderr}")
 
                 # Remove from tracking
                 del self._mounted_snapshots[snapshot_id]
@@ -275,9 +275,9 @@ class SnapshotService(ISnapshotService):
 
             except Exception as e:
                 logger.error(f"Failed to unmount snapshot {snapshot_id}: {e}")
-                raise SnapshotError(f"Failed to unmount snapshot: {e}")
+                raise TimeLockerInterfaceError(f"Failed to unmount snapshot: {e}")
 
-    def search_in_snapshot(self, repository: IRepository, snapshot_id: str,
+    def search_in_snapshot(self, repository: BackupRepository, snapshot_id: str,
                            pattern: str, search_type: str = 'name') -> List[SnapshotSearchResult]:
         """
         Search for files/content within a snapshot
@@ -292,9 +292,9 @@ class SnapshotService(ISnapshotService):
             List of search results
             
         Raises:
-            SnapshotError: If search cannot be performed
+            TimeLockerInterfaceError: If search cannot be performed
         """
-        with self.performance_monitor.track_operation("search_in_snapshot"):
+        with self.performance_module.track_operation("search_in_snapshot"):
             try:
                 # Validate inputs
                 self.validation_service.validate_snapshot_id(snapshot_id)
@@ -330,9 +330,9 @@ class SnapshotService(ISnapshotService):
 
             except Exception as e:
                 logger.error(f"Failed to search in snapshot {snapshot_id}: {e}")
-                raise SnapshotError(f"Failed to search in snapshot: {e}")
+                raise TimeLockerInterfaceError(f"Failed to search in snapshot: {e}")
 
-    def _get_snapshot_stats(self, repository: IRepository, snapshot) -> Dict[str, Any]:
+    def _get_snapshot_stats(self, repository: BackupRepository, snapshot) -> Dict[str, Any]:
         """Get detailed statistics for a snapshot"""
         try:
             # This would typically call restic stats command

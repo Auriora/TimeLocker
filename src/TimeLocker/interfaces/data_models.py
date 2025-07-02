@@ -208,3 +208,14 @@ class SnapshotResult:
     message: str
     details: Optional[Dict[str, Any]] = None
     error_message: Optional[str] = None
+
+
+@dataclass
+class SnapshotSearchResult:
+    """Result of searching within a snapshot"""
+    path: str
+    name: str
+    type: str  # 'file' or 'dir'
+    size: Optional[int] = None
+    modified_time: Optional[datetime] = None
+    match_type: str = 'name'  # 'name', 'content', 'path'

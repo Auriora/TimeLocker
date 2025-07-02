@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from abc import ABC, abstractmethod
 from typing import Optional, Dict, List, Type
-from TimeLocker.backup_repository import BackupRepository
+from ..backup_repository import BackupRepository
 
 
 class IRepositoryFactory(ABC):

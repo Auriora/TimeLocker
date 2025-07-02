@@ -13,10 +13,10 @@ from datetime import datetime, timedelta
 import logging
 
 from ..interfaces.repository_service_interface import IRepositoryService
-from ..interfaces.repository_interface import IRepository
-from ..utils.error_handling import TimeLockerError, RepositoryError
-from ..utils.validation_service import ValidationService
-from ..utils.performance_monitor import PerformanceMonitor
+from ..backup_repository import BackupRepository
+from ..interfaces.exceptions import TimeLockerInterfaceError, RepositoryFactoryError
+from .validation_service import ValidationService
+from ..utils.performance_utils import PerformanceModule
 
 logger = logging.getLogger(__name__)
 
@@ -24,11 +24,11 @@ logger = logging.getLogger(__name__)
 class RepositoryService(IRepositoryService):
     """Advanced repository management service"""
 
-    def __init__(self, validation_service: ValidationService, performance_monitor: PerformanceMonitor):
+    def __init__(self, validation_service: ValidationService, performance_module: PerformanceModule):
         self.validation_service = validation_service
-        self.performance_monitor = performance_monitor
+        self.performance_module = performance_module
 
-    def check_repository(self, repository: IRepository) -> Dict[str, Any]:
+    def check_repository(self, repository: BackupRepository) -> Dict[str, Any]:
         """
         Check repository integrity
         
@@ -38,7 +38,7 @@ class RepositoryService(IRepositoryService):
         Returns:
             Dictionary with check results and statistics
         """
-        with self.performance_monitor.track_operation("check_repository"):
+        with self.performance_module.track_operation("check_repository"):
             try:
                 # Run restic check command
                 cmd = ['restic', '-r', repository.location, 'check', '--json']
@@ -79,9 +79,9 @@ class RepositoryService(IRepositoryService):
 
             except Exception as e:
                 logger.error(f"Failed to check repository: {e}")
-                raise RepositoryError(f"Failed to check repository: {e}")
+                raise RepositoryFactoryError(f"Failed to check repository: {e}")
 
-    def get_repository_stats(self, repository: IRepository) -> Dict[str, Any]:
+    def get_repository_stats(self, repository: BackupRepository) -> Dict[str, Any]:
         """
         Get detailed repository statistics
         
@@ -91,7 +91,7 @@ class RepositoryService(IRepositoryService):
         Returns:
             Dictionary with repository statistics
         """
-        with self.performance_monitor.track_operation("get_repository_stats"):
+        with self.performance_module.track_operation("get_repository_stats"):
             try:
                 # Run restic stats command
                 cmd = ['restic', '-r', repository.location, 'stats', '--json']
@@ -104,7 +104,7 @@ class RepositoryService(IRepositoryService):
                 result = subprocess.run(cmd, capture_output=True, text=True, env=env)
 
                 if result.returncode != 0:
-                    raise RepositoryError(f"Failed to get repository stats: {result.stderr}")
+                    raise RepositoryFactoryError(f"Failed to get repository stats: {result.stderr}")
 
                 # Parse JSON output
                 stats = {}
@@ -142,9 +142,9 @@ class RepositoryService(IRepositoryService):
 
             except Exception as e:
                 logger.error(f"Failed to get repository stats: {e}")
-                raise RepositoryError(f"Failed to get repository stats: {e}")
+                raise RepositoryFactoryError(f"Failed to get repository stats: {e}")
 
-    def unlock_repository(self, repository: IRepository) -> bool:
+    def unlock_repository(self, repository: BackupRepository) -> bool:
         """
         Remove locks from repository
         
@@ -154,7 +154,7 @@ class RepositoryService(IRepositoryService):
         Returns:
             True if successful, False otherwise
         """
-        with self.performance_monitor.track_operation("unlock_repository"):
+        with self.performance_module.track_operation("unlock_repository"):
             try:
                 # Run restic unlock command
                 cmd = ['restic', '-r', repository.location, 'unlock']
@@ -177,7 +177,7 @@ class RepositoryService(IRepositoryService):
                 logger.error(f"Failed to unlock repository: {e}")
                 return False
 
-    def migrate_repository(self, repository: IRepository) -> bool:
+    def migrate_repository(self, repository: BackupRepository) -> bool:
         """
         Migrate repository format
         
@@ -187,7 +187,7 @@ class RepositoryService(IRepositoryService):
         Returns:
             True if successful, False otherwise
         """
-        with self.performance_monitor.track_operation("migrate_repository"):
+        with self.performance_module.track_operation("migrate_repository"):
             try:
                 # Run restic migrate command
                 cmd = ['restic', '-r', repository.location, 'migrate', 'upgrade_repo_v2']
@@ -210,7 +210,7 @@ class RepositoryService(IRepositoryService):
                 logger.error(f"Failed to migrate repository: {e}")
                 return False
 
-    def apply_retention_policy(self, repository: IRepository,
+    def apply_retention_policy(self, repository: BackupRepository,
                                keep_daily: int = 7, keep_weekly: int = 4,
                                keep_monthly: int = 12, keep_yearly: int = 3,
                                dry_run: bool = False) -> Dict[str, Any]:
@@ -228,7 +228,7 @@ class RepositoryService(IRepositoryService):
         Returns:
             Dictionary with policy application results
         """
-        with self.performance_monitor.track_operation("apply_retention_policy"):
+        with self.performance_module.track_operation("apply_retention_policy"):
             try:
                 # Build restic forget command
                 cmd = ['restic', '-r', repository.location, 'forget', '--json']
@@ -277,9 +277,9 @@ class RepositoryService(IRepositoryService):
 
             except Exception as e:
                 logger.error(f"Failed to apply retention policy: {e}")
-                raise RepositoryError(f"Failed to apply retention policy: {e}")
+                raise RepositoryFactoryError(f"Failed to apply retention policy: {e}")
 
-    def prune_repository(self, repository: IRepository) -> Dict[str, Any]:
+    def prune_repository(self, repository: BackupRepository) -> Dict[str, Any]:
         """
         Prune unused data from repository
         
@@ -289,7 +289,7 @@ class RepositoryService(IRepositoryService):
         Returns:
             Dictionary with prune results
         """
-        with self.performance_monitor.track_operation("prune_repository"):
+        with self.performance_module.track_operation("prune_repository"):
             try:
                 # Run restic prune command
                 cmd = ['restic', '-r', repository.location, 'prune', '--json']
@@ -330,4 +330,4 @@ class RepositoryService(IRepositoryService):
 
             except Exception as e:
                 logger.error(f"Failed to prune repository: {e}")
-                raise RepositoryError(f"Failed to prune repository: {e}")
+                raise RepositoryFactoryError(f"Failed to prune repository: {e}")

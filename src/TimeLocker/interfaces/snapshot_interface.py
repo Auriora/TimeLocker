@@ -8,15 +8,15 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List, Dict, Optional, Any
 
-from .data_models import SnapshotInfo, SnapshotResult
-from .repository_interface import IRepository
+from .data_models import SnapshotInfo, SnapshotResult, SnapshotSearchResult
+from ..backup_repository import BackupRepository
 
 
 class ISnapshotService(ABC):
     """Interface for snapshot management operations"""
 
     @abstractmethod
-    def get_snapshot_details(self, repository: IRepository, snapshot_id: str) -> SnapshotInfo:
+    def get_snapshot_details(self, repository: BackupRepository, snapshot_id: str) -> SnapshotInfo:
         """
         Get detailed information about a specific snapshot
         
@@ -30,7 +30,7 @@ class ISnapshotService(ABC):
         pass
 
     @abstractmethod
-    def list_snapshot_contents(self, repository: IRepository, snapshot_id: str,
+    def list_snapshot_contents(self, repository: BackupRepository, snapshot_id: str,
                                path: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         List contents of a snapshot
@@ -46,7 +46,7 @@ class ISnapshotService(ABC):
         pass
 
     @abstractmethod
-    def mount_snapshot(self, repository: IRepository, snapshot_id: str,
+    def mount_snapshot(self, repository: BackupRepository, snapshot_id: str,
                        mount_path: Path) -> SnapshotResult:
         """
         Mount a snapshot as a filesystem
@@ -75,8 +75,8 @@ class ISnapshotService(ABC):
         pass
 
     @abstractmethod
-    def search_in_snapshot(self, repository: IRepository, snapshot_id: str,
-                           pattern: str, search_type: str = 'name') -> List[Dict[str, Any]]:
+    def search_in_snapshot(self, repository: BackupRepository, snapshot_id: str,
+                           pattern: str, search_type: str = 'name') -> List[SnapshotSearchResult]:
         """
         Search for files/content within a snapshot
         

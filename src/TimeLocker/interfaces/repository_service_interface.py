@@ -9,14 +9,14 @@ from typing import Dict, List, Optional, Any
 from pathlib import Path
 
 from .data_models import RepositoryInfo, OperationStatus
-from .repository_interface import IRepository
+from ..backup_repository import BackupRepository
 
 
 class IRepositoryService(ABC):
     """Interface for advanced repository management operations"""
 
     @abstractmethod
-    def check_repository(self, repository: IRepository) -> Dict[str, Any]:
+    def check_repository(self, repository: BackupRepository) -> Dict[str, Any]:
         """
         Check repository integrity
         
@@ -29,7 +29,7 @@ class IRepositoryService(ABC):
         pass
 
     @abstractmethod
-    def get_repository_stats(self, repository: IRepository) -> Dict[str, Any]:
+    def get_repository_stats(self, repository: BackupRepository) -> Dict[str, Any]:
         """
         Get detailed repository statistics
         
@@ -42,7 +42,7 @@ class IRepositoryService(ABC):
         pass
 
     @abstractmethod
-    def unlock_repository(self, repository: IRepository) -> bool:
+    def unlock_repository(self, repository: BackupRepository) -> bool:
         """
         Remove locks from repository
         
@@ -55,7 +55,7 @@ class IRepositoryService(ABC):
         pass
 
     @abstractmethod
-    def migrate_repository(self, repository: IRepository) -> bool:
+    def migrate_repository(self, repository: BackupRepository) -> bool:
         """
         Migrate repository format
         
@@ -68,7 +68,7 @@ class IRepositoryService(ABC):
         pass
 
     @abstractmethod
-    def apply_retention_policy(self, repository: IRepository,
+    def apply_retention_policy(self, repository: BackupRepository,
                                keep_daily: int = 7, keep_weekly: int = 4,
                                keep_monthly: int = 12, keep_yearly: int = 3,
                                dry_run: bool = False) -> Dict[str, Any]:
@@ -89,7 +89,7 @@ class IRepositoryService(ABC):
         pass
 
     @abstractmethod
-    def prune_repository(self, repository: IRepository) -> Dict[str, Any]:
+    def prune_repository(self, repository: BackupRepository) -> Dict[str, Any]:
         """
         Prune unused data from repository
         

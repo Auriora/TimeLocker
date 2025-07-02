@@ -17,7 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from typing import List
 
-from TimeLocker.file_selections import FileSelection
+from .file_selections import FileSelection
 
 
 class BackupTarget:
@@ -40,7 +40,7 @@ class BackupTarget:
         # Handle backward compatibility for old API
         if selection is None and 'source_paths' in kwargs:
             # Create FileSelection from old API parameters
-            from TimeLocker.file_selections import SelectionType
+            from .file_selections import SelectionType
             selection = FileSelection()
             for path in kwargs.get('source_paths', []):
                 selection.add_path(path, SelectionType.INCLUDE)

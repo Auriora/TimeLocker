@@ -20,10 +20,10 @@ import time
 from typing import Dict, List, Optional, Type, Callable
 from urllib.parse import urlparse
 
-from TimeLocker.backup_repository import BackupRepository
-from TimeLocker.backup_target import BackupTarget
+from .backup_repository import BackupRepository
+from .backup_target import BackupTarget
 
-from TimeLocker.utils import (
+from .utils import (
     profile_operation,
     start_operation_tracking,
     update_operation_tracking,
@@ -32,8 +32,8 @@ from TimeLocker.utils import (
     with_error_handling,
     ErrorContext
 )
-from TimeLocker.interfaces import IRepositoryFactory, IBackupOrchestrator
-from TimeLocker.services import RepositoryFactory
+from .interfaces import IRepositoryFactory, IBackupOrchestrator
+from .services import RepositoryFactory
 
 logger = logging.getLogger("restic")
 
@@ -96,7 +96,7 @@ class BackupManager:
         logger.info(f"Creating repository from URI: {cls.redact_sensitive_info(uri.replace('{', '{{').replace('}', '}}'))}")
 
         # Use the global repository factory for backward compatibility
-        from TimeLocker.services import repository_factory
+        from .services import repository_factory
         return repository_factory.create_repository(uri, password)
 
     def create_repository(self, uri: str, password: Optional[str] = None) -> 'BackupRepository':

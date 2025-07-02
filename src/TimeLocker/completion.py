@@ -4,7 +4,7 @@ Auto-completion support for TimeLocker CLI commands.
 This module provides intelligent auto-completion for:
 - Repository names from configuration
 - Snapshot IDs from repositories
-- Target names from configuration  
+- Target names from configuration
 - URI paths for repositories
 - Command-specific parameters
 """
@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any
 import typer
 
-from .config.configuration_manager import ConfigurationManager
+from .config import ConfigurationModule
 from .utils.repository_resolver import resolve_repository_uri, list_available_repositories
 from .backup_manager import BackupManager
 from .snapshot_manager import SnapshotManager
@@ -48,10 +48,9 @@ def complete_target_names(incomplete: str) -> List[str]:
         List of matching target names
     """
     try:
-        config_dir = Path.home() / ".timelocker"
-        config_manager = ConfigurationManager(config_dir=config_dir)
-        targets = config_manager.list_backup_targets()
-        return [name for name in targets.keys() if name.startswith(incomplete)]
+        config_module = ConfigurationModule()
+        config = config_module.get_config()
+        return [name for name in config.backup_targets.keys() if name.startswith(incomplete)]
     except Exception:
         return []
 
@@ -73,9 +72,8 @@ def complete_snapshot_ids(incomplete: str, repository: Optional[str] = None) -> 
             repository_uri = resolve_repository_uri(repository)
         else:
             # Try to get default repository
-            config_dir = Path.home() / ".timelocker"
-            config_manager = ConfigurationManager(config_dir=config_dir)
-            default_repo = config_manager.get_default_repository()
+            from .utils.repository_resolver import get_default_repository
+            default_repo = get_default_repository()
             if not default_repo:
                 return []
             repository_uri = resolve_repository_uri(default_repo)

@@ -19,10 +19,10 @@ import logging
 from typing import Dict, List, Type, Optional
 from urllib.parse import urlparse
 
-from TimeLocker.interfaces import IRepositoryFactory, RepositoryFactoryError, UnsupportedSchemeError
-from TimeLocker.backup_repository import BackupRepository
-from TimeLocker.services import ValidationService
-from TimeLocker.utils import with_error_handling, ErrorContext
+from ..interfaces import IRepositoryFactory, RepositoryFactoryError, UnsupportedSchemeError
+from ..backup_repository import BackupRepository
+from . import ValidationService
+from ..utils import with_error_handling, ErrorContext
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +52,9 @@ class RepositoryFactory(IRepositoryFactory):
         """Register default repository types"""
         try:
             # Import and register built-in repository types
-            from TimeLocker.local_repository import LocalRepository
-            self.register_repository_type('local', LocalRepository)
-            self.register_repository_type('file', LocalRepository)
+            from ..restic.Repositories.local import LocalResticRepository
+            self.register_repository_type('local', LocalResticRepository)
+            self.register_repository_type('file', LocalResticRepository)
             logger.debug("Registered default repository types")
         except ImportError as e:
             logger.warning(f"Could not register default repository types: {e}")
@@ -87,7 +87,7 @@ class RepositoryFactory(IRepositoryFactory):
             logger.warning(f"Overriding existing repository type for scheme: {scheme}")
 
         self._repository_types[scheme] = repository_class
-        logger.info(f"Registered repository type '{repository_class.__name__}' for scheme '{scheme}'")
+        logger.debug(f"Registered repository type '{repository_class.__name__}' for scheme '{scheme}'")
 
     @with_error_handling("create_repository", "RepositoryFactory")
     def create_repository(self,
@@ -188,7 +188,7 @@ class RepositoryFactory(IRepositoryFactory):
         scheme = scheme.lower()
         if scheme in self._repository_types:
             del self._repository_types[scheme]
-            logger.info(f"Unregistered repository type for scheme: {scheme}")
+            logger.debug(f"Unregistered repository type for scheme: {scheme}")
             return True
         return False
 

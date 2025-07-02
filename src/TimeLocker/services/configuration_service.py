@@ -21,14 +21,14 @@ from pathlib import Path
 from typing import Dict, Any, Optional, List
 import copy
 
-from TimeLocker.interfaces import (
+from ..interfaces import (
     IConfigurationProvider,
     ConfigurationError,
     ConfigurationNotFoundError,
     InvalidConfigurationError
 )
-from TimeLocker.services import ValidationService
-from TimeLocker.utils import with_error_handling, ErrorContext
+from . import ValidationService
+from ..utils import with_error_handling, ErrorContext
 
 logger = logging.getLogger(__name__)
 
@@ -344,7 +344,7 @@ class ConfigurationService(IConfigurationProvider):
             return self._config_path
 
         # Use XDG Base Directory Specification
-        from TimeLocker.config.configuration_manager import ConfigurationPathResolver
+        from ..config.configuration_manager import ConfigurationPathResolver
         config_dir = ConfigurationPathResolver.get_config_directory()
         return config_dir / "config.json"
 

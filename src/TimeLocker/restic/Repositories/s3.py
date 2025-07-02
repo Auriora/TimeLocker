@@ -21,8 +21,8 @@ from urllib.parse import parse_qs
 
 from boto3 import client
 
-from TimeLocker.restic.logging import logger
-from TimeLocker.restic.restic_repository import RepositoryError, ResticRepository
+from ..logging import logger
+from ..restic_repository import RepositoryError, ResticRepository
 
 
 class S3ResticRepository(ResticRepository):

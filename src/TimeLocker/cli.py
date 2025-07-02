@@ -30,7 +30,7 @@ from .backup_target import BackupTarget
 from .file_selections import FileSelection, SelectionType
 from .restore_manager import RestoreManager
 from .snapshot_manager import SnapshotManager
-from .config import ConfigurationManager
+from .config import ConfigurationModule
 from .cli_services import get_cli_service_manager, CLIBackupRequest
 from .completion import (
     repository_name_completer,
@@ -59,6 +59,7 @@ snapshots_app = typer.Typer(help="Multiple snapshot operations")
 repo_app = typer.Typer(help="Single repository operations")
 repos_app = typer.Typer(help="Multiple repository operations")
 config_app = typer.Typer(help="Configuration management commands")
+credentials_app = typer.Typer(help="Credential management commands")
 
 # Add sub-apps to main app
 app.add_typer(backup_app, name="backup")
@@ -67,6 +68,7 @@ app.add_typer(snapshots_app, name="snapshots")
 app.add_typer(repo_app, name="repo")
 app.add_typer(repos_app, name="repos")
 app.add_typer(config_app, name="config")
+app.add_typer(credentials_app, name="credentials")
 
 # Add main command aliases
 app.add_typer(repo_app, name="repository")
@@ -889,6 +891,7 @@ def config_show(
     setup_logging(verbose)
 
     try:
+        from .config.configuration_manager import ConfigurationManager
         config_manager = ConfigurationManager(config_dir=config_dir)
         # Configuration is automatically loaded in __init__
         config = config_manager._config
@@ -974,6 +977,7 @@ def config_info(
 
     try:
         # Initialize configuration manager (will use appropriate path resolution)
+        from .config.configuration_manager import ConfigurationManager
         config_manager = ConfigurationManager(config_dir=config_dir)
         config_info = config_manager.get_config_info()
 
@@ -1311,6 +1315,7 @@ def config_repositories_list(
     setup_logging(verbose)
 
     try:
+        from .config.configuration_manager import ConfigurationManager
         config_manager = ConfigurationManager(config_dir=config_dir)
         config_file = config_manager.config_file
 
@@ -1515,6 +1520,7 @@ def config_targets_add(
 
     try:
         # Initialize configuration manager
+        from .config.configuration_manager import ConfigurationManager
         config_manager = ConfigurationManager(config_dir=config_dir)
 
         # Validate paths
@@ -2034,7 +2040,7 @@ def snapshots_find(
 
 @repo_app.command("check")
 def repo_check(
-        name: Annotated[str, typer.Argument(help="Repository name")],
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
@@ -2086,7 +2092,7 @@ def repo_check(
 
 @repo_app.command("stats")
 def repo_stats(
-        name: Annotated[str, typer.Argument(help="Repository name")],
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
@@ -2150,7 +2156,7 @@ def repo_stats(
 
 @repo_app.command("unlock")
 def repo_unlock(
-        name: Annotated[str, typer.Argument(help="Repository name")],
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
@@ -2186,7 +2192,7 @@ def repo_unlock(
 
 @repo_app.command("migrate")
 def repo_migrate(
-        name: Annotated[str, typer.Argument(help="Repository name")],
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
@@ -2197,7 +2203,7 @@ def repo_migrate(
 
 @repo_app.command("forget")
 def repo_forget(
-        name: Annotated[str, typer.Argument(help="Repository name")],
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
         keep_daily: Annotated[int, typer.Option("--keep-daily", help="Number of daily snapshots to keep")] = 7,
         keep_weekly: Annotated[int, typer.Option("--keep-weekly", help="Number of weekly snapshots to keep")] = 4,
@@ -2345,7 +2351,7 @@ def repos_stats(
 
 @config_repositories_app.command("show")
 def config_repositories_show(
-        name: Annotated[str, typer.Argument(help="Repository name")],
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
@@ -2355,6 +2361,82 @@ def config_repositories_show(
 
 
 # Config target commands (single target operations)
+
+@config_target_app.command("list")
+def config_target_list(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """List all backup targets."""
+    setup_logging(verbose)
+
+    try:
+        from .config.configuration_manager import ConfigurationManager
+        config_manager = ConfigurationManager(config_dir=config_dir)
+
+        # Get all backup targets
+        targets = config_manager.list_backup_targets()
+
+        if not targets:
+            console.print("[yellow]No backup targets configured[/yellow]")
+            console.print("💡 Use [bold]tl config targets add[/bold] to create a backup target")
+            return
+
+        # Create table for targets
+        table = Table(
+                title="🎯 Backup Targets",
+                show_header=True,
+                header_style="bold blue",
+                border_style="blue"
+        )
+
+        table.add_column("Name", style="cyan", no_wrap=True)
+        table.add_column("Description", style="white")
+        table.add_column("Paths", style="green")
+        table.add_column("Patterns", style="yellow")
+
+        for name, target in targets.items():
+            paths_str = "\n".join(target.get("paths", []))
+
+            # Handle patterns - they might be in different formats
+            patterns = target.get("patterns", {})
+            if isinstance(patterns, dict):
+                include_patterns = patterns.get("include", [])
+                exclude_patterns = patterns.get("exclude", [])
+            else:
+                include_patterns = target.get("include_patterns", [])
+                exclude_patterns = target.get("exclude_patterns", [])
+
+            patterns_info = []
+            if include_patterns and include_patterns != ["*"]:
+                patterns_info.append(f"Include: {', '.join(include_patterns[:3])}")
+                if len(include_patterns) > 3:
+                    patterns_info.append(f"... +{len(include_patterns) - 3} more")
+
+            if exclude_patterns:
+                patterns_info.append(f"Exclude: {', '.join(exclude_patterns[:2])}")
+                if len(exclude_patterns) > 2:
+                    patterns_info.append(f"... +{len(exclude_patterns) - 2} more")
+
+            patterns_str = "\n".join(patterns_info) if patterns_info else "Default"
+
+            table.add_row(
+                    name,
+                    target.get("description", "No description"),
+                    paths_str,
+                    patterns_str
+            )
+
+        console.print()
+        console.print(table)
+        console.print()
+
+    except Exception as e:
+        show_error_panel("List Targets Error", f"Failed to list backup targets: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
 
 @config_target_app.command("show")
 def config_target_show(
@@ -2400,40 +2482,243 @@ def config_targets_list(
     setup_logging(verbose)
 
     try:
-        service_manager = get_cli_service_manager()
-        targets = service_manager.list_backup_targets()
+        from .config.configuration_manager import ConfigurationManager
+        config_manager = ConfigurationManager(config_dir=config_dir)
+
+        # Get all backup targets
+        targets = config_manager.list_backup_targets()
 
         if not targets:
             console.print("[yellow]No backup targets configured[/yellow]")
+            console.print("💡 Use [bold]tl config targets add[/bold] to create a backup target")
             return
 
         # Create table for target listing
-        table = Table(title="Configured Backup Targets")
+        table = Table(
+                title="🎯 Configured Backup Targets",
+                show_header=True,
+                header_style="bold blue",
+                border_style="blue"
+        )
         table.add_column("Name", style="cyan", no_wrap=True)
+        table.add_column("Description", style="white")
         table.add_column("Paths", style="green")
         table.add_column("Include Patterns", style="blue")
         table.add_column("Exclude Patterns", style="red")
 
-        for target in targets:
+        for name, target in targets.items():
             paths = "\n".join(target.get('paths', []))
-            include_patterns = "\n".join(target.get('include_patterns', []))
-            exclude_patterns = "\n".join(target.get('exclude_patterns', []))
+
+            # Handle patterns - they might be in different formats
+            patterns = target.get("patterns", {})
+            if isinstance(patterns, dict):
+                include_patterns = patterns.get("include", [])
+                exclude_patterns = patterns.get("exclude", [])
+            else:
+                include_patterns = target.get("include_patterns", [])
+                exclude_patterns = target.get("exclude_patterns", [])
+
+            include_str = "\n".join(include_patterns) if include_patterns else "Default (*)"
+            exclude_str = "\n".join(exclude_patterns) if exclude_patterns else "None"
 
             table.add_row(
-                    target['name'],
+                    name,
+                    target.get("description", "No description"),
                     paths,
-                    include_patterns or "[dim]None[/dim]",
-                    exclude_patterns or "[dim]None[/dim]"
+                    include_str,
+                    exclude_str
             )
 
+        console.print()
         console.print(table)
+        console.print()
 
     except Exception as e:
         show_error_panel("Target List Error", f"Failed to list backup targets: {e}")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
-    console.print("This command will list all configured backup targets.")
+
+
+# Credential management commands
+
+@credentials_app.command("unlock")
+def credentials_unlock(
+        master_password: Annotated[str, typer.Option("--password", "-p", help="Master password")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Unlock the credential manager with master password."""
+    setup_logging(verbose)
+
+    try:
+        from .security.credential_manager import CredentialManager
+
+        credential_manager = CredentialManager()
+
+        if not master_password:
+            master_password = Prompt.ask("Master password", password=True)
+
+        if credential_manager.unlock(master_password):
+            console.print("[green]✅ Credential manager unlocked successfully[/green]")
+        else:
+            console.print("[red]❌ Failed to unlock credential manager[/red]")
+            raise typer.Exit(1)
+
+    except Exception as e:
+        show_error_panel("Credential Unlock Error", f"Failed to unlock credential manager: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@credentials_app.command("lock")
+def credentials_lock(
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Lock the credential manager."""
+    setup_logging(verbose)
+
+    try:
+        from .security.credential_manager import CredentialManager
+
+        credential_manager = CredentialManager()
+        credential_manager.lock()
+        console.print("[yellow]🔒 Credential manager locked[/yellow]")
+
+    except Exception as e:
+        show_error_panel("Credential Lock Error", f"Failed to lock credential manager: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@credentials_app.command("store")
+def credentials_store(
+        repository_name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
+        master_password: Annotated[str, typer.Option("--master-password", "-m", help="Master password")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Store encrypted password for a repository."""
+    setup_logging(verbose)
+
+    try:
+        from .security.credential_manager import CredentialManager
+
+        credential_manager = CredentialManager()
+
+        # Unlock credential manager if needed
+        if credential_manager.is_locked():
+            if not master_password:
+                master_password = Prompt.ask("Master password", password=True)
+
+            if not credential_manager.unlock(master_password):
+                console.print("[red]❌ Failed to unlock credential manager[/red]")
+                raise typer.Exit(1)
+
+        # Get repository password if not provided
+        if not password:
+            password = Prompt.ask(f"Password for repository '{repository_name}'", password=True)
+
+        # Store the password
+        credential_manager.store_repository_password(repository_name, password)
+        console.print(f"[green]✅ Password stored for repository '{repository_name}'[/green]")
+
+    except Exception as e:
+        show_error_panel("Credential Store Error", f"Failed to store password: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@credentials_app.command("list")
+def credentials_list(
+        master_password: Annotated[str, typer.Option("--password", "-p", help="Master password")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """List stored repository credentials."""
+    setup_logging(verbose)
+
+    try:
+        from .security.credential_manager import CredentialManager
+
+        credential_manager = CredentialManager()
+
+        # Unlock credential manager if needed
+        if credential_manager.is_locked():
+            if not master_password:
+                master_password = Prompt.ask("Master password", password=True)
+
+            if not credential_manager.unlock(master_password):
+                console.print("[red]❌ Failed to unlock credential manager[/red]")
+                raise typer.Exit(1)
+
+        # List repositories
+        repositories = credential_manager.list_repositories()
+
+        if not repositories:
+            console.print("[yellow]No stored credentials found[/yellow]")
+            console.print("💡 Use [bold]tl credentials store[/bold] to store repository passwords")
+            return
+
+        # Create table for credential listing
+        table = Table(
+                title="🔐 Stored Repository Credentials",
+                show_header=True,
+                header_style="bold blue",
+                border_style="blue"
+        )
+        table.add_column("Repository", style="cyan", no_wrap=True)
+        table.add_column("Status", style="green")
+
+        for repo_name in repositories:
+            table.add_row(repo_name, "✅ Stored")
+
+        console.print()
+        console.print(table)
+        console.print()
+
+    except Exception as e:
+        show_error_panel("Credential List Error", f"Failed to list credentials: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@credentials_app.command("remove")
+def credentials_remove(
+        repository_name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        master_password: Annotated[str, typer.Option("--password", "-p", help="Master password")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Remove stored password for a repository."""
+    setup_logging(verbose)
+
+    try:
+        from .security.credential_manager import CredentialManager
+
+        credential_manager = CredentialManager()
+
+        # Unlock credential manager if needed
+        if credential_manager.is_locked():
+            if not master_password:
+                master_password = Prompt.ask("Master password", password=True)
+
+            if not credential_manager.unlock(master_password):
+                console.print("[red]❌ Failed to unlock credential manager[/red]")
+                raise typer.Exit(1)
+
+        # Remove the password
+        if credential_manager.remove_repository(repository_name):
+            console.print(f"[green]✅ Password removed for repository '{repository_name}'[/green]")
+        else:
+            console.print(f"[yellow]⚠️ No stored password found for repository '{repository_name}'[/yellow]")
+
+    except Exception as e:
+        show_error_panel("Credential Remove Error", f"Failed to remove password: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 def main() -> None:

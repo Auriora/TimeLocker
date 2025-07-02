@@ -9,7 +9,8 @@ import logging
 from pathlib import Path
 from typing import Optional
 
-from ..config.configuration_manager import ConfigurationManager, RepositoryNotFoundError
+from ..config import ConfigurationModule
+from ..interfaces.exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
 
@@ -39,25 +40,45 @@ def resolve_repository_uri(name_or_uri: Optional[str],
         # Using default repository
         uri = resolve_repository_uri(None)  # -> URI of default repository
     """
-    if not config_dir:
-        config_dir = Path.home() / ".timelocker"
-
-    config_manager = ConfigurationManager(config_dir=config_dir)
+    config_module = ConfigurationModule(config_dir)
 
     try:
-        return config_manager.resolve_repository(name_or_uri or "")
-    except RepositoryNotFoundError as e:
+        config = config_module.get_config()
+
+        # If name_or_uri is None, try to get default repository
+        if not name_or_uri:
+            if not config.repositories:
+                raise ConfigurationError("No repositories configured")
+            # Use first repository as default
+            name_or_uri = list(config.repositories.keys())[0]
+
+        # Check if it's already a URI (contains :// or starts with /)
+        if "://" in name_or_uri or name_or_uri.startswith("/"):
+            return name_or_uri
+
+        # Try to resolve as repository name
+        if name_or_uri in config.repositories:
+            repo_config = config.repositories[name_or_uri]
+            return repo_config.location or ""
+
+        # If not found, treat as literal URI
+        return name_or_uri
+
+    except ConfigurationError as e:
         # Provide helpful error message with available repositories
-        repositories = config_manager.list_repositories()
-        if repositories:
-            repo_names = list(repositories.keys())
-            raise RepositoryNotFoundError(
-                    f"{e}. Available repositories: {', '.join(repo_names)}"
-            )
-        else:
-            raise RepositoryNotFoundError(
-                    f"{e}. No repositories configured. Use 'tl config add-repo' to add one."
-            )
+        try:
+            config = config_module.get_config()
+            if config.repositories:
+                repo_names = list(config.repositories.keys())
+                raise ConfigurationError(
+                        f"{e}. Available repositories: {', '.join(repo_names)}"
+                )
+            else:
+                raise ConfigurationError(
+                        f"{e}. No repositories configured. Use 'tl config add-repo' to add one."
+                )
+        except:
+            raise ConfigurationError(str(e))
 
 
 def get_repository_info(name_or_uri: str,
@@ -84,10 +105,7 @@ def get_repository_info(name_or_uri: str,
         info = get_repository_info("s3://bucket/path")
         # -> {"uri": "s3://bucket/path", "is_named": False}
     """
-    if not config_dir:
-        config_dir = Path.home() / ".timelocker"
-
-    config_manager = ConfigurationManager(config_dir=config_dir)
+    config_module = ConfigurationModule(config_dir)
 
     # Check if it's a URI (contains :// or starts with known schemes)
     if ("://" in name_or_uri or
@@ -102,17 +120,23 @@ def get_repository_info(name_or_uri: str,
 
     # Try to get as named repository
     try:
-        repo_config = config_manager.get_repository(name_or_uri)
-        return {
-                "uri":         repo_config["uri"],
-                "name":        name_or_uri,
-                "description": repo_config.get("description", ""),
-                "type":        repo_config.get("type", "unknown"),
-                "created":     repo_config.get("created", ""),
-                "is_named":    True
-        }
-    except RepositoryNotFoundError:
-        # Assume it's a URI if not found as name
+        config = config_module.get_config()
+        if name_or_uri in config.repositories:
+            repo_config = config.repositories[name_or_uri]
+            return {
+                    "uri":         repo_config.location or "",
+                    "name":        name_or_uri,
+                    "description": repo_config.description or "",
+                    "is_named":    True
+            }
+        else:
+            # Assume it's a URI if not found as name
+            return {
+                    "uri":      name_or_uri,
+                    "is_named": False
+            }
+    except ConfigurationError:
+        # Assume it's a URI if config error
         return {
                 "uri":      name_or_uri,
                 "is_named": False
@@ -122,32 +146,40 @@ def get_repository_info(name_or_uri: str,
 def list_available_repositories(config_dir: Optional[Path] = None) -> dict:
     """
     List all available named repositories.
-    
+
     Args:
         config_dir: Configuration directory path. If None, uses default.
-        
+
     Returns:
         Dictionary mapping repository names to their configurations
     """
-    if not config_dir:
-        config_dir = Path.home() / ".timelocker"
-
-    config_manager = ConfigurationManager(config_dir=config_dir)
-    return config_manager.list_repositories()
+    config_module = ConfigurationModule(config_dir)
+    try:
+        config = config_module.get_config()
+        return {name: {
+                "uri":         repo.location or "",
+                "description": repo.description or "",
+        } for name, repo in config.repositories.items()}
+    except ConfigurationError:
+        return {}
 
 
 def get_default_repository(config_dir: Optional[Path] = None) -> Optional[str]:
     """
     Get the default repository name.
-    
+
     Args:
         config_dir: Configuration directory path. If None, uses default.
-        
+
     Returns:
         Default repository name or None if not set
     """
-    if not config_dir:
-        config_dir = Path.home() / ".timelocker"
-
-    config_manager = ConfigurationManager(config_dir=config_dir)
-    return config_manager.get_default_repository()
+    config_module = ConfigurationModule(config_dir)
+    try:
+        config = config_module.get_config()
+        if config.repositories:
+            # Return first repository as default
+            return list(config.repositories.keys())[0]
+        return None
+    except ConfigurationError:
+        return None

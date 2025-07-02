@@ -30,14 +30,14 @@ try:
 except ImportError:
     dateutil = None
 
-from TimeLocker.backup_repository import BackupRepository, RetentionPolicy
-from TimeLocker.backup_snapshot import BackupSnapshot
-from TimeLocker.backup_target import BackupTarget
-from TimeLocker.restic.errors import RepositoryError, ResticError
-from TimeLocker.restic.logging import logger
-from TimeLocker.restic.restic_command_definition import restic_command_def
-from TimeLocker.command_builder import CommandBuilder
-from TimeLocker.security import CredentialManager
+from ..backup_repository import BackupRepository, RetentionPolicy
+from ..backup_snapshot import BackupSnapshot
+from ..backup_target import BackupTarget
+from .errors import RepositoryError, ResticError
+from .logging import logger
+from .restic_command_definition import restic_command_def
+from ..command_builder import CommandBuilder
+from ..security import CredentialManager
 
 RESTIC_COMMAND = "restic"
 RESTIC_VERSION_COMMAND = f"{RESTIC_COMMAND} --json version"

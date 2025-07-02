@@ -47,8 +47,8 @@ class PerformanceModule:
     def _load_performance_dependencies(self) -> None:
         """Load performance dependencies with graceful fallback"""
         try:
-            from TimeLocker.performance.profiler import profile_operation as _profile_operation
-            from TimeLocker.performance.metrics import (
+            from ..performance.profiler import profile_operation as _profile_operation
+            from ..performance.metrics import (
                 start_operation_tracking as _start_operation_tracking,
                 update_operation_tracking as _update_operation_tracking,
                 complete_operation_tracking as _complete_operation_tracking

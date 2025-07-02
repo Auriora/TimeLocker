@@ -21,7 +21,7 @@ import uuid
 from typing import List, Dict, Any, Optional
 from concurrent.futures import ThreadPoolExecutor, Future
 
-from TimeLocker.interfaces import (
+from ..interfaces import (
     IBackupOrchestrator,
     IRepositoryFactory,
     IConfigurationProvider,
@@ -31,8 +31,8 @@ from TimeLocker.interfaces import (
     InvalidBackupConfigurationError,
     BackupExecutionError
 )
-from TimeLocker.backup_target import BackupTarget
-from TimeLocker.utils import (
+from ..backup_target import BackupTarget
+from ..utils import (
     with_error_handling,
     with_retry,
     profile_operation,

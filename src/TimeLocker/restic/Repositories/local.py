@@ -21,9 +21,9 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Optional, Any
 
-from TimeLocker.restic.logging import logger
-from TimeLocker.restic.restic_repository import RepositoryError, ResticRepository
-from TimeLocker.security import CredentialManager
+from ..logging import logger
+from ..restic_repository import RepositoryError, ResticRepository
+from ...security import CredentialManager
 
 
 class LocalResticRepository(ResticRepository):
