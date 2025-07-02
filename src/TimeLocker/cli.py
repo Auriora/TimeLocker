@@ -174,9 +174,6 @@ def backup_create(
 
     # Handle target-based backup
     if target:
-        if not config_dir:
-            config_dir = Path.home() / ".timelocker"
-
         try:
             from .config.configuration_manager import ConfigurationManager, ConfigSection
             config_manager = ConfigurationManager(config_dir=config_dir)
@@ -800,9 +797,6 @@ def config_setup(
     """Interactive configuration setup wizard."""
     setup_logging(verbose)
 
-    if not config_dir:
-        config_dir = Path.home() / ".timelocker"
-
     console.print()
     console.print(Panel(
             "🚀 Welcome to TimeLocker Configuration Setup!\n\n"
@@ -813,12 +807,16 @@ def config_setup(
     console.print()
 
     try:
-        # Ensure config directory exists
-        config_dir.mkdir(parents=True, exist_ok=True)
-
-        # Initialize configuration manager
+        # Initialize configuration manager (will use appropriate path resolution)
         from .config.configuration_manager import ConfigurationManager, ConfigSection
         config_manager = ConfigurationManager(config_dir=config_dir)
+
+        # Show configuration information
+        config_info = config_manager.get_config_info()
+        console.print(f"📁 Configuration directory: {config_info['current_config_dir']}")
+        if config_info['migration_marker_exists']:
+            console.print("✅ Configuration migrated from legacy location")
+        console.print()
 
         # Repository setup
         if Confirm.ask("Would you like to add a repository?"):
@@ -894,9 +892,6 @@ def config_show(
 ) -> None:
     """List current configuration."""
     setup_logging(verbose)
-
-    if not config_dir:
-        config_dir = Path.home() / ".timelocker"
 
     try:
         config_manager = ConfigurationManager(config_dir=config_dir)
@@ -974,6 +969,115 @@ def config_show(
         raise typer.Exit(1)
 
 
+@config_app.command("info")
+def config_info(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Show configuration directory information and migration status."""
+    setup_logging(verbose)
+
+    try:
+        # Initialize configuration manager (will use appropriate path resolution)
+        config_manager = ConfigurationManager(config_dir=config_dir)
+        config_info = config_manager.get_config_info()
+
+        console.print()
+        console.print(Panel(
+                "📁 Configuration Directory Information",
+                title="[bold blue]TimeLocker Configuration Info[/bold blue]",
+                border_style="blue"
+        ))
+
+        # Configuration paths table
+        table = Table(title="📂 Configuration Paths", border_style="green")
+        table.add_column("Setting", style="cyan", width=25)
+        table.add_column("Value", style="white")
+        table.add_column("Status", style="yellow")
+
+        # Current configuration
+        table.add_row(
+                "Current Config Directory",
+                config_info['current_config_dir'],
+                "✅ Active" if config_info['config_file_exists'] else "❌ Missing"
+        )
+
+        table.add_row(
+                "Current Config File",
+                config_info['current_config_file'],
+                "✅ Exists" if config_info['config_file_exists'] else "❌ Missing"
+        )
+
+        # System context
+        table.add_row(
+                "System Context",
+                "Root/System" if config_info['is_system_context'] else "User",
+                "🔒 System" if config_info['is_system_context'] else "👤 User"
+        )
+
+        # XDG information
+        table.add_row(
+                "XDG Config Home",
+                config_info['xdg_config_home'],
+                "📁 Standard"
+        )
+
+        # Legacy configuration
+        table.add_row(
+                "Legacy Config Directory",
+                config_info['legacy_config_dir'],
+                "✅ Found" if config_info['legacy_config_exists'] else "❌ Not Found"
+        )
+
+        # Migration status
+        migration_status = "✅ Migrated" if config_info['migration_marker_exists'] else (
+                "⚠️ Available" if config_info['legacy_config_exists'] else "➖ N/A"
+        )
+        table.add_row(
+                "Migration Status",
+                "From legacy location" if config_info['migration_marker_exists'] else "No migration needed",
+                migration_status
+        )
+
+        # Backup information
+        table.add_row(
+                "Backup Directory",
+                config_info['backup_dir'],
+                f"📦 {config_info['backup_count']} backups"
+        )
+
+        console.print(table)
+        console.print()
+
+        # Migration information if applicable
+        if config_info['migration_marker_exists']:
+            console.print(Panel(
+                    "✅ Configuration was successfully migrated from legacy location\n"
+                    f"   Legacy: {config_info['legacy_config_dir']}\n"
+                    f"   Current: {config_info['current_config_dir']}\n\n"
+                    "💡 Your configuration is now following XDG Base Directory Specification",
+                    title="[bold green]Migration Complete[/bold green]",
+                    border_style="green"
+            ))
+        elif config_info['legacy_config_exists'] and not config_info['config_file_exists']:
+            console.print(Panel(
+                    "⚠️ Legacy configuration detected but not migrated\n"
+                    f"   Legacy: {config_info['legacy_config_dir']}\n"
+                    f"   Target: {config_info['current_config_dir']}\n\n"
+                    "💡 Run 'tl config setup' to migrate your configuration",
+                    title="[bold yellow]Migration Available[/bold yellow]",
+                    border_style="yellow"
+            ))
+
+        console.print()
+
+    except Exception as e:
+        show_error_panel("Configuration Error", f"Failed to get configuration info: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
 @config_import_app.command("restic")
 def config_import_restic(
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
@@ -1001,9 +1105,6 @@ def config_import_restic(
     from urllib.parse import urlparse
 
     setup_logging(verbose)
-
-    if not config_dir:
-        config_dir = Path.home() / ".timelocker"
 
     console.print()
     console.print(Panel(
@@ -1169,9 +1270,6 @@ def config_import_restic(
         raise typer.Exit(0)
 
     try:
-        # Ensure config directory exists
-        config_dir.mkdir(parents=True, exist_ok=True)
-
         # Use ConfigurationManager to properly handle the configuration
         from .config.configuration_manager import ConfigurationManager, ConfigSection
         config_manager = ConfigurationManager(config_dir=config_dir)
@@ -1216,9 +1314,6 @@ def config_repositories_list(
 ) -> None:
     """List configured repositories."""
     setup_logging(verbose)
-
-    if not config_dir:
-        config_dir = Path.home() / ".timelocker"
 
     try:
         config_manager = ConfigurationManager(config_dir=config_dir)
@@ -1286,9 +1381,6 @@ def config_repositories_add(
     """Add a new repository to configuration."""
     setup_logging(verbose)
 
-    if not config_dir:
-        config_dir = Path.home() / ".timelocker"
-
     try:
         from .config.configuration_manager import ConfigurationManager, RepositoryAlreadyExistsError
         config_manager = ConfigurationManager(config_dir=config_dir)
@@ -1336,9 +1428,6 @@ def config_repositories_remove(
 ) -> None:
     """Remove a repository from configuration."""
     setup_logging(verbose)
-
-    if not config_dir:
-        config_dir = Path.home() / ".timelocker"
 
     try:
         from .config.configuration_manager import ConfigurationManager, RepositoryNotFoundError
@@ -1390,9 +1479,6 @@ def config_repositories_default(
     """Set the default repository."""
     setup_logging(verbose)
 
-    if not config_dir:
-        config_dir = Path.home() / ".timelocker"
-
     try:
         from .config.configuration_manager import ConfigurationManager, RepositoryNotFoundError
         config_manager = ConfigurationManager(config_dir=config_dir)
@@ -1431,9 +1517,6 @@ def config_targets_add(
 ) -> None:
     """Add a new backup target to configuration."""
     setup_logging(verbose)
-
-    if not config_dir:
-        config_dir = Path.home() / ".timelocker"
 
     try:
         # Initialize configuration manager

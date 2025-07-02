@@ -48,7 +48,8 @@ class IntegrationService:
             config_dir: Directory for configuration and data
         """
         if config_dir is None:
-            config_dir = Path.home() / ".timelocker"
+            from ..config.configuration_manager import ConfigurationPathResolver
+            config_dir = ConfigurationPathResolver.get_config_directory()
 
         self.config_dir = Path(config_dir)
         self.config_dir.mkdir(parents=True, exist_ok=True)

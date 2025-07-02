@@ -20,6 +20,7 @@ import logging
 import os
 import shutil
 import copy
+import hashlib
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
@@ -105,6 +106,214 @@ class UIDefaults:
     confirm_destructive_actions: bool = True
 
 
+class ConfigurationPathResolver:
+    """
+    Utility class for resolving configuration directory paths
+    Handles XDG Base Directory Specification and system vs user contexts
+    """
+
+    @staticmethod
+    def is_system_context() -> bool:
+        """
+        Determine if running in system context (as root for system backups)
+
+        Returns:
+            bool: True if running as root or in system context
+        """
+        return os.geteuid() == 0 if hasattr(os, 'geteuid') else False
+
+    @staticmethod
+    def get_xdg_config_home() -> Path:
+        """
+        Get XDG config home directory
+
+        Returns:
+            Path: XDG config home directory
+        """
+        xdg_config_home = os.environ.get('XDG_CONFIG_HOME')
+        if xdg_config_home:
+            return Path(xdg_config_home)
+        return Path.home() / ".config"
+
+    @staticmethod
+    def get_config_directory() -> Path:
+        """
+        Get appropriate configuration directory based on context
+
+        Returns:
+            Path: Configuration directory to use
+        """
+        if ConfigurationPathResolver.is_system_context():
+            # System-wide configuration for root/system backups
+            system_config = Path("/etc/timelocker")
+            if system_config.exists() or system_config.parent.exists():
+                return system_config
+            # Fallback to XDG system directory
+            return Path("/etc/xdg/timelocker")
+        else:
+            # User configuration following XDG specification
+            return ConfigurationPathResolver.get_xdg_config_home() / "timelocker"
+
+    @staticmethod
+    def get_legacy_config_directory() -> Path:
+        """
+        Get legacy configuration directory for migration
+
+        Returns:
+            Path: Legacy configuration directory
+        """
+        return Path.home() / ".timelocker"
+
+    @staticmethod
+    def should_migrate_from_legacy() -> bool:
+        """
+        Check if migration from legacy config is needed
+
+        Returns:
+            bool: True if legacy config exists and new config doesn't
+        """
+        legacy_dir = ConfigurationPathResolver.get_legacy_config_directory()
+        new_dir = ConfigurationPathResolver.get_config_directory()
+
+        legacy_config = legacy_dir / "config.json"
+        new_config = new_dir / "config.json"
+
+        return legacy_config.exists() and not new_config.exists()
+
+
+class ConfigurationMigrationManager:
+    """
+    Handles migration of configuration files from legacy locations
+    """
+
+    @staticmethod
+    def calculate_file_checksum(file_path: Path) -> str:
+        """
+        Calculate SHA256 checksum of a file
+
+        Args:
+            file_path: Path to file
+
+        Returns:
+            str: Hexadecimal checksum
+        """
+        sha256_hash = hashlib.sha256()
+        try:
+            with open(file_path, "rb") as f:
+                for chunk in iter(lambda: f.read(4096), b""):
+                    sha256_hash.update(chunk)
+            return sha256_hash.hexdigest()
+        except Exception as e:
+            logger.error(f"Failed to calculate checksum for {file_path}: {e}")
+            return ""
+
+    @staticmethod
+    def create_migration_backup(source_path: Path, backup_dir: Path) -> Optional[Path]:
+        """
+        Create backup of source file before migration
+
+        Args:
+            source_path: Source file to backup
+            backup_dir: Directory to store backup
+
+        Returns:
+            Optional[Path]: Path to backup file if successful
+        """
+        if not source_path.exists():
+            return None
+
+        try:
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_path = backup_dir / f"migration_backup_{timestamp}_{source_path.name}"
+            shutil.copy2(source_path, backup_path)
+            logger.info(f"Created migration backup: {backup_path}")
+            return backup_path
+        except Exception as e:
+            logger.error(f"Failed to create migration backup: {e}")
+            return None
+
+    @staticmethod
+    def migrate_configuration_directory(legacy_dir: Path, new_dir: Path) -> bool:
+        """
+        Migrate entire configuration directory from legacy to new location
+
+        Args:
+            legacy_dir: Legacy configuration directory
+            new_dir: New configuration directory
+
+        Returns:
+            bool: True if migration successful
+        """
+        if not legacy_dir.exists():
+            logger.info("No legacy configuration directory found")
+            return True
+
+        if new_dir.exists() and (new_dir / "config.json").exists():
+            logger.info("New configuration already exists, skipping migration")
+            return True
+
+        try:
+            logger.info(f"Migrating configuration from {legacy_dir} to {new_dir}")
+
+            # Create new directory
+            new_dir.mkdir(parents=True, exist_ok=True)
+
+            # Create backup directory in new location
+            backup_dir = new_dir / "migration_backups"
+            backup_dir.mkdir(exist_ok=True)
+
+            # Files to migrate
+            files_to_migrate = ["config.json"]
+            migrated_files = []
+
+            for filename in files_to_migrate:
+                legacy_file = legacy_dir / filename
+                new_file = new_dir / filename
+
+                if legacy_file.exists():
+                    # Create backup
+                    backup_path = ConfigurationMigrationManager.create_migration_backup(
+                            legacy_file, backup_dir
+                    )
+
+                    # Calculate checksum before migration
+                    original_checksum = ConfigurationMigrationManager.calculate_file_checksum(legacy_file)
+
+                    # Copy file
+                    shutil.copy2(legacy_file, new_file)
+
+                    # Verify checksum after migration
+                    new_checksum = ConfigurationMigrationManager.calculate_file_checksum(new_file)
+
+                    if original_checksum and original_checksum == new_checksum:
+                        migrated_files.append(filename)
+                        logger.info(f"Successfully migrated {filename}")
+                    else:
+                        logger.error(f"Checksum mismatch for {filename}, migration may have failed")
+                        if new_file.exists():
+                            new_file.unlink()
+                        return False
+
+            if migrated_files:
+                logger.info(f"Migration completed successfully. Migrated files: {migrated_files}")
+
+                # Create migration marker file
+                migration_marker = new_dir / ".migrated_from_legacy"
+                with open(migration_marker, 'w') as f:
+                    f.write(f"Migrated from {legacy_dir} on {datetime.now().isoformat()}\n")
+                    f.write(f"Migrated files: {', '.join(migrated_files)}\n")
+
+                return True
+            else:
+                logger.info("No files to migrate")
+                return True
+
+        except Exception as e:
+            logger.error(f"Failed to migrate configuration directory: {e}")
+            return False
+
+
 class ConfigurationManager:
     """
     Centralized configuration management for TimeLocker
@@ -114,12 +323,29 @@ class ConfigurationManager:
     def __init__(self, config_dir: Optional[Path] = None):
         """
         Initialize configuration manager
-        
+
         Args:
-            config_dir: Directory for configuration files
+            config_dir: Directory for configuration files (if None, uses path resolver)
         """
         if config_dir is None:
-            config_dir = Path.home() / ".timelocker"
+            # Check if migration from legacy location is needed
+            if ConfigurationPathResolver.should_migrate_from_legacy():
+                legacy_dir = ConfigurationPathResolver.get_legacy_config_directory()
+                new_dir = ConfigurationPathResolver.get_config_directory()
+
+                logger.info("Legacy configuration detected, performing migration...")
+                migration_success = ConfigurationMigrationManager.migrate_configuration_directory(
+                        legacy_dir, new_dir
+                )
+
+                if migration_success:
+                    logger.info("Configuration migration completed successfully")
+                else:
+                    logger.warning("Configuration migration failed, using legacy location")
+                    config_dir = legacy_dir
+
+            if config_dir is None:
+                config_dir = ConfigurationPathResolver.get_config_directory()
 
         self.config_dir = Path(config_dir)
         self.config_dir.mkdir(parents=True, exist_ok=True)
@@ -135,7 +361,7 @@ class ConfigurationManager:
         # Load existing configuration
         self.load_config()
 
-        # Check for and migrate legacy configuration files
+        # Check for and migrate legacy configuration files (within same directory)
         self._migrate_legacy_config()
 
     def _get_default_config(self) -> Dict[str, Any]:
@@ -390,6 +616,29 @@ class ConfigurationManager:
             Dict: Complete configuration data
         """
         return self._config.copy()
+
+    def get_config_info(self) -> Dict[str, Any]:
+        """
+        Get information about configuration paths and status
+
+        Returns:
+            Dict: Configuration information including paths and migration status
+        """
+        legacy_dir = ConfigurationPathResolver.get_legacy_config_directory()
+        current_dir = self.config_dir
+
+        return {
+                "current_config_dir":      str(current_dir),
+                "current_config_file":     str(self.config_file),
+                "is_system_context":       ConfigurationPathResolver.is_system_context(),
+                "xdg_config_home":         str(ConfigurationPathResolver.get_xdg_config_home()),
+                "legacy_config_dir":       str(legacy_dir),
+                "legacy_config_exists":    (legacy_dir / "config.json").exists(),
+                "migration_marker_exists": (current_dir / ".migrated_from_legacy").exists(),
+                "config_file_exists":      self.config_file.exists(),
+                "backup_dir":              str(self.backup_dir),
+                "backup_count":            len(list(self.backup_dir.glob("config_*.json"))) if self.backup_dir.exists() else 0
+        }
 
     def get_config_summary(self) -> Dict[str, Any]:
         """Get a summary of current configuration"""
