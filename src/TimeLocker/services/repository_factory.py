@@ -135,7 +135,12 @@ class RepositoryFactory(IRepositoryFactory):
             if password:
                 kwargs['password'] = password
 
-            repository = repository_class(uri, **kwargs)
+            # Use from_parsed_uri class method if available, otherwise fall back to constructor
+            if hasattr(repository_class, 'from_parsed_uri'):
+                repository = repository_class.from_parsed_uri(parsed, **kwargs)
+            else:
+                repository = repository_class(uri, **kwargs)
+
             logger.info(f"Created {repository_class.__name__} for URI: {uri}")
             return repository
 

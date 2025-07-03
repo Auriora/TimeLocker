@@ -46,7 +46,8 @@ from .services import (
 from .services.snapshot_service import SnapshotService
 from .services.repository_service import RepositoryService
 from .utils.performance_utils import PerformanceModule
-from .config.configuration_manager import ConfigurationManager, ConfigurationPathResolver
+from .config.configuration_module import ConfigurationModule
+from .config.configuration_path_resolver import ConfigurationPathResolver
 from .backup_target import BackupTarget
 from .file_selections import FileSelection, SelectionType
 
@@ -85,17 +86,25 @@ class CLIServiceManager:
 
     def __init__(self):
         """Initialize CLI service manager with dependency injection"""
+        import sys
+        print("DEBUG: CLIServiceManager.__init__ called", file=sys.stderr)
         # Initialize modern services
         self._repository_factory = RepositoryFactory()
         self._validation_service = ValidationService()
         self._performance_module = PerformanceModule()
 
-        # Initialize configuration (hybrid approach for migration)
-        self._legacy_config_manager = ConfigurationManager()
-        self._config_service = ConfigurationService(
-                config_path=self._legacy_config_manager.config_file,
-                validation_service=self._validation_service
-        )
+        # Initialize configuration (new system only)
+        self._config_module = ConfigurationModule()
+
+        # Initialize modern config service
+        try:
+            self._config_service = ConfigurationService(
+                    config_path=self._config_module.config_file,
+                    validation_service=self._validation_service
+            )
+        except Exception as e:
+            logger.warning(f"Configuration service failed to initialize: {e}")
+            self._config_service = None
 
         # Initialize snapshot service
         self._snapshot_service = SnapshotService(
@@ -143,9 +152,9 @@ class CLIServiceManager:
         return self._backup_orchestrator
 
     @property
-    def legacy_config_manager(self) -> ConfigurationManager:
-        """Get legacy configuration manager for backward compatibility"""
-        return self._legacy_config_manager
+    def config_module(self) -> ConfigurationModule:
+        """Get configuration module"""
+        return self._config_module
 
     def resolve_repository_uri(self, repository_input: str) -> str:
         """
@@ -166,14 +175,15 @@ class CLIServiceManager:
 
         # Try to resolve as repository name from configuration
         try:
-            repositories = self._config_service.get_repositories()
-            for repo in repositories:
-                if repo['name'] == repository_input:
-                    return repo['uri']
+            if self._config_service is not None:
+                repositories = self._config_service.get_repositories()
+                for repo in repositories:
+                    if repo['name'] == repository_input:
+                        return repo['uri']
 
-            # Fallback to legacy configuration manager
-            repo_config = self._legacy_config_manager.get_repository(repository_input)
-            return repo_config['uri']
+            # Fallback to configuration module
+            repo_config = self._config_module.get_repository(repository_input)
+            return repo_config.location
 
         except Exception:
             # If not found in configuration, treat as local path
@@ -181,27 +191,91 @@ class CLIServiceManager:
                 return f"file://{repository_input}"
             return repository_input
 
+    def _find_repository_name_by_uri(self, repository_uri: str) -> str:
+        """
+        Find repository name that matches the given URI.
+
+        Args:
+            repository_uri: Repository URI to find name for
+
+        Returns:
+            Repository name if found, otherwise the URI itself
+        """
+        print(f"DEBUG: Looking for repository name for URI: {repository_uri}")
+        try:
+            # Try modern config service first
+            if self._config_service is not None:
+                repositories = self._config_service.get_repositories()
+                print(f"DEBUG: Found {len(repositories)} repositories in config service")
+                for repo in repositories:
+                    repo_uri = repo.get('uri')
+                    print(f"DEBUG: Checking repo '{repo.get('name')}' with URI '{repo_uri}'")
+                    if repo_uri == repository_uri:
+                        print(f"DEBUG: Found matching repository name: {repo['name']}")
+                        return repo['name']
+
+            # Fallback to configuration module
+            config = self._config_module.get_config()
+            logger.debug(f"Found {len(config.repositories)} repositories in config module")
+            for repo_name, repo_config in config.repositories.items():
+                repo_uri = getattr(repo_config, 'uri', None) or getattr(repo_config, 'location', None)
+                logger.debug(f"Checking repo '{repo_name}' with URI '{repo_uri}'")
+                if repo_uri == repository_uri:
+                    logger.debug(f"Found matching repository name: {repo_name}")
+                    return repo_name
+
+        except Exception as e:
+            logger.debug(f"Could not find repository name for URI {repository_uri}: {e}")
+
+        # If no name found, return the URI itself as fallback
+        logger.debug(f"No matching repository found, returning URI as fallback: {repository_uri}")
+        return repository_uri
+
     def execute_backup_from_cli(self, request: CLIBackupRequest) -> BackupResult:
         """
         Execute backup from CLI request using modern orchestrator.
-        
+
         Args:
             request: CLI backup request
-            
+
         Returns:
             BackupResult with operation details
         """
+        with open("/tmp/timelocker_debug.log", "a") as f:
+            f.write(f"DEBUG: execute_backup_from_cli called with repository_uri: {request.repository_uri}\n")
         try:
             # Resolve repository URI
             repository_uri = self.resolve_repository_uri(request.repository_uri)
+            with open("/tmp/timelocker_debug.log", "a") as f:
+                f.write(f"DEBUG: Resolved repository URI: {repository_uri}\n")
+
+            # Find repository name that matches this URI
+            repository_name = self._find_repository_name_by_uri(repository_uri)
+            with open("/tmp/timelocker_debug.log", "a") as f:
+                f.write(f"DEBUG: Using repository name for backup: {repository_name}\n")
 
             # If using a configured target, get it from configuration
+            with open("/tmp/timelocker_debug.log", "a") as f:
+                f.write(f"DEBUG: Checking if target_name exists: {request.target_name}\n")
             if request.target_name:
+                with open("/tmp/timelocker_debug.log", "a") as f:
+                    f.write(f"DEBUG: Target name found: {request.target_name}\n")
                 target_names = [request.target_name]
 
                 # Ensure target exists in configuration
+                with open("/tmp/timelocker_debug.log", "a") as f:
+                    f.write(f"DEBUG: About to call get_backup_targets()\n")
                 targets = self._config_service.get_backup_targets()
+                with open("/tmp/timelocker_debug.log", "a") as f:
+                    f.write(f"DEBUG: get_backup_targets() returned {len(targets)} targets\n")
+
+                with open("/tmp/cli_service_debug.log", "a") as f:
+                    f.write(f"DEBUG: Looking for target '{request.target_name}'\n")
+                    f.write(f"DEBUG: Available targets: {[t.get('name', 'NO_NAME') for t in targets]}\n")
+
                 if not any(t['name'] == request.target_name for t in targets):
+                    with open("/tmp/cli_service_debug.log", "a") as f:
+                        f.write(f"DEBUG: Target '{request.target_name}' not found, creating temporary target\n")
                     # Create temporary target configuration
                     target_config = {
                             'name':             request.target_name,
@@ -210,18 +284,29 @@ class CLIServiceManager:
                             'exclude_patterns': request.exclude_patterns
                     }
                     self._config_service.add_backup_target(target_config)
+                else:
+                    with open("/tmp/cli_service_debug.log", "a") as f:
+                        f.write(f"DEBUG: Target '{request.target_name}' found in configuration\n")
+
+                with open("/tmp/cli_service_debug.log", "a") as f:
+                    f.write(f"DEBUG: About to call backup orchestrator with repository_name='{repository_name}', target_names={target_names}\n")
 
                 return self._backup_orchestrator.execute_backup(
-                        repository_name=repository_uri,  # Use URI as name for now
+                        repository_name=repository_name,
                         target_names=target_names,
                         tags=request.tags,
                         dry_run=request.dry_run
                 )
             else:
                 # Create ad-hoc backup target
-                return self._execute_adhoc_backup(request, repository_uri)
+                return self._execute_adhoc_backup(request, repository_uri, repository_name)
 
         except Exception as e:
+            with open("/tmp/timelocker_debug.log", "a") as f:
+                f.write(f"DEBUG: Exception caught in CLI service: {e}\n")
+                f.write(f"DEBUG: Exception type: {type(e)}\n")
+                import traceback
+                f.write(f"DEBUG: Traceback: {traceback.format_exc()}\n")
             logger.error(f"CLI backup execution failed: {e}")
             # Return failed result
             return BackupResult(
@@ -231,7 +316,7 @@ class CLIServiceManager:
                     errors=[str(e)]
             )
 
-    def _execute_adhoc_backup(self, request: CLIBackupRequest, repository_uri: str) -> BackupResult:
+    def _execute_adhoc_backup(self, request: CLIBackupRequest, repository_uri: str, repository_name: str) -> BackupResult:
         """Execute backup for ad-hoc sources without configured targets"""
         # Create temporary target name
         target_name = request.backup_name or f"cli_backup_{int(time.time())}"
@@ -250,7 +335,7 @@ class CLIServiceManager:
         try:
             # Execute backup
             return self._backup_orchestrator.execute_backup(
-                    repository_name=repository_uri,
+                    repository_name=repository_name,
                     target_names=[target_name],
                     tags=request.tags,
                     dry_run=request.dry_run
@@ -287,20 +372,21 @@ class CLIServiceManager:
     def list_repositories(self) -> List[Dict[str, Any]]:
         """
         List all configured repositories.
-        
+
         Returns:
             List of repository configurations
         """
-        try:
-            # Try modern configuration service first
-            return self._config_service.get_repositories()
-        except Exception:
-            # Fallback to legacy configuration manager
-            legacy_repos = self._legacy_config_manager.list_repositories()
-            return [
-                    {**repo_config, 'name': name}
-                    for name, repo_config in legacy_repos.items()
-            ]
+        if self._config_service is not None:
+            try:
+                # Try modern configuration service first
+                return self._config_service.get_repositories()
+            except Exception:
+                # Fallback to configuration module
+                pass
+
+        # Use configuration module
+        repos = self._config_module.get_repositories()
+        return repos
 
     def list_backup_targets(self) -> List[Dict[str, Any]]:
         """
@@ -309,16 +395,17 @@ class CLIServiceManager:
         Returns:
             List of backup target configurations
         """
-        try:
-            # Try modern configuration service first
-            return self._config_service.get_backup_targets()
-        except Exception:
-            # Fallback to legacy configuration manager
-            legacy_targets = self._legacy_config_manager.list_backup_targets()
-            return [
-                    {**target_config, 'name': name}
-                    for name, target_config in legacy_targets.items()
-            ]
+        if self._config_service is not None:
+            try:
+                # Try modern configuration service first
+                return self._config_service.get_backup_targets()
+            except Exception:
+                # Fallback to configuration module
+                pass
+
+        # Use configuration module
+        targets = self._config_module.get_backup_targets()
+        return targets
 
     def add_repository(self, name: str, uri: str, description: str = "") -> None:
         """
@@ -336,12 +423,17 @@ class CLIServiceManager:
                 'type':        'auto'  # Auto-detect type from URI
         }
 
-        try:
-            # Try modern configuration service first
-            self._config_service.add_repository(repo_config)
-        except Exception:
-            # Fallback to legacy configuration manager
-            self._legacy_config_manager.add_repository(name, uri, description)
+        if self._config_service is not None:
+            try:
+                # Try modern configuration service first
+                self._config_service.add_repository(repo_config)
+                return
+            except Exception:
+                # Fallback to configuration module
+                pass
+
+        # Use configuration module
+        self._config_module.add_repository(name, uri, description)
 
     def add_backup_target(self,
                           name: str,
@@ -364,17 +456,22 @@ class CLIServiceManager:
                 'exclude_patterns': exclude_patterns or []
         }
 
-        try:
-            # Try modern configuration service first
-            self._config_service.add_backup_target(target_config)
-        except Exception:
-            # Fallback to legacy configuration manager
-            self._legacy_config_manager.add_backup_target(
-                    name=name,
-                    paths=paths,
-                    include_patterns=include_patterns,
-                    exclude_patterns=exclude_patterns
-            )
+        if self._config_service is not None:
+            try:
+                # Try modern configuration service first
+                self._config_service.add_backup_target(target_config)
+                return
+            except Exception:
+                # Fallback to configuration module
+                pass
+
+        # Use configuration module
+        self._config_module.add_backup_target(
+                name=name,
+                paths=paths,
+                include_patterns=include_patterns,
+                exclude_patterns=exclude_patterns
+        )
 
     def get_backup_history(self,
                            repository_name: Optional[str] = None,

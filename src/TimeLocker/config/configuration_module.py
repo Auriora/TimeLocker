@@ -7,6 +7,7 @@ SOLID principles and serving as the single entry point for all configuration ope
 
 import json
 import logging
+import os
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
 from threading import Lock
@@ -18,7 +19,7 @@ from .configuration_validator import ConfigurationValidator, ValidationResult
 from .configuration_path_resolver import ConfigurationPathResolver
 from .configuration_migrator import ConfigurationMigrator, MigrationResult
 from ..interfaces.configuration_provider import IConfigurationProvider
-from ..interfaces.exceptions import ConfigurationError, InvalidConfigurationError
+from ..interfaces.exceptions import ConfigurationError, InvalidConfigurationError, RepositoryNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,16 @@ class ConfigurationModule(IConfigurationProvider):
 
         # Initialize configuration
         self._initialize_configuration()
+
+    @property
+    def config_file(self) -> Path:
+        """Get configuration file path"""
+        return self._config_file
+
+    @property
+    def config_dir(self) -> Path:
+        """Get configuration directory path"""
+        return self._config_dir
 
     def _initialize_configuration(self) -> None:
         """Initialize configuration system"""
@@ -336,11 +347,16 @@ class ConfigurationModule(IConfigurationProvider):
         repositories = self.get_config().repositories
         return [repo.to_dict() if hasattr(repo, 'to_dict') else repo.__dict__ for repo in repositories.values()]
 
+    def get_default_repository(self) -> Optional[str]:
+        """Get the default repository name"""
+        config = self.get_config()
+        return getattr(config.general, 'default_repository', None)
+
     def get_repository(self, name: str) -> RepositoryConfig:
         """Get specific repository configuration"""
         repositories_dict = self.get_config().repositories
         if name not in repositories_dict:
-            raise ConfigurationError(f"Repository '{name}' not found")
+            raise RepositoryNotFoundError(f"Repository '{name}' not found")
         return repositories_dict[name]
 
     def add_repository(self, repository_config: Union[Dict[str, Any], RepositoryConfig]) -> None:
@@ -348,23 +364,31 @@ class ConfigurationModule(IConfigurationProvider):
         config = self.get_config()
 
         if isinstance(repository_config, dict):
+            # Create a copy to avoid modifying original data
+            repo_data_copy = repository_config.copy()
+            # Extract name and remove from data to avoid duplicate parameter
+            name = repo_data_copy.pop('name')
             # Convert dict to RepositoryConfig
-            repo = RepositoryConfig(**repository_config)
+            repo = RepositoryConfig(name=name, **repo_data_copy)
         else:
             repo = repository_config
 
         config.repositories[repo.name] = repo
         self.save_config(config)
 
-    def remove_repository(self, repository_name: str) -> bool:
+    def remove_repository(self, repository_name: str) -> None:
         """Remove repository configuration"""
         config = self.get_config()
         if repository_name not in config.repositories:
-            return False
+            raise RepositoryNotFoundError(f"Repository '{repository_name}' not found")
+
+        # Clear default repository if it's the one being removed
+        if config.general.default_repository == repository_name:
+            config.general.default_repository = None
 
         del config.repositories[repository_name]
         self.save_config(config)
-        return True
+        logger.info(f"Repository '{repository_name}' removed successfully")
 
     def get_backup_targets(self) -> List[Dict[str, Any]]:
         """Get list of configured backup targets"""
@@ -495,4 +519,29 @@ class ConfigurationModule(IConfigurationProvider):
                         "metrics_enabled":        config.monitoring.metrics_enabled,
                         "performance_monitoring": config.monitoring.performance_monitoring
                 }
+        }
+
+    def get_config_info(self) -> Dict[str, Any]:
+        """
+        Get information about configuration paths and status
+
+        Returns:
+            Dict: Configuration information including paths and migration status
+        """
+        from .configuration_path_resolver import ConfigurationPathResolver
+
+        legacy_dir = ConfigurationPathResolver.get_legacy_config_directory()
+        current_dir = self.config_dir
+
+        return {
+                "current_config_dir":      str(current_dir),
+                "current_config_file":     str(self.config_file),
+                "is_system_context":       ConfigurationPathResolver.is_system_context(),
+                "xdg_config_home":         os.environ.get('XDG_CONFIG_HOME', 'not set'),
+                "legacy_config_dir":       str(legacy_dir),
+                "legacy_config_exists":    (legacy_dir / "config.json").exists(),
+                "migration_marker_exists": (current_dir / ".migrated_from_legacy").exists(),
+                "config_file_exists":      self.config_file.exists(),
+                "backup_dir":              str(self.backup_dir) if hasattr(self, 'backup_dir') else "N/A",
+                "backup_count":            0  # ConfigurationModule doesn't use backup system
         }

@@ -229,8 +229,8 @@ class ConfigurationValidator:
         password_count = sum(password_fields)
         if password_count > 1:
             result.add_error(f"Repository '{name}' can only have one password method configured")
-        elif password_count == 0:
-            result.add_warning(f"Repository '{name}' has no password configured")
+        # Note: Missing password is not a validation warning - it should be handled
+        # when actually trying to use the repository, not during configuration loading
 
     def _validate_backup_targets(self, targets: Dict[str, Any], repositories: Dict[str, Any], result: ValidationResult) -> None:
         """Validate backup target configurations"""
@@ -246,11 +246,6 @@ class ConfigurationValidator:
         # Validate required fields
         if not hasattr(target_config, 'paths') or not target_config.paths:
             result.add_error(f"Backup target '{name}' must have at least one path")
-
-        if not hasattr(target_config, 'repository') or not target_config.repository:
-            result.add_error(f"Backup target '{name}' must specify a repository")
-        elif target_config.repository not in repositories:
-            result.add_error(f"Backup target '{name}' references unknown repository: {target_config.repository}")
 
         # Validate paths exist
         if hasattr(target_config, 'paths'):

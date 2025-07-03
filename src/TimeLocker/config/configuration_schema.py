@@ -158,6 +158,10 @@ class RepositoryConfig:
         from dataclasses import asdict
         result = asdict(self)
 
+        # Map internal field names to JSON field names
+        if 'location' in result:
+            result['uri'] = result.pop('location')
+
         # Convert enums to their values for JSON serialization
         def convert_enums(obj):
             if isinstance(obj, dict):
@@ -177,7 +181,6 @@ class BackupTargetConfig:
     """Backup target configuration"""
     name: str
     paths: List[str]
-    repository: str
     exclude_patterns: List[str] = field(default_factory=list)
     include_patterns: List[str] = field(default_factory=list)
     exclude_files: List[str] = field(default_factory=list)
@@ -226,6 +229,20 @@ class TimeLockerConfig:
         from dataclasses import asdict
         result = asdict(self)
 
+        # Convert repositories using their to_dict methods
+        if 'repositories' in result:
+            result['repositories'] = {
+                    name: repo.to_dict() if hasattr(repo, 'to_dict') else repo
+                    for name, repo in self.repositories.items()
+            }
+
+        # Convert backup targets using their to_dict methods
+        if 'backup_targets' in result:
+            result['backup_targets'] = {
+                    name: target.to_dict() if hasattr(target, 'to_dict') else target
+                    for name, target in self.backup_targets.items()
+            }
+
         # Convert enums to their values for JSON serialization
         def convert_enums(obj):
             if isinstance(obj, dict):
@@ -244,7 +261,14 @@ class TimeLockerConfig:
         """Create configuration from dictionary"""
         # Extract main sections
         general = GeneralConfig(**data.get('general', {}))
-        backup = BackupConfig(**data.get('backup', {}))
+
+        # Filter out legacy retention fields from backup config
+        backup_data = data.get('backup', {}).copy()
+        legacy_retention_fields = ['retention_keep_last', 'retention_keep_daily', 'retention_keep_weekly', 'retention_keep_monthly']
+        for field in legacy_retention_fields:
+            backup_data.pop(field, None)
+        backup = BackupConfig(**backup_data)
+
         restore = RestoreConfig(**data.get('restore', {}))
         security = SecurityConfig(**data.get('security', {}))
         ui = UIConfig(**data.get('ui', {}))
@@ -258,15 +282,33 @@ class TimeLockerConfig:
             repo_data_copy = repo_data.copy()
             # Remove 'name' from repo_data to avoid duplicate parameter
             repo_data_copy.pop('name', None)
+            # Map legacy 'uri' field to 'location'
+            if 'uri' in repo_data_copy:
+                repo_data_copy['location'] = repo_data_copy.pop('uri')
+            # Remove legacy fields not supported by new RepositoryConfig
+            legacy_fields = ['type', 'created']
+            for field in legacy_fields:
+                repo_data_copy.pop(field, None)
             repositories[name] = RepositoryConfig(name=name, **repo_data_copy)
 
         # Convert backup targets
         backup_targets = {}
+
         for name, target_data in data.get('backup_targets', {}).items():
             # Create a copy to avoid modifying original data
             target_data_copy = target_data.copy()
             # Remove 'name' from target_data to avoid duplicate parameter
             target_data_copy.pop('name', None)
+            # Handle legacy 'patterns' field structure
+            if 'patterns' in target_data_copy:
+                patterns = target_data_copy.pop('patterns')
+                if isinstance(patterns, dict):
+                    target_data_copy['include_patterns'] = patterns.get('include', [])
+                    target_data_copy['exclude_patterns'] = patterns.get('exclude', [])
+            # Remove legacy fields including 'repository' (no longer coupled)
+            legacy_fields = ['created', 'repository']
+            for field in legacy_fields:
+                target_data_copy.pop(field, None)
             backup_targets[name] = BackupTargetConfig(name=name, **target_data_copy)
 
         return cls(

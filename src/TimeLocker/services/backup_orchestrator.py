@@ -32,6 +32,7 @@ from ..interfaces import (
     BackupExecutionError
 )
 from ..backup_target import BackupTarget
+from ..file_selections import FileSelection, SelectionType
 from ..utils import (
     with_error_handling,
     with_retry,
@@ -83,6 +84,8 @@ class BackupOrchestrator(IBackupOrchestrator):
                        target_names: List[str],
                        tags: Optional[List[str]] = None,
                        dry_run: bool = False) -> BackupResult:
+        with open("/tmp/orchestrator_debug.log", "a") as f:
+            f.write(f"DEBUG: execute_backup called with repository_name='{repository_name}', target_names={target_names}\n")
         """
         Execute a backup operation.
         
@@ -268,22 +271,57 @@ class BackupOrchestrator(IBackupOrchestrator):
         targets = []
         target_configs = self._configuration_provider.get_backup_targets()
 
+        with open("/tmp/orchestrator_debug.log", "a") as f:
+            f.write(f"DEBUG: _get_backup_targets called with target_names: {target_names}\n")
+            f.write(f"DEBUG: Available target configs: {[t.get('name', 'NO_NAME') for t in target_configs]}\n")
+
         for target_name in target_names:
             target_config = next(
                     (t for t in target_configs if t['name'] == target_name),
                     None
             )
 
+            with open("/tmp/orchestrator_debug.log", "a") as f:
+                f.write(f"DEBUG: Looking for target '{target_name}', found config: {target_config}\n")
+
             if not target_config:
                 raise InvalidBackupConfigurationError(f"Backup target '{target_name}' not found")
 
-            # Create BackupTarget instance
+            # Create FileSelection from target configuration
+            selection = FileSelection()
+
+            with open("/tmp/orchestrator_debug.log", "a") as f:
+                f.write(f"DEBUG: Creating FileSelection for target '{target_name}'\n")
+                f.write(f"DEBUG: Target config paths: {target_config.get('paths', [])}\n")
+
+            # Add paths to selection
+            for path in target_config['paths']:
+                selection.add_path(path, SelectionType.INCLUDE)
+                with open("/tmp/orchestrator_debug.log", "a") as f:
+                    f.write(f"DEBUG: Added path to selection: {path}\n")
+
+            # Add exclude patterns
+            for pattern in target_config.get('exclude_patterns', []):
+                selection.add_pattern(pattern, SelectionType.EXCLUDE)
+
+            # Add include patterns
+            for pattern in target_config.get('include_patterns', []):
+                selection.add_pattern(pattern, SelectionType.INCLUDE)
+
+            with open("/tmp/orchestrator_debug.log", "a") as f:
+                f.write(f"DEBUG: FileSelection created, about to create BackupTarget\n")
+                f.write(f"DEBUG: selection object: {selection}\n")
+
+            # Create BackupTarget instance with proper FileSelection
             target = BackupTarget(
+                    selection=selection,
                     name=target_config['name'],
-                    paths=target_config['paths'],
-                    include_patterns=target_config.get('include_patterns', []),
-                    exclude_patterns=target_config.get('exclude_patterns', [])
+                    tags=target_config.get('tags', [])
             )
+
+            with open("/tmp/orchestrator_debug.log", "a") as f:
+                f.write(f"DEBUG: BackupTarget created successfully for '{target_name}'\n")
+
             targets.append(target)
 
         return targets

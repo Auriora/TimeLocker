@@ -13,7 +13,7 @@ from typing import Dict, Any, Optional
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 try:
-    from TimeLocker.config.configuration_manager import ConfigurationManager, ConfigSection
+    from TimeLocker.config.configuration_module import ConfigurationModule
     from TimeLocker.security.credential_manager import CredentialManager
     from TimeLocker.restic.Repositories.local import LocalResticRepository
     from TimeLocker.backup_manager import BackupRepository
@@ -31,7 +31,8 @@ class TimeLockerImporter:
         self.timelocker_config_dir = Path(timelocker_config_dir) if timelocker_config_dir else None
 
         # Initialize TimeLocker components
-        self.config_manager = ConfigurationManager(config_dir=self.timelocker_config_dir)
+        from TimeLocker.config import ConfigurationModule
+        self.config_manager = ConfigurationModule(config_dir=self.timelocker_config_dir)
         self.credential_manager = None
 
     def load_extracted_config(self) -> Dict[str, Any]:
@@ -133,9 +134,9 @@ class TimeLockerImporter:
                 }
 
                 # Update TimeLocker configuration
-                current_repos = self.config_manager.get_section(ConfigSection.REPOSITORIES)
+                current_repos = self.config_manager.get_section("repositories")
                 current_repos[repo_name] = repo_section
-                self.config_manager.set_section(ConfigSection.REPOSITORIES, current_repos)
+                self.config_manager.update_section("repositories", current_repos)
 
                 print(f"✅ Imported repository: {repo_name}")
 
@@ -151,7 +152,7 @@ class TimeLockerImporter:
             backup_config = extracted_config.get('backup', {})
 
             # Update backup defaults
-            current_backup = self.config_manager.get_section(ConfigSection.BACKUP)
+            current_backup = self.config_manager.get_section("backup")
 
             # Map extracted settings to TimeLocker format
             if 'compression' in backup_config:
@@ -167,7 +168,7 @@ class TimeLockerImporter:
             if 'retention_keep_monthly' in backup_config:
                 current_backup['retention_keep_monthly'] = backup_config['retention_keep_monthly']
 
-            self.config_manager.set_section(ConfigSection.BACKUP, current_backup)
+            self.config_manager.update_section("backup", current_backup)
             print("✅ Imported backup settings")
 
             return True

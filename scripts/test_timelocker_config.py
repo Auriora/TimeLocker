@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 try:
     from TimeLocker.backup_manager import BackupManager
-    from TimeLocker.config.configuration_manager import ConfigurationManager
+    from TimeLocker.config.configuration_module import ConfigurationModule
 except ImportError as e:
     print(f"❌ Error importing TimeLocker modules: {e}")
     print("Make sure you're running this from the TimeLocker project directory")

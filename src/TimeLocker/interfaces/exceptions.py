@@ -54,6 +54,16 @@ class InvalidConfigurationError(ConfigurationError):
     pass
 
 
+class RepositoryNotFoundError(ConfigurationError):
+    """Raised when a repository name cannot be resolved"""
+    pass
+
+
+class RepositoryAlreadyExistsError(ConfigurationError):
+    """Raised when trying to add a repository that already exists"""
+    pass
+
+
 # Credential Provider Exceptions
 class CredentialError(TimeLockerInterfaceError):
     """Base exception for credential-related errors"""

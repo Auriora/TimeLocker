@@ -32,10 +32,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from TimeLocker import (
     IntegrationService,
-    CredentialManager,
-    ConfigurationManager,
-    ConfigSection
+    CredentialManager
 )
+from TimeLocker.config import ConfigurationModule
 from TimeLocker.restic.Repositories.local import LocalResticRepository
 
 # Configure logging
@@ -80,19 +79,18 @@ def main():
 
         # Configure backup settings
         integration_service.config_manager.update_section(
-                ConfigSection.BACKUP,
+                "backup",
                 {
                         "compression":         "auto",
                         "exclude_caches":      True,
                         "check_before_backup": True,
-                        "verify_after_backup": True,
-                        "retention_keep_last": 10
+                        "verify_after_backup": True
                 }
         )
 
         # Configure notification settings
         integration_service.config_manager.update_section(
-                ConfigSection.NOTIFICATIONS,
+                "notifications",
                 {
                         "enabled":                True,
                         "desktop_enabled":        True,
@@ -105,7 +103,7 @@ def main():
 
         # Configure security settings
         integration_service.config_manager.update_section(
-                ConfigSection.SECURITY,
+                "security",
                 {
                         "encryption_enabled": True,
                         "audit_logging":      True,

@@ -10,6 +10,7 @@ import sys
 import os
 import json
 import logging
+import logging.handlers
 from pathlib import Path
 from typing import Optional, List, Annotated
 from datetime import datetime
@@ -23,6 +24,7 @@ from rich.prompt import Confirm, Prompt
 from rich.text import Text
 from rich.tree import Tree
 from rich import print as rprint
+from rich.logging import RichHandler
 
 from . import __version__
 from .backup_manager import BackupManager
@@ -87,17 +89,162 @@ config_app.add_typer(config_targets_app, name="targets")
 config_app.add_typer(config_import_app, name="import")
 
 
-def setup_logging(verbose: bool = False) -> None:
-    """Set up logging configuration with Rich integration."""
+class UserFacingLogFilter(logging.Filter):
+    """Filter to identify user-facing log messages that should be displayed in CLI."""
+
+    def filter(self, record):
+        # Only show messages that are relevant to users
+        # This includes configuration errors, validation failures, and user action failures
+
+        # Always show CRITICAL errors
+        if record.levelno >= logging.CRITICAL:
+            return True
+
+        # For ERROR and WARNING levels, be selective
+        if record.levelno >= logging.WARNING:
+            # Check if this is a user-relevant message based on logger name and message content
+            logger_name = record.name.lower()
+            message = record.getMessage().lower()
+
+            # User-relevant loggers (TimeLocker specific, not third-party libraries)
+            user_relevant_loggers = [
+                    'timelocker',
+                    'src.timelocker',
+                    '__main__'
+            ]
+
+            # Check if it's from a user-relevant logger
+            is_user_logger = any(logger_name.startswith(prefix.lower()) for prefix in user_relevant_loggers)
+
+            # User-relevant message patterns
+            user_relevant_patterns = [
+                    'configuration',
+                    'config',
+                    'repository',
+                    'backup',
+                    'restore',
+                    'snapshot',
+                    'target',
+                    'validation',
+                    'permission denied',
+                    'not found',
+                    'failed to',
+                    'unable to',
+                    'invalid',
+                    'missing',
+                    'authentication',
+                    'password'
+            ]
+
+            # Check if message contains user-relevant keywords
+            has_user_keywords = any(pattern in message for pattern in user_relevant_patterns)
+
+            # Filter out misleading warnings that aren't helpful during normal operations
+            misleading_warnings = [
+                    'no repositories configured',  # Don't show during repository add operations
+            ]
+
+            # Skip misleading warnings
+            if any(warning in message for warning in misleading_warnings):
+                return False
+
+            # Show message if it's from a user-relevant logger AND contains user-relevant keywords
+            return is_user_logger and has_user_keywords
+
+        return False
+
+
+class CLILogHandler(RichHandler):
+    """Custom log handler that formats user-facing messages as Rich panels."""
+
+    def __init__(self, console: Console):
+        super().__init__(console=console, show_time=False, show_path=False)
+        self.console = console
+
+    def emit(self, record):
+        try:
+            # Format the message
+            message = self.format(record)
+
+            # Determine panel style based on log level
+            if record.levelno >= logging.CRITICAL:
+                title = "Critical Error"
+                style = "red"
+                icon = "💥"
+            elif record.levelno >= logging.ERROR:
+                title = "Error"
+                style = "red"
+                icon = "❌"
+            elif record.levelno >= logging.WARNING:
+                title = "Warning"
+                style = "yellow"
+                icon = "⚠️"
+            else:
+                # For INFO and below, use simple console output
+                self.console.print(f"ℹ️  {message}", style="blue")
+                return
+
+            # Create and display panel for errors/warnings
+            panel = Panel(
+                    f"{icon} {message}",
+                    title=f"[bold {style}]{title}[/bold {style}]",
+                    border_style=style,
+                    padding=(0, 1)
+            )
+            self.console.print(panel)
+
+        except Exception:
+            self.handleError(record)
+
+
+def setup_logging(verbose: bool = False, config_dir: Optional[Path] = None) -> None:
+    """Set up logging configuration with file output and user-facing CLI messages."""
+    from .config.configuration_path_resolver import ConfigurationPathResolver
+
+    # Determine log level
     level = logging.DEBUG if verbose else logging.INFO
 
-    # Configure logging to work well with Rich
-    logging.basicConfig(
-            level=level,
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S',
-            handlers=[logging.StreamHandler()]
+    # Get appropriate XDG directory for log files (cache directory)
+    # Logs are temporary/cache data, not configuration or persistent data
+    log_dir = ConfigurationPathResolver.get_cache_directory() / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    # Clear any existing handlers to avoid duplicates
+    root_logger = logging.getLogger()
+    root_logger.handlers.clear()
+
+    # Set up file logging for all messages
+    log_file = log_dir / "timelocker.log"
+    file_handler = logging.handlers.RotatingFileHandler(
+            log_file,
+            maxBytes=10 * 1024 * 1024,  # 10MB
+            backupCount=5,
+            encoding='utf-8'
     )
+    file_handler.setLevel(logging.DEBUG)  # Log everything to file
+    file_formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+    )
+    file_handler.setFormatter(file_formatter)
+
+    # Set up CLI logging for user-facing messages only
+    cli_handler = CLILogHandler(console)
+    cli_handler.setLevel(logging.WARNING)  # Only show warnings and errors to users
+    cli_handler.addFilter(UserFacingLogFilter())
+
+    # Configure root logger
+    root_logger.setLevel(level)
+    root_logger.addHandler(file_handler)
+    root_logger.addHandler(cli_handler)
+
+    # Log the logging setup
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Logging configured - Level: {logging.getLevelName(level)}, Log file: {log_file}")
+
+    # Suppress noisy third-party loggers
+    logging.getLogger('urllib3').setLevel(logging.WARNING)
+    logging.getLogger('requests').setLevel(logging.WARNING)
 
 
 def format_file_size(size_bytes: int) -> str:
@@ -169,20 +316,21 @@ def backup_create(
         exclude: Annotated[Optional[List[str]], typer.Option("--exclude", "-e", help="Exclude pattern")] = None,
         include: Annotated[Optional[List[str]], typer.Option("--include", "-i", help="Include pattern")] = None,
         tags: Annotated[Optional[List[str]], typer.Option("--tags", help="Backup tags")] = None,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be backed up without actually performing backup")] = False,
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Create a backup with beautiful progress tracking."""
-    setup_logging(verbose)
+    setup_logging(verbose, config_dir)
 
     # Handle target-based backup
     if target:
         try:
-            from .config.configuration_manager import ConfigurationManager, ConfigSection
-            config_manager = ConfigurationManager(config_dir=config_dir)
+            from .config import ConfigurationModule
+            config_module = ConfigurationModule(config_dir=config_dir)
 
             # Get backup target configuration
-            backup_target = config_manager.get_backup_target(target)
+            backup_target = config_module.get_backup_target(target)
 
         except ValueError as e:
             show_error_panel("Target Not Found", str(e))
@@ -193,21 +341,24 @@ def backup_create(
             raise typer.Exit(1)
 
         # Extract backup target configuration
-        sources = [Path(p) for p in backup_target["paths"]]
-        name = name or backup_target.get("name", target)
+        with open("/tmp/cli_debug.log", "a") as f:
+            f.write(f"DEBUG: backup_target type: {type(backup_target)}\n")
+            f.write(f"DEBUG: backup_target content: {backup_target}\n")
+        sources = [Path(p) for p in backup_target.paths]
+        name = name or backup_target.name or target
 
         # Use patterns from target config if not overridden
-        if not include and backup_target.get("patterns", {}).get("include"):
-            include = backup_target["patterns"]["include"]
-        if not exclude and backup_target.get("patterns", {}).get("exclude"):
-            exclude = backup_target["patterns"]["exclude"]
+        if not include and backup_target.include_patterns:
+            include = backup_target.include_patterns
+        if not exclude and backup_target.exclude_patterns:
+            exclude = backup_target.exclude_patterns
 
         # Use default repository if not specified
         if not repository:
-            default_repo_name = config_manager.get(ConfigSection.GENERAL, "default_repository")
+            default_repo_name = config_module.get_default_repository()
             if default_repo_name:
                 try:
-                    default_repo = config_manager.get_repository(default_repo_name)
+                    default_repo = config_module.get_repository(default_repo_name)
                     repository = default_repo.get("uri")
                 except Exception:
                     pass  # Continue without default repository
@@ -236,6 +387,9 @@ def backup_create(
         raise typer.Exit(1)
 
     try:
+        print(f"DEBUG: Starting backup execution with repository_uri: {repository_uri}", file=sys.stderr)
+        with open("/tmp/cli_debug.log", "a") as f:
+            f.write(f"DEBUG: Starting backup execution with repository_uri: {repository_uri}\n")
         with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
@@ -246,10 +400,18 @@ def backup_create(
 
             # Initialize service manager
             task = progress.add_task("Initializing backup...", total=None)
+            print(f"DEBUG: About to call get_cli_service_manager()", file=sys.stderr)
+            with open("/tmp/cli_debug.log", "a") as f:
+                f.write(f"DEBUG: About to call get_cli_service_manager()\n")
             service_manager = get_cli_service_manager()
+            print(f"DEBUG: Service manager created: {type(service_manager)}", file=sys.stderr)
+            with open("/tmp/cli_debug.log", "a") as f:
+                f.write(f"DEBUG: Service manager created: {type(service_manager)}\n")
 
             # Create backup request
             progress.update(task, description="Preparing backup request...")
+            with open("/tmp/cli_debug.log", "a") as f:
+                f.write(f"DEBUG: Creating CLIBackupRequest with sources={sources}, repository_uri={repository_uri}, target_name={target}\n")
             backup_request = CLIBackupRequest(
                     sources=sources,
                     repository_uri=repository_uri,
@@ -261,10 +423,16 @@ def backup_create(
                     exclude_patterns=exclude or [],
                     dry_run=dry_run
             )
+            with open("/tmp/cli_debug.log", "a") as f:
+                f.write(f"DEBUG: CLIBackupRequest created successfully\n")
 
             # Execute backup using modern orchestrator
             progress.update(task, description="Executing backup...")
+            with open("/tmp/cli_debug.log", "a") as f:
+                f.write(f"DEBUG: About to call execute_backup_from_cli with repository_uri: {backup_request.repository_uri}\n")
             result = service_manager.execute_backup_from_cli(backup_request)
+            with open("/tmp/cli_debug.log", "a") as f:
+                f.write(f"DEBUG: Backup result: {result.status}\n")
 
             progress.remove_task(task)
 
@@ -556,6 +724,7 @@ def repo_init(
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI", autocompletion=repository_uri_completer)] = None,
         password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
 ) -> None:
     """Initialize this repository."""
     setup_logging(verbose)
@@ -574,8 +743,8 @@ def repo_init(
         show_error_panel("Repository Error", str(e))
         raise typer.Exit(1)
 
-    # Confirm repository creation
-    if not Confirm.ask(f"Initialize new repository at [bold]{repository_uri}[/bold]?"):
+    # Confirm repository creation unless --yes flag is used
+    if not yes and not Confirm.ask(f"Initialize new repository at [bold]{repository_uri}[/bold]?"):
         show_info_panel("Operation Cancelled", "Repository initialization cancelled by user")
         raise typer.Exit(0)
 
@@ -792,7 +961,7 @@ def config_setup(
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Interactive configuration setup wizard."""
-    setup_logging(verbose)
+    setup_logging(verbose, config_dir)
 
     console.print()
     console.print(Panel(
@@ -804,12 +973,12 @@ def config_setup(
     console.print()
 
     try:
-        # Initialize configuration manager (will use appropriate path resolution)
-        from .config.configuration_manager import ConfigurationManager, ConfigSection
-        config_manager = ConfigurationManager(config_dir=config_dir)
+        # Initialize configuration module (will use appropriate path resolution)
+        from .config import ConfigurationModule
+        config_module = ConfigurationModule(config_dir=config_dir)
 
         # Show configuration information
-        config_info = config_manager.get_config_info()
+        config_info = config_module.get_config_info()
         console.print(f"📁 Configuration directory: {config_info['current_config_dir']}")
         if config_info['migration_marker_exists']:
             console.print("✅ Configuration migrated from legacy location")
@@ -821,9 +990,9 @@ def config_setup(
             repo_uri = Prompt.ask("Repository URI (e.g., /path/to/backup or s3://bucket/path)")
             repo_desc = Prompt.ask("Repository description", default=f"{repo_name} backup repository")
 
-            # Add repository using ConfigurationManager
+            # Add repository using ConfigurationModule
             config_manager.add_repository(repo_name, repo_uri, repo_desc)
-            config_manager.set(ConfigSection.GENERAL, "default_repository", repo_name)
+            config_manager.set_default_repository(repo_name)
 
         # Backup target setup
         if Confirm.ask("Would you like to add a backup target?"):
@@ -847,20 +1016,21 @@ def config_setup(
                     paths.append(path)
 
             if paths:
-                # Add backup target using ConfigurationManager
-                config_manager.add_backup_target(
-                        name=target_name,
-                        paths=paths,
-                        description=target_desc,
-                        include_patterns=["*"],
-                        exclude_patterns=["*.tmp", "*.log", "Thumbs.db", ".DS_Store"]
-                )
+                # Add backup target using ConfigurationModule
+                target_config = {
+                        "name":             target_name,
+                        "paths":            paths,
+                        "description":      target_desc,
+                        "include_patterns": ["*"],
+                        "exclude_patterns": ["*.tmp", "*.log", "Thumbs.db", ".DS_Store"]
+                }
+                config_manager.add_backup_target(target_config)
 
-        # Configuration is automatically saved by ConfigurationManager methods
+        # Configuration is automatically saved by ConfigurationModule methods
 
         # Get counts for display
-        repositories = config_manager.list_repositories()
-        backup_targets = config_manager.list_backup_targets()
+        repositories = config_manager.get_repositories()
+        backup_targets = config_manager.get_backup_targets()
 
         show_success_panel(
                 "Configuration Created",
@@ -888,14 +1058,14 @@ def config_show(
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """List current configuration."""
-    setup_logging(verbose)
+    setup_logging(verbose, config_dir)
 
     try:
-        from .config.configuration_manager import ConfigurationManager
-        config_manager = ConfigurationManager(config_dir=config_dir)
+        from .config import ConfigurationModule
+        config_module = ConfigurationModule(config_dir=config_dir)
         # Configuration is automatically loaded in __init__
-        config = config_manager._config
-        config_file = config_manager.config_file
+        config = config_module.get_config()
+        config_file = config_module.config_file
 
         console.print()
         console.print(Panel(
@@ -905,53 +1075,54 @@ def config_show(
         ))
 
         # Repositories table
-        if config.get("repositories"):
+        if config.repositories:
             table = Table(title="🗄️  Repositories", border_style="green")
             table.add_column("Name", style="cyan")
             table.add_column("Type", style="yellow")
             table.add_column("URI", style="white")
             table.add_column("Description", style="dim")
 
-            for name, repo in config["repositories"].items():
+            for name, repo in config.repositories.items():
                 table.add_row(
                         name,
-                        repo.get("type", "unknown"),
-                        repo.get("uri", ""),
-                        repo.get("description", "")
+                        getattr(repo, "type", "unknown"),
+                        getattr(repo, "uri", ""),
+                        getattr(repo, "description", "")
                 )
             console.print(table)
             console.print()
 
         # Backup targets table
-        if config.get("backup_targets"):
+        if config.backup_targets:
             table = Table(title="🎯 Backup Targets", border_style="blue")
             table.add_column("Name", style="cyan")
             table.add_column("Description", style="white")
             table.add_column("Paths", style="green")
             table.add_column("Patterns", style="dim")
 
-            for name, target in config["backup_targets"].items():
-                paths_str = "\n".join(target.get("paths", []))
-                patterns = target.get("patterns", {})
-                include_patterns = ", ".join(patterns.get("include", []))
-                exclude_patterns = ", ".join(patterns.get("exclude", []))
+            for name, target in config.backup_targets.items():
+                paths_str = "\n".join(getattr(target, "paths", []))
+                include_patterns = ", ".join(getattr(target, "include_patterns", []))
+                exclude_patterns = ", ".join(getattr(target, "exclude_patterns", []))
                 patterns_str = f"Include: {include_patterns}\nExclude: {exclude_patterns}"
 
                 table.add_row(
                         name,
-                        target.get("description", ""),
+                        getattr(target, "description", ""),
                         paths_str,
                         patterns_str
                 )
             console.print(table)
             console.print()
 
-        # Settings
-        if config.get("settings"):
-            settings_text = ""
-            for key, value in config["settings"].items():
-                settings_text += f"[bold]{key}:[/bold] {value}\n"
+        # Settings (General configuration)
+        settings_text = ""
+        if config.general.default_repository:
+            settings_text += f"[bold]default_repository:[/bold] {config.general.default_repository}\n"
+        if config.general.max_concurrent_operations:
+            settings_text += f"[bold]max_concurrent_operations:[/bold] {config.general.max_concurrent_operations}\n"
 
+        if settings_text:
             console.print(Panel(
                     settings_text.strip(),
                     title="⚙️  Settings",
@@ -973,12 +1144,12 @@ def config_info(
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Show configuration directory information and migration status."""
-    setup_logging(verbose)
+    setup_logging(verbose, config_dir)
 
     try:
         # Initialize configuration manager (will use appropriate path resolution)
-        from .config.configuration_manager import ConfigurationManager
-        config_manager = ConfigurationManager(config_dir=config_dir)
+        from .config.configuration_module import ConfigurationModule
+        config_manager = ConfigurationModule(config_dir=config_dir)
         config_info = config_manager.get_config_info()
 
         console.print()
@@ -1085,6 +1256,7 @@ def config_import_restic(
         paths: Annotated[Optional[List[str]], typer.Option("--paths", "-p", help="Backup paths (if not using current directory)")] = None,
         dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be imported without making changes")] = False,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
 ) -> None:
     """Import configuration from restic environment variables.
 
@@ -1263,31 +1435,17 @@ def config_import_restic(
         console.print("Configuration would be saved to:", str(config_dir / "timelocker.json"))
         return
 
-    # Confirm before proceeding
-    if not Confirm.ask("Import this configuration?"):
+    # Confirm before proceeding unless --yes flag is used
+    if not yes and not Confirm.ask("Import this configuration?"):
         console.print("❌ Import cancelled")
         raise typer.Exit(0)
 
     try:
-        # Use ConfigurationManager to properly handle the configuration
-        from .config.configuration_manager import ConfigurationManager, ConfigSection
-        config_manager = ConfigurationManager(config_dir=config_dir)
-
-        # Update repositories section
-        current_repos = config_manager.get_section(ConfigSection.REPOSITORIES)
-        current_repos.update(config["repositories"])
-        config_manager.set_section(ConfigSection.REPOSITORIES, current_repos)
-
-        # Update backup targets (stored in a custom section)
-        current_config = config_manager.get_configuration()
-        current_config.setdefault("backup_targets", {}).update(config["backup_targets"])
-
-        # Update settings (stored in a custom section)
-        current_config.setdefault("settings", {}).update(config["settings"])
-
-        # Save the updated configuration
-        config_manager._config = current_config
-        config_manager.save_config()
+        # Configuration import is no longer supported with the new configuration system
+        raise NotImplementedError(
+                "Configuration import is not supported with the new configuration system. "
+                "Please manually recreate your repositories and backup targets using the CLI commands."
+        )
 
         console.print()
         show_success_panel(
@@ -1315,8 +1473,8 @@ def config_repositories_list(
     setup_logging(verbose)
 
     try:
-        from .config.configuration_manager import ConfigurationManager
-        config_manager = ConfigurationManager(config_dir=config_dir)
+        from .config.configuration_module import ConfigurationModule
+        config_manager = ConfigurationModule(config_dir=config_dir)
         config_file = config_manager.config_file
 
         console.print()
@@ -1326,7 +1484,7 @@ def config_repositories_list(
                 border_style="green"
         ))
 
-        repositories = config_manager.list_repositories()
+        repositories = config_manager.get_repositories()
         default_repo = config_manager.get_default_repository()
 
         if repositories:
@@ -1337,9 +1495,10 @@ def config_repositories_list(
             table.add_column("Description", style="white")
             table.add_column("Default", style="magenta", justify="center")
 
-            for name, repo_config in repositories.items():
+            for repo_config in repositories:
+                name = repo_config.get("name", "unknown")
                 repo_type = repo_config.get("type", "unknown")
-                uri = repo_config.get("uri", "N/A")
+                uri = repo_config.get("uri", repo_config.get("location", "N/A"))
                 description = repo_config.get("description", "")
                 is_default = "✓" if name == default_repo else ""
 
@@ -1351,12 +1510,12 @@ def config_repositories_list(
             if default_repo:
                 console.print(f"🎯 [bold]Default repository:[/bold] {default_repo}")
             else:
-                console.print("💡 [bold]Set a default repository:[/bold] [cyan]tl config set-default-repo <name>[/cyan]")
+                console.print("💡 [bold]Set a default repository:[/bold] [cyan]tl config repositories default <name>[/cyan]")
         else:
             console.print("❌ No repositories configured")
             console.print()
             console.print("💡 [bold]Add a repository:[/bold]")
-            console.print("   [cyan]tl config add-repo <name> <uri>[/cyan] - Add a repository")
+            console.print("   [cyan]tl config repositories add <name> <uri>[/cyan] - Add a repository")
             console.print("   [cyan]tl config setup[/cyan] - Interactive setup")
             console.print("   [cyan]tl config import-restic[/cyan] - Import from restic environment")
 
@@ -1371,8 +1530,8 @@ def config_repositories_list(
 
 @config_repositories_app.command("add")
 def config_repositories_add(
-        name: Annotated[str, typer.Argument(help="Repository name")],
-        uri: Annotated[str, typer.Argument(help="Repository URI", autocompletion=repository_uri_completer)],
+        name: Annotated[Optional[str], typer.Argument(help="Repository name")] = None,
+        uri: Annotated[Optional[str], typer.Argument(help="Repository URI", autocompletion=repository_uri_completer)] = None,
         description: Annotated[Optional[str], typer.Option("--description", "-d", help="Repository description")] = None,
         set_default: Annotated[bool, typer.Option("--set-default", help="Set as default repository")] = False,
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
@@ -1381,16 +1540,25 @@ def config_repositories_add(
     """Add a new repository to configuration."""
     setup_logging(verbose)
 
+    # Prompt for missing required parameters
+    if not name:
+        name = Prompt.ask("Repository name")
+
+    if not uri:
+        uri = Prompt.ask("Repository URI")
+
     try:
-        from .config.configuration_manager import ConfigurationManager, RepositoryAlreadyExistsError
-        config_manager = ConfigurationManager(config_dir=config_dir)
+        from .config.configuration_module import ConfigurationModule
+        from .interfaces.exceptions import RepositoryAlreadyExistsError
+        config_manager = ConfigurationModule(config_dir=config_dir)
 
         # Add repository
-        config_manager.add_repository(
-                name=name,
-                uri=uri,
-                description=description or f"{name} repository"
-        )
+        repository_config = {
+                'name':        name,
+                'location':    uri,
+                'description': description or f"{name} repository"
+        }
+        config_manager.add_repository(repository_config)
 
         # Set as default if requested
         if set_default:
@@ -1425,30 +1593,33 @@ def config_repositories_remove(
         name: Annotated[str, typer.Argument(help="Repository name to remove", autocompletion=repository_name_completer)],
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
 ) -> None:
     """Remove a repository from configuration."""
     setup_logging(verbose)
 
     try:
-        from .config.configuration_manager import ConfigurationManager, RepositoryNotFoundError
-        config_manager = ConfigurationManager(config_dir=config_dir)
+        from .config.configuration_module import ConfigurationModule
+        from .interfaces.exceptions import RepositoryNotFoundError
+        config_manager = ConfigurationModule(config_dir=config_dir)
 
         # Get repository info before removal
         repo_info = config_manager.get_repository(name)
 
-        # Confirm removal
-        console.print()
-        console.print(Panel(
-                f"Repository: {name}\n"
-                f"URI: {repo_info['uri']}\n"
-                f"Description: {repo_info.get('description', 'N/A')}",
-                title="[bold yellow]Repository to Remove[/bold yellow]",
-                border_style="yellow"
-        ))
+        # Confirm removal unless --yes flag is used
+        if not yes:
+            console.print()
+            console.print(Panel(
+                    f"Repository: {name}\n"
+                    f"Location: {getattr(repo_info, 'location', None) or getattr(repo_info, 'uri', None) or 'N/A'}\n"
+                    f"Description: {getattr(repo_info, 'description', None) or 'N/A'}",
+                    title="[bold yellow]Repository to Remove[/bold yellow]",
+                    border_style="yellow"
+            ))
 
-        if not Confirm.ask("Are you sure you want to remove this repository?"):
-            console.print("❌ Repository removal cancelled.")
-            return
+            if not Confirm.ask("Are you sure you want to remove this repository?"):
+                console.print("❌ Repository removal cancelled.")
+                return
 
         # Remove repository
         config_manager.remove_repository(name)
@@ -1480,8 +1651,9 @@ def config_repositories_default(
     setup_logging(verbose)
 
     try:
-        from .config.configuration_manager import ConfigurationManager, RepositoryNotFoundError
-        config_manager = ConfigurationManager(config_dir=config_dir)
+        from .config.configuration_module import ConfigurationModule
+        from .interfaces.exceptions import RepositoryNotFoundError
+        config_manager = ConfigurationModule(config_dir=config_dir)
 
         # Set default repository
         config_manager.set_default_repository(name)
@@ -1507,8 +1679,8 @@ def config_repositories_default(
 
 @config_targets_app.command("add")
 def config_targets_add(
-        name: Annotated[str, typer.Argument(help="Target name")],
-        paths: Annotated[List[str], typer.Argument(help="Source paths to backup", autocompletion=file_path_completer)],
+        name: Annotated[Optional[str], typer.Argument(help="Target name")] = None,
+        paths: Annotated[Optional[List[str]], typer.Argument(help="Source paths to backup", autocompletion=file_path_completer)] = None,
         description: Annotated[Optional[str], typer.Option("--description", "-d", help="Target description")] = None,
         include: Annotated[Optional[List[str]], typer.Option("--include", "-i", help="Include patterns")] = None,
         exclude: Annotated[Optional[List[str]], typer.Option("--exclude", "-e", help="Exclude patterns")] = None,
@@ -1518,10 +1690,22 @@ def config_targets_add(
     """Add a new backup target to configuration."""
     setup_logging(verbose)
 
+    # Prompt for missing required parameters
+    if not name:
+        name = Prompt.ask("Target name")
+
+    if not paths:
+        paths_input = Prompt.ask("Source paths to backup (comma-separated)")
+        paths = [path.strip() for path in paths_input.split(",") if path.strip()]
+
+    if not paths:
+        show_error_panel("No Paths Provided", "At least one source path is required for backup target")
+        raise typer.Exit(1)
+
     try:
         # Initialize configuration manager
-        from .config.configuration_manager import ConfigurationManager
-        config_manager = ConfigurationManager(config_dir=config_dir)
+        from .config.configuration_module import ConfigurationModule
+        config_manager = ConfigurationModule(config_dir=config_dir)
 
         # Validate paths
         valid_paths = []
@@ -1538,14 +1722,15 @@ def config_targets_add(
             show_error_panel("No Valid Paths", "No valid paths provided for backup target")
             raise typer.Exit(1)
 
-        # Add backup target using ConfigurationManager
-        config_manager.add_backup_target(
-                name=name,
-                paths=valid_paths,
-                description=description or f"Backup target for {name}",
-                include_patterns=include or ["*"],
-                exclude_patterns=exclude or ["*.tmp", "*.log", "Thumbs.db", ".DS_Store"]
-        )
+        # Add backup target using ConfigurationModule
+        target_config = {
+                "name":             name,
+                "paths":            valid_paths,
+                "description":      description or f"Backup target for {name}",
+                "include_patterns": include or ["*"],
+                "exclude_patterns": exclude or ["*.tmp", "*.log", "Thumbs.db", ".DS_Store"]
+        }
+        config_manager.add_backup_target(target_config)
 
         show_success_panel(
                 "Target Added",
@@ -1928,6 +2113,7 @@ def snapshots_prune(
         keep_daily: Annotated[int, typer.Option("--keep-daily", help="Number of daily snapshots to keep")] = 7,
         keep_weekly: Annotated[int, typer.Option("--keep-weekly", help="Number of weekly snapshots to keep")] = 4,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
 ) -> None:
     """Remove old snapshots across repos."""
     setup_logging(verbose)
@@ -1993,7 +2179,7 @@ def snapshots_prune(
         if dry_run:
             console.print(f"[yellow]Dry run: Would remove {len(snapshots_to_remove)} snapshots[/yellow]")
         else:
-            if not Confirm.ask(f"Remove {len(snapshots_to_remove)} snapshots?"):
+            if not yes and not Confirm.ask(f"Remove {len(snapshots_to_remove)} snapshots?"):
                 console.print("[yellow]Operation cancelled[/yellow]")
                 return
 
@@ -2308,9 +2494,11 @@ def repos_list(
         for repo in repositories:
             repo_type = repo.get('type', 'auto')
             description = repo.get('description', '')
+            # Handle both 'uri' (modern) and 'location' (legacy) fields
+            location = repo.get('uri', repo.get('location', 'N/A'))
             table.add_row(
                     repo['name'],
-                    repo['uri'],
+                    location,
                     repo_type,
                     description
             )
@@ -2371,11 +2559,11 @@ def config_target_list(
     setup_logging(verbose)
 
     try:
-        from .config.configuration_manager import ConfigurationManager
-        config_manager = ConfigurationManager(config_dir=config_dir)
+        from .config.configuration_module import ConfigurationModule
+        config_manager = ConfigurationModule(config_dir=config_dir)
 
         # Get all backup targets
-        targets = config_manager.list_backup_targets()
+        targets = config_manager.get_backup_targets()
 
         if not targets:
             console.print("[yellow]No backup targets configured[/yellow]")
@@ -2395,7 +2583,8 @@ def config_target_list(
         table.add_column("Paths", style="green")
         table.add_column("Patterns", style="yellow")
 
-        for name, target in targets.items():
+        for target in targets:
+            name = target.get("name", "unknown")
             paths_str = "\n".join(target.get("paths", []))
 
             # Handle patterns - they might be in different formats
@@ -2462,13 +2651,56 @@ def config_target_edit(
 
 @config_target_app.command("remove")
 def config_target_remove(
-        name: Annotated[str, typer.Argument(help="Target name")],
+        name: Annotated[str, typer.Argument(help="Target name to remove", autocompletion=target_name_completer)],
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
 ) -> None:
     """Remove this target."""
-    console.print(f"[yellow]🚧 Command stub: config target {name} remove[/yellow]")
-    console.print("This command will remove the specified backup target.")
+    setup_logging(verbose)
+
+    try:
+        from .config.configuration_module import ConfigurationModule
+        config_manager = ConfigurationModule(config_dir=config_dir)
+
+        # Get target info before removal
+        target_info = config_manager.get_backup_target(name)
+
+        # Confirm removal unless --yes flag is used
+        if not yes:
+            console.print()
+            console.print(Panel(
+                    f"Target: {name}\n"
+                    f"Description: {getattr(target_info, 'description', None) or 'N/A'}\n"
+                    f"Paths: {', '.join(getattr(target_info, 'paths', []))}\n"
+                    f"Include patterns: {', '.join(getattr(target_info, 'include_patterns', []))}\n"
+                    f"Exclude patterns: {', '.join(getattr(target_info, 'exclude_patterns', []))}",
+                    title="[bold yellow]Target to Remove[/bold yellow]",
+                    border_style="yellow"
+            ))
+
+            if not Confirm.ask("Are you sure you want to remove this backup target?"):
+                console.print("❌ Target removal cancelled.")
+                return
+
+        # Remove target
+        config_manager.remove_backup_target(name)
+
+        console.print()
+        console.print(Panel(
+                f"✅ Backup target '{name}' removed successfully!",
+                title="[bold green]Target Removed[/bold green]",
+                border_style="green"
+        ))
+
+    except ValueError as e:
+        show_error_panel("Target Not Found", str(e))
+        raise typer.Exit(1)
+    except Exception as e:
+        show_error_panel("Configuration Error", f"Failed to remove backup target: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 # Config targets commands (multiple target operations)
@@ -2482,11 +2714,11 @@ def config_targets_list(
     setup_logging(verbose)
 
     try:
-        from .config.configuration_manager import ConfigurationManager
-        config_manager = ConfigurationManager(config_dir=config_dir)
+        from .config.configuration_module import ConfigurationModule
+        config_manager = ConfigurationModule(config_dir=config_dir)
 
         # Get all backup targets
-        targets = config_manager.list_backup_targets()
+        targets = config_manager.get_backup_targets()
 
         if not targets:
             console.print("[yellow]No backup targets configured[/yellow]")
@@ -2506,7 +2738,8 @@ def config_targets_list(
         table.add_column("Include Patterns", style="blue")
         table.add_column("Exclude Patterns", style="red")
 
-        for name, target in targets.items():
+        for target in targets:
+            name = target.get("name", "unknown")
             paths = "\n".join(target.get('paths', []))
 
             # Handle patterns - they might be in different formats
@@ -2535,6 +2768,60 @@ def config_targets_list(
 
     except Exception as e:
         show_error_panel("Target List Error", f"Failed to list backup targets: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@config_targets_app.command("remove")
+def config_targets_remove(
+        name: Annotated[str, typer.Argument(help="Target name to remove", autocompletion=target_name_completer)],
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
+) -> None:
+    """Remove a backup target from configuration."""
+    setup_logging(verbose)
+
+    try:
+        from .config.configuration_module import ConfigurationModule
+        config_manager = ConfigurationModule(config_dir=config_dir)
+
+        # Get target info before removal
+        target_info = config_manager.get_backup_target(name)
+
+        # Confirm removal unless --yes flag is used
+        if not yes:
+            console.print()
+            console.print(Panel(
+                    f"Target: {name}\n"
+                    f"Description: {getattr(target_info, 'description', None) or 'N/A'}\n"
+                    f"Paths: {', '.join(getattr(target_info, 'paths', []))}\n"
+                    f"Include patterns: {', '.join(getattr(target_info, 'include_patterns', []))}\n"
+                    f"Exclude patterns: {', '.join(getattr(target_info, 'exclude_patterns', []))}",
+                    title="[bold yellow]Target to Remove[/bold yellow]",
+                    border_style="yellow"
+            ))
+
+            if not Confirm.ask("Are you sure you want to remove this backup target?"):
+                console.print("❌ Target removal cancelled.")
+                return
+
+        # Remove target
+        config_manager.remove_backup_target(name)
+
+        console.print()
+        console.print(Panel(
+                f"✅ Backup target '{name}' removed successfully!",
+                title="[bold green]Target Removed[/bold green]",
+                border_style="green"
+        ))
+
+    except ValueError as e:
+        show_error_panel("Target Not Found", str(e))
+        raise typer.Exit(1)
+    except Exception as e:
+        show_error_panel("Configuration Error", f"Failed to remove backup target: {e}")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)

@@ -88,8 +88,8 @@ from .configuration_migrator import (
     MigrationResult
 )
 
-# Legacy imports for backward compatibility
-from .configuration_manager import ConfigurationManager, ConfigurationError, ConfigSection
+
+# Legacy imports removed - use ConfigurationModule instead
 
 
 # Convenience functions for common operations
@@ -218,10 +218,5 @@ __all__ = [
         'create_configuration_module',
         'validate_configuration_file',
         'get_configuration_path_info',
-        'migrate_legacy_configuration',
-
-        # Legacy compatibility
-        'ConfigurationManager',
-        'ConfigurationError',
-        'ConfigSection'
+        'migrate_legacy_configuration'
 ]

@@ -84,11 +84,7 @@ class ConfigurationDefaults:
                 stats=True,
                 cleanup_cache=True,
                 limit_upload=None,
-                limit_download=None,
-                retention_keep_last=10,
-                retention_keep_daily=7,
-                retention_keep_weekly=4,
-                retention_keep_monthly=12
+                limit_download=None
         )
 
     @staticmethod
