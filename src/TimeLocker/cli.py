@@ -2778,12 +2778,245 @@ def repo_unlock(
 @repo_app.command("migrate")
 def repo_migrate(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
-        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
+        migration: Annotated[str, typer.Option("--migration", "-m", help="Migration name to apply")] = "upgrade_repo_v2",
+        list_migrations: Annotated[bool, typer.Option("--list", help="List available migrations")] = False,
+        force: Annotated[bool, typer.Option("--force", "-f", help="Force migration without confirmation")] = False,
+        check_first: Annotated[bool, typer.Option("--check/--no-check", help="Check repository integrity before migration")] = True,
+        prune_after: Annotated[bool, typer.Option("--prune/--no-prune", help="Run prune after migration to compress metadata")] = True,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
-    """Migrate this repository format."""
-    console.print(f"[yellow]🚧 Command stub: repo {name} migrate[/yellow]")
-    console.print("This command will migrate the repository format.")
+    """Migrate repository format to newer version."""
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+
+        # Get repository
+        try:
+            repo = service_manager.get_repository_by_name(name)
+        except Exception as e:
+            show_error_panel("Repository Not Found", f"Repository '{name}' not found: {e}")
+            raise typer.Exit(1)
+
+        # Get repository service
+        repository_service = service_manager.get_repository_service()
+
+        # List available migrations if requested
+        if list_migrations:
+            console.print(f"[cyan]Checking available migrations for repository '[bold]{name}[/bold]'...[/cyan]")
+
+            try:
+                available_migrations = repository_service.list_available_migrations(repo)
+            except Exception as e:
+                show_error_panel("Migration Check Failed", f"Failed to check available migrations: {e}")
+                raise typer.Exit(1)
+
+            if not available_migrations:
+                console.print()
+                console.print("[green]✅ No migrations available - repository is up to date[/green]")
+                return
+
+            # Display available migrations
+            console.print()
+            console.print(f"[bold green]Available migrations for repository '{name}':[/bold green]")
+
+            migrations_table = Table(title="Available Migrations")
+            migrations_table.add_column("Migration Name", style="cyan", no_wrap=True)
+            migrations_table.add_column("Description", style="white")
+
+            for migration_name in available_migrations:
+                description = ""
+                if migration_name == "upgrade_repo_v2":
+                    description = "Upgrade to repository format version 2 (enables compression)"
+                else:
+                    description = "Repository format migration"
+
+                migrations_table.add_row(migration_name, description)
+
+            console.print(migrations_table)
+
+            if verbose:
+                console.print()
+                migration_info = [
+                        "Migration Information:",
+                        "• upgrade_repo_v2: Upgrades to repository format version 2",
+                        "• Enables compression for new backups",
+                        "• Requires restic 0.14.0 or newer to access repository",
+                        "• Run 'prune' after migration to compress existing metadata",
+                        "• Use 'prune --repack-uncompressed' to compress all data"
+                ]
+
+                info_panel = Panel(
+                        "\n".join(migration_info),
+                        title="Migration Details",
+                        border_style="blue"
+                )
+                console.print(info_panel)
+
+            return
+
+        # Check repository integrity first if requested
+        if check_first:
+            console.print(f"[cyan]Checking repository integrity before migration...[/cyan]")
+
+            try:
+                check_results = repository_service.check_repository(repo)
+                if check_results['status'] != 'success':
+                    show_error_panel(
+                            "Repository Check Failed",
+                            f"Repository integrity check failed. Migration cannot proceed.\n"
+                            f"Errors: {', '.join(check_results.get('errors', []))}"
+                    )
+                    raise typer.Exit(1)
+
+                console.print("[green]✅ Repository integrity check passed[/green]")
+
+            except Exception as e:
+                show_error_panel("Repository Check Failed", f"Failed to check repository integrity: {e}")
+                raise typer.Exit(1)
+
+        # Get available migrations to validate the requested migration
+        try:
+            available_migrations = repository_service.list_available_migrations(repo)
+        except Exception as e:
+            show_error_panel("Migration Check Failed", f"Failed to check available migrations: {e}")
+            raise typer.Exit(1)
+
+        if not available_migrations:
+            console.print()
+            console.print("[green]✅ No migrations available - repository is already up to date[/green]")
+            return
+
+        if migration not in available_migrations:
+            show_error_panel(
+                    "Invalid Migration",
+                    f"Migration '{migration}' is not available.\n"
+                    f"Available migrations: {', '.join(available_migrations)}\n"
+                    f"Use --list to see all available migrations."
+            )
+            raise typer.Exit(1)
+
+        # Show migration information and get confirmation
+        if not force:
+            console.print()
+            console.print(f"[bold yellow]⚠️  Repository Migration Warning[/bold yellow]")
+            console.print()
+
+            warning_info = [
+                    f"Repository: {name}",
+                    f"Migration: {migration}",
+                    "",
+                    "⚠️  IMPORTANT WARNINGS:",
+                    "• This will upgrade the repository format",
+                    "• Older restic versions may not be able to access the repository",
+                    "• This operation cannot be easily undone",
+                    "• Make sure you have a backup of your repository",
+                    "",
+                    "📋 Recommended steps after migration:",
+                    "• Run 'prune' to compress repository metadata",
+                    "• Test repository access with your restic version",
+                    "• Update any scripts or tools that access this repository"
+            ]
+
+            warning_panel = Panel(
+                    "\n".join(warning_info),
+                    title="Migration Information",
+                    border_style="yellow"
+            )
+            console.print(warning_panel)
+
+            if not typer.confirm("\nDo you want to proceed with the migration?"):
+                console.print("[yellow]Migration cancelled by user[/yellow]")
+                raise typer.Exit(0)
+
+        # Perform the migration
+        console.print()
+        console.print(f"[cyan]Migrating repository '[bold]{name}[/bold]' using migration '[bold]{migration}[/bold]'...[/cyan]")
+
+        try:
+            success = repository_service.migrate_repository(repo, migration)
+
+            if not success:
+                show_error_panel("Migration Failed", f"Failed to migrate repository '{name}'")
+                raise typer.Exit(1)
+
+            console.print(f"[bold green]✅ Repository migration completed successfully![/bold green]")
+
+        except Exception as e:
+            show_error_panel("Migration Failed", f"Failed to migrate repository: {e}")
+            raise typer.Exit(1)
+
+        # Run prune after migration if requested
+        if prune_after:
+            console.print()
+            console.print("[cyan]Running prune to compress repository metadata...[/cyan]")
+
+            try:
+                prune_success = repository_service.prune_repository(repo)
+
+                if prune_success:
+                    console.print("[green]✅ Repository pruning completed successfully[/green]")
+                else:
+                    console.print("[yellow]⚠️  Repository pruning failed, but migration was successful[/yellow]")
+
+            except Exception as e:
+                console.print(f"[yellow]⚠️  Failed to prune repository: {e}[/yellow]")
+                console.print("[dim]Migration was successful, but pruning failed[/dim]")
+
+        # Show final summary
+        console.print()
+
+        summary_info = [
+                f"✅ Migration '{migration}' completed successfully",
+                f"📁 Repository: {name}",
+                f"🔧 Migration applied: {migration}",
+        ]
+
+        if prune_after:
+            summary_info.append("🗜️  Metadata compression: Completed")
+
+        summary_info.extend([
+                "",
+                "📋 Next steps:",
+                "• Test repository access with your restic version",
+                "• Consider running 'prune --repack-uncompressed' to compress all data",
+                "• Update any scripts or automation that access this repository"
+        ])
+
+        summary_panel = Panel(
+                "\n".join(summary_info),
+                title="Migration Summary",
+                border_style="green"
+        )
+        console.print(summary_panel)
+
+        # Verbose output
+        if verbose:
+            console.print()
+
+            verbose_info = [
+                    f"Repository location: {repo.location}",
+                    f"Migration type: {migration}",
+                    f"Integrity check: {'Performed' if check_first else 'Skipped'}",
+                    f"Post-migration prune: {'Performed' if prune_after else 'Skipped'}",
+                    f"Force mode: {'Enabled' if force else 'Disabled'}"
+            ]
+
+            verbose_panel = Panel(
+                    "\n".join(verbose_info),
+                    title="Migration Details",
+                    border_style="blue"
+            )
+            console.print(verbose_panel)
+
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Migration operation was cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Migration Error", f"An unexpected error occurred: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @repo_app.command("forget")

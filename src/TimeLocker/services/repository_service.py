@@ -177,20 +177,61 @@ class RepositoryService(IRepositoryService):
                 logger.error(f"Failed to unlock repository: {e}")
                 return False
 
-    def migrate_repository(self, repository: BackupRepository) -> bool:
+    def list_available_migrations(self, repository: BackupRepository) -> List[str]:
+        """
+        List available migrations for repository
+
+        Args:
+            repository: Repository to check
+
+        Returns:
+            List of available migration names
+        """
+        with self.performance_module.track_operation("list_available_migrations"):
+            try:
+                # Run restic migrate command without arguments to list available migrations
+                cmd = ['restic', '-r', repository.location, 'migrate']
+
+                # Set environment for repository access
+                env = os.environ.copy()
+                if hasattr(repository, 'password'):
+                    env['RESTIC_PASSWORD'] = repository.password
+
+                result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+
+                migrations = []
+                if result.returncode == 0:
+                    # Parse output to extract migration names
+                    lines = result.stdout.strip().split('\n')
+                    for line in lines:
+                        line = line.strip()
+                        # Look for migration names (typically start with lowercase letters)
+                        if line and not line.startswith('available migrations:') and not line.startswith('apply'):
+                            # Extract migration name from lines like "  upgrade_repo_v2"
+                            if line.startswith('  ') and line.strip():
+                                migrations.append(line.strip())
+
+                return migrations
+
+            except Exception as e:
+                logger.error(f"Failed to list available migrations: {e}")
+                return []
+
+    def migrate_repository(self, repository: BackupRepository, migration_name: str = "upgrade_repo_v2") -> bool:
         """
         Migrate repository format
-        
+
         Args:
             repository: Repository to migrate
-            
+            migration_name: Name of migration to apply (default: upgrade_repo_v2)
+
         Returns:
             True if successful, False otherwise
         """
         with self.performance_module.track_operation("migrate_repository"):
             try:
                 # Run restic migrate command
-                cmd = ['restic', '-r', repository.location, 'migrate', 'upgrade_repo_v2']
+                cmd = ['restic', '-r', repository.location, 'migrate', migration_name]
 
                 # Set environment for repository access
                 env = os.environ.copy()
@@ -200,7 +241,7 @@ class RepositoryService(IRepositoryService):
                 result = subprocess.run(cmd, capture_output=True, text=True, env=env)
 
                 if result.returncode == 0:
-                    logger.info("Repository migrated successfully")
+                    logger.info(f"Repository migrated successfully using '{migration_name}'")
                     return True
                 else:
                     logger.error(f"Failed to migrate repository: {result.stderr}")

@@ -55,13 +55,27 @@ class IRepositoryService(ABC):
         pass
 
     @abstractmethod
-    def migrate_repository(self, repository: BackupRepository) -> bool:
+    def list_available_migrations(self, repository: BackupRepository) -> List[str]:
+        """
+        List available migrations for repository
+
+        Args:
+            repository: Repository to check
+
+        Returns:
+            List of available migration names
+        """
+        pass
+
+    @abstractmethod
+    def migrate_repository(self, repository: BackupRepository, migration_name: str = "upgrade_repo_v2") -> bool:
         """
         Migrate repository format
-        
+
         Args:
             repository: Repository to migrate
-            
+            migration_name: Name of migration to apply (default: upgrade_repo_v2)
+
         Returns:
             True if successful, False otherwise
         """
