@@ -2270,11 +2270,167 @@ def snapshots_diff(
         id1: Annotated[str, typer.Argument(help="First snapshot ID")],
         id2: Annotated[str, typer.Argument(help="Second snapshot ID")],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+        metadata: Annotated[bool, typer.Option("--metadata", help="Include metadata changes")] = False,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Compare two snapshots."""
-    console.print(f"[yellow]🚧 Command stub: snapshots diff {id1} {id2}[/yellow]")
-    console.print("This command will compare two snapshots and show differences.")
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+
+        # Get repository
+        if repository:
+            try:
+                repo = service_manager.get_repository_by_name(repository)
+            except Exception as e:
+                show_error_panel("Repository Not Found", f"Repository '{repository}' not found: {e}")
+                raise typer.Exit(1)
+        else:
+            # Use default repository if available
+            repos = service_manager.list_repositories()
+            if not repos:
+                show_error_panel("No Repositories", "No repositories configured. Use 'tl config repositories add' to add one.")
+                raise typer.Exit(1)
+            repo = repos[0]  # Use first repository as default
+            if verbose:
+                console.print(f"[dim]Using default repository: {repo.get('name', 'unnamed')}[/dim]")
+
+        # Get snapshot service
+        snapshot_service = service_manager.get_snapshot_service()
+
+        # Perform snapshot comparison
+        try:
+            diff_result = snapshot_service.diff_snapshots(repo, id1, id2, include_metadata=metadata)
+        except Exception as e:
+            show_error_panel("Comparison Failed", f"Failed to compare snapshots: {e}")
+            raise typer.Exit(1)
+
+        # Display results
+        console.print()
+        console.print(f"[bold cyan]Snapshot Comparison: {id1} → {id2}[/bold cyan]")
+        console.print()
+
+        # Summary statistics
+        summary_table = Table(title="Comparison Summary")
+        summary_table.add_column("Category", style="cyan", no_wrap=True)
+        summary_table.add_column("Count", style="white", justify="right")
+
+        summary_table.add_row("Added Files", f"[green]+{len(diff_result.added_files)}[/green]")
+        summary_table.add_row("Removed Files", f"[red]-{len(diff_result.removed_files)}[/red]")
+        summary_table.add_row("Modified Files", f"[yellow]~{len(diff_result.modified_files)}[/yellow]")
+        summary_table.add_row("Unchanged Files", f"[dim]{len(diff_result.unchanged_files)}[/dim]")
+
+        console.print(summary_table)
+        console.print()
+
+        # Show detailed changes if any exist
+        if diff_result.added_files or diff_result.removed_files or diff_result.modified_files:
+
+            # Added files
+            if diff_result.added_files:
+                console.print("[bold green]Added Files:[/bold green]")
+                for file_path in diff_result.added_files[:20]:  # Limit to first 20
+                    console.print(f"  [green]+[/green] {file_path}")
+                if len(diff_result.added_files) > 20:
+                    console.print(f"  [dim]... and {len(diff_result.added_files) - 20} more[/dim]")
+                console.print()
+
+            # Removed files
+            if diff_result.removed_files:
+                console.print("[bold red]Removed Files:[/bold red]")
+                for file_path in diff_result.removed_files[:20]:  # Limit to first 20
+                    console.print(f"  [red]-[/red] {file_path}")
+                if len(diff_result.removed_files) > 20:
+                    console.print(f"  [dim]... and {len(diff_result.removed_files) - 20} more[/dim]")
+                console.print()
+
+            # Modified files
+            if diff_result.modified_files:
+                console.print("[bold yellow]Modified Files:[/bold yellow]")
+                for file_path in diff_result.modified_files[:20]:  # Limit to first 20
+                    size_info = ""
+                    if file_path in diff_result.size_changes:
+                        old_size = diff_result.size_changes[file_path]['old']
+                        new_size = diff_result.size_changes[file_path]['new']
+                        size_change = new_size - old_size
+                        if size_change > 0:
+                            size_info = f" [green](+{size_change:,} bytes)[/green]"
+                        elif size_change < 0:
+                            size_info = f" [red]({size_change:,} bytes)[/red]"
+                        else:
+                            size_info = f" [dim](no size change)[/dim]"
+                    console.print(f"  [yellow]~[/yellow] {file_path}{size_info}")
+                if len(diff_result.modified_files) > 20:
+                    console.print(f"  [dim]... and {len(diff_result.modified_files) - 20} more[/dim]")
+                console.print()
+        else:
+            console.print("[dim]No differences found between snapshots.[/dim]")
+
+        # Show metadata changes if requested and available
+        if metadata and diff_result.metadata_changes:
+            console.print("[bold blue]Metadata Changes:[/bold blue]")
+            for key, value in diff_result.metadata_changes.items():
+                console.print(f"  [blue]•[/blue] {key}: {value}")
+            console.print()
+
+        # Verbose output
+        if verbose:
+            # Size change summary
+            if diff_result.size_changes:
+                total_size_change = sum(
+                        change['new'] - change['old']
+                        for change in diff_result.size_changes.values()
+                )
+
+                size_panel_content = []
+                size_panel_content.append(f"Total size change: {total_size_change:+,} bytes")
+                size_panel_content.append(f"Files with size changes: {len(diff_result.size_changes)}")
+
+                # Show largest changes
+                sorted_changes = sorted(
+                        diff_result.size_changes.items(),
+                        key=lambda x: abs(x[1]['new'] - x[1]['old']),
+                        reverse=True
+                )
+
+                if sorted_changes:
+                    size_panel_content.append("\nLargest changes:")
+                    for file_path, change in sorted_changes[:5]:
+                        size_diff = change['new'] - change['old']
+                        size_panel_content.append(f"  {file_path}: {size_diff:+,} bytes")
+
+                size_panel = Panel(
+                        "\n".join(size_panel_content),
+                        title="Size Analysis",
+                        border_style="blue"
+                )
+                console.print(size_panel)
+
+            # Repository information
+            repo_info = [
+                    f"Repository: {repo.get('name', 'unnamed')}",
+                    f"Location: {repo.get('location', 'unknown')}",
+                    f"Snapshot 1: {id1}",
+                    f"Snapshot 2: {id2}",
+                    f"Metadata included: {'Yes' if metadata else 'No'}"
+            ]
+
+            repo_panel = Panel(
+                    "\n".join(repo_info),
+                    title="Comparison Details",
+                    border_style="dim"
+            )
+            console.print(repo_panel)
+
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Snapshot comparison was cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Comparison Error", f"Failed to compare snapshots: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @snapshots_app.command("find")

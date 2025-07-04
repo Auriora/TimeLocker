@@ -8,7 +8,7 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import List, Dict, Optional, Any
 
-from .data_models import SnapshotInfo, SnapshotResult, SnapshotSearchResult
+from .data_models import SnapshotInfo, SnapshotResult, SnapshotSearchResult, SnapshotDiffResult
 from ..backup_repository import BackupRepository
 
 
@@ -102,5 +102,22 @@ class ISnapshotService(ABC):
 
         Returns:
             SnapshotResult: Result of the forget operation
+        """
+        pass
+
+    @abstractmethod
+    def diff_snapshots(self, repository: BackupRepository, snapshot_id1: str, snapshot_id2: str,
+                       include_metadata: bool = False) -> SnapshotDiffResult:
+        """
+        Compare two snapshots and show differences
+
+        Args:
+            repository: Repository containing the snapshots
+            snapshot_id1: ID of the first snapshot
+            snapshot_id2: ID of the second snapshot
+            include_metadata: Whether to include metadata changes
+
+        Returns:
+            SnapshotDiffResult: Detailed comparison results
         """
         pass

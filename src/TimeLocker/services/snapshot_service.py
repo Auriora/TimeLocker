@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import logging
 
-from ..interfaces.data_models import SnapshotInfo, SnapshotResult, OperationStatus
+from ..interfaces.data_models import SnapshotInfo, SnapshotResult, OperationStatus, SnapshotDiffResult
 from ..backup_repository import BackupRepository
 from ..interfaces.snapshot_interface import ISnapshotService
 from ..interfaces.exceptions import TimeLockerInterfaceError
@@ -31,16 +31,6 @@ class SnapshotSearchResult:
     match_type: str  # 'name', 'content', 'path'
     line_number: Optional[int] = None
     context: Optional[str] = None
-
-
-@dataclass
-class SnapshotDiffResult:
-    """Result of snapshot comparison"""
-    added_files: List[str]
-    removed_files: List[str]
-    modified_files: List[str]
-    unchanged_files: List[str]
-    size_changes: Dict[str, Dict[str, int]]  # file -> {'old': size, 'new': size}
 
 
 class SnapshotService(ISnapshotService):
@@ -387,6 +377,126 @@ class SnapshotService(ISnapshotService):
             except Exception as e:
                 logger.error(f"Failed to remove snapshot {snapshot_id}: {e}")
                 raise TimeLockerInterfaceError(f"Failed to remove snapshot: {e}")
+
+    def diff_snapshots(self, repository: BackupRepository, snapshot_id1: str, snapshot_id2: str,
+                       include_metadata: bool = False) -> SnapshotDiffResult:
+        """
+        Compare two snapshots and show differences
+
+        Args:
+            repository: Repository containing the snapshots
+            snapshot_id1: ID of the first snapshot
+            snapshot_id2: ID of the second snapshot
+            include_metadata: Whether to include metadata changes
+
+        Returns:
+            SnapshotDiffResult: Detailed comparison results
+
+        Raises:
+            TimeLockerInterfaceError: If comparison cannot be performed
+        """
+        with self.performance_module.track_operation("diff_snapshots"):
+            try:
+                # Validate inputs
+                self.validation_service.validate_snapshot_id(snapshot_id1)
+                self.validation_service.validate_snapshot_id(snapshot_id2)
+
+                # Verify both snapshots exist
+                snapshots = repository.snapshots()
+                snapshot1 = next((s for s in snapshots if s.id.startswith(snapshot_id1)), None)
+                snapshot2 = next((s for s in snapshots if s.id.startswith(snapshot_id2)), None)
+
+                if not snapshot1:
+                    raise TimeLockerInterfaceError(f"Snapshot {snapshot_id1} not found in repository")
+                if not snapshot2:
+                    raise TimeLockerInterfaceError(f"Snapshot {snapshot_id2} not found in repository")
+
+                # Use restic diff command to compare snapshots
+                cmd = ['restic', '-r', repository.location, 'diff', snapshot1.id, snapshot2.id]
+
+                if include_metadata:
+                    cmd.append('--metadata')
+
+                # Set environment for repository access
+                env = os.environ.copy()
+                if hasattr(repository, 'password'):
+                    env['RESTIC_PASSWORD'] = repository.password
+
+                result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+
+                if result.returncode != 0:
+                    raise TimeLockerInterfaceError(f"Failed to compare snapshots: {result.stderr}")
+
+                # Parse restic diff output
+                diff_result = self._parse_diff_output(result.stdout)
+
+                logger.info(f"Successfully compared snapshots {snapshot_id1} and {snapshot_id2}")
+
+                return diff_result
+
+            except Exception as e:
+                logger.error(f"Failed to compare snapshots {snapshot_id1} and {snapshot_id2}: {e}")
+                raise TimeLockerInterfaceError(f"Failed to compare snapshots: {e}")
+
+    def _parse_diff_output(self, diff_output: str) -> SnapshotDiffResult:
+        """Parse restic diff command output into structured result"""
+        added_files = []
+        removed_files = []
+        modified_files = []
+        unchanged_files = []
+        size_changes = {}
+        metadata_changes = {}
+
+        lines = diff_output.strip().split('\n')
+
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+
+            # Parse different types of changes
+            if line.startswith('+'):
+                # Added file
+                file_path = line[1:].strip()
+                added_files.append(file_path)
+            elif line.startswith('-'):
+                # Removed file
+                file_path = line[1:].strip()
+                removed_files.append(file_path)
+            elif line.startswith('M'):
+                # Modified file
+                file_path = line[1:].strip()
+                modified_files.append(file_path)
+            elif line.startswith('T'):
+                # Type change (treat as modified)
+                file_path = line[1:].strip()
+                modified_files.append(file_path)
+            elif 'size' in line.lower() and '->' in line:
+                # Size change information
+                try:
+                    parts = line.split()
+                    if len(parts) >= 3:
+                        file_path = parts[0]
+                        # Extract size information if available
+                        size_info = line.split('size')[1] if 'size' in line else ''
+                        if '->' in size_info:
+                            old_size, new_size = size_info.split('->')
+                            size_changes[file_path] = {
+                                    'old': int(old_size.strip().replace('B', '').replace(',', '')),
+                                    'new': int(new_size.strip().replace('B', '').replace(',', ''))
+                            }
+                except (ValueError, IndexError):
+                    # Skip if we can't parse size information
+                    pass
+
+        return SnapshotDiffResult(
+                added_files=added_files,
+                removed_files=removed_files,
+                modified_files=modified_files,
+                unchanged_files=unchanged_files,
+                size_changes=size_changes,
+                metadata_changes=metadata_changes
+        )
 
     def _get_snapshot_stats(self, repository: BackupRepository, snapshot) -> Dict[str, Any]:
         """Get detailed statistics for a snapshot"""

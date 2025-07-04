@@ -219,3 +219,14 @@ class SnapshotSearchResult:
     size: Optional[int] = None
     modified_time: Optional[datetime] = None
     match_type: str = 'name'  # 'name', 'content', 'path'
+
+
+@dataclass
+class SnapshotDiffResult:
+    """Result of snapshot comparison"""
+    added_files: List[str]
+    removed_files: List[str]
+    modified_files: List[str]
+    unchanged_files: List[str]
+    size_changes: Dict[str, Dict[str, int]] = field(default_factory=dict)  # file -> {'old': size, 'new': size}
+    metadata_changes: Dict[str, Any] = field(default_factory=dict)
