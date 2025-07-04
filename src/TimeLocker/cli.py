@@ -4180,12 +4180,348 @@ def config_target_show(
 @config_target_app.command("edit")
 def config_target_edit(
         name: Annotated[str, typer.Argument(help="Target name")],
+        description: Annotated[str, typer.Option("--description", help="New description for the target")] = None,
+        repository: Annotated[str, typer.Option("--repository", help="New repository for the target")] = None,
+        add_paths: Annotated[List[str], typer.Option("--add-path", help="Add backup paths (can be used multiple times)")] = None,
+        remove_paths: Annotated[List[str], typer.Option("--remove-path", help="Remove backup paths (can be used multiple times)")] = None,
+        add_excludes: Annotated[List[str], typer.Option("--add-exclude", help="Add exclude patterns (can be used multiple times)")] = None,
+        remove_excludes: Annotated[List[str], typer.Option("--remove-exclude", help="Remove exclude patterns (can be used multiple times)")] = None,
+        add_includes: Annotated[List[str], typer.Option("--add-include", help="Add include patterns (can be used multiple times)")] = None,
+        remove_includes: Annotated[List[str], typer.Option("--remove-include", help="Remove include patterns (can be used multiple times)")] = None,
+        interactive: Annotated[bool, typer.Option("--interactive", "-i", help="Interactive editing mode")] = False,
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
 ) -> None:
-    """Edit target configuration."""
-    console.print(f"[yellow]🚧 Command stub: config target {name} edit[/yellow]")
-    console.print("This command will open an editor to modify the specified backup target.")
+    """Edit backup target configuration.
+
+    You can edit target configuration in two ways:
+    1. Use command-line options to make specific changes
+    2. Use --interactive mode for guided editing
+
+    Examples:
+        # Change description
+        tl config target myTarget edit --description "New description"
+
+        # Add backup paths
+        tl config target myTarget edit --add-path /home/user/docs --add-path /home/user/photos
+
+        # Change repository
+        tl config target myTarget edit --repository newRepo
+
+        # Interactive editing
+        tl config target myTarget edit --interactive
+    """
+    setup_logging(verbose)
+
+    try:
+        from .config.configuration_module import ConfigurationModule
+        config_manager = ConfigurationModule(config_dir=config_dir)
+
+        # Get current target configuration
+        try:
+            target_config_obj = config_manager.get_backup_target(name)
+            target_config = target_config_obj.to_dict()
+        except Exception as e:
+            show_error_panel("Target Not Found", f"Backup target '{name}' not found: {e}")
+            raise typer.Exit(1)
+
+        console.print(f"[cyan]Editing backup target '[bold]{name}[/bold]'[/cyan]")
+        console.print()
+
+        # Store original configuration for comparison
+        original_config = target_config.copy()
+        modified_config = target_config.copy()
+        changes_made = []
+
+        if interactive:
+            # Interactive editing mode
+            console.print("[bold]Interactive Target Configuration Editor[/bold]")
+            console.print()
+
+            # Show current configuration
+            current_table = Table(title="Current Configuration")
+            current_table.add_column("Field", style="cyan")
+            current_table.add_column("Current Value", style="white")
+
+            current_table.add_row("Description", target_config.get('description', 'N/A'))
+            current_table.add_row("Repository", target_config.get('repository', 'N/A'))
+            current_table.add_row("Paths", ', '.join(target_config.get('paths', [])))
+
+            excludes = target_config.get('exclude_patterns', [])
+            includes = target_config.get('include_patterns', [])
+            current_table.add_row("Exclude Patterns", ', '.join(excludes) if excludes else 'None')
+            current_table.add_row("Include Patterns", ', '.join(includes) if includes else 'None')
+
+            console.print(current_table)
+            console.print()
+
+            # Interactive field editing
+            if Confirm.ask("Edit description?"):
+                new_description = Prompt.ask("New description", default=target_config.get('description', ''))
+                if new_description != target_config.get('description'):
+                    modified_config['description'] = new_description
+                    changes_made.append(f"Description: '{target_config.get('description', 'N/A')}' → '{new_description}'")
+
+            if Confirm.ask("Edit repository?"):
+                # Get available repositories
+                try:
+                    repositories = config_manager.list_repositories()
+                    repo_names = [repo['name'] for repo in repositories]
+
+                    if repo_names:
+                        console.print(f"Available repositories: {', '.join(repo_names)}")
+
+                    new_repository = Prompt.ask("New repository", default=target_config.get('repository', ''))
+                    if new_repository != target_config.get('repository'):
+                        modified_config['repository'] = new_repository
+                        changes_made.append(f"Repository: '{target_config.get('repository', 'N/A')}' → '{new_repository}'")
+                except Exception:
+                    new_repository = Prompt.ask("New repository", default=target_config.get('repository', ''))
+                    if new_repository != target_config.get('repository'):
+                        modified_config['repository'] = new_repository
+                        changes_made.append(f"Repository: '{target_config.get('repository', 'N/A')}' → '{new_repository}'")
+
+            if Confirm.ask("Edit backup paths?"):
+                current_paths = target_config.get('paths', [])
+                console.print(f"Current paths: {', '.join(current_paths) if current_paths else 'None'}")
+
+                # Add paths
+                while Confirm.ask("Add a backup path?"):
+                    new_path = Prompt.ask("Path to add")
+                    if new_path:
+                        if 'paths' not in modified_config:
+                            modified_config['paths'] = current_paths.copy()
+                        if new_path not in modified_config['paths']:
+                            modified_config['paths'].append(new_path)
+                            changes_made.append(f"Added path: '{new_path}'")
+                        else:
+                            console.print(f"[yellow]Path '{new_path}' already exists[/yellow]")
+
+                # Remove paths
+                if current_paths and Confirm.ask("Remove any backup paths?"):
+                    for path in current_paths:
+                        if Confirm.ask(f"Remove path '{path}'?"):
+                            if 'paths' not in modified_config:
+                                modified_config['paths'] = current_paths.copy()
+                            if path in modified_config['paths']:
+                                modified_config['paths'].remove(path)
+                                changes_made.append(f"Removed path: '{path}'")
+
+            if Confirm.ask("Edit exclude patterns?"):
+                current_excludes = target_config.get('exclude_patterns', [])
+                console.print(f"Current exclude patterns: {', '.join(current_excludes) if current_excludes else 'None'}")
+
+                # Add excludes
+                while Confirm.ask("Add an exclude pattern?"):
+                    new_exclude = Prompt.ask("Exclude pattern to add")
+                    if new_exclude:
+                        if 'exclude_patterns' not in modified_config:
+                            modified_config['exclude_patterns'] = current_excludes.copy()
+                        if new_exclude not in modified_config['exclude_patterns']:
+                            modified_config['exclude_patterns'].append(new_exclude)
+                            changes_made.append(f"Added exclude pattern: '{new_exclude}'")
+                        else:
+                            console.print(f"[yellow]Exclude pattern '{new_exclude}' already exists[/yellow]")
+
+                # Remove excludes
+                if current_excludes and Confirm.ask("Remove any exclude patterns?"):
+                    for exclude in current_excludes:
+                        if Confirm.ask(f"Remove exclude pattern '{exclude}'?"):
+                            if 'exclude_patterns' not in modified_config:
+                                modified_config['exclude_patterns'] = current_excludes.copy()
+                            if exclude in modified_config['exclude_patterns']:
+                                modified_config['exclude_patterns'].remove(exclude)
+                                changes_made.append(f"Removed exclude pattern: '{exclude}'")
+
+            if Confirm.ask("Edit include patterns?"):
+                current_includes = target_config.get('include_patterns', [])
+                console.print(f"Current include patterns: {', '.join(current_includes) if current_includes else 'None'}")
+
+                # Add includes
+                while Confirm.ask("Add an include pattern?"):
+                    new_include = Prompt.ask("Include pattern to add")
+                    if new_include:
+                        if 'include_patterns' not in modified_config:
+                            modified_config['include_patterns'] = current_includes.copy()
+                        if new_include not in modified_config['include_patterns']:
+                            modified_config['include_patterns'].append(new_include)
+                            changes_made.append(f"Added include pattern: '{new_include}'")
+                        else:
+                            console.print(f"[yellow]Include pattern '{new_include}' already exists[/yellow]")
+
+                # Remove includes
+                if current_includes and Confirm.ask("Remove any include patterns?"):
+                    for include in current_includes:
+                        if Confirm.ask(f"Remove include pattern '{include}'?"):
+                            if 'include_patterns' not in modified_config:
+                                modified_config['include_patterns'] = current_includes.copy()
+                            if include in modified_config['include_patterns']:
+                                modified_config['include_patterns'].remove(include)
+                                changes_made.append(f"Removed include pattern: '{include}'")
+
+        else:
+            # Command-line option editing mode
+            if description is not None:
+                modified_config['description'] = description
+                changes_made.append(f"Description: '{target_config.get('description', 'N/A')}' → '{description}'")
+
+            if repository is not None:
+                modified_config['repository'] = repository
+                changes_made.append(f"Repository: '{target_config.get('repository', 'N/A')}' → '{repository}'")
+
+            # Handle path modifications
+            current_paths = target_config.get('paths', []).copy()
+
+            if add_paths:
+                for path in add_paths:
+                    if path not in current_paths:
+                        current_paths.append(path)
+                        changes_made.append(f"Added path: '{path}'")
+                    else:
+                        console.print(f"[yellow]Path '{path}' already exists, skipping[/yellow]")
+                modified_config['paths'] = current_paths
+
+            if remove_paths:
+                for path in remove_paths:
+                    if path in current_paths:
+                        current_paths.remove(path)
+                        changes_made.append(f"Removed path: '{path}'")
+                    else:
+                        console.print(f"[yellow]Path '{path}' not found, skipping[/yellow]")
+                modified_config['paths'] = current_paths
+
+            # Handle pattern modifications
+            if add_excludes or remove_excludes or add_includes or remove_includes:
+                # Handle excludes
+                current_excludes = modified_config.get('exclude_patterns', []).copy()
+
+                if add_excludes:
+                    for exclude in add_excludes:
+                        if exclude not in current_excludes:
+                            current_excludes.append(exclude)
+                            changes_made.append(f"Added exclude pattern: '{exclude}'")
+                        else:
+                            console.print(f"[yellow]Exclude pattern '{exclude}' already exists, skipping[/yellow]")
+                    modified_config['exclude_patterns'] = current_excludes
+
+                if remove_excludes:
+                    for exclude in remove_excludes:
+                        if exclude in current_excludes:
+                            current_excludes.remove(exclude)
+                            changes_made.append(f"Removed exclude pattern: '{exclude}'")
+                        else:
+                            console.print(f"[yellow]Exclude pattern '{exclude}' not found, skipping[/yellow]")
+                    modified_config['exclude_patterns'] = current_excludes
+
+                # Handle includes
+                current_includes = modified_config.get('include_patterns', []).copy()
+
+                if add_includes:
+                    for include in add_includes:
+                        if include not in current_includes:
+                            current_includes.append(include)
+                            changes_made.append(f"Added include pattern: '{include}'")
+                        else:
+                            console.print(f"[yellow]Include pattern '{include}' already exists, skipping[/yellow]")
+                    modified_config['include_patterns'] = current_includes
+
+                if remove_includes:
+                    for include in remove_includes:
+                        if include in current_includes:
+                            current_includes.remove(include)
+                            changes_made.append(f"Removed include pattern: '{include}'")
+                        else:
+                            console.print(f"[yellow]Include pattern '{include}' not found, skipping[/yellow]")
+                    modified_config['include_patterns'] = current_includes
+
+        # Check if any changes were made
+        if not changes_made:
+            console.print("[yellow]No changes were made to the target configuration[/yellow]")
+            return
+
+        # Display changes summary
+        console.print()
+        console.print("[bold]Summary of Changes:[/bold]")
+        changes_table = Table()
+        changes_table.add_column("Change", style="cyan")
+
+        for change in changes_made:
+            changes_table.add_row(change)
+
+        console.print(changes_table)
+        console.print()
+
+        # Validate the modified configuration
+        validation_errors = []
+
+        # Check paths exist
+        if 'paths' in modified_config:
+            for path in modified_config['paths']:
+                if not Path(path).exists():
+                    validation_errors.append(f"Path does not exist: {path}")
+
+        # Check repository exists
+        if 'repository' in modified_config:
+            try:
+                repositories = config_manager.list_repositories()
+                repo_names = [repo['name'] for repo in repositories]
+                if modified_config['repository'] not in repo_names:
+                    validation_errors.append(f"Repository '{modified_config['repository']}' not found in configuration")
+            except Exception:
+                pass  # Skip repository validation if we can't list repositories
+
+        if validation_errors:
+            console.print()
+            console.print("[bold red]Validation Warnings:[/bold red]")
+            for error in validation_errors:
+                console.print(f"[yellow]⚠️  {error}[/yellow]")
+            console.print()
+
+            if not yes and not Confirm.ask("Continue with these warnings?"):
+                console.print("[yellow]Operation cancelled[/yellow]")
+                return
+
+        # Confirm changes
+        if not yes:
+            if not Confirm.ask(f"Apply these changes to target '{name}'?"):
+                console.print("[yellow]Operation cancelled[/yellow]")
+                return
+
+        # Apply changes
+        try:
+            config_manager.update_backup_target(name, modified_config)
+            console.print(f"[green]✅ Target '{name}' updated successfully[/green]")
+
+            # Show updated configuration summary
+            console.print()
+            updated_table = Table(title="Updated Configuration")
+            updated_table.add_column("Field", style="cyan")
+            updated_table.add_column("Value", style="white")
+
+            updated_table.add_row("Description", modified_config.get('description', 'N/A'))
+            updated_table.add_row("Repository", modified_config.get('repository', 'N/A'))
+            updated_table.add_row("Paths", ', '.join(modified_config.get('paths', [])))
+
+            excludes = modified_config.get('exclude_patterns', [])
+            includes = modified_config.get('include_patterns', [])
+            updated_table.add_row("Exclude Patterns", ', '.join(excludes) if excludes else 'None')
+            updated_table.add_row("Include Patterns", ', '.join(includes) if includes else 'None')
+
+            console.print(updated_table)
+
+        except Exception as e:
+            show_error_panel("Update Failed", f"Failed to update target configuration: {e}")
+            raise typer.Exit(1)
+
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Target editing was cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Target Edit Error", f"Failed to edit target configuration: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @config_target_app.command("remove")

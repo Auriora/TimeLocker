@@ -425,6 +425,25 @@ class ConfigurationModule(IConfigurationProvider):
         self.save_config(config)
         return True
 
+    def update_backup_target(self, target_name: str, target_config: Union[Dict[str, Any], BackupTargetConfig]) -> None:
+        """Update backup target configuration"""
+        config = self.get_config()
+        if target_name not in config.backup_targets:
+            raise ConfigurationError(f"Backup target '{target_name}' not found")
+
+        if isinstance(target_config, dict):
+            # Convert dict to BackupTargetConfig, preserving the name
+            target_config_copy = target_config.copy()
+            target_config_copy['name'] = target_name
+            target = BackupTargetConfig(**target_config_copy)
+        else:
+            target = target_config
+            target.name = target_name
+
+        config.backup_targets[target_name] = target
+        self.save_config(config)
+        logger.info(f"Backup target '{target_name}' updated successfully")
+
     def validate_current_configuration(self) -> ValidationResult:
         """Validate current configuration and return detailed result"""
         config = self.get_config()
