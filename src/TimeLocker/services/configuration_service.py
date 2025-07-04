@@ -420,11 +420,11 @@ class ConfigurationService(IConfigurationProvider):
                             f"Invalid repository '{name}': {', '.join(validation_result.errors)}"
                     )
 
-            # Validate backup targets
+            # Validate backup targets (using loading-specific validation that logs warnings to files only)
             targets = config.get('backup_targets', {})
             for name, target_config in targets.items():
                 target_with_name = {**target_config, 'name': name}
-                validation_result = self._validation_service.validate_backup_target_config(target_with_name)
+                validation_result = self._validation_service.validate_backup_target_config_for_loading(target_with_name)
                 if not validation_result.is_valid:
                     raise InvalidConfigurationError(
                             f"Invalid backup target '{name}': {', '.join(validation_result.errors)}"

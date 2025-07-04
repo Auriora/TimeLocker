@@ -144,9 +144,9 @@ class ConfigurationModule(IConfigurationProvider):
                 logger.error(error_msg)
                 raise InvalidConfigurationError(error_msg)
 
-            # Log warnings
+            # Log warnings at DEBUG level to avoid console display during normal operations
             for warning in validation_result.warnings:
-                logger.warning(f"Configuration warning: {warning}")
+                logger.debug(f"Configuration warning: {warning}")
 
             # Update cache
             with self._cache_lock:

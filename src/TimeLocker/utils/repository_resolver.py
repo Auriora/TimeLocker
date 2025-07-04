@@ -15,6 +15,45 @@ from ..interfaces.exceptions import ConfigurationError
 logger = logging.getLogger(__name__)
 
 
+def _is_valid_uri_format(uri: str) -> bool:
+    """
+    Check if a string looks like a valid repository URI.
+
+    Args:
+        uri: String to validate
+
+    Returns:
+        True if it looks like a valid URI, False otherwise
+    """
+    # Check for common URI schemes
+    valid_schemes = [
+            "file://",
+            "s3://", "s3:",
+            "b2://", "b2:",
+            "sftp://",
+            "rest://",
+            "rclone:",
+            "azure://",
+            "gs://",
+            "swift:",
+    ]
+
+    # Check if it starts with a valid scheme
+    for scheme in valid_schemes:
+        if uri.startswith(scheme):
+            return True
+
+    # Check if it's an absolute path (starts with /)
+    if uri.startswith("/"):
+        return True
+
+    # Check if it contains :// (generic URI format)
+    if "://" in uri:
+        return True
+
+    return False
+
+
 def resolve_repository_uri(name_or_uri: Optional[str],
                            config_dir: Optional[Path] = None) -> str:
     """
@@ -60,6 +99,23 @@ def resolve_repository_uri(name_or_uri: Optional[str],
         if name_or_uri in config.repositories:
             repo_config = config.repositories[name_or_uri]
             return repo_config.location or ""
+
+        # Validate if it looks like a valid URI before treating as literal
+        if not _is_valid_uri_format(name_or_uri):
+            # Not a valid URI and not a configured repository name
+            repo_names = list(config.repositories.keys())
+            if repo_names:
+                raise ConfigurationError(
+                        f"Repository '{name_or_uri}' not found. "
+                        f"Available repositories: {', '.join(repo_names)}. "
+                        f"Or provide a valid URI (e.g., file:///path, s3://bucket/path)."
+                )
+            else:
+                raise ConfigurationError(
+                        f"Repository '{name_or_uri}' not found and no repositories configured. "
+                        f"Use 'tl config repositories add' to add repositories, "
+                        f"or provide a valid URI (e.g., file:///path, s3://bucket/path)."
+                )
 
         # If not found, treat as literal URI
         return name_or_uri

@@ -39,6 +39,7 @@ from .completion import (
     target_name_completer,
     snapshot_id_completer,
     repository_uri_completer,
+    repository_completer,
     file_path_completer,
 )
 
@@ -309,7 +310,7 @@ def show_info_panel(title: str, message: str) -> None:
 @backup_app.command("create")
 def backup_create(
         sources: Annotated[Optional[List[Path]], typer.Argument(help="Source paths to backup", autocompletion=file_path_completer)] = None,
-        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_uri_completer)] = None,
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
         password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
         target: Annotated[Optional[str], typer.Option("--target", "-t", help="Use configured backup target", autocompletion=target_name_completer)] = None,
         name: Annotated[Optional[str], typer.Option("--name", "-n", help="Backup target name")] = None,
@@ -377,11 +378,18 @@ def backup_create(
         from .utils.repository_resolver import resolve_repository_uri
         repository_uri = resolve_repository_uri(repository)
 
-        if not password:
-            # Check TimeLocker environment variable first, then fall back to RESTIC_PASSWORD
-            password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
-            if not password:
-                password = Prompt.ask("Repository password", password=True)
+        # Create repository instance to leverage full password resolution chain
+        # (explicit password → credential manager → environment → prompt)
+        backup_manager = BackupManager()
+        repo = backup_manager.from_uri(repository_uri, password=password)
+
+        # Get password from repository (uses full resolution chain)
+        resolved_password = repo.password()
+        if not resolved_password:
+            # Only prompt if repository couldn't resolve password
+            resolved_password = Prompt.ask("Repository password", password=True)
+
+        password = resolved_password
     except Exception as e:
         show_error_panel("Repository Error", str(e))
         raise typer.Exit(1)
@@ -470,7 +478,7 @@ def backup_create(
 def snapshot_restore(
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID", autocompletion=snapshot_id_completer)],
         target: Annotated[Path, typer.Argument(help="Target path for restore", autocompletion=file_path_completer)],
-        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_uri_completer)] = None,
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
         password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
         exclude: Annotated[Optional[List[str]], typer.Option("--exclude", "-e", help="Exclude pattern")] = None,
         include: Annotated[Optional[List[str]], typer.Option("--include", "-i", help="Include pattern")] = None,
@@ -610,7 +618,7 @@ def snapshot_restore(
 
 @snapshots_app.command("list")
 def snapshots_list(
-        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_uri_completer)] = None,
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
         password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
@@ -619,14 +627,42 @@ def snapshots_list(
 
     try:
         # Resolve repository name to URI
-        from .utils.repository_resolver import resolve_repository_uri
-        repository_uri = resolve_repository_uri(repository)
+        from .utils.repository_resolver import resolve_repository_uri, get_repository_info, get_default_repository
 
-        if not password:
-            # Check TimeLocker environment variable first, then fall back to RESTIC_PASSWORD
-            password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
-            if not password:
-                password = Prompt.ask("Repository password", password=True)
+        # Get the actual repository name (for default case)
+        actual_repository_name = repository or get_default_repository()
+        repository_uri = resolve_repository_uri(repository)
+        repo_info = get_repository_info(actual_repository_name or repository_uri)
+
+        # Show which repository is being used if verbose or no repository specified
+        if verbose or not repository:
+            if repo_info.get("is_named"):
+                console.print(f"[dim]Using repository: {repo_info.get('name')} ({repository_uri})[/dim]")
+            else:
+                console.print(f"[dim]Using repository: {repository_uri}[/dim]")
+
+        # Create repository instance to leverage full password resolution chain
+        # (explicit password → credential manager → environment → prompt)
+        backup_manager = BackupManager()
+        repo = backup_manager.from_uri(repository_uri, password=password)
+
+        # Get password from repository (uses full resolution chain)
+        resolved_password = repo.password()
+        if not resolved_password:
+            # Provide helpful context about which repository needs a password
+            repo_display = repo_info.get('name', repository_uri) if repo_info.get("is_named") else repository_uri
+
+            # Check if this is a named repository without stored credentials
+            if repo_info.get("is_named"):
+                console.print(f"[yellow]Repository '{repo_info.get('name')}' requires a password.[/yellow]")
+                console.print(f"[dim]💡 Store password permanently: tl config repositories add {repo_info.get('name')} {repository_uri}[/dim]")
+            else:
+                console.print(f"[yellow]Repository {repository_uri} requires a password.[/yellow]")
+
+            # Only prompt if repository couldn't resolve password
+            resolved_password = Prompt.ask("Repository password", password=True)
+
+        password = resolved_password
     except Exception as e:
         show_error_panel("Repository Error", str(e))
         raise typer.Exit(1)
@@ -639,11 +675,9 @@ def snapshots_list(
         ) as progress:
 
             task = progress.add_task("Loading snapshots...", total=None)
-            backup_manager = BackupManager()
 
-            # Create repository
+            # Repository already created above, just update progress
             progress.update(task, description="Connecting to repository...")
-            repo = backup_manager.from_uri(repository_uri, password=password)
 
             # Initialize snapshot manager with repository
             snapshot_manager = SnapshotManager(repo)
@@ -714,7 +748,7 @@ def snapshots_list(
 @repo_app.command("init")
 def repo_init(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
-        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI", autocompletion=repository_uri_completer)] = None,
+        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI", autocompletion=repository_completer)] = None,
         password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
         yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
@@ -725,13 +759,20 @@ def repo_init(
     try:
         # Resolve repository name to URI
         from .utils.repository_resolver import resolve_repository_uri
-        repository_uri = resolve_repository_uri(repository)
+        repository_uri = resolve_repository_uri(repository or name)
 
-        if not password:
-            # Check TimeLocker environment variable first, then fall back to RESTIC_PASSWORD
-            password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
-            if not password:
-                password = Prompt.ask("Repository password", password=True)
+        # Create repository instance to leverage full password resolution chain
+        # (explicit password → credential manager → environment → prompt)
+        manager = BackupManager()
+        repo = manager.from_uri(repository_uri, password=password)
+
+        # Get password from repository (uses full resolution chain)
+        resolved_password = repo.password()
+        if not resolved_password:
+            # Only prompt if repository couldn't resolve password
+            resolved_password = Prompt.ask("Repository password", password=True)
+
+        password = resolved_password
     except Exception as e:
         show_error_panel("Repository Error", str(e))
         raise typer.Exit(1)
@@ -742,6 +783,14 @@ def repo_init(
         raise typer.Exit(0)
 
     try:
+        # Check if repository already exists before showing progress
+        if repo.is_repository_initialized():
+            show_info_panel(
+                    "Repository Already Exists",
+                    f"Repository at {repository_uri} is already initialized and ready to use."
+            )
+            return
+
         with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
@@ -749,10 +798,8 @@ def repo_init(
         ) as progress:
 
             task = progress.add_task("Initializing repository...", total=None)
-            manager = BackupManager()
 
-            # Initialize repository
-            repo = manager.from_uri(repository_uri, password=password)
+            # Initialize repository (repo instance already created above)
             if not repo.initialize_repository(password):
                 raise Exception("Repository initialization failed")
 
@@ -761,7 +808,7 @@ def repo_init(
         show_success_panel(
                 "Repository Initialized",
                 "Repository created successfully!",
-                {"Repository URI": repository}
+                {"Repository URI": repository_uri}
         )
 
     except KeyboardInterrupt:
@@ -1526,6 +1573,7 @@ def config_repositories_add(
         name: Annotated[Optional[str], typer.Argument(help="Repository name")] = None,
         uri: Annotated[Optional[str], typer.Argument(help="Repository URI", autocompletion=repository_uri_completer)] = None,
         description: Annotated[Optional[str], typer.Option("--description", "-d", help="Repository description")] = None,
+        password: Annotated[Optional[str], typer.Option("--password", "-p", help="Repository password")] = None,
         set_default: Annotated[bool, typer.Option("--set-default", help="Set as default repository")] = False,
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
@@ -1543,9 +1591,13 @@ def config_repositories_add(
     try:
         from .config.configuration_module import ConfigurationModule
         from .interfaces.exceptions import RepositoryAlreadyExistsError
+        from .security.credential_manager import CredentialManager
+        from .backup_manager import BackupManager
+        import logging
+        logger = logging.getLogger(__name__)
         config_manager = ConfigurationModule(config_dir=config_dir)
 
-        # Add repository
+        # Add repository configuration
         repository_config = {
                 'name':        name,
                 'location':    uri,
@@ -1553,16 +1605,61 @@ def config_repositories_add(
         }
         config_manager.add_repository(repository_config)
 
+        # Handle password storage for the repository
+        password_stored = False
+        if not password:
+            # Check environment variables first
+            password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
+            if not password:
+                # Ask user if they want to store a password for this repository
+                if Confirm.ask(f"Would you like to store a password for repository '{name}'?"):
+                    password = Prompt.ask(f"Password for repository '{name}'", password=True)
+
+        # Store password if provided
+        if password:
+            try:
+                # Create repository instance to get proper repository ID
+                # Note: This may fail if repository doesn't exist yet, which is OK
+                backup_manager = BackupManager()
+                repo = backup_manager.from_uri(uri, password=password)
+
+                # Store password using repository's store_password method
+                if repo.store_password(password, allow_prompt=False):
+                    password_stored = True
+                    logger.info(f"Password stored for repository '{name}' (ID: {repo.repository_id()})")
+                else:
+                    # Store password temporarily in repository configuration for later use during init
+                    repository_config['password'] = password
+                    config_manager.update_repository(name, repository_config)
+                    logger.debug(f"Password stored temporarily in configuration for repository '{name}'")
+            except Exception as e:
+                # Repository creation failed (e.g., doesn't exist yet) - that's OK
+                # Store password temporarily in repository configuration for later use during init
+                repository_config['password'] = password
+                config_manager.update_repository(name, repository_config)
+                logger.debug(f"Password stored temporarily in configuration for repository '{name}': {e}")
+
         # Set as default if requested
         if set_default:
             config_manager.set_default_repository(name)
 
+        # Build success message
+        success_details = [
+                f"📍 URI: {uri}",
+                f"📝 Description: {description or f'{name} repository'}",
+                f"🎯 Default: {'Yes' if set_default else 'No'}",
+        ]
+
+        if password_stored:
+            success_details.append("🔐 Password: Stored securely")
+        elif password:
+            success_details.append("🔐 Password: Provided (will be stored during initialization)")
+        else:
+            success_details.append("🔐 Password: Not provided")
+
         console.print()
         console.print(Panel(
-                f"✅ Repository '{name}' added successfully!\n\n"
-                f"📍 URI: {uri}\n"
-                f"📝 Description: {description or f'{name} repository'}\n"
-                f"🎯 Default: {'Yes' if set_default else 'No'}",
+                f"✅ Repository '{name}' added successfully!\n\n" + "\n".join(success_details),
                 title="[bold green]Repository Added[/bold green]",
                 border_style="green"
         ))
@@ -1570,6 +1667,11 @@ def config_repositories_add(
         # Show usage example
         console.print()
         console.print(f"💡 [bold]Usage example:[/bold] [cyan]tl list -r {name}[/cyan]")
+
+        if password_stored:
+            console.print(f"🔒 [bold]Password stored:[/bold] Repository operations will work without prompts")
+        elif password:
+            console.print(f"💡 [bold]Next step:[/bold] Run [cyan]tl repo init {name}[/cyan] to initialize and store password")
 
     except RepositoryAlreadyExistsError as e:
         show_error_panel("Repository Exists", str(e))
@@ -3974,6 +4076,7 @@ def config_target_list(
         table.add_column("Description", style="white")
         table.add_column("Paths", style="green")
         table.add_column("Patterns", style="yellow")
+        table.add_column("Status", style="white", no_wrap=True)
 
         for target in targets:
             name = target.get("name", "unknown")
@@ -4001,11 +4104,24 @@ def config_target_list(
 
             patterns_str = "\n".join(patterns_info) if patterns_info else "Default"
 
+            # Validate target and determine status
+            from TimeLocker.services.validation_service import validation_service
+            target_with_name = {**target, 'name': name}
+            validation_result = validation_service.validate_backup_target_config(target_with_name, strict_path_validation=False)
+
+            if validation_result.has_errors():
+                status = "❌ Error"
+            elif validation_result.has_warnings():
+                status = "⚠️  Warning"
+            else:
+                status = "✅ OK"
+
             table.add_row(
                     name,
                     target.get("description", "No description"),
                     paths_str,
-                    patterns_str
+                    patterns_str,
+                    status
             )
 
         console.print()
@@ -4113,6 +4229,29 @@ def config_target_show(
 
         console.print()
         console.print(table)
+
+        # Validate target configuration and show warnings/errors
+        from TimeLocker.services.validation_service import validation_service
+        target_with_name = {**target_config, 'name': name}
+        validation_result = validation_service.validate_backup_target_config(target_with_name, strict_path_validation=True)
+
+        if validation_result.has_errors():
+            console.print()
+            error_panel = Panel(
+                    "\n".join(f"❌ {error}" for error in validation_result.errors),
+                    title="[bold red]Configuration Errors[/bold red]",
+                    border_style="red"
+            )
+            console.print(error_panel)
+
+        if validation_result.has_warnings():
+            console.print()
+            warning_panel = Panel(
+                    "\n".join(f"⚠️  {warning}" for warning in validation_result.warnings),
+                    title="[bold yellow]Configuration Warnings[/bold yellow]",
+                    border_style="yellow"
+            )
+            console.print(warning_panel)
 
         # Show additional details if verbose
         if verbose:

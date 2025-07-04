@@ -169,13 +169,14 @@ class ValidationService:
 
         return result
 
-    def validate_backup_target_config(self, config: Dict[str, Any]) -> ValidationResult:
+    def validate_backup_target_config(self, config: Dict[str, Any], strict_path_validation: bool = False) -> ValidationResult:
         """
         Validate backup target configuration
-        
+
         Args:
             config: Backup target configuration dictionary
-            
+            strict_path_validation: If True, missing paths are errors; if False, they are warnings
+
         Returns:
             ValidationResult with validation status and messages
         """
@@ -204,13 +205,23 @@ class ValidationService:
                 result.add_error("Backup target must have at least one path")
             else:
                 for i, path in enumerate(paths):
-                    path_result = self.validate_path(path, must_exist=True)
+                    # Use must_exist=False for backup targets during configuration loading
+                    # Missing paths should be warnings, not errors, as they might be temporarily unavailable
+                    path_result = self.validate_path(path, must_exist=False)
                     if path_result.has_errors():
                         for error in path_result.errors:
                             result.add_error(f"Path {i + 1}: {error}")
                     if path_result.has_warnings():
                         for warning in path_result.warnings:
                             result.add_warning(f"Path {i + 1}: {warning}")
+
+                    # Handle non-existent paths based on validation mode
+                    from pathlib import Path
+                    if not Path(path).exists():
+                        if strict_path_validation:
+                            result.add_error(f"Path {i + 1}: Path does not exist: {path}")
+                        else:
+                            result.add_warning(f"Path {i + 1}: Path does not exist: {path}")
 
         # Validate optional fields
         if 'include_patterns' in config:
@@ -222,6 +233,32 @@ class ValidationService:
             patterns = config['exclude_patterns']
             if not isinstance(patterns, list):
                 result.add_error("Exclude patterns must be a list")
+
+        return result
+
+    def validate_backup_target_config_for_loading(self, config: Dict[str, Any]) -> ValidationResult:
+        """
+        Validate backup target configuration during configuration loading.
+        This version logs warnings to files only, not to console.
+
+        Args:
+            config: Backup target configuration dictionary
+
+        Returns:
+            ValidationResult with validation status and messages
+        """
+        import logging
+
+        # Get the validation result
+        result = self.validate_backup_target_config(config, strict_path_validation=False)
+
+        # Log warnings to file only (not to console)
+        if result.has_warnings():
+            logger = logging.getLogger(__name__)
+            target_name = config.get('name', 'unknown')
+            for warning in result.warnings:
+                # Log at DEBUG level to avoid console display
+                logger.debug(f"Configuration validation warning for target '{target_name}': {warning}")
 
         return result
 

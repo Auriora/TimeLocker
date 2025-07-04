@@ -39,14 +39,25 @@ class RepositoryFactory(IRepositoryFactory):
     def __init__(self, validation_service: Optional[ValidationService] = None):
         """
         Initialize repository factory.
-        
+
         Args:
             validation_service: Optional validation service for URI validation
         """
         self._repository_types: Dict[str, Type[BackupRepository]] = {}
         self._validation_service = validation_service or ValidationService()
+        self._credential_manager = None  # Lazy-loaded credential manager
         self._register_default_types()
         logger.debug("RepositoryFactory initialized")
+
+    def _get_credential_manager(self):
+        """Get or create credential manager instance (lazy loading)"""
+        if self._credential_manager is None:
+            from TimeLocker.security.credential_manager import CredentialManager
+            self._credential_manager = CredentialManager()
+            # Try auto-unlock for non-interactive operations
+            if self._credential_manager.is_locked():
+                self._credential_manager.auto_unlock()
+        return self._credential_manager
 
     def _register_default_types(self) -> None:
         """Register default repository types"""
@@ -136,6 +147,10 @@ class RepositoryFactory(IRepositoryFactory):
             if password:
                 kwargs['password'] = password
                 logger.debug("Password added to kwargs")
+
+            # Provide credential manager to repository
+            kwargs['credential_manager'] = self._get_credential_manager()
+            logger.debug("Credential manager added to kwargs")
 
             # Use from_parsed_uri class method if available, otherwise fall back to constructor
             if hasattr(repository_class, 'from_parsed_uri'):

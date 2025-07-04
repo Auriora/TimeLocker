@@ -107,14 +107,18 @@ class ResticRepository(BackupRepository):
 
     def password(self) -> Optional[str]:
         """Get repository password from explicit setting, credential manager, or environment"""
-        # Priority: explicit password > credential manager > environment variable
+        # Priority: explicit password > credential manager (with auto-unlock) > environment variable
         logger.debug(f"password() called - explicit password: {'***' if self._explicit_password else 'None'}")
         if self._explicit_password:
             logger.debug("Returning explicit password")
             return self._explicit_password
 
-        if self._credential_manager and not self._credential_manager.is_locked():
-            stored_password = self._credential_manager.get_repository_password(self._repository_id)
+        # Try credential manager with auto-unlock (non-interactive)
+        if self._credential_manager:
+            stored_password = self._credential_manager.get_repository_password(
+                    self._repository_id,
+                    allow_prompt=False  # Non-interactive for automated operations
+            )
             if stored_password:
                 logger.debug("Returning credential manager password")
                 return stored_password
@@ -124,11 +128,15 @@ class ResticRepository(BackupRepository):
         logger.debug(f"Returning environment password: {'***' if env_password else 'None'}")
         return env_password
 
-    def store_password(self, password: str) -> bool:
+    def store_password(self, password: str, allow_prompt: bool = True) -> bool:
         """Store password in credential manager if available"""
-        if self._credential_manager and not self._credential_manager.is_locked():
+        if self._credential_manager:
             try:
-                self._credential_manager.store_repository_password(self._repository_id, password)
+                self._credential_manager.store_repository_password(
+                        self._repository_id,
+                        password,
+                        allow_prompt=allow_prompt
+                )
                 logger.info(f"Password stored for repository {self._repository_id}")
                 return True
             except Exception as e:

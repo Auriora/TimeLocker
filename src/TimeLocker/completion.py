@@ -10,14 +10,69 @@ This module provides intelligent auto-completion for:
 """
 
 import os
+import logging
 from pathlib import Path
 from typing import List, Optional, Dict, Any
+from contextlib import contextmanager
+from functools import wraps
 import typer
 
 from .config import ConfigurationModule
 from .utils.repository_resolver import resolve_repository_uri, list_available_repositories
 from .backup_manager import BackupManager
 from .snapshot_manager import SnapshotManager
+
+
+@contextmanager
+def suppress_completion_logging():
+    """
+    Context manager to suppress logging during completion operations.
+
+    This prevents log messages from interfering with shell completion output.
+    """
+    # Store original log levels
+    original_levels = {}
+    loggers_to_suppress = [
+            'TimeLocker',
+            'restic',
+            'urllib3',
+            'requests',
+            'root'
+    ]
+
+    try:
+        # Suppress logging for completion
+        for logger_name in loggers_to_suppress:
+            logger = logging.getLogger(logger_name)
+            original_levels[logger_name] = logger.level
+            logger.setLevel(logging.CRITICAL)
+
+        yield
+
+    finally:
+        # Restore original log levels
+        for logger_name, original_level in original_levels.items():
+            logger = logging.getLogger(logger_name)
+            logger.setLevel(original_level)
+
+
+def suppress_logging_for_completion(func):
+    """
+    Decorator to suppress logging during completion function execution.
+
+    Args:
+        func: Completion function to wrap
+
+    Returns:
+        Wrapped function with logging suppression
+    """
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        with suppress_completion_logging():
+            return func(*args, **kwargs)
+
+    return wrapper
 
 
 def complete_repository_names(incomplete: str) -> List[str]:
@@ -55,6 +110,7 @@ def complete_target_names(incomplete: str) -> List[str]:
         return []
 
 
+@suppress_logging_for_completion
 def complete_snapshot_ids(incomplete: str, repository: Optional[str] = None) -> List[str]:
     """
     Complete snapshot IDs from repository.
@@ -109,14 +165,9 @@ def complete_repository_uris(incomplete: str) -> List[str]:
     """
     completions = []
 
-    # File URI completions
-    if incomplete.startswith("file://") or not incomplete or incomplete.startswith("/"):
-        if incomplete.startswith("file://"):
-            path_part = incomplete[7:]  # Remove "file://" prefix
-            prefix = "file://"
-        else:
-            path_part = incomplete
-            prefix = "file://"
+    # File URI completions (only when explicitly requested)
+    if incomplete.startswith("file://"):
+        path_part = incomplete[7:]  # Remove "file://" prefix
 
         # Complete file paths
         try:
@@ -130,10 +181,7 @@ def complete_repository_uris(incomplete: str) -> List[str]:
             if base_path.exists():
                 for item in base_path.iterdir():
                     if item.is_dir() and item.name.startswith(name_part):
-                        if incomplete.startswith("file://"):
-                            completions.append(f"file://{item.absolute()}")
-                        else:
-                            completions.append(str(item.absolute()))
+                        completions.append(f"file://{item.absolute()}")
         except Exception:
             pass
 
@@ -165,6 +213,54 @@ def complete_repository_uris(incomplete: str) -> List[str]:
 
     # If no specific protocol, suggest common patterns
     elif not incomplete:
+        completions.extend([
+                "file://",
+                "s3:",
+                "sftp:",
+                "rest:",
+        ])
+
+    return completions
+
+
+@suppress_logging_for_completion
+def complete_repositories(incomplete: str) -> List[str]:
+    """
+    Complete repository names and URIs, prioritizing configured repository names.
+
+    Args:
+        incomplete: Partial repository name or URI being typed
+
+    Returns:
+        List of matching repository names and URI patterns
+    """
+    completions = []
+
+    # First, try to complete with configured repository names
+    try:
+        repositories = list_available_repositories()
+        repo_names = [name for name in repositories.keys() if name.startswith(incomplete)]
+        completions.extend(repo_names)
+    except Exception:
+        pass
+
+    # If user is typing a URI pattern, also provide URI completions
+    if (incomplete.startswith(("file://", "s3:", "sftp:", "rest:", "/")) or
+            "://" in incomplete):
+        uri_completions = complete_repository_uris(incomplete)
+        completions.extend(uri_completions)
+
+    # If no matches and no incomplete text, show both repo names and URI patterns
+    elif not incomplete:
+        try:
+            repositories = list_available_repositories()
+            # Only add repo names if we haven't already added them
+            if not completions:
+                completions.extend(repositories.keys())
+        except Exception:
+            pass
+
+        # Also add common URI patterns
         completions.extend([
                 "file://",
                 "s3:",
@@ -233,6 +329,11 @@ def repository_uri_completer(incomplete: str) -> List[str]:
     return complete_repository_uris(incomplete)
 
 
+def repository_completer(incomplete: str) -> List[str]:
+    """Typer completer for repositories (names and URIs)."""
+    return complete_repositories(incomplete)
+
+
 def file_path_completer(incomplete: str) -> List[str]:
     """Typer completer for file paths."""
     return complete_file_paths(incomplete)
@@ -268,11 +369,13 @@ __all__ = [
         'complete_target_names',
         'complete_snapshot_ids',
         'complete_repository_uris',
+        'complete_repositories',
         'complete_file_paths',
         'repository_name_completer',
         'target_name_completer',
         'snapshot_id_completer',
         'repository_uri_completer',
+        'repository_completer',
         'file_path_completer',
         'ContextAwareCompleters',
 ]
