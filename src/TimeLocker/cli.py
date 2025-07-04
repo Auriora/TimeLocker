@@ -3147,11 +3147,308 @@ def repos_list(
 
 @repos_app.command("check")
 def repos_check(
+        parallel: Annotated[bool, typer.Option("--parallel", "-p", help="Check repositories in parallel")] = True,
+        max_workers: Annotated[int, typer.Option("--max-workers", help="Maximum number of parallel workers")] = 4,
+        continue_on_error: Annotated[bool, typer.Option("--continue-on-error", help="Continue checking other repositories if one fails")] = True,
+        summary_only: Annotated[bool, typer.Option("--summary-only", help="Show only summary, not detailed results")] = False,
+        filter_status: Annotated[str, typer.Option("--filter", help="Filter by status: all, failed, passed")] = "all",
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
-    """Check all repositories."""
-    console.print("[yellow]🚧 Command stub: repos check[/yellow]")
-    console.print("This command will check the integrity of all repositories.")
+    """Check integrity of all configured repositories."""
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+
+        # Get all repositories
+        try:
+            repositories = service_manager.list_repositories()
+        except Exception as e:
+            show_error_panel("Repository List Error", f"Failed to list repositories: {e}")
+            raise typer.Exit(1)
+
+        if not repositories:
+            console.print("[yellow]No repositories configured to check[/yellow]")
+            return
+
+        console.print(f"[cyan]Checking integrity of {len(repositories)} repositories...[/cyan]")
+        console.print()
+
+        # Get repository service
+        repository_service = service_manager.get_repository_service()
+
+        # Track results
+        check_results = []
+        failed_repos = []
+        passed_repos = []
+
+        if parallel and len(repositories) > 1:
+            # Parallel checking
+            import concurrent.futures
+            import threading
+
+            console.print(f"[dim]Using parallel checking with {min(max_workers, len(repositories))} workers[/dim]")
+            console.print()
+
+            # Create a lock for console output
+            console_lock = threading.Lock()
+
+            def check_single_repository(repo_config):
+                """Check a single repository and return results"""
+                repo_name = repo_config['name']
+                repo_uri = repo_config.get('uri', repo_config.get('location', ''))
+
+                try:
+                    # Create repository instance
+                    repo = service_manager.repository_factory.create_repository(repo_uri)
+
+                    # Perform check
+                    with console_lock:
+                        console.print(f"[cyan]Checking repository '[bold]{repo_name}[/bold]'...[/cyan]")
+
+                    check_result = repository_service.check_repository(repo)
+                    check_result['repository_name'] = repo_name
+                    check_result['repository_uri'] = repo_uri
+
+                    with console_lock:
+                        if check_result['status'] == 'success':
+                            console.print(f"[green]✅ {repo_name}: Check passed[/green]")
+                        else:
+                            console.print(f"[red]❌ {repo_name}: Check failed[/red]")
+
+                    return check_result
+
+                except Exception as e:
+                    error_result = {
+                            'repository_name': repo_name,
+                            'repository_uri':  repo_uri,
+                            'status':          'error',
+                            'errors':          [str(e)],
+                            'warnings':        [],
+                            'statistics':      {}
+                    }
+
+                    with console_lock:
+                        console.print(f"[red]❌ {repo_name}: Error - {e}[/red]")
+
+                    return error_result
+
+            # Execute parallel checks
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(max_workers, len(repositories))) as executor:
+                future_to_repo = {executor.submit(check_single_repository, repo): repo for repo in repositories}
+
+                for future in concurrent.futures.as_completed(future_to_repo):
+                    repo = future_to_repo[future]
+                    try:
+                        result = future.result()
+                        check_results.append(result)
+
+                        if result['status'] == 'success':
+                            passed_repos.append(result)
+                        else:
+                            failed_repos.append(result)
+
+                    except Exception as e:
+                        if continue_on_error:
+                            console.print(f"[red]❌ {repo['name']}: Unexpected error - {e}[/red]")
+                            failed_repos.append({
+                                    'repository_name': repo['name'],
+                                    'status':          'error',
+                                    'errors':          [str(e)]
+                            })
+                        else:
+                            show_error_panel("Repository Check Failed", f"Failed to check repository {repo['name']}: {e}")
+                            raise typer.Exit(1)
+
+        else:
+            # Sequential checking
+            console.print("[dim]Using sequential checking[/dim]")
+            console.print()
+
+            for repo_config in repositories:
+                repo_name = repo_config['name']
+                repo_uri = repo_config.get('uri', repo_config.get('location', ''))
+
+                try:
+                    console.print(f"[cyan]Checking repository '[bold]{repo_name}[/bold]'...[/cyan]")
+
+                    # Create repository instance
+                    repo = service_manager.repository_factory.create_repository(repo_uri)
+
+                    # Perform check
+                    check_result = repository_service.check_repository(repo)
+                    check_result['repository_name'] = repo_name
+                    check_result['repository_uri'] = repo_uri
+
+                    check_results.append(check_result)
+
+                    if check_result['status'] == 'success':
+                        console.print(f"[green]✅ {repo_name}: Check passed[/green]")
+                        passed_repos.append(check_result)
+                    else:
+                        console.print(f"[red]❌ {repo_name}: Check failed[/red]")
+                        failed_repos.append(check_result)
+
+                        if not continue_on_error:
+                            show_error_panel("Repository Check Failed", f"Repository {repo_name} failed integrity check")
+                            raise typer.Exit(1)
+
+                    console.print()
+
+                except Exception as e:
+                    console.print(f"[red]❌ {repo_name}: Error - {e}[/red]")
+                    console.print()
+
+                    failed_repos.append({
+                            'repository_name': repo_name,
+                            'repository_uri':  repo_uri,
+                            'status':          'error',
+                            'errors':          [str(e)]
+                    })
+
+                    if not continue_on_error:
+                        show_error_panel("Repository Check Failed", f"Failed to check repository {repo_name}: {e}")
+                        raise typer.Exit(1)
+
+        # Display results summary
+        console.print()
+        console.print("[bold]Repository Check Summary[/bold]")
+        console.print()
+
+        # Create summary table
+        summary_table = Table(title="Check Results Summary")
+        summary_table.add_column("Repository", style="cyan", no_wrap=True)
+        summary_table.add_column("Status", style="white")
+        summary_table.add_column("Issues", style="yellow")
+        summary_table.add_column("Details", style="dim")
+
+        # Filter results based on filter_status
+        filtered_results = check_results
+        if filter_status == "failed":
+            filtered_results = failed_repos
+        elif filter_status == "passed":
+            filtered_results = passed_repos
+
+        for result in filtered_results:
+            repo_name = result['repository_name']
+            status = result['status']
+
+            # Status display
+            if status == 'success':
+                status_display = "[green]✅ Passed[/green]"
+            elif status == 'failed':
+                status_display = "[red]❌ Failed[/red]"
+            else:
+                status_display = "[yellow]⚠️  Error[/yellow]"
+
+            # Issues count
+            error_count = len(result.get('errors', []))
+            warning_count = len(result.get('warnings', []))
+            issues = f"{error_count} errors, {warning_count} warnings"
+
+            # Details
+            details = ""
+            if not summary_only and result.get('errors'):
+                details = result['errors'][0][:50] + "..." if len(result['errors'][0]) > 50 else result['errors'][0]
+
+            summary_table.add_row(repo_name, status_display, issues, details)
+
+        console.print(summary_table)
+
+        # Overall statistics
+        console.print()
+        total_repos = len(repositories)
+        passed_count = len(passed_repos)
+        failed_count = len(failed_repos)
+
+        stats_info = [
+                f"Total repositories: {total_repos}",
+                f"✅ Passed: {passed_count}",
+                f"❌ Failed: {failed_count}",
+                f"Success rate: {(passed_count / total_repos) * 100:.1f}%" if total_repos > 0 else "Success rate: 0%"
+        ]
+
+        if failed_count == 0:
+            stats_panel = Panel(
+                    "\n".join(stats_info),
+                    title="✅ All Repositories Healthy",
+                    border_style="green"
+            )
+        else:
+            stats_panel = Panel(
+                    "\n".join(stats_info),
+                    title="⚠️  Some Repositories Have Issues",
+                    border_style="yellow"
+            )
+
+        console.print(stats_panel)
+
+        # Detailed error information if not summary only
+        if not summary_only and failed_repos:
+            console.print()
+            console.print("[bold red]Failed Repository Details:[/bold red]")
+
+            for failed_repo in failed_repos:
+                console.print()
+
+                error_info = [
+                        f"Repository: {failed_repo['repository_name']}",
+                        f"URI: {failed_repo.get('repository_uri', 'N/A')}",
+                        f"Status: {failed_repo['status']}",
+                ]
+
+                if failed_repo.get('errors'):
+                    error_info.append("")
+                    error_info.append("Errors:")
+                    for error in failed_repo['errors']:
+                        error_info.append(f"  • {error}")
+
+                if failed_repo.get('warnings'):
+                    error_info.append("")
+                    error_info.append("Warnings:")
+                    for warning in failed_repo['warnings']:
+                        error_info.append(f"  • {warning}")
+
+                error_panel = Panel(
+                        "\n".join(error_info),
+                        title=f"❌ {failed_repo['repository_name']}",
+                        border_style="red"
+                )
+                console.print(error_panel)
+
+        # Verbose output
+        if verbose and not summary_only:
+            console.print()
+
+            verbose_info = [
+                    f"Check method: {'Parallel' if parallel and len(repositories) > 1 else 'Sequential'}",
+                    f"Max workers: {max_workers}" if parallel else "Workers: 1",
+                    f"Continue on error: {'Yes' if continue_on_error else 'No'}",
+                    f"Filter applied: {filter_status}",
+                    f"Total execution time: Available in performance logs"
+            ]
+
+            verbose_panel = Panel(
+                    "\n".join(verbose_info),
+                    title="Check Configuration",
+                    border_style="blue"
+            )
+            console.print(verbose_panel)
+
+        # Exit with appropriate code
+        if failed_count > 0:
+            raise typer.Exit(1)  # Some repositories failed
+        else:
+            raise typer.Exit(0)  # All repositories passed
+
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Repository check operation was cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Repository Check Error", f"An unexpected error occurred: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @repos_app.command("stats")

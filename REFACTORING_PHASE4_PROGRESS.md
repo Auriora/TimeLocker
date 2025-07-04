@@ -80,7 +80,7 @@ Phase 4 focuses on **Advanced Services and Feature Completion**, implementing th
 - ✅ `snapshots diff` - Compare two snapshots
 - ✅ `snapshots find` - Search across all snapshots
 - ✅ `repo migrate` - Repository format migration
-- ❌ `repos check` - Check all repositories
+- ✅ `repos check` - Check all repositories
 - ❌ `repos stats` - Statistics for all repositories
 - ✅ `config repositories show` - Show repository configuration
 - ✅ `config target show` - Show target configuration
@@ -195,6 +195,6 @@ Phase 4 focuses on **Advanced Services and Feature Completion**, implementing th
 
 ---
 
-**Phase 4 Status**: 🟡 **In Progress** (59% complete)
-**Estimated Completion**: 7-9 additional commands and 3-4 service enhancements remaining
+**Phase 4 Status**: 🟡 **In Progress** (65% complete)
+**Estimated Completion**: 6-8 additional commands and 3-4 service enhancements remaining
 **Next Milestone**: Complete remaining CLI commands and multi-repository operations
