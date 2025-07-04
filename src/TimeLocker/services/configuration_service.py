@@ -214,7 +214,7 @@ class ConfigurationService(IConfigurationProvider):
     def get_repositories(self) -> List[Dict[str, Any]]:
         """
         Get list of configured repositories.
-        
+
         Returns:
             List of repository configurations
         """
@@ -223,6 +223,27 @@ class ConfigurationService(IConfigurationProvider):
                 {**repo_config, 'name': name}
                 for name, repo_config in repositories_dict.items()
         ]
+
+    def get_repository_by_name(self, name: str) -> Dict[str, Any]:
+        """
+        Get a specific repository configuration by name.
+
+        Args:
+            name: Repository name
+
+        Returns:
+            Repository configuration dictionary
+
+        Raises:
+            ConfigurationNotFoundError: If repository is not found
+        """
+        repositories_dict = self._config_data.get('repositories', {})
+
+        if name not in repositories_dict:
+            raise ConfigurationNotFoundError(f"Repository '{name}' not found")
+
+        # Return repository config with name included
+        return {**repositories_dict[name], 'name': name}
 
     def add_repository(self, repository_config: Dict[str, Any]) -> None:
         """
