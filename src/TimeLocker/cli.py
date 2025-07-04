@@ -3453,11 +3453,372 @@ def repos_check(
 
 @repos_app.command("stats")
 def repos_stats(
+        parallel: Annotated[bool, typer.Option("--parallel", "-p", help="Gather statistics in parallel")] = True,
+        max_workers: Annotated[int, typer.Option("--max-workers", help="Maximum number of parallel workers")] = 4,
+        continue_on_error: Annotated[bool, typer.Option("--continue-on-error", help="Continue gathering stats from other repositories if one fails")] = True,
+        summary_only: Annotated[bool, typer.Option("--summary-only", help="Show only aggregated summary, not individual repository details")] = False,
+        sort_by: Annotated[str, typer.Option("--sort-by", help="Sort repositories by: name, size, snapshots, age")] = "name",
+        format_output: Annotated[str, typer.Option("--format", help="Output format: table, json, csv")] = "table",
+        include_totals: Annotated[bool, typer.Option("--totals/--no-totals", help="Include aggregate totals across all repositories")] = True,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
-    """Show stats for all repositories."""
-    console.print("[yellow]🚧 Command stub: repos stats[/yellow]")
-    console.print("This command will show statistics for all repositories.")
+    """Show comprehensive statistics for all configured repositories."""
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+
+        # Get all repositories
+        try:
+            repositories = service_manager.list_repositories()
+        except Exception as e:
+            show_error_panel("Repository List Error", f"Failed to list repositories: {e}")
+            raise typer.Exit(1)
+
+        if not repositories:
+            console.print("[yellow]No repositories configured to analyze[/yellow]")
+            return
+
+        console.print(f"[cyan]Gathering statistics from {len(repositories)} repositories...[/cyan]")
+        console.print()
+
+        # Get repository service
+        repository_service = service_manager.get_repository_service()
+
+        # Track results
+        stats_results = []
+        failed_repos = []
+        successful_repos = []
+
+        if parallel and len(repositories) > 1:
+            # Parallel statistics gathering
+            import concurrent.futures
+            import threading
+
+            console.print(f"[dim]Using parallel processing with {min(max_workers, len(repositories))} workers[/dim]")
+            console.print()
+
+            # Create a lock for console output
+            console_lock = threading.Lock()
+
+            def get_single_repository_stats(repo_config):
+                """Get statistics for a single repository and return results"""
+                repo_name = repo_config['name']
+                repo_uri = repo_config.get('uri', repo_config.get('location', ''))
+
+                try:
+                    # Create repository instance
+                    repo = service_manager.repository_factory.create_repository(repo_uri)
+
+                    # Gather statistics
+                    with console_lock:
+                        console.print(f"[cyan]Analyzing repository '[bold]{repo_name}[/bold]'...[/cyan]")
+
+                    stats = repository_service.get_repository_stats(repo)
+                    stats['repository_name'] = repo_name
+                    stats['repository_uri'] = repo_uri
+                    stats['status'] = 'success'
+
+                    with console_lock:
+                        console.print(f"[green]✅ {repo_name}: Statistics gathered[/green]")
+
+                    return stats
+
+                except Exception as e:
+                    error_result = {
+                            'repository_name': repo_name,
+                            'repository_uri':  repo_uri,
+                            'status':          'error',
+                            'error':           str(e),
+                            'total_size':      0,
+                            'snapshots_count': 0
+                    }
+
+                    with console_lock:
+                        console.print(f"[red]❌ {repo_name}: Error - {e}[/red]")
+
+                    return error_result
+
+            # Execute parallel statistics gathering
+            with concurrent.futures.ThreadPoolExecutor(max_workers=min(max_workers, len(repositories))) as executor:
+                future_to_repo = {executor.submit(get_single_repository_stats, repo): repo for repo in repositories}
+
+                for future in concurrent.futures.as_completed(future_to_repo):
+                    repo = future_to_repo[future]
+                    try:
+                        result = future.result()
+                        stats_results.append(result)
+
+                        if result['status'] == 'success':
+                            successful_repos.append(result)
+                        else:
+                            failed_repos.append(result)
+
+                    except Exception as e:
+                        if continue_on_error:
+                            console.print(f"[red]❌ {repo['name']}: Unexpected error - {e}[/red]")
+                            failed_repos.append({
+                                    'repository_name': repo['name'],
+                                    'status':          'error',
+                                    'error':           str(e),
+                                    'total_size':      0,
+                                    'snapshots_count': 0
+                            })
+                        else:
+                            show_error_panel("Repository Stats Failed", f"Failed to get statistics for repository {repo['name']}: {e}")
+                            raise typer.Exit(1)
+
+        else:
+            # Sequential statistics gathering
+            console.print("[dim]Using sequential processing[/dim]")
+            console.print()
+
+            for repo_config in repositories:
+                repo_name = repo_config['name']
+                repo_uri = repo_config.get('uri', repo_config.get('location', ''))
+
+                try:
+                    console.print(f"[cyan]Analyzing repository '[bold]{repo_name}[/bold]'...[/cyan]")
+
+                    # Create repository instance
+                    repo = service_manager.repository_factory.create_repository(repo_uri)
+
+                    # Gather statistics
+                    stats = repository_service.get_repository_stats(repo)
+                    stats['repository_name'] = repo_name
+                    stats['repository_uri'] = repo_uri
+                    stats['status'] = 'success'
+
+                    stats_results.append(stats)
+                    successful_repos.append(stats)
+
+                    console.print(f"[green]✅ {repo_name}: Statistics gathered[/green]")
+                    console.print()
+
+                except Exception as e:
+                    console.print(f"[red]❌ {repo_name}: Error - {e}[/red]")
+                    console.print()
+
+                    error_result = {
+                            'repository_name': repo_name,
+                            'repository_uri':  repo_uri,
+                            'status':          'error',
+                            'error':           str(e),
+                            'total_size':      0,
+                            'snapshots_count': 0
+                    }
+
+                    stats_results.append(error_result)
+                    failed_repos.append(error_result)
+
+                    if not continue_on_error:
+                        show_error_panel("Repository Stats Failed", f"Failed to get statistics for repository {repo_name}: {e}")
+                        raise typer.Exit(1)
+
+        # Sort results
+        if sort_by == "size":
+            stats_results.sort(key=lambda x: x.get('total_size', 0), reverse=True)
+        elif sort_by == "snapshots":
+            stats_results.sort(key=lambda x: x.get('snapshots_count', 0), reverse=True)
+        elif sort_by == "age":
+            stats_results.sort(key=lambda x: x.get('oldest_snapshot', 0))
+        else:  # sort by name (default)
+            stats_results.sort(key=lambda x: x.get('repository_name', ''))
+
+        # Display results
+        console.print()
+        console.print("[bold]Repository Statistics Summary[/bold]")
+        console.print()
+
+        if format_output == "json":
+            # JSON output
+            import json
+            output_data = {
+                    'repositories': stats_results,
+                    'summary':      {
+                            'total_repositories': len(repositories),
+                            'successful':         len(successful_repos),
+                            'failed':             len(failed_repos)
+                    }
+            }
+            console.print(json.dumps(output_data, indent=2))
+
+        elif format_output == "csv":
+            # CSV output
+            console.print("Repository,Status,Total Size (bytes),Snapshots,Files,Oldest Snapshot,Newest Snapshot,Error")
+            for result in stats_results:
+                repo_name = result.get('repository_name', 'Unknown')
+                status = result.get('status', 'unknown')
+                total_size = result.get('total_size', 0)
+                snapshots = result.get('snapshots_count', 0)
+                files = result.get('total_file_count', 0)
+                oldest = result.get('oldest_snapshot', '')
+                newest = result.get('newest_snapshot', '')
+                error = result.get('error', '')
+
+                console.print(f"{repo_name},{status},{total_size},{snapshots},{files},{oldest},{newest},{error}")
+
+        else:
+            # Table output (default)
+            if not summary_only:
+                # Individual repository details
+                stats_table = Table(title="Repository Statistics")
+                stats_table.add_column("Repository", style="cyan", no_wrap=True)
+                stats_table.add_column("Status", style="white")
+                stats_table.add_column("Size", style="green", justify="right")
+                stats_table.add_column("Snapshots", style="blue", justify="right")
+                stats_table.add_column("Files", style="yellow", justify="right")
+                stats_table.add_column("Age (days)", style="magenta", justify="right")
+                stats_table.add_column("Details", style="dim")
+
+                def format_bytes(bytes_value):
+                    """Format bytes in human readable format"""
+                    if bytes_value == 0:
+                        return "0 B"
+
+                    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+                        if bytes_value < 1024.0:
+                            return f"{bytes_value:.1f} {unit}"
+                        bytes_value /= 1024.0
+                    return f"{bytes_value:.1f} PB"
+
+                for result in stats_results:
+                    repo_name = result.get('repository_name', 'Unknown')
+                    status = result.get('status', 'unknown')
+
+                    # Status display
+                    if status == 'success':
+                        status_display = "[green]✅ Success[/green]"
+                    else:
+                        status_display = "[red]❌ Error[/red]"
+
+                    # Size formatting
+                    total_size = result.get('total_size', 0)
+                    size_display = format_bytes(total_size)
+
+                    # Snapshot count
+                    snapshots_count = result.get('snapshots_count', 0)
+
+                    # File count
+                    file_count = result.get('total_file_count', 0)
+
+                    # Age calculation
+                    age_display = "N/A"
+                    if result.get('time_span_days'):
+                        age_display = f"{result['time_span_days']:.1f}"
+
+                    # Details
+                    details = ""
+                    if status == 'error':
+                        error_msg = result.get('error', 'Unknown error')
+                        details = error_msg[:40] + "..." if len(error_msg) > 40 else error_msg
+                    elif result.get('compression_ratio'):
+                        details = f"Compression: {result['compression_ratio']:.1%}"
+
+                    stats_table.add_row(
+                            repo_name, status_display, size_display,
+                            str(snapshots_count), str(file_count), age_display, details
+                    )
+
+                console.print(stats_table)
+
+            # Aggregate totals
+            if include_totals and successful_repos:
+                console.print()
+
+                total_size = sum(repo.get('total_size', 0) for repo in successful_repos)
+                total_snapshots = sum(repo.get('snapshots_count', 0) for repo in successful_repos)
+                total_files = sum(repo.get('total_file_count', 0) for repo in successful_repos)
+
+                def format_bytes(bytes_value):
+                    """Format bytes in human readable format"""
+                    if bytes_value == 0:
+                        return "0 B"
+
+                    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+                        if bytes_value < 1024.0:
+                            return f"{bytes_value:.1f} {unit}"
+                        bytes_value /= 1024.0
+                    return f"{bytes_value:.1f} PB"
+
+                totals_info = [
+                        f"Total repositories analyzed: {len(repositories)}",
+                        f"✅ Successful: {len(successful_repos)}",
+                        f"❌ Failed: {len(failed_repos)}",
+                        "",
+                        f"Combined storage used: {format_bytes(total_size)}",
+                        f"Total snapshots: {total_snapshots:,}",
+                        f"Total files backed up: {total_files:,}",
+                ]
+
+                # Calculate average repository size
+                if successful_repos:
+                    avg_size = total_size / len(successful_repos)
+                    totals_info.append(f"Average repository size: {format_bytes(avg_size)}")
+
+                totals_panel = Panel(
+                        "\n".join(totals_info),
+                        title="📊 Aggregate Statistics",
+                        border_style="blue"
+                )
+                console.print(totals_panel)
+
+        # Error details if any failures occurred
+        if failed_repos and not summary_only and format_output == "table":
+            console.print()
+            console.print("[bold red]Failed Repository Details:[/bold red]")
+
+            for failed_repo in failed_repos:
+                console.print()
+
+                error_info = [
+                        f"Repository: {failed_repo['repository_name']}",
+                        f"URI: {failed_repo.get('repository_uri', 'N/A')}",
+                        f"Error: {failed_repo.get('error', 'Unknown error')}",
+                ]
+
+                error_panel = Panel(
+                        "\n".join(error_info),
+                        title=f"❌ {failed_repo['repository_name']}",
+                        border_style="red"
+                )
+                console.print(error_panel)
+
+        # Verbose output
+        if verbose and format_output == "table":
+            console.print()
+
+            verbose_info = [
+                    f"Processing method: {'Parallel' if parallel and len(repositories) > 1 else 'Sequential'}",
+                    f"Max workers: {max_workers}" if parallel else "Workers: 1",
+                    f"Continue on error: {'Yes' if continue_on_error else 'No'}",
+                    f"Sort order: {sort_by}",
+                    f"Output format: {format_output}",
+                    f"Include totals: {'Yes' if include_totals else 'No'}",
+                    f"Total execution time: Available in performance logs"
+            ]
+
+            verbose_panel = Panel(
+                    "\n".join(verbose_info),
+                    title="Statistics Configuration",
+                    border_style="blue"
+            )
+            console.print(verbose_panel)
+
+        # Exit with appropriate code
+        if failed_repos:
+            raise typer.Exit(1)  # Some repositories failed
+        else:
+            raise typer.Exit(0)  # All repositories processed successfully
+
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Repository statistics operation was cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Repository Stats Error", f"An unexpected error occurred: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 # ============================================================================
