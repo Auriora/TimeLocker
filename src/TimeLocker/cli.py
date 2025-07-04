@@ -57,36 +57,26 @@ app = typer.Typer(
 
 # Create sub-apps for new hierarchy
 backup_app = typer.Typer(help="Backup operations")
-snapshot_app = typer.Typer(help="Single snapshot operations")
-snapshots_app = typer.Typer(help="Multiple snapshot operations")
-repo_app = typer.Typer(help="Single repository operations")
-repos_app = typer.Typer(help="Multiple repository operations")
+
+snapshots_app = typer.Typer(help="Snapshot operations")
+repos_app = typer.Typer(help="Repository operations")
+targets_app = typer.Typer(help="Backup target operations")
 config_app = typer.Typer(help="Configuration management commands")
 credentials_app = typer.Typer(help="Credential management commands")
 
 # Add sub-apps to main app
 app.add_typer(backup_app, name="backup")
-app.add_typer(snapshot_app, name="snapshot")
+
 app.add_typer(snapshots_app, name="snapshots")
-app.add_typer(repo_app, name="repo")
 app.add_typer(repos_app, name="repos")
+app.add_typer(targets_app, name="targets")
 app.add_typer(config_app, name="config")
 app.add_typer(credentials_app, name="credentials")
 
-# Add main command aliases
-app.add_typer(repo_app, name="repository")
-app.add_typer(repos_app, name="repositories")
-
-# Create config sub-apps
-config_repositories_app = typer.Typer(help="Repository configuration commands")
-config_target_app = typer.Typer(help="Single target configuration commands")
-config_targets_app = typer.Typer(help="Multiple target configuration commands")
+# Create config sub-apps (only import remains under config)
 config_import_app = typer.Typer(help="Import configuration commands")
 
 # Add config sub-apps
-config_app.add_typer(config_repositories_app, name="repositories")
-config_app.add_typer(config_target_app, name="target")
-config_app.add_typer(config_targets_app, name="targets")
 config_app.add_typer(config_import_app, name="import")
 
 
@@ -474,8 +464,8 @@ def backup_create(
         raise typer.Exit(1)
 
 
-@snapshot_app.command("restore")
-def snapshot_restore(
+@snapshots_app.command("restore")
+def snapshots_restore(
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID", autocompletion=snapshot_id_completer)],
         target: Annotated[Path, typer.Argument(help="Target path for restore", autocompletion=file_path_completer)],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
@@ -655,7 +645,7 @@ def snapshots_list(
             # Check if this is a named repository without stored credentials
             if repo_info.get("is_named"):
                 console.print(f"[yellow]Repository '{repo_info.get('name')}' requires a password.[/yellow]")
-                console.print(f"[dim]💡 Store password permanently: tl config repositories add {repo_info.get('name')} {repository_uri}[/dim]")
+                console.print(f"[dim]💡 Store password permanently: tl repos add {repo_info.get('name')} {repository_uri}[/dim]")
             else:
                 console.print(f"[yellow]Repository {repository_uri} requires a password.[/yellow]")
 
@@ -745,7 +735,7 @@ def snapshots_list(
         raise typer.Exit(1)
 
 
-@repo_app.command("init")
+@repos_app.command("init")
 def repo_init(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI", autocompletion=repository_completer)] = None,
@@ -1097,105 +1087,20 @@ def config_show(
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
-    """List current configuration."""
+    """Show configuration information and validation status."""
     setup_logging(verbose, config_dir)
 
     try:
-        from .config import ConfigurationModule
+        from .config import ConfigurationModule, ConfigurationValidator
         config_module = ConfigurationModule(config_dir=config_dir)
-        # Configuration is automatically loaded in __init__
         config = config_module.get_config()
         config_file = config_module.config_file
+        config_info = config_module.get_config_info()
 
         console.print()
         console.print(Panel(
                 f"📁 Configuration from: {config_file}",
                 title="[bold blue]TimeLocker Configuration[/bold blue]",
-                border_style="blue"
-        ))
-
-        # Repositories table
-        if config.repositories:
-            table = Table(title="🗄️  Repositories", border_style="green")
-            table.add_column("Name", style="cyan")
-            table.add_column("Type", style="yellow")
-            table.add_column("URI", style="white")
-            table.add_column("Description", style="dim")
-
-            for name, repo in config.repositories.items():
-                table.add_row(
-                        name,
-                        getattr(repo, "type", "unknown"),
-                        getattr(repo, "uri", ""),
-                        getattr(repo, "description", "")
-                )
-            console.print(table)
-            console.print()
-
-        # Backup targets table
-        if config.backup_targets:
-            table = Table(title="🎯 Backup Targets", border_style="blue")
-            table.add_column("Name", style="cyan")
-            table.add_column("Description", style="white")
-            table.add_column("Paths", style="green")
-            table.add_column("Patterns", style="dim")
-
-            for name, target in config.backup_targets.items():
-                paths_str = "\n".join(getattr(target, "paths", []))
-                include_patterns = ", ".join(getattr(target, "include_patterns", []))
-                exclude_patterns = ", ".join(getattr(target, "exclude_patterns", []))
-                patterns_str = f"Include: {include_patterns}\nExclude: {exclude_patterns}"
-
-                table.add_row(
-                        name,
-                        getattr(target, "description", ""),
-                        paths_str,
-                        patterns_str
-                )
-            console.print(table)
-            console.print()
-
-        # Settings (General configuration)
-        settings_text = ""
-        if config.general.default_repository:
-            settings_text += f"[bold]default_repository:[/bold] {config.general.default_repository}\n"
-        if config.general.max_concurrent_operations:
-            settings_text += f"[bold]max_concurrent_operations:[/bold] {config.general.max_concurrent_operations}\n"
-
-        if settings_text:
-            console.print(Panel(
-                    settings_text.strip(),
-                    title="⚙️  Settings",
-                    border_style="yellow"
-            ))
-
-        console.print()
-
-    except Exception as e:
-        show_error_panel("Configuration Error", f"Failed to load configuration: {e}")
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
-
-
-@config_app.command("info")
-def config_info(
-        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
-        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-) -> None:
-    """Show configuration directory information and migration status."""
-    setup_logging(verbose, config_dir)
-
-    try:
-        # Initialize configuration manager (will use appropriate path resolution)
-        from .config.configuration_module import ConfigurationModule
-        config_manager = ConfigurationModule(config_dir=config_dir)
-        config_info = config_manager.get_config_info()
-
-        console.print()
-        console.print(Panel(
-                "📁 Configuration Directory Information",
-                title="[bold blue]TimeLocker Configuration Info[/bold blue]",
                 border_style="blue"
         ))
 
@@ -1207,13 +1112,13 @@ def config_info(
 
         # Current configuration
         table.add_row(
-                "Current Config Directory",
+                "Config Directory",
                 config_info['current_config_dir'],
                 "✅ Active" if config_info['config_file_exists'] else "❌ Missing"
         )
 
         table.add_row(
-                "Current Config File",
+                "Config File",
                 config_info['current_config_file'],
                 "✅ Exists" if config_info['config_file_exists'] else "❌ Missing"
         )
@@ -1232,57 +1137,73 @@ def config_info(
                 "📁 Standard"
         )
 
-        # Legacy configuration
-        table.add_row(
-                "Legacy Config Directory",
-                config_info['legacy_config_dir'],
-                "✅ Found" if config_info['legacy_config_exists'] else "❌ Not Found"
-        )
-
-        # Migration status
-        migration_status = "✅ Migrated" if config_info['migration_marker_exists'] else (
-                "⚠️ Available" if config_info['legacy_config_exists'] else "➖ N/A"
-        )
-        table.add_row(
-                "Migration Status",
-                "From legacy location" if config_info['migration_marker_exists'] else "No migration needed",
-                migration_status
-        )
-
-        # Backup information
-        table.add_row(
-                "Backup Directory",
-                config_info['backup_dir'],
-                f"📦 {config_info['backup_count']} backups"
-        )
-
         console.print(table)
         console.print()
 
-        # Migration information if applicable
-        if config_info['migration_marker_exists']:
+        # Configuration validation
+        console.print(Panel(
+                "🔍 Running configuration validation...",
+                title="[bold yellow]Configuration Validation[/bold yellow]",
+                border_style="yellow"
+        ))
+
+        validator = ConfigurationValidator()
+        validation_result = validator.validate_config(config)
+
+        if validation_result.is_valid:
             console.print(Panel(
-                    "✅ Configuration was successfully migrated from legacy location\n"
-                    f"   Legacy: {config_info['legacy_config_dir']}\n"
-                    f"   Current: {config_info['current_config_dir']}\n\n"
-                    "💡 Your configuration is now following XDG Base Directory Specification",
-                    title="[bold green]Migration Complete[/bold green]",
+                    "✅ Configuration validation passed successfully!\n"
+                    "All settings are valid and properly configured.",
+                    title="[bold green]Validation Successful[/bold green]",
                     border_style="green"
             ))
-        elif config_info['legacy_config_exists'] and not config_info['config_file_exists']:
+        else:
+            # Show validation errors
+            if validation_result.errors:
+                error_text = "\n".join([f"❌ {error}" for error in validation_result.errors])
+                console.print(Panel(
+                        error_text,
+                        title="[bold red]Validation Errors[/bold red]",
+                        border_style="red"
+                ))
+
+        # Show validation warnings
+        if validation_result.warnings:
+            warning_text = "\n".join([f"⚠️  {warning}" for warning in validation_result.warnings])
             console.print(Panel(
-                    "⚠️ Legacy configuration detected but not migrated\n"
-                    f"   Legacy: {config_info['legacy_config_dir']}\n"
-                    f"   Target: {config_info['current_config_dir']}\n\n"
-                    "💡 Run 'tl config setup' to migrate your configuration",
-                    title="[bold yellow]Migration Available[/bold yellow]",
+                    warning_text,
+                    title="[bold yellow]Validation Warnings[/bold yellow]",
                     border_style="yellow"
+            ))
+
+        # General settings summary
+        settings_text = ""
+        if hasattr(config.general, 'app_name') and config.general.app_name:
+            settings_text += f"[bold]App Name:[/bold] {config.general.app_name}\n"
+        if hasattr(config.general, 'default_repository') and config.general.default_repository:
+            settings_text += f"[bold]Default Repository:[/bold] {config.general.default_repository}\n"
+        if hasattr(config.general, 'max_concurrent_operations') and config.general.max_concurrent_operations:
+            settings_text += f"[bold]Max Concurrent Operations:[/bold] {config.general.max_concurrent_operations}\n"
+        if hasattr(config.general, 'log_level') and config.general.log_level:
+            settings_text += f"[bold]Log Level:[/bold] {config.general.log_level}\n"
+
+        # Repository and target counts
+        repo_count = len(config.repositories) if config.repositories else 0
+        target_count = len(config.backup_targets) if config.backup_targets else 0
+        settings_text += f"[bold]Repositories:[/bold] {repo_count} configured\n"
+        settings_text += f"[bold]Backup Targets:[/bold] {target_count} configured\n"
+
+        if settings_text:
+            console.print(Panel(
+                    settings_text.strip(),
+                    title="⚙️  Configuration Summary",
+                    border_style="blue"
             ))
 
         console.print()
 
     except Exception as e:
-        show_error_panel("Configuration Error", f"Failed to get configuration info: {e}")
+        show_error_panel("Configuration Error", f"Failed to load configuration: {e}")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
@@ -1504,8 +1425,8 @@ def config_import_restic(
         raise typer.Exit(1)
 
 
-@config_repositories_app.command("list")
-def config_repositories_list(
+@repos_app.command("list")
+def repos_list(
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
@@ -1568,8 +1489,8 @@ def config_repositories_list(
         raise typer.Exit(1)
 
 
-@config_repositories_app.command("add")
-def config_repositories_add(
+@repos_app.command("add")
+def repos_add(
         name: Annotated[Optional[str], typer.Argument(help="Repository name")] = None,
         uri: Annotated[Optional[str], typer.Argument(help="Repository URI", autocompletion=repository_uri_completer)] = None,
         description: Annotated[Optional[str], typer.Option("--description", "-d", help="Repository description")] = None,
@@ -1683,8 +1604,8 @@ def config_repositories_add(
         raise typer.Exit(1)
 
 
-@config_repositories_app.command("remove")
-def config_repositories_remove(
+@repos_app.command("remove")
+def repos_remove(
         name: Annotated[str, typer.Argument(help="Repository name to remove", autocompletion=repository_name_completer)],
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
@@ -1736,8 +1657,8 @@ def config_repositories_remove(
         raise typer.Exit(1)
 
 
-@config_repositories_app.command("default")
-def config_repositories_default(
+@repos_app.command("default")
+def repos_default(
         name: Annotated[str, typer.Argument(help="Repository name to set as default", autocompletion=repository_name_completer)],
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
@@ -1772,8 +1693,8 @@ def config_repositories_default(
         raise typer.Exit(1)
 
 
-@config_targets_app.command("add")
-def config_targets_add(
+@targets_app.command("add")
+def targets_add(
         name: Annotated[Optional[str], typer.Argument(help="Target name")] = None,
         paths: Annotated[Optional[List[str]], typer.Argument(help="Source paths to backup", autocompletion=file_path_completer)] = None,
         description: Annotated[Optional[str], typer.Option("--description", "-d", help="Target description")] = None,
@@ -1937,8 +1858,8 @@ def backup_verify(
 # SNAPSHOT COMMANDS (Single snapshot operations)
 # ============================================================================
 
-@snapshot_app.command("show")
-def snapshot_show(
+@snapshots_app.command("show")
+def snapshots_show(
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID")],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
@@ -1999,14 +1920,14 @@ def snapshot_show(
         raise typer.Exit(1)
 
 
-@snapshot_app.command("list")
-def snapshot_list(
+@snapshots_app.command("contents")
+def snapshots_contents(
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID")],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
         path: Annotated[str, typer.Option("--path", help="Path within snapshot to list")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
-    """List contents of snapshot."""
+    """List contents of a specific snapshot."""
     setup_logging(verbose)
 
     try:
@@ -2057,8 +1978,8 @@ def snapshot_list(
         raise typer.Exit(1)
 
 
-@snapshot_app.command("mount")
-def snapshot_mount(
+@snapshots_app.command("mount")
+def snapshots_mount(
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID")],
         path: Annotated[Path, typer.Argument(help="Mount path")],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
@@ -2096,8 +2017,8 @@ def snapshot_mount(
         raise typer.Exit(1)
 
 
-@snapshot_app.command("umount")
-def snapshot_umount(
+@snapshots_app.command("umount")
+def snapshots_umount(
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID")],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
@@ -2126,15 +2047,15 @@ def snapshot_umount(
         raise typer.Exit(1)
 
 
-@snapshot_app.command("find")
-def snapshot_find(
+@snapshots_app.command("find-in")
+def snapshots_find_in(
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID")],
         pattern: Annotated[str, typer.Argument(help="Search pattern")],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
         search_type: Annotated[str, typer.Option("--type", help="Search type: name, content, path")] = "name",
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
-    """Search within this snapshot."""
+    """Search within a specific snapshot."""
     setup_logging(verbose)
 
     try:
@@ -2184,8 +2105,8 @@ def snapshot_find(
         raise typer.Exit(1)
 
 
-@snapshot_app.command("forget")
-def snapshot_forget(
+@snapshots_app.command("forget")
+def snapshots_forget(
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID")],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
@@ -2392,7 +2313,7 @@ def snapshots_diff(
             # Use default repository if available
             repos = service_manager.list_repositories()
             if not repos:
-                show_error_panel("No Repositories", "No repositories configured. Use 'tl config repositories add' to add one.")
+                show_error_panel("No Repositories", "No repositories configured. Use 'tl repos add' to add one.")
                 raise typer.Exit(1)
             repo = repos[0]  # Use first repository as default
             if verbose:
@@ -2562,7 +2483,7 @@ def snapshots_find(
             # Use default repository if available
             repos = service_manager.list_repositories()
             if not repos:
-                show_error_panel("No Repositories", "No repositories configured. Use 'tl config repositories add' to add one.")
+                show_error_panel("No Repositories", "No repositories configured. Use 'tl repos add' to add one.")
                 raise typer.Exit(1)
             repo = repos[0]  # Use first repository as default
             if verbose:
@@ -2725,7 +2646,7 @@ def snapshots_find(
 # REPO COMMANDS (Single repository operations)
 # ============================================================================
 
-@repo_app.command("check")
+@repos_app.command("check")
 def repo_check(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
@@ -2777,7 +2698,7 @@ def repo_check(
         raise typer.Exit(1)
 
 
-@repo_app.command("stats")
+@repos_app.command("stats")
 def repo_stats(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
@@ -2841,7 +2762,7 @@ def repo_stats(
         raise typer.Exit(1)
 
 
-@repo_app.command("unlock")
+@repos_app.command("unlock")
 def repo_unlock(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
@@ -2877,7 +2798,7 @@ def repo_unlock(
         raise typer.Exit(1)
 
 
-@repo_app.command("migrate")
+@repos_app.command("migrate")
 def repo_migrate(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         migration: Annotated[str, typer.Option("--migration", "-m", help="Migration name to apply")] = "upgrade_repo_v2",
@@ -3121,7 +3042,7 @@ def repo_migrate(
         raise typer.Exit(1)
 
 
-@repo_app.command("forget")
+@repos_app.command("forget")
 def repo_forget(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI")] = None,
@@ -3203,52 +3124,9 @@ def repo_forget(
 # REPOS COMMANDS (Multiple repository operations)
 # ============================================================================
 
-@repos_app.command("list")
-def repos_list(
-        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-) -> None:
-    """List all repositories."""
-    setup_logging(verbose)
 
-    try:
-        service_manager = get_cli_service_manager()
-        repositories = service_manager.list_repositories()
-
-        if not repositories:
-            console.print("[yellow]No repositories configured[/yellow]")
-            return
-
-        # Create table for repository listing
-        table = Table(title="Configured Repositories")
-        table.add_column("Name", style="cyan", no_wrap=True)
-        table.add_column("URI", style="green")
-        table.add_column("Type", style="blue")
-        table.add_column("Description", style="white")
-
-        for repo in repositories:
-            repo_type = repo.get('type', 'auto')
-            description = repo.get('description', '')
-            # Handle both 'uri' (modern) and 'location' (legacy) fields
-            location = repo.get('uri', repo.get('location', 'N/A'))
-            table.add_row(
-                    repo['name'],
-                    location,
-                    repo_type,
-                    description
-            )
-
-        console.print(table)
-
-    except Exception as e:
-        show_error_panel("Repository List Error", f"Failed to list repositories: {e}")
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
-    console.print("This command will list all configured repositories.")
-
-
-@repos_app.command("check")
-def repos_check(
+@repos_app.command("check-all")
+def repos_check_all(
         parallel: Annotated[bool, typer.Option("--parallel", "-p", help="Check repositories in parallel")] = True,
         max_workers: Annotated[int, typer.Option("--max-workers", help="Maximum number of parallel workers")] = 4,
         continue_on_error: Annotated[bool, typer.Option("--continue-on-error", help="Continue checking other repositories if one fails")] = True,
@@ -3553,8 +3431,8 @@ def repos_check(
         raise typer.Exit(1)
 
 
-@repos_app.command("stats")
-def repos_stats(
+@repos_app.command("stats-all")
+def repos_stats_all(
         parallel: Annotated[bool, typer.Option("--parallel", "-p", help="Gather statistics in parallel")] = True,
         max_workers: Annotated[int, typer.Option("--max-workers", help="Maximum number of parallel workers")] = 4,
         continue_on_error: Annotated[bool, typer.Option("--continue-on-error", help="Continue gathering stats from other repositories if one fails")] = True,
@@ -3929,8 +3807,8 @@ def repos_stats(
 
 # Config repositories commands (already moved above)
 
-@config_repositories_app.command("show")
-def config_repositories_show(
+@repos_app.command("show")
+def repos_show(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
@@ -4044,8 +3922,8 @@ def config_repositories_show(
 
 # Config target commands (single target operations)
 
-@config_target_app.command("list")
-def config_target_list(
+@targets_app.command("list")
+def targets_list(
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
@@ -4061,7 +3939,7 @@ def config_target_list(
 
         if not targets:
             console.print("[yellow]No backup targets configured[/yellow]")
-            console.print("💡 Use [bold]tl config targets add[/bold] to create a backup target")
+            console.print("💡 Use [bold]tl targets add[/bold] to create a backup target")
             return
 
         # Create table for targets
@@ -4135,8 +4013,8 @@ def config_target_list(
         raise typer.Exit(1)
 
 
-@config_target_app.command("show")
-def config_target_show(
+@targets_app.command("show")
+def targets_show(
         name: Annotated[str, typer.Argument(help="Target name")],
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
@@ -4316,8 +4194,8 @@ def config_target_show(
         raise typer.Exit(1)
 
 
-@config_target_app.command("edit")
-def config_target_edit(
+@targets_app.command("edit")
+def targets_edit(
         name: Annotated[str, typer.Argument(help="Target name")],
         description: Annotated[str, typer.Option("--description", help="New description for the target")] = None,
         repository: Annotated[str, typer.Option("--repository", help="New repository for the target")] = None,
@@ -4340,16 +4218,16 @@ def config_target_edit(
 
     Examples:
         # Change description
-        tl config target myTarget edit --description "New description"
+        tl targets edit myTarget --description "New description"
 
         # Add backup paths
-        tl config target myTarget edit --add-path /home/user/docs --add-path /home/user/photos
+        tl targets edit myTarget --add-path /home/user/docs --add-path /home/user/photos
 
         # Change repository
-        tl config target myTarget edit --repository newRepo
+        tl targets edit myTarget --repository newRepo
 
         # Interactive editing
-        tl config target myTarget edit --interactive
+        tl targets edit myTarget --interactive
     """
     setup_logging(verbose)
 
@@ -4663,8 +4541,8 @@ def config_target_edit(
         raise typer.Exit(1)
 
 
-@config_target_app.command("remove")
-def config_target_remove(
+@targets_app.command("remove")
+def targets_remove(
         name: Annotated[str, typer.Argument(help="Target name to remove", autocompletion=target_name_completer)],
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
@@ -4718,127 +4596,6 @@ def config_target_remove(
 
 
 # Config targets commands (multiple target operations)
-
-@config_targets_app.command("list")
-def config_targets_list(
-        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
-        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-) -> None:
-    """List all targets."""
-    setup_logging(verbose)
-
-    try:
-        from .config.configuration_module import ConfigurationModule
-        config_manager = ConfigurationModule(config_dir=config_dir)
-
-        # Get all backup targets
-        targets = config_manager.get_backup_targets()
-
-        if not targets:
-            console.print("[yellow]No backup targets configured[/yellow]")
-            console.print("💡 Use [bold]tl config targets add[/bold] to create a backup target")
-            return
-
-        # Create table for target listing
-        table = Table(
-                title="🎯 Configured Backup Targets",
-                show_header=True,
-                header_style="bold blue",
-                border_style="blue"
-        )
-        table.add_column("Name", style="cyan", no_wrap=True)
-        table.add_column("Description", style="white")
-        table.add_column("Paths", style="green")
-        table.add_column("Include Patterns", style="blue")
-        table.add_column("Exclude Patterns", style="red")
-
-        for target in targets:
-            name = target.get("name", "unknown")
-            paths = "\n".join(target.get('paths', []))
-
-            # Handle patterns - they might be in different formats
-            patterns = target.get("patterns", {})
-            if isinstance(patterns, dict):
-                include_patterns = patterns.get("include", [])
-                exclude_patterns = patterns.get("exclude", [])
-            else:
-                include_patterns = target.get("include_patterns", [])
-                exclude_patterns = target.get("exclude_patterns", [])
-
-            include_str = "\n".join(include_patterns) if include_patterns else "Default (*)"
-            exclude_str = "\n".join(exclude_patterns) if exclude_patterns else "None"
-
-            table.add_row(
-                    name,
-                    target.get("description", "No description"),
-                    paths,
-                    include_str,
-                    exclude_str
-            )
-
-        console.print()
-        console.print(table)
-        console.print()
-
-    except Exception as e:
-        show_error_panel("Target List Error", f"Failed to list backup targets: {e}")
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
-
-
-@config_targets_app.command("remove")
-def config_targets_remove(
-        name: Annotated[str, typer.Argument(help="Target name to remove", autocompletion=target_name_completer)],
-        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
-        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-        yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
-) -> None:
-    """Remove a backup target from configuration."""
-    setup_logging(verbose)
-
-    try:
-        from .config.configuration_module import ConfigurationModule
-        config_manager = ConfigurationModule(config_dir=config_dir)
-
-        # Get target info before removal
-        target_info = config_manager.get_backup_target(name)
-
-        # Confirm removal unless --yes flag is used
-        if not yes:
-            console.print()
-            console.print(Panel(
-                    f"Target: {name}\n"
-                    f"Description: {getattr(target_info, 'description', None) or 'N/A'}\n"
-                    f"Paths: {', '.join(getattr(target_info, 'paths', []))}\n"
-                    f"Include patterns: {', '.join(getattr(target_info, 'include_patterns', []))}\n"
-                    f"Exclude patterns: {', '.join(getattr(target_info, 'exclude_patterns', []))}",
-                    title="[bold yellow]Target to Remove[/bold yellow]",
-                    border_style="yellow"
-            ))
-
-            if not Confirm.ask("Are you sure you want to remove this backup target?"):
-                console.print("❌ Target removal cancelled.")
-                return
-
-        # Remove target
-        config_manager.remove_backup_target(name)
-
-        console.print()
-        console.print(Panel(
-                f"✅ Backup target '{name}' removed successfully!",
-                title="[bold green]Target Removed[/bold green]",
-                border_style="green"
-        ))
-
-    except ValueError as e:
-        show_error_panel("Target Not Found", str(e))
-        raise typer.Exit(1)
-    except Exception as e:
-        show_error_panel("Configuration Error", f"Failed to remove backup target: {e}")
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
 
 
 # Credential management commands
