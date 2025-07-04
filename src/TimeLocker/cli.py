@@ -341,9 +341,9 @@ def backup_create(
             raise typer.Exit(1)
 
         # Extract backup target configuration
-        with open("/tmp/cli_debug.log", "a") as f:
-            f.write(f"DEBUG: backup_target type: {type(backup_target)}\n")
-            f.write(f"DEBUG: backup_target content: {backup_target}\n")
+        logger = logging.getLogger(__name__)
+        logger.debug(f"backup_target type: {type(backup_target)}")
+        logger.debug(f"backup_target content: {backup_target}")
         sources = [Path(p) for p in backup_target.paths]
         name = name or backup_target.name or target
 
@@ -387,9 +387,8 @@ def backup_create(
         raise typer.Exit(1)
 
     try:
-        print(f"DEBUG: Starting backup execution with repository_uri: {repository_uri}", file=sys.stderr)
-        with open("/tmp/cli_debug.log", "a") as f:
-            f.write(f"DEBUG: Starting backup execution with repository_uri: {repository_uri}\n")
+        logger = logging.getLogger(__name__)
+        logger.debug(f"Starting backup execution with repository_uri: {repository_uri}")
         with Progress(
                 SpinnerColumn(),
                 TextColumn("[progress.description]{task.description}"),
@@ -400,18 +399,14 @@ def backup_create(
 
             # Initialize service manager
             task = progress.add_task("Initializing backup...", total=None)
-            print(f"DEBUG: About to call get_cli_service_manager()", file=sys.stderr)
-            with open("/tmp/cli_debug.log", "a") as f:
-                f.write(f"DEBUG: About to call get_cli_service_manager()\n")
+            logger.debug("About to call get_cli_service_manager()")
             service_manager = get_cli_service_manager()
-            print(f"DEBUG: Service manager created: {type(service_manager)}", file=sys.stderr)
-            with open("/tmp/cli_debug.log", "a") as f:
-                f.write(f"DEBUG: Service manager created: {type(service_manager)}\n")
+            logger.debug(f"Service manager created: {type(service_manager)}")
 
             # Create backup request
             progress.update(task, description="Preparing backup request...")
-            with open("/tmp/cli_debug.log", "a") as f:
-                f.write(f"DEBUG: Creating CLIBackupRequest with sources={sources}, repository_uri={repository_uri}, target_name={target}\n")
+            logger.debug(f"Creating CLIBackupRequest with sources={sources}, repository_uri={repository_uri}, target_name={target}")
+            logger.debug(f"CLI collected password: {'***' if password else 'None'}")
             backup_request = CLIBackupRequest(
                     sources=sources,
                     repository_uri=repository_uri,
@@ -423,16 +418,14 @@ def backup_create(
                     exclude_patterns=exclude or [],
                     dry_run=dry_run
             )
-            with open("/tmp/cli_debug.log", "a") as f:
-                f.write(f"DEBUG: CLIBackupRequest created successfully\n")
+            logger.debug("CLIBackupRequest created successfully")
+            logger.debug(f"CLIBackupRequest password field: {'***' if backup_request.password else 'None'}")
 
             # Execute backup using modern orchestrator
             progress.update(task, description="Executing backup...")
-            with open("/tmp/cli_debug.log", "a") as f:
-                f.write(f"DEBUG: About to call execute_backup_from_cli with repository_uri: {backup_request.repository_uri}\n")
+            logger.debug(f"About to call execute_backup_from_cli with repository_uri: {backup_request.repository_uri}")
             result = service_manager.execute_backup_from_cli(backup_request)
-            with open("/tmp/cli_debug.log", "a") as f:
-                f.write(f"DEBUG: Backup result: {result.status}\n")
+            logger.debug(f"Backup result: {result.status}")
 
             progress.remove_task(task)
 
@@ -2094,10 +2087,85 @@ def snapshot_forget(
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID")],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
 ) -> None:
     """Remove this specific snapshot."""
-    console.print(f"[yellow]🚧 Command stub: snapshot {snapshot_id} forget[/yellow]")
-    console.print("This command will remove the specified snapshot.")
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+
+        # Resolve repository
+        if not repository:
+            repository = service_manager.config_module.get_default_repository_name()
+            if not repository:
+                show_error_panel("Repository Required", "No repository specified and no default repository configured")
+                raise typer.Exit(1)
+
+        repository_uri = service_manager.resolve_repository_uri(repository)
+
+        # Get repository instance
+        repo = service_manager.repository_factory.create_repository(repository_uri)
+
+        # Get snapshot details for confirmation
+        try:
+            snapshot_info = service_manager.snapshot_service.get_snapshot_details(repo, snapshot_id)
+
+            # Show snapshot details
+            table = Table(title=f"Snapshot to Remove: {snapshot_id}")
+            table.add_column("Property", style="cyan")
+            table.add_column("Value", style="white")
+
+            table.add_row("Snapshot ID", snapshot_info.id)
+            table.add_row("Created", snapshot_info.timestamp.strftime("%Y-%m-%d %H:%M:%S"))
+            table.add_row("Hostname", snapshot_info.hostname)
+            table.add_row("Username", snapshot_info.username)
+            table.add_row("Paths", ", ".join(snapshot_info.paths))
+            table.add_row("Size", f"{snapshot_info.size:,} bytes" if snapshot_info.size else "Unknown")
+
+            console.print()
+            console.print(table)
+            console.print()
+
+        except Exception as e:
+            show_error_panel("Snapshot Not Found", f"Could not find snapshot {snapshot_id}: {e}")
+            raise typer.Exit(1)
+
+        # Confirmation prompt
+        if not yes:
+            console.print("[red]⚠️  WARNING: This operation cannot be undone![/red]")
+            if not Confirm.ask(f"Are you sure you want to remove snapshot {snapshot_id}?"):
+                show_info_panel("Operation Cancelled", "Snapshot removal cancelled by user")
+                raise typer.Exit(0)
+
+        # Remove the snapshot
+        with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+        ) as progress:
+            task = progress.add_task("Removing snapshot...", total=None)
+
+            result = service_manager.snapshot_service.forget_snapshot(repo, snapshot_id)
+
+            progress.remove_task(task)
+
+        # Show success message
+        show_success_panel(
+                "Snapshot Removed Successfully!",
+                f"✅ Snapshot {snapshot_id} has been removed from the repository\n"
+                f"📍 Repository: {repository_uri}\n"
+                f"🗑️  Operation completed successfully"
+        )
+
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Snapshot removal was cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Snapshot Removal Error", f"Failed to remove snapshot: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 # ============================================================================
@@ -2544,8 +2612,110 @@ def config_repositories_show(
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Show repository config details."""
-    console.print(f"[yellow]🚧 Command stub: config repositories show {name}[/yellow]")
-    console.print("This command will show configuration details for the specified repository.")
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+
+        # Get repository configuration
+        try:
+            repo_config = service_manager.get_repository_by_name(name)
+        except Exception as e:
+            show_error_panel("Repository Not Found", f"Repository '{name}' not found: {e}")
+            raise typer.Exit(1)
+
+        # Create detailed information table
+        table = Table(title=f"Repository Configuration: {name}")
+        table.add_column("Property", style="cyan", no_wrap=True)
+        table.add_column("Value", style="white")
+
+        # Basic information
+        table.add_row("Name", repo_config.get('name', 'N/A'))
+
+        # Location/URI (handle both modern 'uri' and legacy 'location' fields)
+        location = repo_config.get('uri', repo_config.get('location', 'N/A'))
+        table.add_row("Location/URI", location)
+
+        # Repository type
+        repo_type = repo_config.get('type', 'auto')
+        table.add_row("Type", repo_type)
+
+        # Description
+        description = repo_config.get('description', 'No description')
+        table.add_row("Description", description)
+
+        # Status information
+        enabled = repo_config.get('enabled', True)
+        table.add_row("Enabled", "✅ Yes" if enabled else "❌ No")
+
+        read_only = repo_config.get('read_only', False)
+        table.add_row("Read Only", "🔒 Yes" if read_only else "✏️  No")
+
+        # Security information
+        has_password = bool(repo_config.get('password') or repo_config.get('password_file') or repo_config.get('password_command'))
+        table.add_row("Password Configured", "🔐 Yes" if has_password else "⚠️  No")
+
+        # Advanced settings
+        if repo_config.get('cache_dir'):
+            table.add_row("Cache Directory", repo_config['cache_dir'])
+
+        if repo_config.get('compression'):
+            table.add_row("Compression", repo_config['compression'])
+
+        if repo_config.get('pack_size'):
+            table.add_row("Pack Size", f"{repo_config['pack_size']} MB")
+
+        # Tags
+        tags = repo_config.get('tags', [])
+        if tags:
+            table.add_row("Tags", ", ".join(tags))
+
+        # Creation info
+        if repo_config.get('created'):
+            table.add_row("Created", repo_config['created'])
+
+        console.print()
+        console.print(table)
+
+        # Show additional details if verbose
+        if verbose:
+            console.print()
+
+            # Password configuration details
+            password_panel_content = []
+            if repo_config.get('password'):
+                password_panel_content.append("🔑 Direct password: Configured")
+            if repo_config.get('password_file'):
+                password_panel_content.append(f"📄 Password file: {repo_config['password_file']}")
+            if repo_config.get('password_command'):
+                password_panel_content.append(f"⚙️  Password command: {repo_config['password_command']}")
+
+            if password_panel_content:
+                password_panel = Panel(
+                        "\n".join(password_panel_content),
+                        title="Password Configuration",
+                        border_style="blue"
+                )
+                console.print(password_panel)
+
+            # Raw configuration (for debugging)
+            console.print()
+            raw_config_text = json.dumps(repo_config, indent=2, default=str)
+            raw_panel = Panel(
+                    raw_config_text,
+                    title="Raw Configuration (Debug)",
+                    border_style="dim"
+            )
+            console.print(raw_panel)
+
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Repository configuration display was cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Configuration Error", f"Failed to show repository configuration: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 # Config target commands (single target operations)

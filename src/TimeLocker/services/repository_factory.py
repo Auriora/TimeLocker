@@ -132,13 +132,17 @@ class RepositoryFactory(IRepositoryFactory):
 
         try:
             # Create repository instance with appropriate parameters
+            logger.debug(f"Repository factory received password: {'***' if password else 'None'}")
             if password:
                 kwargs['password'] = password
+                logger.debug("Password added to kwargs")
 
             # Use from_parsed_uri class method if available, otherwise fall back to constructor
             if hasattr(repository_class, 'from_parsed_uri'):
+                logger.debug(f"Using from_parsed_uri with kwargs: {list(kwargs.keys())}")
                 repository = repository_class.from_parsed_uri(parsed, **kwargs)
             else:
+                logger.debug(f"Using constructor with kwargs: {list(kwargs.keys())}")
                 repository = repository_class(uri, **kwargs)
 
             logger.info(f"Created {repository_class.__name__} for URI: {uri}")

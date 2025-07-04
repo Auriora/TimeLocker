@@ -79,14 +79,28 @@ class ISnapshotService(ABC):
                            pattern: str, search_type: str = 'name') -> List[SnapshotSearchResult]:
         """
         Search for files/content within a snapshot
-        
+
         Args:
             repository: Repository containing the snapshot
             snapshot_id: ID of the snapshot to search
             pattern: Search pattern (glob for names, regex for content)
             search_type: Type of search ('name', 'content', 'path')
-            
+
         Returns:
             List of search results
+        """
+        pass
+
+    @abstractmethod
+    def forget_snapshot(self, repository: BackupRepository, snapshot_id: str) -> SnapshotResult:
+        """
+        Remove a specific snapshot from the repository
+
+        Args:
+            repository: Repository containing the snapshot
+            snapshot_id: ID of the snapshot to remove
+
+        Returns:
+            SnapshotResult: Result of the forget operation
         """
         pass

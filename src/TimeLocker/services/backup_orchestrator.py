@@ -83,25 +83,29 @@ class BackupOrchestrator(IBackupOrchestrator):
                        repository_name: str,
                        target_names: List[str],
                        tags: Optional[List[str]] = None,
-                       dry_run: bool = False) -> BackupResult:
-        with open("/tmp/orchestrator_debug.log", "a") as f:
-            f.write(f"DEBUG: execute_backup called with repository_name='{repository_name}', target_names={target_names}\n")
+                       dry_run: bool = False,
+                       password: Optional[str] = None) -> BackupResult:
+        logger = logging.getLogger(__name__)
+        logger.debug(f"execute_backup called with repository_name='{repository_name}', target_names={target_names}")
         """
         Execute a backup operation.
-        
+
         Args:
             repository_name: Name of repository to backup to
             target_names: Names of backup targets to include
             tags: Optional tags to apply to backup
             dry_run: Whether to perform a dry run without actual backup
-            
+            password: Optional password for repository access
+
         Returns:
             BackupResult with operation details
-            
+
         Raises:
             BackupOrchestratorError: If backup cannot be executed
         """
         operation_id = str(uuid.uuid4())
+
+        logger.debug(f"execute_backup received password: {'***' if password else 'None'}")
 
         # Create initial backup result
         backup_result = BackupResult(
@@ -109,7 +113,7 @@ class BackupOrchestrator(IBackupOrchestrator):
                 repository_name=repository_name,
                 target_names=target_names.copy(),
                 start_time=time.time(),
-                metadata={'operation_id': operation_id, 'dry_run': dry_run, 'tags': tags or []}
+                metadata={'operation_id': operation_id, 'dry_run': dry_run, 'tags': tags or [], 'password': password}
         )
 
         # Track the operation
@@ -236,7 +240,10 @@ class BackupOrchestrator(IBackupOrchestrator):
                 return backup_result
 
             # Create repository instance
-            repository = self._repository_factory.create_repository(repo_config['uri'])
+            password = backup_result.metadata.get('password')
+            logger.debug(f"Password retrieved from metadata: {'***' if password else 'None'}")
+            logger.debug(f"Repository URI: {repo_config['uri']}")
+            repository = self._repository_factory.create_repository(repo_config['uri'], password=password)
 
             # Get backup targets
             targets = self._get_backup_targets(backup_result.target_names)
@@ -271,9 +278,8 @@ class BackupOrchestrator(IBackupOrchestrator):
         targets = []
         target_configs = self._configuration_provider.get_backup_targets()
 
-        with open("/tmp/orchestrator_debug.log", "a") as f:
-            f.write(f"DEBUG: _get_backup_targets called with target_names: {target_names}\n")
-            f.write(f"DEBUG: Available target configs: {[t.get('name', 'NO_NAME') for t in target_configs]}\n")
+        logger.debug(f"_get_backup_targets called with target_names: {target_names}")
+        logger.debug(f"Available target configs: {[t.get('name', 'NO_NAME') for t in target_configs]}")
 
         for target_name in target_names:
             target_config = next(
@@ -281,8 +287,7 @@ class BackupOrchestrator(IBackupOrchestrator):
                     None
             )
 
-            with open("/tmp/orchestrator_debug.log", "a") as f:
-                f.write(f"DEBUG: Looking for target '{target_name}', found config: {target_config}\n")
+            logger.debug(f"Looking for target '{target_name}', found config: {target_config}")
 
             if not target_config:
                 raise InvalidBackupConfigurationError(f"Backup target '{target_name}' not found")
@@ -290,15 +295,13 @@ class BackupOrchestrator(IBackupOrchestrator):
             # Create FileSelection from target configuration
             selection = FileSelection()
 
-            with open("/tmp/orchestrator_debug.log", "a") as f:
-                f.write(f"DEBUG: Creating FileSelection for target '{target_name}'\n")
-                f.write(f"DEBUG: Target config paths: {target_config.get('paths', [])}\n")
+            logger.debug(f"Creating FileSelection for target '{target_name}'")
+            logger.debug(f"Target config paths: {target_config.get('paths', [])}")
 
             # Add paths to selection
             for path in target_config['paths']:
                 selection.add_path(path, SelectionType.INCLUDE)
-                with open("/tmp/orchestrator_debug.log", "a") as f:
-                    f.write(f"DEBUG: Added path to selection: {path}\n")
+                logger.debug(f"Added path to selection: {path}")
 
             # Add exclude patterns
             for pattern in target_config.get('exclude_patterns', []):
@@ -308,9 +311,8 @@ class BackupOrchestrator(IBackupOrchestrator):
             for pattern in target_config.get('include_patterns', []):
                 selection.add_pattern(pattern, SelectionType.INCLUDE)
 
-            with open("/tmp/orchestrator_debug.log", "a") as f:
-                f.write(f"DEBUG: FileSelection created, about to create BackupTarget\n")
-                f.write(f"DEBUG: selection object: {selection}\n")
+            logger.debug("FileSelection created, about to create BackupTarget")
+            logger.debug(f"selection object: {selection}")
 
             # Create BackupTarget instance with proper FileSelection
             target = BackupTarget(
@@ -319,8 +321,7 @@ class BackupOrchestrator(IBackupOrchestrator):
                     tags=target_config.get('tags', [])
             )
 
-            with open("/tmp/orchestrator_debug.log", "a") as f:
-                f.write(f"DEBUG: BackupTarget created successfully for '{target_name}'\n")
+            logger.debug(f"BackupTarget created successfully for '{target_name}'")
 
             targets.append(target)
 

@@ -53,6 +53,7 @@ class ResticRepository(BackupRepository):
         logger.info("Detected restic version: %s", self._restic_version)  # from logging import logger
         self._location = location
         self._explicit_password = password
+        logger.debug(f"ResticRepository initialized with explicit password: {'***' if password else 'None'}")
         self._credential_manager = credential_manager
         self._cached_env = None
         self._repository_id = self._generate_repository_id()
@@ -107,16 +108,21 @@ class ResticRepository(BackupRepository):
     def password(self) -> Optional[str]:
         """Get repository password from explicit setting, credential manager, or environment"""
         # Priority: explicit password > credential manager > environment variable
+        logger.debug(f"password() called - explicit password: {'***' if self._explicit_password else 'None'}")
         if self._explicit_password:
+            logger.debug("Returning explicit password")
             return self._explicit_password
 
         if self._credential_manager and not self._credential_manager.is_locked():
             stored_password = self._credential_manager.get_repository_password(self._repository_id)
             if stored_password:
+                logger.debug("Returning credential manager password")
                 return stored_password
 
         # Check TimeLocker environment variable first, then fall back to RESTIC_PASSWORD
-        return os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
+        env_password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
+        logger.debug(f"Returning environment password: {'***' if env_password else 'None'}")
+        return env_password
 
     def store_password(self, password: str) -> bool:
         """Store password in credential manager if available"""

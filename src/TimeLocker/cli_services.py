@@ -87,7 +87,6 @@ class CLIServiceManager:
     def __init__(self):
         """Initialize CLI service manager with dependency injection"""
         import sys
-        print("DEBUG: CLIServiceManager.__init__ called", file=sys.stderr)
         # Initialize modern services
         self._repository_factory = RepositoryFactory()
         self._validation_service = ValidationService()
@@ -201,17 +200,13 @@ class CLIServiceManager:
         Returns:
             Repository name if found, otherwise the URI itself
         """
-        print(f"DEBUG: Looking for repository name for URI: {repository_uri}")
         try:
             # Try modern config service first
             if self._config_service is not None:
                 repositories = self._config_service.get_repositories()
-                print(f"DEBUG: Found {len(repositories)} repositories in config service")
                 for repo in repositories:
                     repo_uri = repo.get('uri')
-                    print(f"DEBUG: Checking repo '{repo.get('name')}' with URI '{repo_uri}'")
                     if repo_uri == repository_uri:
-                        print(f"DEBUG: Found matching repository name: {repo['name']}")
                         return repo['name']
 
             # Fallback to configuration module
@@ -241,41 +236,34 @@ class CLIServiceManager:
         Returns:
             BackupResult with operation details
         """
-        with open("/tmp/timelocker_debug.log", "a") as f:
-            f.write(f"DEBUG: execute_backup_from_cli called with repository_uri: {request.repository_uri}\n")
+        logger = logging.getLogger(__name__)
+        logger.debug(f"execute_backup_from_cli called with repository_uri: {request.repository_uri}")
+        logger.debug(f"CLI service received password: {'***' if request.password else 'None'}")
         try:
             # Resolve repository URI
             repository_uri = self.resolve_repository_uri(request.repository_uri)
-            with open("/tmp/timelocker_debug.log", "a") as f:
-                f.write(f"DEBUG: Resolved repository URI: {repository_uri}\n")
+            logger.debug(f"Resolved repository URI: {repository_uri}")
 
             # Find repository name that matches this URI
             repository_name = self._find_repository_name_by_uri(repository_uri)
-            with open("/tmp/timelocker_debug.log", "a") as f:
-                f.write(f"DEBUG: Using repository name for backup: {repository_name}\n")
+            logger.debug(f"Using repository name for backup: {repository_name}")
 
             # If using a configured target, get it from configuration
-            with open("/tmp/timelocker_debug.log", "a") as f:
-                f.write(f"DEBUG: Checking if target_name exists: {request.target_name}\n")
+            logger.debug(f"Checking if target_name exists: {request.target_name}")
             if request.target_name:
-                with open("/tmp/timelocker_debug.log", "a") as f:
-                    f.write(f"DEBUG: Target name found: {request.target_name}\n")
+                logger.debug(f"Target name found: {request.target_name}")
                 target_names = [request.target_name]
 
                 # Ensure target exists in configuration
-                with open("/tmp/timelocker_debug.log", "a") as f:
-                    f.write(f"DEBUG: About to call get_backup_targets()\n")
+                logger.debug("About to call get_backup_targets()")
                 targets = self._config_service.get_backup_targets()
-                with open("/tmp/timelocker_debug.log", "a") as f:
-                    f.write(f"DEBUG: get_backup_targets() returned {len(targets)} targets\n")
+                logger.debug(f"get_backup_targets() returned {len(targets)} targets")
 
-                with open("/tmp/cli_service_debug.log", "a") as f:
-                    f.write(f"DEBUG: Looking for target '{request.target_name}'\n")
-                    f.write(f"DEBUG: Available targets: {[t.get('name', 'NO_NAME') for t in targets]}\n")
+                logger.debug(f"Looking for target '{request.target_name}'")
+                logger.debug(f"Available targets: {[t.get('name', 'NO_NAME') for t in targets]}")
 
                 if not any(t['name'] == request.target_name for t in targets):
-                    with open("/tmp/cli_service_debug.log", "a") as f:
-                        f.write(f"DEBUG: Target '{request.target_name}' not found, creating temporary target\n")
+                    logger.debug(f"Target '{request.target_name}' not found, creating temporary target")
                     # Create temporary target configuration
                     target_config = {
                             'name':             request.target_name,
@@ -285,28 +273,26 @@ class CLIServiceManager:
                     }
                     self._config_service.add_backup_target(target_config)
                 else:
-                    with open("/tmp/cli_service_debug.log", "a") as f:
-                        f.write(f"DEBUG: Target '{request.target_name}' found in configuration\n")
+                    logger.debug(f"Target '{request.target_name}' found in configuration")
 
-                with open("/tmp/cli_service_debug.log", "a") as f:
-                    f.write(f"DEBUG: About to call backup orchestrator with repository_name='{repository_name}', target_names={target_names}\n")
+                logger.debug(f"About to call backup orchestrator with repository_name='{repository_name}', target_names={target_names}")
 
                 return self._backup_orchestrator.execute_backup(
                         repository_name=repository_name,
                         target_names=target_names,
                         tags=request.tags,
-                        dry_run=request.dry_run
+                        dry_run=request.dry_run,
+                        password=request.password
                 )
             else:
                 # Create ad-hoc backup target
                 return self._execute_adhoc_backup(request, repository_uri, repository_name)
 
         except Exception as e:
-            with open("/tmp/timelocker_debug.log", "a") as f:
-                f.write(f"DEBUG: Exception caught in CLI service: {e}\n")
-                f.write(f"DEBUG: Exception type: {type(e)}\n")
-                import traceback
-                f.write(f"DEBUG: Traceback: {traceback.format_exc()}\n")
+            logger.debug(f"Exception caught in CLI service: {e}")
+            logger.debug(f"Exception type: {type(e)}")
+            import traceback
+            logger.debug(f"Traceback: {traceback.format_exc()}")
             logger.error(f"CLI backup execution failed: {e}")
             # Return failed result
             return BackupResult(
@@ -338,7 +324,8 @@ class CLIServiceManager:
                     repository_name=repository_name,
                     target_names=[target_name],
                     tags=request.tags,
-                    dry_run=request.dry_run
+                    dry_run=request.dry_run,
+                    password=request.password
             )
         finally:
             # Clean up temporary target
@@ -387,6 +374,38 @@ class CLIServiceManager:
         # Use configuration module
         repos = self._config_module.get_repositories()
         return repos
+
+    def get_repository_by_name(self, name: str) -> Dict[str, Any]:
+        """
+        Get a specific repository configuration by name.
+
+        Args:
+            name: Repository name
+
+        Returns:
+            Repository configuration dictionary
+
+        Raises:
+            ConfigurationError: If repository is not found
+        """
+        if self._config_service is not None:
+            try:
+                # Try modern configuration service first
+                return self._config_service.get_repository_by_name(name)
+            except Exception:
+                # Fallback to configuration module
+                pass
+
+        # Use configuration module
+        try:
+            repo_config = self._config_module.get_repository(name)
+            # Convert to dictionary format
+            if hasattr(repo_config, '__dict__'):
+                return {**repo_config.__dict__, 'name': name}
+            else:
+                return {'name': name, **repo_config}
+        except Exception as e:
+            raise ConfigurationError(f"Repository '{name}' not found: {e}")
 
     def list_backup_targets(self) -> List[Dict[str, Any]]:
         """

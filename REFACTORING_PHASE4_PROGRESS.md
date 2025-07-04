@@ -16,8 +16,9 @@ Phase 4 focuses on **Advanced Services and Feature Completion**, implementing th
     - ✅ `mount_snapshot()` - Mount snapshot as filesystem
     - ✅ `unmount_snapshot()` - Unmount mounted snapshots
     - ✅ `search_in_snapshot()` - Search for files within snapshots
-    - ✅ Comprehensive error handling and validation
-    - ✅ Performance monitoring integration
+    - ✅ `forget_snapshot()` - Remove specific snapshots from repository
+        - ✅ Comprehensive error handling and validation
+        - ✅ Performance monitoring integration
 
 ### 2. **Advanced Repository Service Implementation**
 
@@ -73,13 +74,13 @@ Phase 4 focuses on **Advanced Services and Feature Completion**, implementing th
 
 ### 1. **Missing CLI Commands** (8 commands remaining)
 
-- ❌ `snapshot forget` - Remove specific snapshot
+- ✅ `snapshot forget` - Remove specific snapshot
 - ❌ `snapshots diff` - Compare two snapshots
 - ❌ `snapshots find` - Search across all snapshots
 - ❌ `repo migrate` - Repository format migration
 - ❌ `repos check` - Check all repositories
 - ❌ `repos stats` - Statistics for all repositories
-- ❌ `config repositories show` - Show repository configuration
+- ✅ `config repositories show` - Show repository configuration
 - ❌ `config target show/edit/remove` - Target configuration management
 
 ### 2. **Advanced Features to Complete**
@@ -105,8 +106,8 @@ Phase 4 focuses on **Advanced Services and Feature Completion**, implementing th
     - ✅ RepositoryService (100% core features)
     - ❌ Enhanced ConfigurationService (pending)
 
-- **CLI Commands Implemented**: 9/17 (53% complete)
-    - ✅ Snapshot commands: 5/6 (83% complete)
+- **CLI Commands Implemented**: 11/17 (65% complete)
+    - ✅ Snapshot commands: 6/6 (100% complete)
     - ✅ Repository commands: 4/5 (80% complete)
     - ❌ Multi-repo commands: 0/2 (0% complete)
     - ❌ Config commands: 0/4 (0% complete)

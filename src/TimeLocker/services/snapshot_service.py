@@ -332,6 +332,62 @@ class SnapshotService(ISnapshotService):
                 logger.error(f"Failed to search in snapshot {snapshot_id}: {e}")
                 raise TimeLockerInterfaceError(f"Failed to search in snapshot: {e}")
 
+    def forget_snapshot(self, repository: BackupRepository, snapshot_id: str) -> SnapshotResult:
+        """
+        Remove a specific snapshot from the repository
+
+        Args:
+            repository: Repository containing the snapshot
+            snapshot_id: ID of the snapshot to remove
+
+        Returns:
+            SnapshotResult: Result of the forget operation
+
+        Raises:
+            TimeLockerInterfaceError: If snapshot cannot be found or removed
+        """
+        with self.performance_monitor.track_operation("forget_snapshot"):
+            try:
+                # Validate inputs
+                self.validation_service.validate_snapshot_id(snapshot_id)
+
+                # Check if snapshot exists
+                snapshots = repository.list_snapshots()
+                snapshot = next((s for s in snapshots if s.id.startswith(snapshot_id)), None)
+
+                if not snapshot:
+                    raise TimeLockerInterfaceError(f"Snapshot {snapshot_id} not found in repository")
+
+                # Check if snapshot is currently mounted
+                if snapshot_id in self._mounted_snapshots:
+                    raise TimeLockerInterfaceError(f"Cannot remove mounted snapshot {snapshot_id}. Unmount it first.")
+
+                # Use restic forget command to remove the snapshot
+                cmd = ['restic', '-r', repository.location, 'forget', snapshot.id]
+
+                # Set environment for repository access
+                env = os.environ.copy()
+                if hasattr(repository, 'password'):
+                    env['RESTIC_PASSWORD'] = repository.password
+
+                result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+
+                if result.returncode != 0:
+                    raise TimeLockerInterfaceError(f"Failed to remove snapshot: {result.stderr}")
+
+                logger.info(f"Successfully removed snapshot {snapshot_id}")
+
+                return SnapshotResult(
+                        status=OperationStatus.SUCCESS,
+                        snapshot_id=snapshot_id,
+                        message=f"Snapshot {snapshot_id} removed successfully",
+                        details={'removed_snapshot_id': snapshot.id}
+                )
+
+            except Exception as e:
+                logger.error(f"Failed to remove snapshot {snapshot_id}: {e}")
+                raise TimeLockerInterfaceError(f"Failed to remove snapshot: {e}")
+
     def _get_snapshot_stats(self, repository: BackupRepository, snapshot) -> Dict[str, Any]:
         """Get detailed statistics for a snapshot"""
         try:
