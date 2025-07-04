@@ -438,6 +438,91 @@ class SnapshotService(ISnapshotService):
                 logger.error(f"Failed to compare snapshots {snapshot_id1} and {snapshot_id2}: {e}")
                 raise TimeLockerInterfaceError(f"Failed to compare snapshots: {e}")
 
+    def search_across_snapshots(self, repository: BackupRepository, pattern: str,
+                                search_type: str = 'name', host: Optional[str] = None,
+                                tags: Optional[List[str]] = None) -> List[SnapshotSearchResult]:
+        """
+        Search for files/content across all snapshots in repository
+
+        Args:
+            repository: Repository to search in
+            pattern: Search pattern (glob for names, regex for content)
+            search_type: Type of search ('name', 'content', 'path')
+            host: Optional host filter
+            tags: Optional tag filters
+
+        Returns:
+            List of search results across all snapshots
+
+        Raises:
+            TimeLockerInterfaceError: If search cannot be performed
+        """
+        with self.performance_module.track_operation("search_across_snapshots"):
+            try:
+                results = []
+
+                if search_type == 'name':
+                    # Search by filename using restic find across all snapshots
+                    cmd = ['restic', '-r', repository.location, 'find', pattern]
+
+                    # Add optional filters
+                    if host:
+                        cmd.extend(['--host', host])
+
+                    if tags:
+                        for tag in tags:
+                            cmd.extend(['--tag', tag])
+
+                    # Set environment for repository access
+                    env = os.environ.copy()
+                    if hasattr(repository, 'password'):
+                        env['RESTIC_PASSWORD'] = repository.password
+
+                    result = subprocess.run(cmd, capture_output=True, text=True, env=env)
+
+                    if result.returncode == 0:
+                        # Parse output - restic find shows snapshot_id:path format
+                        for line in result.stdout.strip().split('\n'):
+                            if line and ':' in line:
+                                try:
+                                    snapshot_id, file_path = line.split(':', 1)
+                                    results.append(SnapshotSearchResult(
+                                            snapshot_id=snapshot_id.strip(),
+                                            file_path=file_path.strip(),
+                                            match_type='name'
+                                    ))
+                                except ValueError:
+                                    # Skip malformed lines
+                                    continue
+                    elif result.returncode != 0 and result.stderr:
+                        # Only raise error if there's actual stderr content
+                        if "no matching files found" not in result.stderr.lower():
+                            raise TimeLockerInterfaceError(f"Search failed: {result.stderr}")
+
+                elif search_type in ['content', 'path']:
+                    # For content/path search across all snapshots, we need to:
+                    # 1. Get all snapshots
+                    # 2. Search in each one individually
+                    logger.info(f"Performing {search_type} search across all snapshots")
+
+                    snapshots = repository.snapshots()
+                    for snapshot in snapshots:
+                        try:
+                            snapshot_results = self.search_in_snapshot(
+                                    repository, snapshot.id, pattern, search_type
+                            )
+                            results.extend(snapshot_results)
+                        except Exception as e:
+                            logger.warning(f"Failed to search in snapshot {snapshot.id}: {e}")
+                            continue
+
+                logger.info(f"Found {len(results)} matches for pattern '{pattern}' across all snapshots")
+                return results
+
+            except Exception as e:
+                logger.error(f"Failed to search across snapshots: {e}")
+                raise TimeLockerInterfaceError(f"Failed to search across snapshots: {e}")
+
     def _parse_diff_output(self, diff_output: str) -> SnapshotDiffResult:
         """Parse restic diff command output into structured result"""
         added_files = []

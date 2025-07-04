@@ -2437,11 +2437,186 @@ def snapshots_diff(
 def snapshots_find(
         pattern: Annotated[str, typer.Argument(help="Search pattern")],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+        search_type: Annotated[str, typer.Option("--type", help="Search type: name, content, path")] = "name",
+        host: Annotated[str, typer.Option("--host", help="Filter by host")] = None,
+        tags: Annotated[List[str], typer.Option("--tag", help="Filter by tags (can be specified multiple times)")] = None,
+        limit: Annotated[int, typer.Option("--limit", help="Limit number of results")] = 100,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Search across all snapshots."""
-    console.print(f"[yellow]🚧 Command stub: snapshots find {pattern}[/yellow]")
-    console.print("This command will search for files matching the pattern across all snapshots.")
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+
+        # Get repository
+        if repository:
+            try:
+                repo = service_manager.get_repository_by_name(repository)
+            except Exception as e:
+                show_error_panel("Repository Not Found", f"Repository '{repository}' not found: {e}")
+                raise typer.Exit(1)
+        else:
+            # Use default repository if available
+            repos = service_manager.list_repositories()
+            if not repos:
+                show_error_panel("No Repositories", "No repositories configured. Use 'tl config repositories add' to add one.")
+                raise typer.Exit(1)
+            repo = repos[0]  # Use first repository as default
+            if verbose:
+                console.print(f"[dim]Using default repository: {repo.get('name', 'unnamed')}[/dim]")
+
+        # Get snapshot service
+        snapshot_service = service_manager.get_snapshot_service()
+
+        # Perform search across all snapshots
+        console.print(f"[cyan]Searching for pattern '[bold]{pattern}[/bold]' across all snapshots...[/cyan]")
+
+        try:
+            search_results = snapshot_service.search_across_snapshots(
+                    repo, pattern, search_type=search_type, host=host, tags=tags
+            )
+        except Exception as e:
+            show_error_panel("Search Failed", f"Failed to search across snapshots: {e}")
+            raise typer.Exit(1)
+
+        # Display results
+        if not search_results:
+            console.print()
+            console.print("[yellow]No matches found.[/yellow]")
+            console.print(f"[dim]Searched for pattern '{pattern}' using {search_type} search[/dim]")
+            if host:
+                console.print(f"[dim]Host filter: {host}[/dim]")
+            if tags:
+                console.print(f"[dim]Tag filters: {', '.join(tags)}[/dim]")
+            return
+
+        # Limit results if requested
+        total_results = len(search_results)
+        if limit and total_results > limit:
+            search_results = search_results[:limit]
+            truncated = True
+        else:
+            truncated = False
+
+        # Group results by snapshot for better display
+        results_by_snapshot = {}
+        for result in search_results:
+            snapshot_id = result.snapshot_id
+            if snapshot_id not in results_by_snapshot:
+                results_by_snapshot[snapshot_id] = []
+            results_by_snapshot[snapshot_id].append(result)
+
+        console.print()
+        console.print(f"[bold green]Found {total_results} matches in {len(results_by_snapshot)} snapshots[/bold green]")
+        if truncated:
+            console.print(f"[yellow]Showing first {limit} results (use --limit to adjust)[/yellow]")
+        console.print()
+
+        # Create results table
+        table = Table(title=f"Search Results for '{pattern}'")
+        table.add_column("Snapshot", style="cyan", no_wrap=True, width=12)
+        table.add_column("File Path", style="white")
+        table.add_column("Match Type", style="green", no_wrap=True)
+
+        # Add results to table
+        for snapshot_id in sorted(results_by_snapshot.keys()):
+            snapshot_results = results_by_snapshot[snapshot_id]
+
+            # Show snapshot ID only for first result in each snapshot
+            first_result = True
+            for result in snapshot_results:
+                snapshot_display = snapshot_id[:12] if first_result else ""
+                table.add_row(
+                        snapshot_display,
+                        result.file_path,
+                        result.match_type
+                )
+                first_result = False
+
+        console.print(table)
+
+        # Show summary statistics
+        if verbose or len(results_by_snapshot) > 1:
+            console.print()
+
+            # Snapshot summary
+            snapshot_summary = Table(title="Results by Snapshot")
+            snapshot_summary.add_column("Snapshot ID", style="cyan", no_wrap=True)
+            snapshot_summary.add_column("Matches", style="white", justify="right")
+            snapshot_summary.add_column("Sample Files", style="dim")
+
+            for snapshot_id in sorted(results_by_snapshot.keys()):
+                snapshot_results = results_by_snapshot[snapshot_id]
+                sample_files = [r.file_path for r in snapshot_results[:3]]
+                sample_text = ", ".join(sample_files)
+                if len(snapshot_results) > 3:
+                    sample_text += f", ... (+{len(snapshot_results) - 3} more)"
+
+                snapshot_summary.add_row(
+                        snapshot_id[:12],
+                        str(len(snapshot_results)),
+                        sample_text
+                )
+
+            console.print(snapshot_summary)
+
+        # Verbose output
+        if verbose:
+            console.print()
+
+            # Search details
+            search_details = [
+                    f"Pattern: {pattern}",
+                    f"Search type: {search_type}",
+                    f"Total results: {total_results}",
+                    f"Snapshots searched: {len(results_by_snapshot)}",
+                    f"Repository: {repo.get('name', 'unnamed')}"
+            ]
+
+            if host:
+                search_details.append(f"Host filter: {host}")
+            if tags:
+                search_details.append(f"Tag filters: {', '.join(tags)}")
+            if truncated:
+                search_details.append(f"Results limited to: {limit}")
+
+            search_panel = Panel(
+                    "\n".join(search_details),
+                    title="Search Details",
+                    border_style="blue"
+            )
+            console.print(search_panel)
+
+            # File type analysis
+            if search_type == 'name':
+                file_extensions = {}
+                for result in search_results:
+                    path = result.file_path
+                    if '.' in path:
+                        ext = path.split('.')[-1].lower()
+                        file_extensions[ext] = file_extensions.get(ext, 0) + 1
+
+                if file_extensions:
+                    ext_summary = []
+                    for ext, count in sorted(file_extensions.items(), key=lambda x: x[1], reverse=True)[:10]:
+                        ext_summary.append(f".{ext}: {count}")
+
+                    ext_panel = Panel(
+                            "\n".join(ext_summary),
+                            title="File Types Found",
+                            border_style="green"
+                    )
+                    console.print(ext_panel)
+
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Search operation was cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Search Error", f"Failed to search across snapshots: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 # ============================================================================

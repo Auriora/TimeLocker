@@ -121,3 +121,22 @@ class ISnapshotService(ABC):
             SnapshotDiffResult: Detailed comparison results
         """
         pass
+
+    @abstractmethod
+    def search_across_snapshots(self, repository: BackupRepository, pattern: str,
+                                search_type: str = 'name', host: Optional[str] = None,
+                                tags: Optional[List[str]] = None) -> List[SnapshotSearchResult]:
+        """
+        Search for files/content across all snapshots in repository
+
+        Args:
+            repository: Repository to search in
+            pattern: Search pattern (glob for names, regex for content)
+            search_type: Type of search ('name', 'content', 'path')
+            host: Optional host filter
+            tags: Optional tag filters
+
+        Returns:
+            List of search results across all snapshots
+        """
+        pass
