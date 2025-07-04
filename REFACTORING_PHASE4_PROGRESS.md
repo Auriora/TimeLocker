@@ -81,7 +81,8 @@ Phase 4 focuses on **Advanced Services and Feature Completion**, implementing th
 - ❌ `repos check` - Check all repositories
 - ❌ `repos stats` - Statistics for all repositories
 - ✅ `config repositories show` - Show repository configuration
-- ❌ `config target show/edit/remove` - Target configuration management
+- ✅ `config target show` - Show target configuration
+- ❌ `config target edit/remove` - Target configuration management
 
 ### 2. **Advanced Features to Complete**
 
@@ -106,7 +107,7 @@ Phase 4 focuses on **Advanced Services and Feature Completion**, implementing th
     - ✅ RepositoryService (100% core features)
     - ❌ Enhanced ConfigurationService (pending)
 
-- **CLI Commands Implemented**: 11/17 (65% complete)
+- **CLI Commands Implemented**: 12/17 (71% complete)
     - ✅ Snapshot commands: 6/6 (100% complete)
     - ✅ Repository commands: 4/5 (80% complete)
     - ❌ Multi-repo commands: 0/2 (0% complete)

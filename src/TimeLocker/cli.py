@@ -2804,8 +2804,155 @@ def config_target_show(
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Show target details."""
-    console.print(f"[yellow]🚧 Command stub: config target {name} show[/yellow]")
-    console.print("This command will show details for the specified backup target.")
+    setup_logging(verbose)
+
+    try:
+        service_manager = get_cli_service_manager()
+
+        # Get backup target configuration
+        try:
+            target_config = service_manager.get_backup_target_by_name(name)
+        except Exception as e:
+            show_error_panel("Target Not Found", f"Backup target '{name}' not found: {e}")
+            raise typer.Exit(1)
+
+        # Create detailed information table
+        table = Table(title=f"Backup Target Configuration: {name}")
+        table.add_column("Property", style="cyan", no_wrap=True)
+        table.add_column("Value", style="white")
+
+        # Basic information
+        table.add_row("Name", target_config.get('name', 'N/A'))
+
+        # Description
+        description = target_config.get('description', 'No description')
+        table.add_row("Description", description)
+
+        # Paths
+        paths = target_config.get('paths', [])
+        if paths:
+            paths_text = "\n".join(f"• {path}" for path in paths)
+            table.add_row("Backup Paths", paths_text)
+        else:
+            table.add_row("Backup Paths", "⚠️  No paths configured")
+
+        # Repository
+        repository = target_config.get('repository', 'Not specified')
+        table.add_row("Repository", repository)
+
+        # Status
+        enabled = target_config.get('enabled', True)
+        table.add_row("Enabled", "✅ Yes" if enabled else "❌ No")
+
+        # Include patterns
+        include_patterns = target_config.get('include_patterns', [])
+        if include_patterns:
+            patterns_text = "\n".join(f"• {pattern}" for pattern in include_patterns)
+            table.add_row("Include Patterns", patterns_text)
+
+        # Exclude patterns
+        exclude_patterns = target_config.get('exclude_patterns', [])
+        if exclude_patterns:
+            patterns_text = "\n".join(f"• {pattern}" for pattern in exclude_patterns)
+            table.add_row("Exclude Patterns", patterns_text)
+
+        # Exclude files
+        exclude_files = target_config.get('exclude_files', [])
+        if exclude_files:
+            files_text = "\n".join(f"• {file}" for file in exclude_files)
+            table.add_row("Exclude Files", files_text)
+
+        # Tags
+        tags = target_config.get('tags', [])
+        if tags:
+            table.add_row("Tags", ", ".join(tags))
+
+        # Schedule
+        schedule = target_config.get('schedule')
+        if schedule:
+            table.add_row("Schedule", f"📅 {schedule}")
+
+        # Retention policy
+        retention_policy = target_config.get('retention_policy')
+        if retention_policy:
+            retention_text = []
+            for key, value in retention_policy.items():
+                retention_text.append(f"{key}: {value}")
+            table.add_row("Retention Policy", "\n".join(retention_text))
+
+        # Scripts
+        pre_script = target_config.get('pre_backup_script')
+        if pre_script:
+            table.add_row("Pre-backup Script", f"🔧 {pre_script}")
+
+        post_script = target_config.get('post_backup_script')
+        if post_script:
+            table.add_row("Post-backup Script", f"🔧 {post_script}")
+
+        console.print()
+        console.print(table)
+
+        # Show additional details if verbose
+        if verbose:
+            console.print()
+
+            # Path analysis
+            if paths:
+                path_panel_content = []
+                for path in paths:
+                    path_obj = Path(path)
+                    if path_obj.exists():
+                        if path_obj.is_dir():
+                            path_panel_content.append(f"📁 {path} (directory exists)")
+                        else:
+                            path_panel_content.append(f"📄 {path} (file exists)")
+                    else:
+                        path_panel_content.append(f"❌ {path} (does not exist)")
+
+                if path_panel_content:
+                    path_panel = Panel(
+                            "\n".join(path_panel_content),
+                            title="Path Analysis",
+                            border_style="blue"
+                    )
+                    console.print(path_panel)
+
+            # Pattern validation
+            pattern_issues = []
+            for pattern in include_patterns + exclude_patterns:
+                try:
+                    # Basic pattern validation
+                    import re
+                    re.compile(pattern)
+                except re.error as e:
+                    pattern_issues.append(f"❌ Invalid pattern '{pattern}': {e}")
+
+            if pattern_issues:
+                pattern_panel = Panel(
+                        "\n".join(pattern_issues),
+                        title="Pattern Validation Issues",
+                        border_style="red"
+                )
+                console.print(pattern_panel)
+
+            # Raw configuration (for debugging)
+            console.print()
+            raw_config_text = json.dumps(target_config, indent=2, default=str)
+            raw_panel = Panel(
+                    raw_config_text,
+                    title="Raw Configuration (Debug)",
+                    border_style="dim"
+            )
+            console.print(raw_panel)
+
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Target configuration display was cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Configuration Error", f"Failed to show target configuration: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @config_target_app.command("edit")

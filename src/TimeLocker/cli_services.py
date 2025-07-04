@@ -410,7 +410,7 @@ class CLIServiceManager:
     def list_backup_targets(self) -> List[Dict[str, Any]]:
         """
         List all configured backup targets.
-        
+
         Returns:
             List of backup target configurations
         """
@@ -425,6 +425,38 @@ class CLIServiceManager:
         # Use configuration module
         targets = self._config_module.get_backup_targets()
         return targets
+
+    def get_backup_target_by_name(self, name: str) -> Dict[str, Any]:
+        """
+        Get a specific backup target configuration by name.
+
+        Args:
+            name: Backup target name
+
+        Returns:
+            Backup target configuration dictionary
+
+        Raises:
+            ConfigurationError: If backup target is not found
+        """
+        if self._config_service is not None:
+            try:
+                # Try modern configuration service first
+                return self._config_service.get_backup_target_by_name(name)
+            except Exception:
+                # Fallback to configuration module
+                pass
+
+        # Use configuration module
+        try:
+            target_config = self._config_module.get_backup_target(name)
+            # Convert to dictionary format
+            if hasattr(target_config, '__dict__'):
+                return {**target_config.__dict__, 'name': name}
+            else:
+                return {'name': name, **target_config}
+        except Exception as e:
+            raise ConfigurationError(f"Backup target '{name}' not found: {e}")
 
     def add_repository(self, name: str, uri: str, description: str = "") -> None:
         """

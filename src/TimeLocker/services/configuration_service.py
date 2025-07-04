@@ -296,7 +296,7 @@ class ConfigurationService(IConfigurationProvider):
     def get_backup_targets(self) -> List[Dict[str, Any]]:
         """
         Get list of configured backup targets.
-        
+
         Returns:
             List of backup target configurations
         """
@@ -305,6 +305,27 @@ class ConfigurationService(IConfigurationProvider):
                 {**target_config, 'name': name}
                 for name, target_config in targets_dict.items()
         ]
+
+    def get_backup_target_by_name(self, name: str) -> Dict[str, Any]:
+        """
+        Get a specific backup target configuration by name.
+
+        Args:
+            name: Backup target name
+
+        Returns:
+            Backup target configuration dictionary
+
+        Raises:
+            ConfigurationNotFoundError: If backup target is not found
+        """
+        targets_dict = self._config_data.get('backup_targets', {})
+
+        if name not in targets_dict:
+            raise ConfigurationNotFoundError(f"Backup target '{name}' not found")
+
+        # Return target config with name included
+        return {**targets_dict[name], 'name': name}
 
     def add_backup_target(self, target_config: Dict[str, Any]) -> None:
         """
