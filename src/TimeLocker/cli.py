@@ -42,6 +42,7 @@ from .completion import (
     repository_completer,
     file_path_completer,
 )
+from .importers.timeshift_importer import TimeshiftConfigParser, TimeshiftToTimeLockerMapper
 
 # Initialize Rich console for consistent output
 console = Console()
@@ -1422,6 +1423,201 @@ def config_import_restic(
 
     except Exception as e:
         show_error_panel("Import Failed", f"Failed to save configuration: {e}")
+        raise typer.Exit(1)
+
+
+@config_import_app.command("timeshift")
+def config_import_timeshift(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        config_file: Annotated[Optional[Path], typer.Option("--config-file", help="Timeshift config file path")] = None,
+        repository_name: Annotated[str, typer.Option("--repo-name", "-r", help="Name for the imported repository")] = "timeshift_imported",
+        target_name: Annotated[str, typer.Option("--target-name", "-t", help="Name for the backup target")] = "timeshift_system",
+        repository_path: Annotated[Optional[str], typer.Option("--repo-path", help="Manual repository path (if UUID resolution fails)")] = None,
+        backup_paths: Annotated[Optional[List[str]], typer.Option("--paths", "-p", help="Backup paths (defaults to system paths)")] = None,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be imported without making changes")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
+) -> None:
+    """Import configuration from Timeshift backup tool.
+
+    This command reads Timeshift configuration files and converts them to TimeLocker
+    repository and backup target configurations.
+
+    Timeshift is a system backup tool that creates filesystem snapshots. This importer
+    converts Timeshift's configuration to TimeLocker's file-level backup approach.
+
+    The importer will:
+    - Read Timeshift configuration from /etc/timeshift/timeshift.json or /etc/timeshift.json
+    - Convert backup device UUID to repository path (if possible)
+    - Map exclude patterns to TimeLocker format
+    - Create appropriate backup targets for system paths
+
+    Note: Timeshift and TimeLocker use different backup approaches. Review the imported
+    configuration and adjust paths and settings as needed.
+    """
+    setup_logging(verbose)
+
+    console.print()
+    console.print(Panel(
+            "📥 Import Timeshift Configuration\n\n"
+            "This will read Timeshift settings and create TimeLocker\n"
+            "repository and backup target configurations.\n\n"
+            "[yellow]⚠️  Note: Timeshift uses system snapshots while TimeLocker\n"
+            "uses file-level backups. Review imported settings carefully.[/yellow]",
+            title="[bold green]Import from Timeshift[/bold green]",
+            border_style="green"
+    ))
+    console.print()
+
+    try:
+        # Initialize configuration module
+        config_module = ConfigurationModule(config_dir)
+
+        # Parse Timeshift configuration
+        parser = TimeshiftConfigParser()
+
+        with console.status("[bold green]Reading Timeshift configuration..."):
+            timeshift_config = parser.parse_config(config_file)
+
+        console.print("✅ Successfully read Timeshift configuration")
+
+        # Display Timeshift configuration summary
+        summary = parser.get_summary()
+
+        timeshift_table = Table(title="Timeshift Configuration Found")
+        timeshift_table.add_column("Setting", style="cyan")
+        timeshift_table.add_column("Value", style="green")
+
+        timeshift_table.add_row("Config File", summary.get("config_file", "Unknown"))
+        timeshift_table.add_row("Backup Device UUID", summary.get("backup_device_uuid") or "Not set")
+        timeshift_table.add_row("BTRFS Mode", "Yes" if summary.get("btrfs_mode") else "No")
+        timeshift_table.add_row("Exclude Patterns", str(len(summary.get("exclude_patterns", []))))
+
+        schedule_info = summary.get("schedule_info", {})
+        active_schedules = [k for k, v in schedule_info.items() if k.endswith("_enabled") and v]
+        timeshift_table.add_row("Active Schedules", ", ".join(active_schedules) if active_schedules else "None")
+
+        console.print(timeshift_table)
+        console.print()
+
+        # Convert to TimeLocker configuration
+        mapper = TimeshiftToTimeLockerMapper()
+
+        with console.status("[bold green]Converting configuration..."):
+            import_result = mapper.import_configuration(
+                    timeshift_config=timeshift_config,
+                    repository_name=repository_name,
+                    target_name=target_name,
+                    manual_repository_path=repository_path,
+                    backup_paths=backup_paths
+            )
+
+        if not import_result.success:
+            show_error_panel(
+                    "Import Failed",
+                    "Failed to convert Timeshift configuration:\n\n" +
+                    "\n".join(f"• {error}" for error in import_result.errors)
+            )
+            raise typer.Exit(1)
+
+        # Display warnings if any
+        if import_result.warnings:
+            console.print("⚠️  [bold yellow]Warnings:[/bold yellow]")
+            for warning in import_result.warnings:
+                console.print(f"   • {warning}")
+            console.print()
+
+        # Display what will be imported
+        console.print("📋 Configuration to be imported:")
+        console.print()
+
+        # Repository configuration
+        repo_config = import_result.repository_config
+        repo_table = Table(title="Repository Configuration")
+        repo_table.add_column("Setting", style="cyan")
+        repo_table.add_column("Value", style="green")
+
+        repo_table.add_row("Name", repo_config["name"])
+        repo_table.add_row("Location", repo_config["location"])
+        repo_table.add_row("Type", repo_config.get("_display_type", "local"))
+        repo_table.add_row("Description", repo_config.get("description", ""))
+        if repo_config.get("_display_original_uuid"):
+            repo_table.add_row("Original UUID", repo_config["_display_original_uuid"])
+
+        console.print(repo_table)
+        console.print()
+
+        # Backup target configuration
+        target_config = import_result.backup_target_config
+        target_table = Table(title="Backup Target Configuration")
+        target_table.add_column("Setting", style="cyan")
+        target_table.add_column("Value", style="green")
+
+        target_table.add_row("Name", target_config["name"])
+        target_table.add_row("Repository", target_config.get("_display_repository", ""))
+        target_table.add_row("Paths", ", ".join(target_config["paths"]))
+        target_table.add_row("Exclude Patterns", str(len(target_config.get("exclude_patterns", []))))
+        target_table.add_row("Description", target_config.get("description", ""))
+
+        console.print(target_table)
+        console.print()
+
+        if dry_run:
+            console.print("🔍 [bold yellow]Dry run mode - no changes made[/bold yellow]")
+            console.print("Configuration would be added to TimeLocker")
+            return
+
+        # Confirm before proceeding unless --yes flag is used
+        if not yes and not Confirm.ask("Import this configuration?"):
+            console.print("❌ Import cancelled")
+            raise typer.Exit(0)
+
+        # Import the configuration using ConfigurationModule API
+        with console.status("[bold green]Saving configuration..."):
+            # Add repository (filter out display-only fields)
+            repo_config_filtered = {k: v for k, v in repo_config.items() if not k.startswith("_display")}
+            config_module.add_repository(repo_config_filtered)
+
+            # Add backup target (filter out display-only fields)
+            from .config.configuration_schema import BackupTargetConfig
+            target_config_filtered = {k: v for k, v in target_config.items() if not k.startswith("_display")}
+            target = BackupTargetConfig(**target_config_filtered)
+            config_module.add_backup_target(target)
+
+        console.print()
+        show_success_panel(
+                "Timeshift Configuration Imported Successfully!",
+                f"✅ Repository '{repository_name}' added\n"
+                f"✅ Backup target '{target_name}' created\n"
+                f"✅ Configuration saved to TimeLocker\n\n"
+                f"💡 Next steps:\n"
+                f"   • Initialize repository: tl repos init {repository_name}\n"
+                f"   • Test backup: tl backup {target_name}\n"
+                f"   • List configuration: tl config show\n\n"
+                f"⚠️  Important: Review backup paths and exclude patterns\n"
+                f"   as Timeshift and TimeLocker use different backup approaches."
+        )
+
+        # Display additional warnings if any
+        if import_result.warnings:
+            console.print()
+            console.print("⚠️  [bold yellow]Please review these important notes:[/bold yellow]")
+            for warning in import_result.warnings:
+                console.print(f"   • {warning}")
+
+    except FileNotFoundError as e:
+        show_error_panel("Timeshift Configuration Not Found", str(e))
+        raise typer.Exit(1)
+    except PermissionError as e:
+        show_error_panel("Permission Denied", str(e))
+        raise typer.Exit(1)
+    except json.JSONDecodeError as e:
+        show_error_panel("Invalid Timeshift Configuration", f"JSON parsing error: {e}")
+        raise typer.Exit(1)
+    except Exception as e:
+        show_error_panel("Import Failed", f"Unexpected error: {e}")
+        if verbose:
+            console.print_exception()
         raise typer.Exit(1)
 
 
