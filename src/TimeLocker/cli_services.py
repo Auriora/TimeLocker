@@ -333,16 +333,14 @@ class CLIServiceManager:
 
     def verify_backup_integrity(self,
                                 repository_input: str,
-                                snapshot_id: Optional[str] = None,
-                                password: Optional[str] = None) -> bool:
+                                snapshot_id: Optional[str] = None) -> bool:
         """
         Verify backup integrity using modern orchestrator.
-        
+
         Args:
             repository_input: Repository name or URI
             snapshot_id: Optional specific snapshot to verify
-            password: Optional repository password
-            
+
         Returns:
             True if verification successful
         """
@@ -353,7 +351,7 @@ class CLIServiceManager:
                     snapshot_id=snapshot_id
             )
         except Exception as e:
-            logger.error(f"Backup verification failed: {e}")
+            logger.debug(f"Backup verification failed: {e}")  # Use debug instead of error to avoid duplicate error panels
             return False
 
     def list_repositories(self) -> List[Dict[str, Any]]:

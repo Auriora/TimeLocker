@@ -471,30 +471,36 @@ class BackupOrchestrator(IBackupOrchestrator):
                                 snapshot_id: Optional[str] = None) -> bool:
         """
         Verify backup integrity.
-        
+
         Args:
-            repository_name: Name of repository to verify
+            repository_name: Name of repository to verify or URI
             snapshot_id: Optional specific snapshot to verify
-            
+
         Returns:
             True if verification successful
-            
+
         Raises:
             BackupOrchestratorError: If verification fails
         """
         try:
-            # Get repository configuration
-            repositories = self._configuration_provider.get_repositories()
-            repo_config = next(
-                    (r for r in repositories if r['name'] == repository_name),
-                    None
-            )
+            # Check if repository_name is a URI or a configured repository name
+            repository_uri = repository_name
 
-            if not repo_config:
-                raise BackupOrchestratorError(f"Repository '{repository_name}' not found")
+            # If it looks like a repository name (not a URI), try to find it in configuration
+            if not repository_name.startswith(('file://', 'sftp://', 's3:', 'b2:', 'azure:', 'gs:', 'swift:')):
+                repositories = self._configuration_provider.get_repositories()
+                repo_config = next(
+                        (r for r in repositories if r['name'] == repository_name),
+                        None
+                )
 
-            # Create repository instance
-            repository = self._repository_factory.create_repository(repo_config['uri'])
+                if not repo_config:
+                    raise BackupOrchestratorError(f"Repository '{repository_name}' not found")
+
+                repository_uri = repo_config['uri']
+
+            # Create repository instance directly from URI
+            repository = self._repository_factory.create_repository(repository_uri)
 
             # Verify backup
             if hasattr(repository, 'verify_backup'):

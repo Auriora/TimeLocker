@@ -1667,7 +1667,7 @@ def repos_list(
             if default_repo:
                 console.print(f"🎯 [bold]Default repository:[/bold] {default_repo}")
             else:
-                console.print("💡 [bold]Set a default repository:[/bold] [cyan]tl config repositories default <name>[/cyan]")
+                console.print("💡 [bold]Set a default repository:[/bold] [cyan]tl repos default <name>[/cyan]")
         else:
             console.print("❌ No repositories configured")
             console.print()
@@ -1965,44 +1965,36 @@ def targets_add(
 @backup_app.command("verify")
 def backup_verify(
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI")] = None,
-        password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
         snapshot: Annotated[Optional[str], typer.Option("--snapshot", "-s", help="Specific snapshot to verify")] = None,
-        latest: Annotated[bool, typer.Option("--latest", help="Verify latest snapshot")] = False,
+        latest: Annotated[bool, typer.Option("--latest", help="Explicitly verify latest snapshot (default behavior)")] = False,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
-    """Verify backup integrity."""
+    """Verify backup integrity. Verifies the latest snapshot by default unless --snapshot is specified."""
     setup_logging(verbose)
 
     try:
         # Resolve repository name to URI
         from .utils.repository_resolver import resolve_repository_uri
         repository_uri = resolve_repository_uri(repository)
-
-        if not password:
-            # Check TimeLocker environment variable first, then fall back to RESTIC_PASSWORD
-            password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
-            if not password:
-                password = Prompt.ask("Repository password", password=True)
     except Exception as e:
         show_error_panel("Repository Error", str(e))
         raise typer.Exit(1)
 
     try:
-        with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console,
-        ) as progress:
+        service_manager = get_cli_service_manager()
 
-            task = progress.add_task("Initializing verification...", total=None)
-            service_manager = get_cli_service_manager()
+        # Handle snapshot resolution - default to latest if no specific snapshot provided
+        if not snapshot or latest:
+            with Progress(
+                    SpinnerColumn(),
+                    TextColumn("[progress.description]{task.description}"),
+                    console=console,
+            ) as progress:
+                task = progress.add_task("Finding latest snapshot...", total=None)
 
-            # Handle latest snapshot resolution if needed
-            if latest:
-                progress.update(task, description="Finding latest snapshot...")
                 # Use legacy manager for snapshot listing until we have snapshot service
                 backup_manager = BackupManager()
-                repo = backup_manager.from_uri(repository_uri, password=password)
+                repo = backup_manager.from_uri(repository_uri)  # Let the repository handle password retrieval
                 snapshot_manager = SnapshotManager(repo)
                 snapshots = snapshot_manager.list_snapshots()
                 if not snapshots:
@@ -2010,18 +2002,17 @@ def backup_verify(
                     raise typer.Exit(1)
                 snapshot = snapshots[0].id  # Assuming first is latest
 
-            if not snapshot:
-                snapshot = Prompt.ask("Snapshot ID to verify")
-
-            # Perform verification using modern service
-            progress.update(task, description=f"Verifying snapshot {snapshot[:12]}...")
+        # Perform verification using modern service
+        with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                console=console,
+        ) as progress:
+            task = progress.add_task(f"Verifying snapshot {snapshot[:12]}...", total=None)
             verification_passed = service_manager.verify_backup_integrity(
                     repository_input=repository_uri,
-                    snapshot_id=snapshot,
-                    password=password
+                    snapshot_id=snapshot
             )
-
-            progress.remove_task(task)
 
         if verification_passed:
             show_success_panel(
@@ -2867,7 +2858,11 @@ def repo_check(
 
         # Display results
         if check_results['status'] == 'success':
-            console.print(f"[green]✓[/green] Repository {name} integrity check passed")
+            # Show success message in a panel
+            show_success_panel(
+                    "Repository Check Passed",
+                    f"Repository {name} integrity check completed successfully"
+            )
 
             # Show statistics if available
             if check_results.get('statistics'):
@@ -2882,11 +2877,17 @@ def repo_check(
 
                 console.print(table)
         else:
-            console.print(f"[red]✗[/red] Repository {name} integrity check failed")
-            for error in check_results.get('errors', []):
-                console.print(f"[red]Error:[/red] {error}")
+            # Display single, clean error message
+            errors = check_results.get('errors', [])
+            if errors:
+                show_error_panel("Repository Check Failed", errors[0])
+            else:
+                show_error_panel("Repository Check Failed", "Unknown error occurred")
             raise typer.Exit(1)
 
+    except typer.Exit:
+        # Re-raise typer.Exit to avoid catching it
+        raise
     except Exception as e:
         show_error_panel("Repository Check Error", f"Failed to check repository: {e}")
         if verbose:
