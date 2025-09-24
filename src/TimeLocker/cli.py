@@ -2392,6 +2392,7 @@ def snapshots_prune(
         keep_weekly: Annotated[int, typer.Option("--keep-weekly", help="Number of weekly snapshots to keep")] = 4,
         keep_monthly: Annotated[int, typer.Option("--keep-monthly", help="Number of monthly snapshots to keep (distinct months)")] = 0,
         keep_yearly: Annotated[int, typer.Option("--keep-yearly", help="Number of yearly snapshots to keep (distinct years)")] = 0,
+        prune_data: Annotated[bool, typer.Option("--prune-data", help="After removals, run repository prune to free unreferenced data")] = False,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
         yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
 ) -> None:
@@ -2553,6 +2554,26 @@ def snapshots_prune(
                 console.print(f"[green]✓ Removed {removed} snapshot(s)[/green]")
             if failed:
                 show_error_panel("Some Removals Failed", "\n".join(failed))
+            # Optionally prune repository data after removals
+            if prune_data and not dry_run and removed > 0:
+                console.print()
+                console.print("[cyan]Pruning unreferenced data in repository...[/cyan]")
+                try:
+                    repository_service = service_manager.get_repository_service()
+                except Exception:
+                    # Fallback to attribute access if service manager exposes attribute
+                    repository_service = getattr(service_manager, 'repository_service', None)
+                if repository_service is not None:
+                    with console.status("[bold blue]Running repository prune...[/bold blue]"):
+                        results = repository_service.prune_repository(repo)
+                    if results.get('status') == 'success':
+                        freed = results.get('space_freed', 0)
+                        console.print(f"[green]✓ Repository prune completed[/green] (freed {freed} bytes)")
+                    else:
+                        show_error_panel("Prune Failed", "\n".join(results.get('errors', [])) or "Unknown error")
+                else:
+                    show_error_panel("Prune Error", "Repository service unavailable")
+
 
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "Prune operation was cancelled by user")
