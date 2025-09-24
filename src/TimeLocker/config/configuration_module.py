@@ -352,6 +352,21 @@ class ConfigurationModule(IConfigurationProvider):
         config = self.get_config()
         return getattr(config.general, 'default_repository', None)
 
+    def set_default_repository(self, name: str) -> None:
+        """Set the default repository name"""
+        # First verify the repository exists
+        if name not in self.get_config().repositories:
+            from ..interfaces.exceptions import RepositoryNotFoundError
+            raise RepositoryNotFoundError(f"Repository '{name}' not found")
+
+        # Update the configuration
+        config = self.get_config()
+        config.general.default_repository = name
+
+        # Save the updated configuration
+        self.save_config(config)
+        logger.info(f"Default repository set to: {name}")
+
     def get_repository(self, name: str) -> RepositoryConfig:
         """Get specific repository configuration"""
         repositories_dict = self.get_config().repositories
