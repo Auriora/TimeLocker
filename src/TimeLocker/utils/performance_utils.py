@@ -17,6 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from typing import Optional, Dict, Any, Callable
 import logging
+import uuid
+from contextlib import contextmanager
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +142,28 @@ class PerformanceModule:
         """Complete operation tracking with fallback"""
         return self._complete_operation_tracking(operation_id)
 
+    @contextmanager
+    def track_operation(self, operation_name: str, metadata: Optional[Dict[str, Any]] = None):
+        """
+        Context manager for tracking operations with automatic start/complete
+
+        Args:
+            operation_name: Name of the operation to track
+            metadata: Optional metadata for the operation
+
+        Yields:
+            operation_id: Unique identifier for this operation
+        """
+        operation_id = str(uuid.uuid4())
+
+        try:
+            # Start tracking
+            self.start_operation_tracking(operation_id, operation_name, metadata)
+            yield operation_id
+        finally:
+            # Always complete tracking, even if an exception occurred
+            self.complete_operation_tracking(operation_id)
+
 
 # Global instance for easy access
 performance = PerformanceModule()
@@ -176,3 +200,8 @@ def update_operation_tracking(
 def complete_operation_tracking(operation_id: str) -> None:
     """Convenience function for completing operation tracking"""
     return performance.complete_operation_tracking(operation_id)
+
+
+def track_operation(operation_name: str, metadata: Optional[Dict[str, Any]] = None):
+    """Convenience function for tracking operations as context manager"""
+    return performance.track_operation(operation_name, metadata)
