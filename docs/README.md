@@ -18,6 +18,9 @@
 - **[Consolidated Action Plan](consolidated-action-plan.md)** - Remaining work and completion strategy
 - **[AI Prompts for Completion](ai-prompts-for-completion.md)** - Step-by-step completion guide
 
+> Single Source of Truth: For current project status and remaining work, see [Final Status Report](final-status-report.md). Historical refactoring/progress docs
+> may be archived or superseded.
+
 This documentation is organized into the following sections:
 
 ## 📋 [0. Planning and Execution](0-planning-and-execution/)
