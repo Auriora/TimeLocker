@@ -89,16 +89,17 @@ Phase 4 focuses on **Advanced Services and Feature Completion**, implementing th
 ### 2. **Advanced Features to Complete**
 
 - ❌ **Credential Service Integration**: Connect existing `credential_manager.py` with CLI
-- ❌ **Multi-Repository Operations**: Batch operations across multiple repositories
-- ❌ **Configuration Management**: Complete config show/edit/remove operations
-- ❌ **Snapshot Diff Implementation**: Advanced snapshot comparison
+- ✅ **Multi-Repository Operations**: Batch operations across multiple repositories (check-all, stats-all implemented)
+- ✅ **Configuration Management (CLI)**: `config show`, target show/edit/remove implemented; repository details via `repos show` (enhanced config service
+  pending)
+- ✅ **Snapshot Diff Implementation**: Advanced snapshot comparison implemented
 - ❌ **Content Search**: Implement content and path-based search in snapshots
 
 ### 3. **Service Enhancements**
 
-- ❌ **Snapshot Service**: Complete diff functionality
-- ❌ **Repository Service**: Multi-repository batch operations
-- ❌ **Configuration Service**: Enhanced config management operations
+- ✅ **Snapshot Service**: Diff functionality completed
+- ✅ **Repository Service**: Multi-repository batch operations implemented
+- ❌ **Configuration Service**: Enhanced config management operations (pending)
 
 ## 📊 Phase 4 Statistics
 
