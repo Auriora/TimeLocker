@@ -2440,9 +2440,44 @@ def snapshots_prune(
                 console.print("[yellow]No snapshots found to prune[/yellow]")
                 return
 
-            # Simple retention logic (enhance later with policy settings)
-            snapshots_to_keep = snapshots[:keep_last]  # Keep most recent
-            snapshots_to_remove = snapshots[keep_last:]
+            # Extended retention logic: keep last N, then daily/weekly buckets
+            # Sort snapshots by timestamp (newest first)
+            snapshots_sorted = sorted(snapshots, key=lambda s: getattr(s, 'timestamp', None) or getattr(s, 'time'), reverse=True)
+
+            kept_ids = set()
+
+            # Keep most recent snapshots
+            if keep_last and keep_last > 0:
+                for s in snapshots_sorted[:keep_last]:
+                    kept_ids.add(s.id)
+
+            # Keep up to keep_daily distinct days (one per calendar day)
+            if keep_daily and keep_daily > 0:
+                seen_days = set()
+                for s in snapshots_sorted:
+                    if s.id in kept_ids:
+                        continue
+                    ts = getattr(s, 'timestamp', None) or getattr(s, 'time')
+                    day_key = ts.date()
+                    if len(seen_days) < keep_daily and day_key not in seen_days:
+                        kept_ids.add(s.id)
+                        seen_days.add(day_key)
+
+            # Keep up to keep_weekly distinct weeks (ISO week)
+            if keep_weekly and keep_weekly > 0:
+                seen_weeks = set()
+                for s in snapshots_sorted:
+                    if s.id in kept_ids:
+                        continue
+                    ts = getattr(s, 'timestamp', None) or getattr(s, 'time')
+                    iso = ts.isocalendar()  # (year, week, weekday)
+                    week_key = (iso[0], iso[1])
+                    if len(seen_weeks) < keep_weekly and week_key not in seen_weeks:
+                        kept_ids.add(s.id)
+                        seen_weeks.add(week_key)
+
+            # Everything else is a removal candidate
+            snapshots_to_remove = [s for s in snapshots_sorted if s.id not in kept_ids]
 
             progress.remove_task(task)
 
@@ -2459,7 +2494,7 @@ def snapshots_prune(
         for snapshot in snapshots_to_remove:
             table.add_row(
                     snapshot.id[:12],
-                    snapshot.time.strftime("%Y-%m-%d %H:%M:%S"),
+                    (snapshot.timestamp.strftime("%Y-%m-%d %H:%M:%S") if hasattr(snapshot, 'timestamp') else snapshot.time.strftime("%Y-%m-%d %H:%M:%S")),
                     getattr(snapshot, 'hostname', 'unknown')
             )
 
