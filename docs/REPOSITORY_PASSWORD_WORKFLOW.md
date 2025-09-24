@@ -72,12 +72,12 @@ tl config repositories add automated "/backup/repo"
 ### **When Passwords Are Stored**
 
 1. **During `tl config repositories add`** (NEW!)
-    - If `--password` provided → stored immediately
-    - If environment variable set → detected and stored
-    - If neither → prompts user to optionally store password
+    - If Credential Manager is configured, use `tl credentials store` to persist a password
+    - If environment variable is set, it is detected and used
+    - If neither is available, follow-up operations that require credentials will fail with a clear error
 
 2. **During `tl repo init`**
-    - Password required for initialization → automatically stored
+    - If a password is required, it is resolved via Credential Manager or environment variables; use `tl credentials store` to persist
 
 3. **Via `tl credentials store`**
     - Manual credential storage for any repository
@@ -111,9 +111,8 @@ This ensures:
 
 ```bash
 # One command setup for existing repository
-tl config repositories add prod "s3://company-backup/prod" \
-  --password "$(pass show backup/prod)" \
-  --set-default
+tl config repositories add prod "s3://company-backup/prod" --set-default
+# Credentials are resolved via Credential Manager or environment variables
 
 # Ready to use immediately
 tl list -r prod
