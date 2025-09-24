@@ -109,14 +109,16 @@ class SnapshotService(ISnapshotService):
                 self.validation_service.validate_snapshot_id(snapshot_id)
 
                 # Use restic ls command to list snapshot contents
-                cmd = ['restic', '-r', repository.location, 'ls', snapshot_id]
+                cmd = ['restic', '-r', repository.location(), 'ls', snapshot_id]
                 if path:
                     cmd.append(path)
 
                 # Set environment for repository access
                 env = os.environ.copy()
                 if hasattr(repository, 'password'):
-                    env['RESTIC_PASSWORD'] = repository.password
+                    password = repository.password()
+                    if password:
+                        env['RESTIC_PASSWORD'] = password
 
                 result = subprocess.run(cmd, capture_output=True, text=True, env=env)
 
@@ -179,12 +181,14 @@ class SnapshotService(ISnapshotService):
                     raise TimeLockerInterfaceError(f"Snapshot {snapshot_id} is already mounted at {existing_mount}")
 
                 # Mount using restic mount command
-                cmd = ['restic', '-r', repository.location, 'mount', str(mount_path), '--snapshot-template', snapshot_id]
+                cmd = ['restic', '-r', repository.location(), 'mount', str(mount_path), '--snapshot-template', snapshot_id]
 
                 # Set environment for repository access
                 env = os.environ.copy()
                 if hasattr(repository, 'password'):
-                    env['RESTIC_PASSWORD'] = repository.password
+                    password = repository.password()
+                    if password:
+                        env['RESTIC_PASSWORD'] = password
 
                 # Start mount process in background
                 process = subprocess.Popen(cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -293,12 +297,14 @@ class SnapshotService(ISnapshotService):
 
                 if search_type == 'name':
                     # Search by filename using restic find
-                    cmd = ['restic', '-r', repository.location, 'find', pattern, '--snapshot', snapshot_id]
+                    cmd = ['restic', '-r', repository.location(), 'find', pattern, '--snapshot', snapshot_id]
 
                     # Set environment for repository access
                     env = os.environ.copy()
                     if hasattr(repository, 'password'):
-                        env['RESTIC_PASSWORD'] = repository.password
+                        password = repository.password()
+                        if password:
+                            env['RESTIC_PASSWORD'] = password
 
                     result = subprocess.run(cmd, capture_output=True, text=True, env=env)
 
@@ -353,12 +359,14 @@ class SnapshotService(ISnapshotService):
                     raise TimeLockerInterfaceError(f"Cannot remove mounted snapshot {snapshot_id}. Unmount it first.")
 
                 # Use restic forget command to remove the snapshot
-                cmd = ['restic', '-r', repository.location, 'forget', snapshot.id]
+                cmd = ['restic', '-r', repository.location(), 'forget', snapshot.id]
 
                 # Set environment for repository access
                 env = os.environ.copy()
                 if hasattr(repository, 'password'):
-                    env['RESTIC_PASSWORD'] = repository.password
+                    password = repository.password()
+                    if password:
+                        env['RESTIC_PASSWORD'] = password
 
                 result = subprocess.run(cmd, capture_output=True, text=True, env=env)
 
@@ -412,7 +420,7 @@ class SnapshotService(ISnapshotService):
                     raise TimeLockerInterfaceError(f"Snapshot {snapshot_id2} not found in repository")
 
                 # Use restic diff command to compare snapshots
-                cmd = ['restic', '-r', repository.location, 'diff', snapshot1.id, snapshot2.id]
+                cmd = ['restic', '-r', repository.location(), 'diff', snapshot1.id, snapshot2.id]
 
                 if include_metadata:
                     cmd.append('--metadata')
@@ -420,7 +428,9 @@ class SnapshotService(ISnapshotService):
                 # Set environment for repository access
                 env = os.environ.copy()
                 if hasattr(repository, 'password'):
-                    env['RESTIC_PASSWORD'] = repository.password
+                    password = repository.password()
+                    if password:
+                        env['RESTIC_PASSWORD'] = password
 
                 result = subprocess.run(cmd, capture_output=True, text=True, env=env)
 
@@ -463,7 +473,7 @@ class SnapshotService(ISnapshotService):
 
                 if search_type == 'name':
                     # Search by filename using restic find across all snapshots
-                    cmd = ['restic', '-r', repository.location, 'find', pattern]
+                    cmd = ['restic', '-r', repository.location(), 'find', pattern]
 
                     # Add optional filters
                     if host:
@@ -476,7 +486,9 @@ class SnapshotService(ISnapshotService):
                     # Set environment for repository access
                     env = os.environ.copy()
                     if hasattr(repository, 'password'):
-                        env['RESTIC_PASSWORD'] = repository.password
+                        password = repository.password()
+                        if password:
+                            env['RESTIC_PASSWORD'] = password
 
                     result = subprocess.run(cmd, capture_output=True, text=True, env=env)
 
