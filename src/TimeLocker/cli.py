@@ -2416,7 +2416,6 @@ def snapshots_prune(
             task = progress.add_task("Initializing prune operation...", total=None)
 
             # For now, use legacy backup manager for snapshot operations
-            # TODO: Implement snapshot service in Phase 4
             backup_manager = BackupManager()
             repo = backup_manager.from_uri(repository_uri, password=password)
             snapshot_manager = SnapshotManager(repo)
