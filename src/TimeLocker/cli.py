@@ -2390,6 +2390,8 @@ def snapshots_prune(
         keep_last: Annotated[int, typer.Option("--keep-last", help="Number of most recent snapshots to keep")] = 10,
         keep_daily: Annotated[int, typer.Option("--keep-daily", help="Number of daily snapshots to keep")] = 7,
         keep_weekly: Annotated[int, typer.Option("--keep-weekly", help="Number of weekly snapshots to keep")] = 4,
+        keep_monthly: Annotated[int, typer.Option("--keep-monthly", help="Number of monthly snapshots to keep (distinct months)")] = 0,
+        keep_yearly: Annotated[int, typer.Option("--keep-yearly", help="Number of yearly snapshots to keep (distinct years)")] = 0,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
         yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
 ) -> None:
@@ -2440,7 +2442,7 @@ def snapshots_prune(
                 console.print("[yellow]No snapshots found to prune[/yellow]")
                 return
 
-            # Extended retention logic: keep last N, then daily/weekly buckets
+            # Extended retention logic: keep last N, then daily/weekly/monthly/yearly buckets
             # Sort snapshots by timestamp (newest first)
             snapshots_sorted = sorted(snapshots, key=lambda s: getattr(s, 'timestamp', None) or getattr(s, 'time'), reverse=True)
 
@@ -2475,6 +2477,30 @@ def snapshots_prune(
                     if len(seen_weeks) < keep_weekly and week_key not in seen_weeks:
                         kept_ids.add(s.id)
                         seen_weeks.add(week_key)
+
+            # Keep up to keep_monthly distinct months (YYYY-MM)
+            if keep_monthly and keep_monthly > 0:
+                seen_months = set()
+                for s in snapshots_sorted:
+                    if s.id in kept_ids:
+                        continue
+                    ts = getattr(s, 'timestamp', None) or getattr(s, 'time')
+                    month_key = (ts.year, ts.month)
+                    if len(seen_months) < keep_monthly and month_key not in seen_months:
+                        kept_ids.add(s.id)
+                        seen_months.add(month_key)
+
+            # Keep up to keep_yearly distinct years (YYYY)
+            if keep_yearly and keep_yearly > 0:
+                seen_years = set()
+                for s in snapshots_sorted:
+                    if s.id in kept_ids:
+                        continue
+                    ts = getattr(s, 'timestamp', None) or getattr(s, 'time')
+                    year_key = ts.year
+                    if len(seen_years) < keep_yearly and year_key not in seen_years:
+                        kept_ids.add(s.id)
+                        seen_years.add(year_key)
 
             # Everything else is a removal candidate
             snapshots_to_remove = [s for s in snapshots_sorted if s.id not in kept_ids]
