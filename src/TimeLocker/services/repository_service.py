@@ -28,6 +28,57 @@ class RepositoryService(IRepositoryService):
         self.validation_service = validation_service
         self.performance_module = performance_module
 
+    def _parse_restic_error(self, error_output: str) -> str:
+        """
+        Parse restic error output and return user-friendly error message
+
+        Args:
+            error_output: Raw error output from restic command
+
+        Returns:
+            User-friendly error message
+        """
+        if not error_output:
+            return "Unknown error occurred"
+
+        # Try to parse JSON error messages
+        try:
+            for line in error_output.strip().split('\n'):
+                if line.strip():
+                    try:
+                        data = json.loads(line)
+                        if data.get('message_type') == 'exit_error':
+                            message = data.get('message', '')
+                            # Clean up common error messages
+                            if 'repository does not exist' in message:
+                                return "Repository does not exist at the specified location"
+                            elif 'unable to open config file' in message:
+                                return "Repository not found or not initialized"
+                            elif 'wrong password' in message.lower():
+                                return "Invalid repository password"
+                            elif 'repository is locked' in message.lower():
+                                return "Repository is locked by another process"
+                            else:
+                                return message
+                    except json.JSONDecodeError:
+                        continue
+        except Exception:
+            pass
+
+        # Fallback to raw error message, but clean it up
+        error_lines = error_output.strip().split('\n')
+        # Remove empty lines and common prefixes
+        cleaned_lines = []
+        for line in error_lines:
+            line = line.strip()
+            if line and not line.startswith('Fatal:'):
+                # Remove common prefixes
+                if line.startswith('Fatal: '):
+                    line = line[7:]
+                cleaned_lines.append(line)
+
+        return ' '.join(cleaned_lines) if cleaned_lines else error_output.strip()
+
     def check_repository(self, repository: BackupRepository) -> Dict[str, Any]:
         """
         Check repository integrity
@@ -41,12 +92,14 @@ class RepositoryService(IRepositoryService):
         with self.performance_module.track_operation("check_repository"):
             try:
                 # Run restic check command
-                cmd = ['restic', '-r', repository.location, 'check', '--json']
+                cmd = ['restic', '-r', repository.location(), 'check', '--json']
 
                 # Set environment for repository access
                 env = os.environ.copy()
                 if hasattr(repository, 'password'):
-                    env['RESTIC_PASSWORD'] = repository.password
+                    password = repository.password()
+                    if password:
+                        env['RESTIC_PASSWORD'] = password
 
                 result = subprocess.run(cmd, capture_output=True, text=True, env=env)
 
@@ -59,8 +112,10 @@ class RepositoryService(IRepositoryService):
                 }
 
                 if result.returncode != 0:
-                    check_results['errors'].append(result.stderr)
-                    logger.error(f"Repository check failed: {result.stderr}")
+                    # Parse JSON error messages for better user experience
+                    error_message = self._parse_restic_error(result.stderr)
+                    check_results['errors'].append(error_message)
+                    logger.debug(f"Repository check failed: {error_message}")  # Use debug instead of error
                 else:
                     # Parse JSON output if available
                     try:
@@ -77,9 +132,28 @@ class RepositoryService(IRepositoryService):
                 logger.info(f"Repository check completed with status: {check_results['status']}")
                 return check_results
 
+            except subprocess.CalledProcessError as e:
+                # Handle subprocess errors (restic command failures) gracefully
+                error_message = self._parse_restic_error(e.stderr if hasattr(e, 'stderr') else str(e))
+                logger.debug(f"Repository check failed: {error_message}")  # Use debug instead of error
+                return {
+                        'status':     'failed',
+                        'exit_code':  e.returncode if hasattr(e, 'returncode') else 1,
+                        'errors':     [error_message],
+                        'warnings':   [],
+                        'statistics': {}
+                }
             except Exception as e:
-                logger.error(f"Failed to check repository: {e}")
-                raise RepositoryFactoryError(f"Failed to check repository: {e}")
+                # Handle other unexpected errors
+                error_message = f"Unexpected error during repository check: {e}"
+                logger.debug(error_message)  # Use debug instead of error
+                return {
+                        'status':     'failed',
+                        'exit_code':  1,
+                        'errors':     [error_message],
+                        'warnings':   [],
+                        'statistics': {}
+                }
 
     def get_repository_stats(self, repository: BackupRepository) -> Dict[str, Any]:
         """
@@ -94,12 +168,14 @@ class RepositoryService(IRepositoryService):
         with self.performance_module.track_operation("get_repository_stats"):
             try:
                 # Run restic stats command
-                cmd = ['restic', '-r', repository.location, 'stats', '--json']
+                cmd = ['restic', '-r', repository.location(), 'stats', '--json']
 
                 # Set environment for repository access
                 env = os.environ.copy()
                 if hasattr(repository, 'password'):
-                    env['RESTIC_PASSWORD'] = repository.password
+                    password = repository.password()
+                    if password:
+                        env['RESTIC_PASSWORD'] = password
 
                 result = subprocess.run(cmd, capture_output=True, text=True, env=env)
 
@@ -157,12 +233,14 @@ class RepositoryService(IRepositoryService):
         with self.performance_module.track_operation("unlock_repository"):
             try:
                 # Run restic unlock command
-                cmd = ['restic', '-r', repository.location, 'unlock']
+                cmd = ['restic', '-r', repository.location(), 'unlock']
 
                 # Set environment for repository access
                 env = os.environ.copy()
                 if hasattr(repository, 'password'):
-                    env['RESTIC_PASSWORD'] = repository.password
+                    password = repository.password()
+                    if password:
+                        env['RESTIC_PASSWORD'] = password
 
                 result = subprocess.run(cmd, capture_output=True, text=True, env=env)
 
@@ -190,12 +268,14 @@ class RepositoryService(IRepositoryService):
         with self.performance_module.track_operation("list_available_migrations"):
             try:
                 # Run restic migrate command without arguments to list available migrations
-                cmd = ['restic', '-r', repository.location, 'migrate']
+                cmd = ['restic', '-r', repository.location(), 'migrate']
 
                 # Set environment for repository access
                 env = os.environ.copy()
                 if hasattr(repository, 'password'):
-                    env['RESTIC_PASSWORD'] = repository.password
+                    password = repository.password()
+                    if password:
+                        env['RESTIC_PASSWORD'] = password
 
                 result = subprocess.run(cmd, capture_output=True, text=True, env=env)
 
@@ -231,12 +311,14 @@ class RepositoryService(IRepositoryService):
         with self.performance_module.track_operation("migrate_repository"):
             try:
                 # Run restic migrate command
-                cmd = ['restic', '-r', repository.location, 'migrate', migration_name]
+                cmd = ['restic', '-r', repository.location(), 'migrate', migration_name]
 
                 # Set environment for repository access
                 env = os.environ.copy()
                 if hasattr(repository, 'password'):
-                    env['RESTIC_PASSWORD'] = repository.password
+                    password = repository.password()
+                    if password:
+                        env['RESTIC_PASSWORD'] = password
 
                 result = subprocess.run(cmd, capture_output=True, text=True, env=env)
 
@@ -272,7 +354,7 @@ class RepositoryService(IRepositoryService):
         with self.performance_module.track_operation("apply_retention_policy"):
             try:
                 # Build restic forget command
-                cmd = ['restic', '-r', repository.location, 'forget', '--json']
+                cmd = ['restic', '-r', repository.location(), 'forget', '--json']
                 cmd.extend(['--keep-daily', str(keep_daily)])
                 cmd.extend(['--keep-weekly', str(keep_weekly)])
                 cmd.extend(['--keep-monthly', str(keep_monthly)])
@@ -284,7 +366,9 @@ class RepositoryService(IRepositoryService):
                 # Set environment for repository access
                 env = os.environ.copy()
                 if hasattr(repository, 'password'):
-                    env['RESTIC_PASSWORD'] = repository.password
+                    password = repository.password()
+                    if password:
+                        env['RESTIC_PASSWORD'] = password
 
                 result = subprocess.run(cmd, capture_output=True, text=True, env=env)
 
@@ -333,12 +417,14 @@ class RepositoryService(IRepositoryService):
         with self.performance_module.track_operation("prune_repository"):
             try:
                 # Run restic prune command
-                cmd = ['restic', '-r', repository.location, 'prune', '--json']
+                cmd = ['restic', '-r', repository.location(), 'prune', '--json']
 
                 # Set environment for repository access
                 env = os.environ.copy()
                 if hasattr(repository, 'password'):
-                    env['RESTIC_PASSWORD'] = repository.password
+                    password = repository.password()
+                    if password:
+                        env['RESTIC_PASSWORD'] = password
 
                 result = subprocess.run(cmd, capture_output=True, text=True, env=env)
 
