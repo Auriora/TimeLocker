@@ -2415,20 +2415,32 @@ def snapshots_prune(
 
             task = progress.add_task("Initializing prune operation...", total=None)
 
-            # For now, use legacy backup manager for snapshot operations
-            backup_manager = BackupManager()
-            repo = backup_manager.from_uri(repository_uri, password=password)
-            snapshot_manager = SnapshotManager(repo)
+            # Use modern service manager and repository factory
+            service_manager = get_cli_service_manager()
 
+            # Resolve repository (default to configured repo if not provided)
+            if not repository:
+                repository = service_manager.config_module.get_default_repository_name()
+                if not repository:
+                    progress.remove_task(task)
+                    show_error_panel("Repository Required", "No repository specified and no default repository configured")
+                    raise typer.Exit(1)
+
+            repository_uri = service_manager.resolve_repository_uri(repository)
+
+            # Create repository instance
+            repo = service_manager.repository_factory.create_repository(repository_uri)
+
+            # Analyze snapshots for prune candidates
             progress.update(task, description="Analyzing snapshots...")
-            snapshots = snapshot_manager.list_snapshots()
+            snapshots = repo.list_snapshots()
 
             if not snapshots:
                 progress.remove_task(task)
                 console.print("[yellow]No snapshots found to prune[/yellow]")
                 return
 
-            # Simple retention logic (this would be enhanced in a full implementation)
+            # Simple retention logic (enhance later with policy settings)
             snapshots_to_keep = snapshots[:keep_last]  # Keep most recent
             snapshots_to_remove = snapshots[keep_last:]
 
@@ -2448,7 +2460,7 @@ def snapshots_prune(
             table.add_row(
                     snapshot.id[:12],
                     snapshot.time.strftime("%Y-%m-%d %H:%M:%S"),
-                    snapshot.hostname
+                    getattr(snapshot, 'hostname', 'unknown')
             )
 
         console.print(table)
@@ -2460,9 +2472,26 @@ def snapshots_prune(
                 console.print("[yellow]Operation cancelled[/yellow]")
                 return
 
-            # TODO: Implement actual snapshot removal
-            console.print("[yellow]🚧 Actual snapshot removal not yet implemented[/yellow]")
-            console.print("This would remove the selected snapshots from the repository.")
+            # Perform removals using SnapshotService
+            service_manager = get_cli_service_manager()
+            removed = 0
+            failed: List[str] = []
+
+            with Progress(SpinnerColumn(), TextColumn("[progress.description]{task.description}"), console=console) as p:
+                t = p.add_task("Removing snapshots...", total=len(snapshots_to_remove))
+                for s in snapshots_to_remove:
+                    try:
+                        service_manager.snapshot_service.forget_snapshot(repo, s.id)
+                        removed += 1
+                    except Exception as e:
+                        failed.append(f"{s.id[:12]}: {e}")
+                    finally:
+                        p.advance(t)
+
+            if removed:
+                console.print(f"[green]✓ Removed {removed} snapshot(s)[/green]")
+            if failed:
+                show_error_panel("Some Removals Failed", "\n".join(failed))
 
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "Prune operation was cancelled by user")
