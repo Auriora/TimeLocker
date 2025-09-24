@@ -137,7 +137,7 @@ This checklist ensures a complete and successful release of TimeLocker v1.0.0.
   tl --help
   
   # Test with sample data (if available)
-  timelocker init --repository /tmp/test-repo --password testpass
+  timelocker init --repository /tmp/test-repo
   ```
     - [ ] CLI commands work correctly
     - [ ] Help text is displayed properly

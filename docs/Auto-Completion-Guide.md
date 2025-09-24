@@ -35,7 +35,7 @@ TimeLocker provides intelligent auto-completion for shell environments, making i
 
 - `timelocker config repositories add <name> <uri>` - Repository URI completion
 - `timelocker config repositories remove <name>` - Repository name completion
-- `timelocker config repositories default <name>` - Repository name completion
+- `timelocker repos default <name>` - Repository name completion
 - `timelocker config targets add <name> <paths>` - File path completion
 
 ## Installation

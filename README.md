@@ -164,17 +164,20 @@ our [Installation Guide](docs/INSTALLATION.md).
 
 ```bash
 # Initialize a new repository
-timelocker init --repository /path/to/repo --password mypassword
+timelocker init --repository /path/to/repo
 
 # Create a backup
-timelocker backup --repository /path/to/repo --password mypassword /home/user/documents
+timelocker backup --repository /path/to/repo /home/user/documents
 
 # List snapshots
-timelocker list --repository /path/to/repo --password mypassword
+timelocker list --repository /path/to/repo
 
 # Restore from backup
-timelocker restore --repository /path/to/repo --password mypassword --snapshot abc123 /restore/path
+timelocker restore --repository /path/to/repo --snapshot abc123 /restore/path
 ```
+
+Note: Credentials are resolved via the Credential Manager (preferred), then the TIMELOCKER_PASSWORD environment variable, then RESTIC_PASSWORD. The --password flag has been removed from CLI commands.
+
 
 #### Python API
 
