@@ -60,55 +60,55 @@ into logical groups with proper sub-apps.
     - **config_targets_app**: Multiple target configuration
     - **config_import_app**: Import configuration
 
-### 🚧 Command Stubs Created
+### ✅ Implemented Commands (formerly listed as stubs)
 
 #### Snapshot Commands (Single)
 
-- `snapshot <id> show` - Show snapshot details
-- `snapshot <id> list` - List contents of snapshot
-- `snapshot <id> mount <path>` - Mount snapshot as filesystem
-- `snapshot <id> umount` - Unmount snapshot
-- `snapshot <id> find <pattern>` - Search within snapshot
-- `snapshot <id> forget` - Remove specific snapshot
+- `snapshot <id> show` - ✅ Implemented
+- `snapshot <id> list` - ✅ Implemented (as `contents`)
+- `snapshot <id> mount <path>` - ✅ Implemented
+- `snapshot <id> umount` - ✅ Implemented
+- `snapshot <id> find <pattern>` - ✅ Implemented (as `find-in`)
+- `snapshot <id> forget` - ✅ Implemented
 - `snapshot <id> restore <target>` - ✅ Implemented (moved from main)
 
 #### Snapshots Commands (Multiple)
 
 - `snapshots list` - ✅ Implemented (moved from main)
-- `snapshots prune` - Remove old snapshots across repos
-- `snapshots diff <id1> <id2>` - Compare two snapshots
-- `snapshots find <pattern>` - Search across all snapshots
+- `snapshots prune` - ✅ Implemented
+- `snapshots diff <id1> <id2>` - ✅ Implemented
+- `snapshots find <pattern>` - ✅ Implemented
 
 #### Repo Commands (Single)
 
 - `repo <name> init` - ✅ Implemented (moved from main)
-- `repo <name> check` - Check repository integrity
-- `repo <name> stats` - Show repository statistics
-- `repo <name> unlock` - Remove locks from repository
-- `repo <name> migrate` - Migrate repository format
-- `repo <name> forget` - Apply retention policy
+- `repo <name> check` - ✅ Implemented
+- `repo <name> stats` - ✅ Implemented
+- `repo <name> unlock` - ✅ Implemented
+- `repo <name> migrate` - ✅ Implemented
+- `repo <name> forget` - ✅ Implemented
 
 #### Repos Commands (Multiple)
 
-- `repos list` - List all repositories
-- `repos check` - Check all repositories
-- `repos stats` - Show stats for all repositories
+- `repos list` - ✅ Implemented
+- `repos check` - ✅ Implemented (as `check-all`)
+- `repos stats` - ✅ Implemented (as `stats-all`)
 
 #### Config Commands
 
-- `config show` - ✅ Implemented (moved from config list)
-- `config setup` - ✅ Implemented (existing)
-- `config repositories list` - ✅ Implemented (moved)
-- `config repositories add` - ✅ Implemented (moved)
-- `config repositories remove` - ✅ Implemented (moved)
-- `config repositories default` - ✅ Implemented (moved)
-- `config repositories show <name>` - Show repository details
-- `config target <name> show` - Show target details
-- `config target <name> edit` - Edit target configuration
-- `config target <name> remove` - Remove target
-- `config targets list` - List all targets
-- `config targets add` - ✅ Implemented (moved)
-- `config import restic` - ✅ Implemented (moved)
+- `config show` - ✅ Implemented
+- `config setup` - ✅ Implemented
+- `config repositories list` - ✅ Implemented
+- `config repositories add` - ✅ Implemented
+- `config repositories remove` - ✅ Implemented
+- `config repositories default` - ✅ Implemented
+- `config repositories show <name>` - ✅ Implemented (as `repos show`)
+- `config target <name> show` - ✅ Implemented
+- `config target <name> edit` - ✅ Implemented
+- `config target <name> remove` - ✅ Implemented
+- `config targets list` - ✅ Implemented
+- `config targets add` - ✅ Implemented
+- `config import restic` - ✅ Implemented
 
 ### 🔧 Technical Changes
 
