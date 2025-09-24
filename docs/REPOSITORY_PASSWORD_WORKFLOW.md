@@ -5,6 +5,9 @@
 TimeLocker now supports password storage during repository addition, making it easier to work with existing repositories and enabling seamless non-interactive
 operations.
 
+
+> Note: The `--password` CLI flag has been removed. TimeLocker resolves repository credentials via the Credential Manager (preferred) or environment variables (TIMELOCKER_PASSWORD, then RESTIC_PASSWORD). No interactive password prompts are used for these flows.
+
 ## 🔄 **Enhanced Workflow**
 
 ### **Scenario 1: Adding an Existing Repository**
@@ -12,16 +15,13 @@ operations.
 When you have an existing restic repository (created outside TimeLocker):
 
 ```bash
-# Add existing repository with password
+# Add existing repository
 tl config repositories add production "s3://bucket/backup" \
-  --password "existing_repo_password" \
   --description "Production backup repository" \
   --set-default
 
-# Or let TimeLocker prompt for password
-tl config repositories add production "s3://bucket/backup"
-# TimeLocker will ask: "Would you like to store a password for repository 'production'?"
-# If yes: "Password for repository 'production': "
+# Credentials are resolved via Credential Manager (preferred) or environment variables
+# (TIMELOCKER_PASSWORD/RESTIC_PASSWORD). No --password flag or interactive prompts.
 ```
 
 **Result:**
@@ -40,7 +40,7 @@ tl config repositories add newrepo "/path/to/new/repo" \
   --description "New backup repository"
 
 # Step 2: Initialize the repository (creates it)
-tl repo init newrepo --password "new_secure_password"
+tl repo init newrepo
 ```
 
 **Result:**
@@ -171,35 +171,31 @@ tl backup documents -r imported
 
 ## 📋 **Command Reference**
 
-### **Add Repository with Password**
+### **Add Repository**
 
 ```bash
 tl config repositories add <name> <uri> [OPTIONS]
 
 OPTIONS:
-  --password, -p TEXT        Repository password
-  --description, -d TEXT     Repository description  
-  --set-default             Set as default repository
-  --config-dir PATH         Configuration directory
-  --verbose, -v             Enable verbose output
+  --description, -d TEXT     Repository description
+  --set-default              Set as default repository
+  --config-dir PATH          Configuration directory
+  --verbose, -v              Enable verbose output
 ```
 
 ### **Examples**
 
 ```bash
-# Existing repository with known password
-tl config repositories add prod "s3://bucket/path" --password "secret123"
-
-# Existing repository, prompt for password
+# Existing repository
 tl config repositories add prod "s3://bucket/path"
 
 # New repository (add config, then initialize)
 tl config repositories add new "/path/to/new"
-tl repo init new --password "newsecret"
+tl repo init new
 
-# Environment variable detection
+# Environment variable example
 export TIMELOCKER_PASSWORD="secret123"
-tl config repositories add auto "/backup/repo"  # Password auto-detected
+tl config repositories add auto "/backup/repo"  # Password detected from environment
 ```
 
 ## 🎯 **Best Practices**
