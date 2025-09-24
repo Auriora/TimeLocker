@@ -50,6 +50,9 @@ Usage:
 
 # Main configuration interface
 from .configuration_module import ConfigurationModule
+# Backward-compatible alias for legacy imports
+# NOTE: Deprecated; use ConfigurationModule instead
+from .configuration_module import ConfigurationModule as ConfigurationManager
 
 # Configuration schema and models
 from .configuration_schema import (
@@ -87,6 +90,21 @@ from .configuration_migrator import (
     ConfigurationMigrator,
     MigrationResult
 )
+
+# Legacy enum compatibility for tests that still reference ConfigSection
+from enum import Enum
+
+
+class ConfigSection(Enum):
+    GENERAL = 'general'
+    BACKUP = 'backup'
+    RESTORE = 'restore'
+    SECURITY = 'security'
+    UI = 'ui'
+    NOTIFICATIONS = 'notifications'
+    MONITORING = 'monitoring'
+    REPOSITORIES = 'repositories'
+    BACKUP_TARGETS = 'backup_targets'
 
 
 # Legacy imports removed - use ConfigurationModule instead
@@ -187,6 +205,7 @@ def migrate_legacy_configuration(source_dir: str = None, target_dir: str = None)
 __all__ = [
         # Main interface
         'ConfigurationModule',
+        'ConfigurationManager',
 
         # Schema and models
         'TimeLockerConfig',
@@ -204,6 +223,9 @@ __all__ = [
         'ThemeType',
         'ConfigDict',
         'ConfigValue',
+
+        # Legacy compatibility
+        'ConfigSection',
 
         # Components
         'ConfigurationDefaults',

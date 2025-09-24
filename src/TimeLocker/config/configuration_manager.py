@@ -261,56 +261,100 @@ class ConfigurationMigrationManager:
 
 class ConfigurationManager:
     """
-    DEPRECATED: This class has been removed and replaced with ConfigurationModule.
+    Backward-compatibility shim over ConfigurationModule.
 
-    The old ConfigurationManager used incompatible configuration schemas that caused
-    errors when loading configurations. All functionality has been moved to the new
-    ConfigurationModule which uses proper dataclass-based configuration schemas.
-
-    Migration Guide:
-    ================
-
-    OLD CODE:
-        from TimeLocker.config.configuration_manager import ConfigurationManager
-        config_manager = ConfigurationManager()
-
-    NEW CODE:
-        from TimeLocker.config import ConfigurationModule
-        config_module = ConfigurationModule()
-
-    Method Mapping:
-    - config_manager.get() -> config_module.get_section()
-    - config_manager.set() -> config_module.update_section()
-    - config_manager.list_repositories() -> config_module.list_repositories()
-    - config_manager.add_backup_target() -> config_module.add_backup_target()
-    - All other methods have equivalent functionality in ConfigurationModule
+    Provides a minimal subset of the legacy API used by tests and existing scripts.
+    Internally delegates to ConfigurationModule while adapting method names and
+    return shapes.
     """
 
     def __init__(self, config_dir: Optional[Path] = None):
-        """
-        DEPRECATED: ConfigurationManager has been removed.
+        # Lazy import to avoid potential circular imports during test discovery
+        from . import ConfigurationModule  # type: ignore
+        self._module = ConfigurationModule(config_dir)
 
-        This class is no longer functional and will raise an exception immediately.
-        Use ConfigurationModule instead.
+    # -------------------------------
+    # Repository management methods
+    # -------------------------------
+    def add_repository(self, name: str, uri: str, description: Optional[str] = None) -> None:
+        config = self._module.get_config()
+        if name in config.repositories:
+            raise RepositoryAlreadyExistsError(f"Repository '{name}' already exists")
+        repo_dict = {"name": name, "location": uri, "description": description or ""}
+        self._module.add_repository(repo_dict)
 
-        Args:
-            config_dir: Directory for configuration files (ignored)
+    def get_repository(self, name: str) -> Dict[str, Any]:
+        try:
+            repo = self._module.get_repository(name)
+        except Exception:
+            raise RepositoryNotFoundError(f"Repository '{name}' not found")
+        return {
+                "name":        name,
+                "uri":         repo.location or "",
+                "description": repo.description or "",
+                "type":        self._detect_type(repo.location or ""),
+                "created":     datetime.now().isoformat(),
+        }
 
-        Raises:
-            RuntimeError: Always raised to force migration to new system
-        """
-        raise RuntimeError(
-                "ConfigurationManager has been removed due to incompatible configuration schemas.\n\n"
-                "MIGRATION REQUIRED:\n"
-                "==================\n\n"
-                "Replace this import:\n"
-                "  from TimeLocker.config.configuration_manager import ConfigurationManager\n\n"
-                "With this import:\n"
-                "  from TimeLocker.config import ConfigurationModule\n\n"
-                "Replace this instantiation:\n"
-                "  config_manager = ConfigurationManager()\n\n"
-                "With this instantiation:\n"
-                "  config_module = ConfigurationModule()\n\n"
-                "All methods have equivalent functionality in ConfigurationModule.\n"
-                "See the class docstring for detailed migration guide."
+    def remove_repository(self, name: str) -> None:
+        try:
+            self._module.remove_repository(name)
+        except Exception:
+            raise RepositoryNotFoundError(f"Repository '{name}' not found")
+
+    def set_default_repository(self, name: str) -> None:
+        # Verify exists
+        try:
+            _ = self._module.get_repository(name)
+        except Exception:
+            raise RepositoryNotFoundError(f"Repository '{name}' not found")
+        self._module.set_default_repository(name)
+
+    def get_default_repository(self) -> Optional[str]:
+        return self._module.get_default_repository()
+
+    # -------------------------------
+    # Resolution helpers
+    # -------------------------------
+    def resolve_repository(self, name_or_uri: Optional[str]) -> str:
+        if not name_or_uri:
+            default_name = self.get_default_repository()
+            if not default_name:
+                raise RepositoryNotFoundError("No default repository configured and no input provided")
+            repo = self._module.get_repository(default_name)
+            return repo.location or ""
+
+        # If exact name exists
+        config = self._module.get_config()
+        if name_or_uri in config.repositories:
+            return config.repositories[name_or_uri].location or ""
+
+        # Passthrough if looks like URI/path
+        if self._looks_like_uri_or_path(name_or_uri):
+            return name_or_uri
+
+        raise RepositoryNotFoundError(f"Repository '{name_or_uri}' not found")
+
+    # -------------------------------
+    # Internal helpers
+    # -------------------------------
+    @staticmethod
+    def _looks_like_uri_or_path(value: str) -> bool:
+        return (
+                "://" in value
+                or value.startswith(("s3:", "sftp:", "rest:", "file://", "/"))
         )
+
+    @staticmethod
+    def _detect_type(uri: str) -> str:
+        if uri.startswith(("s3://", "s3:")):
+            return "s3"
+        if uri.startswith(("sftp://", "sftp:")):
+            return "sftp"
+        if uri.startswith("file://") or uri.startswith("/"):
+            return "local"
+        # Heuristic: treat unknown without scheme as local
+        if "://" not in uri and uri and not uri.split(":")[0]:
+            return "local"
+        # Default
+        return "local"

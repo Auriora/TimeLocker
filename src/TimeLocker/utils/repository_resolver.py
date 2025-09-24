@@ -11,6 +11,7 @@ from typing import Optional
 
 from ..config import ConfigurationModule
 from ..interfaces.exceptions import ConfigurationError
+from ..config.configuration_manager import RepositoryNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -54,28 +55,39 @@ def _is_valid_uri_format(uri: str) -> bool:
     return False
 
 
+def _detect_type(uri: str) -> str:
+    """Infer repository type from URI for display/testing convenience."""
+    if uri.startswith(("s3://", "s3:")):
+        return "s3"
+    if uri.startswith(("sftp://", "sftp:")):
+        return "sftp"
+    if uri.startswith("file://") or uri.startswith("/"):
+        return "local"
+    return "local"
+
+
 def resolve_repository_uri(name_or_uri: Optional[str],
                            config_dir: Optional[Path] = None) -> str:
     """
     Resolve repository name to URI, supporting both names and direct URIs.
-    
+
     Args:
         name_or_uri: Repository name or URI string. If None, tries to use default repository.
         config_dir: Configuration directory path. If None, uses default.
-        
+
     Returns:
         Resolved repository URI string
-        
+
     Raises:
         RepositoryNotFoundError: If repository name cannot be resolved
-        
+
     Examples:
         # Using repository name
         uri = resolve_repository_uri("production")  # -> "s3:s3.region.amazonaws.com/bucket"
-        
+
         # Using direct URI (passthrough)
         uri = resolve_repository_uri("s3://bucket/path")  # -> "s3://bucket/path"
-        
+
         # Using default repository
         uri = resolve_repository_uri(None)  # -> URI of default repository
     """
@@ -105,14 +117,15 @@ def resolve_repository_uri(name_or_uri: Optional[str],
             # Not a valid URI and not a configured repository name
             repo_names = list(config.repositories.keys())
             if repo_names:
-                raise ConfigurationError(
+                raise RepositoryNotFoundError(
                         f"Repository '{name_or_uri}' not found. "
                         f"Available repositories: {', '.join(repo_names)}. "
                         f"Or provide a valid URI (e.g., file:///path, s3://bucket/path)."
                 )
             else:
-                raise ConfigurationError(
-                        f"Repository '{name_or_uri}' not found and no repositories configured. "
+                raise RepositoryNotFoundError(
+                        f"Repository '{name_or_uri}' not found. "
+                        f"No repositories configured. "
                         f"Use 'tl config repositories add' to add repositories, "
                         f"or provide a valid URI (e.g., file:///path, s3://bucket/path)."
                 )
@@ -126,26 +139,26 @@ def resolve_repository_uri(name_or_uri: Optional[str],
             config = config_module.get_config()
             if config.repositories:
                 repo_names = list(config.repositories.keys())
-                raise ConfigurationError(
+                raise RepositoryNotFoundError(
                         f"{e}. Available repositories: {', '.join(repo_names)}"
                 )
             else:
-                raise ConfigurationError(
+                raise RepositoryNotFoundError(
                         f"{e}. No repositories configured. Use 'tl config add-repo' to add one."
                 )
         except:
-            raise ConfigurationError(str(e))
+            raise RepositoryNotFoundError(str(e))
 
 
 def get_repository_info(name_or_uri: str,
                         config_dir: Optional[Path] = None) -> dict:
     """
     Get repository information including metadata if it's a named repository.
-    
+
     Args:
         name_or_uri: Repository name or URI string
         config_dir: Configuration directory path. If None, uses default.
-        
+
     Returns:
         Dictionary with repository information:
         - uri: Repository URI
@@ -153,11 +166,11 @@ def get_repository_info(name_or_uri: str,
         - description: Repository description (if available)
         - type: Repository type (if available)
         - is_named: Boolean indicating if this is a named repository
-        
+
     Examples:
         info = get_repository_info("production")
         # -> {"uri": "s3:...", "name": "production", "description": "...", "is_named": True}
-        
+
         info = get_repository_info("s3://bucket/path")
         # -> {"uri": "s3://bucket/path", "is_named": False}
     """
@@ -179,10 +192,12 @@ def get_repository_info(name_or_uri: str,
         config = config_module.get_config()
         if name_or_uri in config.repositories:
             repo_config = config.repositories[name_or_uri]
+            uri = repo_config.location or ""
             return {
-                    "uri":         repo_config.location or "",
+                    "uri":         uri,
                     "name":        name_or_uri,
                     "description": repo_config.description or "",
+                    "type":        _detect_type(uri),
                     "is_named":    True
             }
         else:

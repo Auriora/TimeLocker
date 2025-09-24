@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 class ConfigurationPathResolver:
     """
     Configuration path resolver following Single Responsibility Principle.
-    
+
     This class focuses solely on resolving configuration file paths according
     to XDG Base Directory Specification and system context.
     """
@@ -25,7 +25,7 @@ class ConfigurationPathResolver:
     def get_config_directory() -> Path:
         """
         Get appropriate configuration directory based on context.
-        
+
         Returns:
             Path: Configuration directory to use
         """
@@ -38,7 +38,7 @@ class ConfigurationPathResolver:
     def get_user_config_directory() -> Path:
         """
         Get user configuration directory following XDG specification.
-        
+
         Returns:
             Path: User configuration directory
         """
@@ -49,10 +49,30 @@ class ConfigurationPathResolver:
             return Path.home() / ".config" / "timelocker"
 
     @staticmethod
+    def get_project_config_directory() -> Path:
+        """
+        Get project-level configuration directory (per working directory).
+
+        Returns:
+            Path: Project configuration directory (./.timelocker)
+        """
+        return Path.cwd() / ".timelocker"
+
+    @staticmethod
+    def get_project_config_file_path() -> Path:
+        """
+        Get project-level configuration file path.
+
+        Returns:
+            Path: Project configuration file path (./.timelocker/config.json)
+        """
+        return ConfigurationPathResolver.get_project_config_directory() / "config.json"
+
+    @staticmethod
     def get_system_config_directory() -> Path:
         """
         Get system-wide configuration directory.
-        
+
         Returns:
             Path: System configuration directory
         """
@@ -68,7 +88,7 @@ class ConfigurationPathResolver:
     def get_legacy_config_directory() -> Path:
         """
         Get legacy configuration directory location.
-        
+
         Returns:
             Path: Legacy configuration directory
         """
@@ -78,10 +98,10 @@ class ConfigurationPathResolver:
     def get_config_file_path(config_dir: Optional[Path] = None) -> Path:
         """
         Get configuration file path.
-        
+
         Args:
             config_dir: Optional specific configuration directory
-            
+
         Returns:
             Path: Configuration file path
         """
@@ -94,10 +114,10 @@ class ConfigurationPathResolver:
     def get_backup_directory(config_dir: Optional[Path] = None) -> Path:
         """
         Get configuration backup directory.
-        
+
         Args:
             config_dir: Optional specific configuration directory
-            
+
         Returns:
             Path: Configuration backup directory
         """
@@ -110,10 +130,10 @@ class ConfigurationPathResolver:
     def get_data_directory(config_dir: Optional[Path] = None) -> Path:
         """
         Get data directory path.
-        
+
         Args:
             config_dir: Optional specific configuration directory
-            
+
         Returns:
             Path: Data directory path
         """
@@ -126,10 +146,10 @@ class ConfigurationPathResolver:
     def get_temp_directory(config_dir: Optional[Path] = None) -> Path:
         """
         Get temporary directory path.
-        
+
         Args:
             config_dir: Optional specific configuration directory
-            
+
         Returns:
             Path: Temporary directory path
         """
@@ -142,7 +162,7 @@ class ConfigurationPathResolver:
     def get_cache_directory() -> Path:
         """
         Get cache directory following XDG specification.
-        
+
         Returns:
             Path: Cache directory
         """
@@ -159,7 +179,7 @@ class ConfigurationPathResolver:
     def get_runtime_directory() -> Path:
         """
         Get runtime directory following XDG specification.
-        
+
         Returns:
             Path: Runtime directory
         """
@@ -177,7 +197,7 @@ class ConfigurationPathResolver:
     def is_system_context() -> bool:
         """
         Check if running in system context (as root).
-        
+
         Returns:
             bool: True if running as root/system
         """
@@ -187,7 +207,7 @@ class ConfigurationPathResolver:
     def should_migrate_from_legacy() -> bool:
         """
         Check if migration from legacy configuration is needed.
-        
+
         Returns:
             bool: True if legacy configuration exists and should be migrated
         """
@@ -213,13 +233,20 @@ class ConfigurationPathResolver:
     def get_all_possible_config_paths() -> List[Path]:
         """
         Get all possible configuration file paths in order of preference.
-        
+
         Returns:
             List[Path]: List of possible configuration file paths
         """
         paths = []
 
-        # Current context configuration
+        # Project-level configuration (highest precedence)
+        try:
+            project_cfg = ConfigurationPathResolver.get_project_config_file_path()
+            paths.append(project_cfg)
+        except Exception:
+            pass
+
+        # Current context configuration (user/system XDG)
         paths.append(ConfigurationPathResolver.get_config_file_path())
 
         # Legacy configuration (if not system context)
@@ -240,7 +267,7 @@ class ConfigurationPathResolver:
     def ensure_directories_exist(config_dir: Optional[Path] = None) -> None:
         """
         Ensure all necessary directories exist.
-        
+
         Args:
             config_dir: Optional specific configuration directory
         """
@@ -271,7 +298,7 @@ class ConfigurationPathResolver:
     def get_path_info() -> dict:
         """
         Get comprehensive path information for debugging.
-        
+
         Returns:
             dict: Path information
         """

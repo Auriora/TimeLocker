@@ -142,6 +142,8 @@ class RepositoryConfig:
     """Repository configuration"""
     name: str
     location: Optional[str] = None
+    # Compatibility alias used by some tests/legacy code
+    path: Optional[str] = None
     password: Optional[str] = None
     password_file: Optional[str] = None
     password_command: Optional[str] = None
@@ -153,10 +155,19 @@ class RepositoryConfig:
     enabled: bool = True
     read_only: bool = False
 
+    def __post_init__(self):
+        # If only 'path' was provided, treat it as 'location'
+        if self.location is None and self.path:
+            self.location = self.path
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format"""
         from dataclasses import asdict
         result = asdict(self)
+
+        # Remove compatibility-only field from output
+        if 'path' in result:
+            result.pop('path', None)
 
         # Map internal field names to JSON field names
         if 'location' in result:
