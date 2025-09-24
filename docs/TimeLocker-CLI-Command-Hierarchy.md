@@ -14,7 +14,7 @@ TimeLocker uses a **singular/plural pattern** for intuitive command organization
 
 ## Root Command: `timelocker` (alias: `tl`)
 
-**Description**: TimeLocker - Beautiful backup operations with Rich terminal output  
+**Description**: TimeLocker - Beautiful backup operations with Rich terminal output
 **Framework**: Built with Typer and Rich for beautiful terminal output
 
 ## Complete Command Tree Structure
@@ -23,7 +23,7 @@ TimeLocker uses a **singular/plural pattern** for intuitive command organization
 timelocker/ (alias: tl)
 ├── backup/
 │   ├── create [paths...]           # Create backup (default action)
-│   └── verify [--snapshot]         # Verify backup integrity  
+│   └── verify [--snapshot]         # Verify backup integrity (defaults to latest)
 ├── snapshot/ <id>                  # Single snapshot operations
 │   ├── show                        # Show snapshot details
 │   ├── list                        # List contents of snapshot
@@ -47,6 +47,7 @@ timelocker/ (alias: tl)
 ├── repos/                          # Multiple repository operations
 │   ├── list|ls                     # List all repositories
 │   ├── check                       # Check all repositories
+│   ├── default <name>          # Set default repository
 │   └── stats                       # Show stats for all repositories
 ├── config/                         # Configuration management
 │   ├── show                        # Show configuration settings
@@ -57,7 +58,7 @@ timelocker/ (alias: tl)
 │   │   ├── list|ls                 # List configured repositories
 │   │   ├── add <name> <uri>        # Add repository to config
 │   │   ├── remove|rm <name>        # Remove repository from config
-│   │   ├── default <name>          # Set default repository
+
 │   │   └── show <name>             # Show repository config details
 │   ├── target/ <name>              # Single target operations
 │   │   ├── show                    # Show target details
@@ -92,7 +93,7 @@ By default, snapshot operations work across **all configured repositories**:
 # Shows snapshots from ALL configured repositories
 tl snapshots list
 
-# Searches across ALL configured repositories  
+# Searches across ALL configured repositories
 tl snapshots find "*.pdf"
 
 # Prunes old snapshots in ALL configured repositories
@@ -120,7 +121,7 @@ tl snapshots find "*.pdf" --repository local-backup
 tl backup create /home/user/documents --target mydocs
 
 # Verify backup integrity
-tl backup verify --snapshot latest
+tl backup verify
 ```
 
 ### Single Snapshot Operations

@@ -23,7 +23,7 @@ TimeLocker now uses a **simplified command organization**:
 timelocker/ (alias: tl)
 ├── backup/
 │   ├── create [paths...]           # Create backup (default action)
-│   └── verify [--snapshot]         # Verify backup integrity  
+│   └── verify [--snapshot]         # Verify backup integrity (defaults to latest)
 ├── snapshots/                      # All snapshot operations
 │   ├── list|ls                     # List snapshots from all configured repos
 │   ├── show <id>                   # Show snapshot details
