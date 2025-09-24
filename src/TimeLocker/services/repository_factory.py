@@ -100,7 +100,6 @@ class RepositoryFactory(IRepositoryFactory):
         self._repository_types[scheme] = repository_class
         logger.debug(f"Registered repository type '{repository_class.__name__}' for scheme '{scheme}'")
 
-    @with_error_handling("create_repository", "RepositoryFactory")
     def create_repository(self,
                           uri: str,
                           password: Optional[str] = None,
