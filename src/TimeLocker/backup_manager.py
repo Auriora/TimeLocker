@@ -35,6 +35,29 @@ from .utils import (
 from .interfaces import IRepositoryFactory, IBackupOrchestrator
 from .services import RepositoryFactory
 
+try:
+    from TimeLocker.performance.profiler import profile_operation
+    from TimeLocker.performance.metrics import start_operation_tracking, update_operation_tracking, complete_operation_tracking
+except ImportError:
+    # Fallback for when performance module is not available
+    def profile_operation(name):
+        def decorator(func):
+            return func
+
+        return decorator
+
+
+    def start_operation_tracking(operation_id, operation_type, metadata=None):
+        return None
+
+
+    def update_operation_tracking(operation_id, files_processed=None, bytes_processed=None, errors_count=None, metadata=None):
+        pass
+
+
+    def complete_operation_tracking(operation_id):
+        return None
+
 logger = logging.getLogger("restic")
 
 
@@ -165,9 +188,9 @@ class BackupManager:
                         logger.info("Backup completed successfully")
                         return result
                     else:
-                        raise BackupManagerError("Backup verification failed")
+                        logger.error(f"All backup attempts failed. Last error: {e}")
 
-                return result
+            raise BackupManagerError(f"Backup failed after {max_retries + 1} attempts: {last_exception}")
 
             return _execute_single_backup()
 
