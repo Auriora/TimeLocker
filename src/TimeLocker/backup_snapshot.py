@@ -17,22 +17,24 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
 
 from typing_extensions import Self
+
+if TYPE_CHECKING:
+    from .backup_repository import BackupRepository
 
 
 class BackupSnapshot():
     """Interface for backup snapshots"""
-    from TimeLocker.backup_repository import BackupRepository
-    repo: BackupRepository
+    repo: 'BackupRepository'
     id: str
     timestamp: datetime
     paths: list[Path]
     tags: List[str]
     size: int
 
-    def __init__(self, repo: BackupRepository, snapshot_id: str, timestamp: datetime, paths: list[Path]):
+    def __init__(self, repo: 'BackupRepository', snapshot_id: str, timestamp: datetime, paths: list[Path]):
         self.repo = repo
         self.id = snapshot_id
         self.timestamp = timestamp
@@ -77,7 +79,7 @@ class BackupSnapshot():
         return self.repo.forget_snapshot(self.id, prune)
 
     @classmethod
-    def from_dict(cls, repository: BackupRepository, data: Dict) -> Self:
+    def from_dict(cls, repository: 'BackupRepository', data: Dict) -> Self:
         """Create a snapshot instance from dictionary data"""
         return cls(
             repo=repository,

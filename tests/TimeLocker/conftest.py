@@ -20,7 +20,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from TimeLocker.file_selections import FileSelection
+from src.TimeLocker.file_selections import FileSelection
 
 
 # from file_selections import FileSelection

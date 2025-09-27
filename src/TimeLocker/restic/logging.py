@@ -22,4 +22,8 @@ RESTIC_LOG_LEVEL_ENV_KEY = "RESTIC_LOG_LEVEL"
 
 # Configure default logger
 logger = logging.getLogger("restic")
-logging.basicConfig(level=os.environ.get(RESTIC_LOG_LEVEL_ENV_KEY, "INFO").upper())
+
+# Only configure logging if it hasn't been configured yet
+# This prevents interference with completion and other contexts
+if not logging.getLogger().handlers:
+    logging.basicConfig(level=os.environ.get(RESTIC_LOG_LEVEL_ENV_KEY, "INFO").upper())

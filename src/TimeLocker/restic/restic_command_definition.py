@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
-from TimeLocker.command_builder import CommandParameter, ParameterStyle, CommandDefinition
+from ..command_builder import CommandParameter, ParameterStyle, CommandDefinition
 
 restic_command_def = CommandDefinition(
     name="restic",

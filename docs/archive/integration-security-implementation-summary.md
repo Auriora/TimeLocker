@@ -193,12 +193,12 @@ result = integration_service.execute_backup(repository, backup_target)
 ### Configuration Management
 
 ```python
-from TimeLocker.config import ConfigurationManager, ConfigSection
+from TimeLocker.config import ConfigurationModule
 
-config_manager = ConfigurationManager()
+config_module = ConfigurationModule()
 
 # Configure notifications
-config_manager.update_section(ConfigSection.NOTIFICATIONS, {
+config_module.update_section("notifications", {
     "desktop_enabled": True,
     "email_enabled": True,
     "email_to": ["admin@example.com"]

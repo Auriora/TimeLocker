@@ -24,10 +24,10 @@ from typing import List, Optional, Dict, Any, Callable, Union
 from enum import Enum
 import logging
 
-from TimeLocker.backup_repository import BackupRepository
-from TimeLocker.backup_snapshot import BackupSnapshot
-from TimeLocker.snapshot_manager import SnapshotManager
-from TimeLocker.recovery_errors import (
+from .backup_repository import BackupRepository
+from .backup_snapshot import BackupSnapshot
+from .snapshot_manager import SnapshotManager
+from .recovery_errors import (
     RestoreError, RestoreTargetError, RestorePermissionError,
     RestoreVerificationError, FileConflictError, InsufficientSpaceError,
     SnapshotCorruptedError, RestoreInterruptedError

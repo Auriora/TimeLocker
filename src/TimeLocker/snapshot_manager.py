@@ -20,9 +20,9 @@ from pathlib import Path
 from typing import List, Optional, Dict, Any, Callable
 import logging
 
-from TimeLocker.backup_repository import BackupRepository
-from TimeLocker.backup_snapshot import BackupSnapshot
-from TimeLocker.recovery_errors import SnapshotNotFoundError, RecoveryError
+from .backup_repository import BackupRepository
+from .backup_snapshot import BackupSnapshot
+from .recovery_errors import SnapshotNotFoundError, RecoveryError
 
 logger = logging.getLogger(__name__)
 

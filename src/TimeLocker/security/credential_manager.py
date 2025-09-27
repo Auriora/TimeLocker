@@ -22,6 +22,8 @@ import time
 import hashlib
 import secrets
 import threading
+import socket
+import uuid
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
@@ -148,6 +150,68 @@ class CredentialManager:
         )
         return base64.urlsafe_b64encode(kdf.derive(password.encode()))
 
+    def _get_auto_master_key(self) -> Optional[str]:
+        """
+        Derive master key from system fingerprint for auto-unlock
+
+        This creates a deterministic key based on stable system identifiers,
+        allowing non-interactive unlock while maintaining security.
+
+        Returns:
+            str: Auto-derived master key, or None if derivation fails
+        """
+        try:
+            # Collect stable system identifiers
+            identifiers = []
+
+            # Machine ID (Linux/systemd)
+            machine_id_file = Path("/etc/machine-id")
+            if machine_id_file.exists():
+                identifiers.append(machine_id_file.read_text().strip())
+            else:
+                # Fallback: try /var/lib/dbus/machine-id
+                dbus_machine_id = Path("/var/lib/dbus/machine-id")
+                if dbus_machine_id.exists():
+                    identifiers.append(dbus_machine_id.read_text().strip())
+                else:
+                    # Generate a stable UUID based on hostname and user
+                    hostname = socket.gethostname()
+                    username = os.getenv('USER', os.getenv('USERNAME', 'unknown'))
+                    stable_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{hostname}.{username}"))
+                    identifiers.append(stable_id)
+
+            # User ID
+            try:
+                identifiers.append(str(os.getuid()))
+            except AttributeError:
+                # Windows doesn't have getuid
+                identifiers.append(os.getenv('USERNAME', 'unknown'))
+
+            # Hostname
+            identifiers.append(socket.gethostname())
+
+            # TimeLocker-specific salt for namespace separation
+            identifiers.append("timelocker-auto-unlock-v1")
+
+            # Create deterministic but secure fingerprint
+            fingerprint = ":".join(identifiers)
+
+            # Use PBKDF2 to create a strong key from the fingerprint
+            auto_key = hashlib.pbkdf2_hmac(
+                    'sha256',
+                    fingerprint.encode('utf-8'),
+                    b'timelocker_auto_salt_v1',
+                    100000  # Same iteration count as manual keys
+            ).hex()
+
+            return auto_key
+
+        except Exception as e:
+            # Log the failure but don't expose details
+            self._log_access_event("auto_key_derivation", success=False,
+                                   details="Auto-key derivation failed")
+            return None
+
     def _get_or_create_salt(self) -> bytes:
         """Get existing salt or create new one"""
         salt_file = self.config_dir / "salt"
@@ -158,12 +222,34 @@ class CredentialManager:
             salt_file.write_bytes(salt)
             return salt
 
-    def unlock(self, master_password: str) -> bool:
+    def auto_unlock(self) -> bool:
+        """
+        Attempt to unlock credential store using auto-derived key
+
+        This enables non-interactive operation by deriving the master key
+        from stable system identifiers.
+
+        Returns:
+            bool: True if auto-unlock successful, False otherwise
+        """
+        try:
+            auto_key = self._get_auto_master_key()
+            if not auto_key:
+                return False
+
+            return self.unlock(auto_key, is_auto_unlock=True)
+
+        except Exception as e:
+            self._log_access_event("auto_unlock", success=False, details=str(e))
+            return False
+
+    def unlock(self, master_password: str, is_auto_unlock: bool = False) -> bool:
         """
         Unlock the credential store with master password
 
         Args:
             master_password: Master password to decrypt credentials
+            is_auto_unlock: Whether this is an automatic unlock attempt
 
         Returns:
             bool: True if unlock successful, False otherwise
@@ -185,7 +271,8 @@ class CredentialManager:
             self._last_failed_attempt = None
             self._unlock_time = time.time()
 
-            self._log_access_event("unlock", success=True)
+            unlock_type = "auto_unlock" if is_auto_unlock else "manual_unlock"
+            self._log_access_event(unlock_type, success=True)
             return True
 
         except CredentialAccessError:
@@ -193,16 +280,66 @@ class CredentialManager:
             raise
         except Exception as e:
             self._fernet = None
-            self._failed_attempts += 1
-            self._last_failed_attempt = time.time()
+            # Only increment failed attempts for manual unlocks to avoid lockout from auto-unlock attempts
+            if not is_auto_unlock:
+                self._failed_attempts += 1
+                self._last_failed_attempt = time.time()
 
-            self._log_access_event("unlock", success=False, details=str(e))
+            unlock_type = "auto_unlock" if is_auto_unlock else "manual_unlock"
+            self._log_access_event(unlock_type, success=False, details=str(e))
 
             if self._failed_attempts >= self._max_failed_attempts:
                 self._log_audit_event("lockout_triggered", success=False,
                                       details=f"Failed attempts: {self._failed_attempts}")
 
             raise CredentialManagerError(f"Failed to unlock credential store: {e}")
+
+    def ensure_unlocked(self, allow_prompt: bool = True) -> bool:
+        """
+        Ensure credential store is unlocked using the best available method
+
+        This method implements the credential resolution chain:
+        1. Check if already unlocked
+        2. Try auto-unlock (non-interactive)
+        3. Try environment variable (TIMELOCKER_MASTER_PASSWORD)
+        4. Prompt user (if allowed)
+
+        Args:
+            allow_prompt: Whether to prompt user if other methods fail
+
+        Returns:
+            bool: True if successfully unlocked, False otherwise
+        """
+        # Already unlocked?
+        if not self.is_locked():
+            return True
+
+        # Try auto-unlock first (non-interactive)
+        if self.auto_unlock():
+            return True
+
+        # Try environment variable
+        env_master_password = os.getenv('TIMELOCKER_MASTER_PASSWORD')
+        if env_master_password:
+            try:
+                if self.unlock(env_master_password):
+                    return True
+            except Exception:
+                pass  # Continue to next method
+
+        # Last resort: prompt user (if allowed)
+        if allow_prompt:
+            try:
+                import getpass
+                master_password = getpass.getpass("TimeLocker master password: ")
+                if master_password and self.unlock(master_password):
+                    return True
+            except (KeyboardInterrupt, EOFError):
+                pass  # User cancelled
+            except Exception:
+                pass  # Import or other error
+
+        return False
 
     def _load_credentials(self) -> Dict[str, Any]:
         """Load and decrypt credentials from disk"""
@@ -231,18 +368,23 @@ class CredentialManager:
         except Exception as e:
             raise CredentialManagerError(f"Failed to save credentials: {e}")
 
-    def store_repository_password(self, repository_id: str, password: str) -> None:
+    def store_repository_password(self, repository_id: str, password: str, allow_prompt: bool = True) -> None:
         """
         Store password for a repository
 
         Args:
             repository_id: Unique identifier for the repository
             password: Repository password to store
+            allow_prompt: Whether to prompt for master password if needed
         """
         self._check_auto_lock()
 
         if not repository_id or not password:
             raise CredentialManagerError("Repository ID and password cannot be empty")
+
+        # Ensure credential store is unlocked
+        if not self.ensure_unlocked(allow_prompt=allow_prompt):
+            raise CredentialManagerError("Could not unlock credential store to store password")
 
         with self._file_lock:
             try:
@@ -266,17 +408,24 @@ class CredentialManager:
                 self._log_audit_event("store_repository_password", repository_id, success=False, details=str(e))
                 raise
 
-    def get_repository_password(self, repository_id: str) -> Optional[str]:
+    def get_repository_password(self, repository_id: str, allow_prompt: bool = False) -> Optional[str]:
         """
         Retrieve password for a repository
 
         Args:
             repository_id: Unique identifier for the repository
+            allow_prompt: Whether to prompt for master password if needed
 
         Returns:
             str: Repository password if found, None otherwise
         """
         self._check_auto_lock()
+
+        # Ensure credential store is unlocked
+        if not self.ensure_unlocked(allow_prompt=allow_prompt):
+            self._log_audit_event("get_repository_password", repository_id, success=False,
+                                  details="Could not unlock credential store")
+            return None
 
         with self._file_lock:
             try:

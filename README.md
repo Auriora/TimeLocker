@@ -164,17 +164,20 @@ our [Installation Guide](docs/INSTALLATION.md).
 
 ```bash
 # Initialize a new repository
-timelocker init --repository /path/to/repo --password mypassword
+timelocker init --repository /path/to/repo
 
 # Create a backup
-timelocker backup --repository /path/to/repo --password mypassword /home/user/documents
+timelocker backup --repository /path/to/repo /home/user/documents
 
 # List snapshots
-timelocker list --repository /path/to/repo --password mypassword
+timelocker list --repository /path/to/repo
 
 # Restore from backup
-timelocker restore --repository /path/to/repo --password mypassword --snapshot abc123 /restore/path
+timelocker restore --repository /path/to/repo --snapshot abc123 /restore/path
 ```
+
+Note: Credentials are resolved via the Credential Manager (preferred), then the TIMELOCKER_PASSWORD environment variable, then RESTIC_PASSWORD. The --password flag has been removed from CLI commands.
+
 
 #### Python API
 
@@ -313,6 +316,7 @@ Key component interactions:
 For more detailed documentation, please refer to:
 
 - [**Installation Guide**](docs/INSTALLATION.md) Detailed instructions for installing TimeLocker
+- [**Version Management Guide**](docs/VERSION_MANAGEMENT.md) How to manage versions and releases
 - [**Command Builder Documentation**](docs/command_builder.md) Details on using the command builder
 - [**Documentation Organization**](docs/DOCUMENTATION_ORGANIZATION.md) Guidelines for organizing documentation
 - [**SDLC Documentation**](docs/SDLC/) Software Development Lifecycle documentation

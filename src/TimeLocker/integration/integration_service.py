@@ -23,7 +23,7 @@ from typing import Dict, Any, Optional, List, Callable
 
 from ..security import SecurityService, SecurityEvent, SecurityLevel
 from ..monitoring import StatusReporter, NotificationService, OperationStatus, StatusLevel
-from ..config import ConfigurationManager, ConfigSection
+from ..config import ConfigurationModule
 
 logger = logging.getLogger(__name__)
 
@@ -48,13 +48,14 @@ class IntegrationService:
             config_dir: Directory for configuration and data
         """
         if config_dir is None:
-            config_dir = Path.home() / ".timelocker"
+            from ..config.configuration_manager import ConfigurationPathResolver
+            config_dir = ConfigurationPathResolver.get_config_directory()
 
         self.config_dir = Path(config_dir)
         self.config_dir.mkdir(parents=True, exist_ok=True)
 
         # Initialize core components
-        self.config_manager = ConfigurationManager(config_dir)
+        self.config_manager = ConfigurationModule(config_dir)
         self.status_reporter = StatusReporter(config_dir / "status")
         self.notification_service = NotificationService(config_dir / "notifications")
 
@@ -87,7 +88,7 @@ class IntegrationService:
         self.status_reporter.add_status_handler(self._handle_status_update)
 
         # Load notification configuration from config manager
-        notification_config = self.config_manager.get(ConfigSection.NOTIFICATIONS)
+        notification_config = self.config_manager.get_section("notifications")
         if notification_config:
             self.notification_service.update_config(**notification_config)
 

@@ -21,18 +21,18 @@ from urllib.parse import parse_qs
 
 from boto3 import client
 
-from TimeLocker.restic.logging import logger
-from TimeLocker.restic.restic_repository import RepositoryError, ResticRepository
+from ..logging import logger
+from ..restic_repository import RepositoryError, ResticRepository
 
 
 class S3ResticRepository(ResticRepository):
     def __init__(
-        self,
-        location: str,
-        password: Optional[str] = None,
-        aws_access_key_id: Optional[str] = None,
-        aws_secret_access_key: Optional[str] = None,
-        aws_default_region: Optional[str] = None,
+            self,
+            location: str,
+            password: Optional[str] = None,
+            aws_access_key_id: Optional[str] = None,
+            aws_secret_access_key: Optional[str] = None,
+            aws_default_region: Optional[str] = None,
     ):
         super().__init__(location, password=password)
         self.aws_access_key_id = aws_access_key_id if aws_access_key_id is not None else os.getenv("AWS_ACCESS_KEY_ID")
@@ -41,19 +41,36 @@ class S3ResticRepository(ResticRepository):
 
     @classmethod
     def from_parsed_uri(
-        cls, parsed_uri, password: Optional[str] = None
+            cls, parsed_uri, password: Optional[str] = None
     ) -> "S3ResticRepository":
-        bucket = parsed_uri.netloc
-        path = parsed_uri.path.lstrip("/")
-        location = f"s3:{bucket}/{path}"
+        # Handle both standard URI format (s3://host/bucket) and restic format (s3:host/bucket)
+        if parsed_uri.netloc:
+            # Standard format: s3://s3.region.amazonaws.com/bucket-name
+            bucket = parsed_uri.netloc
+            path = parsed_uri.path.lstrip("/")
+            location = f"s3:{bucket}/{path}"
+        else:
+            # Restic format: s3:s3.region.amazonaws.com/bucket-name
+            # The path contains the full "host/bucket" part
+            path_parts = parsed_uri.path.split("/", 1)
+            if len(path_parts) >= 2:
+                bucket = path_parts[0]  # s3.region.amazonaws.com
+                path = path_parts[1]  # bucket-name/optional-path
+                location = f"s3:{bucket}/{path}"
+            else:
+                # Fallback for malformed URIs
+                bucket = parsed_uri.path
+                path = ""
+                location = f"s3:{bucket}"
+
         query_params = parse_qs(parsed_uri.query, keep_blank_values=True)
 
         return cls(
-            location=location,
-            password=password,
-            aws_access_key_id=query_params.get("access_key_id", [None])[0],
-            aws_secret_access_key=query_params.get("secret_access_key", [None])[0],
-            aws_default_region=query_params.get("region", [None])[0],
+                location=location,
+                password=password,
+                aws_access_key_id=query_params.get("access_key_id", [None])[0],
+                aws_secret_access_key=query_params.get("secret_access_key", [None])[0],
+                aws_default_region=query_params.get("region", [None])[0],
         )
 
     def backend_env(self) -> Dict[str, str]:
@@ -65,7 +82,7 @@ class S3ResticRepository(ResticRepository):
             missing_credentials.append("AWS_SECRET_ACCESS_KEY")
         if missing_credentials:
             raise RepositoryError(
-                f"AWS credentials must be set explicitly or in the environment. Missing: {', '.join(missing_credentials)}"
+                    f"AWS credentials must be set explicitly or in the environment. Missing: {', '.join(missing_credentials)}"
             )
         env["AWS_ACCESS_KEY_ID"] = self.aws_access_key_id
         env["AWS_SECRET_ACCESS_KEY"] = self.aws_secret_access_key
@@ -77,7 +94,18 @@ class S3ResticRepository(ResticRepository):
         logger.info("Validating S3 repository configuration")
         try:
             s3 = client("s3")
-            bucket_name = self._location.split(":")[1].split("/")[0]
+            # Extract bucket name from restic-style location: s3:s3.region.amazonaws.com/bucket-name
+            location_parts = self._location.split(":", 1)[1]  # Remove "s3:" prefix
+            # Split by "/" and get the last part (bucket name)
+            path_parts = location_parts.split("/")
+            if len(path_parts) >= 2:
+                bucket_name = path_parts[1]  # bucket-name is after the hostname
+            else:
+                bucket_name = path_parts[0]  # fallback if no path separator
+
+            if not bucket_name:
+                raise RepositoryError("Could not extract bucket name from S3 location")
+
             s3.head_bucket(Bucket=bucket_name)
             logger.info(f"Successfully validated S3 bucket: {bucket_name}")
         except ImportError:
