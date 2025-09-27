@@ -20,7 +20,7 @@ from TimeLocker.backup_target import BackupTarget
 from TimeLocker.restore_manager import RestoreManager
 from TimeLocker.snapshot_manager import SnapshotManager
 from TimeLocker.security import CredentialManager, SecurityService
-from TimeLocker.config import ConfigurationManager
+from TimeLocker.config import ConfigurationModule
 from TimeLocker.integration import IntegrationService
 from TimeLocker.monitoring import StatusReporter
 
@@ -107,8 +107,8 @@ class TestCompleteWorkflowValidation:
                 config_dir=self.config_dir / "security"
         )
 
-        # Initialize configuration manager
-        config_manager = ConfigurationManager(config_dir=self.config_dir)
+        # Initialize configuration module
+        config_manager = ConfigurationModule(config_dir=self.config_dir)
 
         # Initialize integration service
         integration_service = IntegrationService(config_dir=self.config_dir)
@@ -182,7 +182,7 @@ class TestCompleteWorkflowValidation:
 
         # Verify configuration values
         for section_name, section_data in config_data.items():
-            loaded_section = config_manager.get(section_name)
+            loaded_section = config_manager.get_section(section_name)
             assert loaded_section is not None
 
         # Phase 3: Repository Setup
@@ -400,7 +400,7 @@ class TestCompleteWorkflowValidation:
 
         # Verify configuration persistence
         for section_name in config_data.keys():
-            loaded_section = config_manager.get(section_name)
+            loaded_section = config_manager.get_section(section_name)
             assert loaded_section is not None
 
         print("✅ Complete TimeLocker workflow validation successful!")

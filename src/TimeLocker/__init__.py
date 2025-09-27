@@ -31,7 +31,7 @@ from .security import SecurityService, CredentialManager
 from .monitoring import StatusReporter, NotificationService
 
 # Configuration components
-from .config import ConfigurationManager
+from .config import ConfigurationModule
 
 # Integration components
 from .integration import IntegrationService

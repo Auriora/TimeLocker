@@ -21,8 +21,8 @@ from urllib.parse import parse_qs
 
 from b2sdk.v2 import B2Api, InMemoryAccountInfo
 
-from TimeLocker.restic.logging import logger
-from TimeLocker.restic.restic_repository import RepositoryError, ResticRepository
+from ..logging import logger
+from ..restic_repository import RepositoryError, ResticRepository
 
 
 class B2ResticRepository(ResticRepository):

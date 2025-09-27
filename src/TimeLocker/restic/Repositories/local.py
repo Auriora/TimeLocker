@@ -21,14 +21,14 @@ import subprocess
 from pathlib import Path
 from typing import Dict, Optional, Any
 
-from TimeLocker.restic.logging import logger
-from TimeLocker.restic.restic_repository import RepositoryError, ResticRepository
-from TimeLocker.security import CredentialManager
+from ..logging import logger
+from ..restic_repository import RepositoryError, ResticRepository
+from ...security import CredentialManager
 
 
 class LocalResticRepository(ResticRepository):
     @classmethod
-    def from_parsed_uri(cls, parsed_uri, password: Optional[str] = None) -> 'LocalResticRepository':
+    def from_parsed_uri(cls, parsed_uri, password: Optional[str] = None, **kwargs) -> 'LocalResticRepository':
         if hasattr(parsed_uri, "netloc") and parsed_uri.netloc:
             raise ValueError("parsed_uri must not have a 'netloc' attribute value for a local repository.")
 
@@ -38,8 +38,8 @@ class LocalResticRepository(ResticRepository):
         # Generate the absolute path
         path = os.path.abspath(parsed_uri.path)
 
-        # Return the initialized LocalRepository instance
-        return cls(location=path, password=password)
+        # Return the initialized LocalRepository instance with all kwargs
+        return cls(location=path, password=password, **kwargs)
 
     def backend_env(self) -> Dict[str, str]:
         return {}

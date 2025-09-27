@@ -144,8 +144,7 @@ class RepositoryConfig:
     location: Optional[str] = None
     # Compatibility alias used by some tests/legacy code
     path: Optional[str] = None
-    # Preserve legacy 'type' field for UX/tests
-    type: Optional[str] = None
+
     password: Optional[str] = None
     password_file: Optional[str] = None
     password_command: Optional[str] = None
@@ -256,12 +255,6 @@ class TimeLockerConfig:
                     for name, target in self.backup_targets.items()
             }
 
-        # Provide legacy-friendly 'settings' view for UX/tests
-        settings = {}
-        if getattr(self.general, 'default_repository', None):
-            settings['default_repository'] = self.general.default_repository
-        # Do not invent other keys; keep minimal for compatibility
-        result['settings'] = settings
 
         # Convert enums to their values for JSON serialization
         def convert_enums(obj):
@@ -306,7 +299,7 @@ class TimeLockerConfig:
             if 'uri' in repo_data_copy:
                 repo_data_copy['location'] = repo_data_copy.pop('uri')
             # Remove legacy fields not supported by new RepositoryConfig
-            legacy_fields = ['created']
+            legacy_fields = ['type', 'created']
             for field in legacy_fields:
                 repo_data_copy.pop(field, None)
             repositories[name] = RepositoryConfig(name=name, **repo_data_copy)
@@ -314,12 +307,11 @@ class TimeLockerConfig:
         # Convert backup targets
         backup_targets = {}
 
-        for key_name, target_data in data.get('backup_targets', {}).items():
+        for name, target_data in data.get('backup_targets', {}).items():
             # Create a copy to avoid modifying original data
             target_data_copy = target_data.copy()
-            # Determine display name: prefer explicit 'name', else use key
-            explicit_name = target_data_copy.pop('name', None)
-            resolved_name = explicit_name if explicit_name else key_name
+            # Remove 'name' from target_data to avoid duplicate parameter
+            target_data_copy.pop('name', None)
             # Handle legacy 'patterns' field structure
             if 'patterns' in target_data_copy:
                 patterns = target_data_copy.pop('patterns')
@@ -330,7 +322,7 @@ class TimeLockerConfig:
             legacy_fields = ['created', 'repository']
             for field in legacy_fields:
                 target_data_copy.pop(field, None)
-            backup_targets[key_name] = BackupTargetConfig(name=resolved_name, **target_data_copy)
+            backup_targets[name] = BackupTargetConfig(name=name, **target_data_copy)
 
         return cls(
                 general=general,

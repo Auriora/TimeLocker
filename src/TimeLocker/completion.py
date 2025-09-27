@@ -259,7 +259,6 @@ def complete_repositories(incomplete: str) -> List[str]:
                 completions.extend(repositories.keys())
         except Exception:
             pass
-
     return completions
 
 

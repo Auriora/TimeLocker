@@ -339,7 +339,6 @@ class ConfigurationModule(IConfigurationProvider):
         """
         if config is None:
             config = self.get_config()
-
         # Validate before saving
         validation_result = self._validator.validate_config(config)
         if not validation_result:

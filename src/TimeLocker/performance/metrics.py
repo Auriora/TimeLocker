@@ -230,3 +230,7 @@ def complete_operation_tracking(operation_id: str) -> Optional[OperationMetrics]
 def get_global_performance_summary(operation_type: Optional[str] = None) -> Dict[str, Any]:
     """Get performance summary from global metrics"""
     return _global_metrics.get_performance_summary(operation_type)
+
+
+# Alias for backward compatibility
+PerformanceMonitor = PerformanceMetrics

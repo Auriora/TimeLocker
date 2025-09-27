@@ -22,7 +22,7 @@ from TimeLocker.snapshot_manager import SnapshotManager
 from TimeLocker.security import SecurityService, CredentialManager
 from TimeLocker.monitoring import StatusReporter, NotificationService
 from TimeLocker.monitoring.status_reporter import StatusLevel
-from TimeLocker.config import ConfigurationManager
+from TimeLocker.config import ConfigurationModule
 from TimeLocker.integration import IntegrationService
 
 
@@ -79,8 +79,8 @@ class TestComprehensiveWorkflows:
 
     def _setup_components(self):
         """Setup all TimeLocker components"""
-        # Configuration Manager
-        self.config_manager = ConfigurationManager(self.config_dir)
+        # Configuration Module
+        self.config_manager = ConfigurationModule(self.config_dir)
 
         # Security components
         self.credential_manager = Mock(spec=CredentialManager)

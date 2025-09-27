@@ -25,7 +25,9 @@ from datetime import datetime
 from TimeLocker.integration import IntegrationService
 from TimeLocker.security import CredentialManager
 from TimeLocker.monitoring import StatusLevel
-from TimeLocker.config import ConfigSection
+
+
+# ConfigSection removed - use string section names directly
 
 
 class TestEndToEndWorkflow:
@@ -124,7 +126,7 @@ class TestEndToEndWorkflow:
         """Test complete restore workflow with all integrations"""
         # Configure system
         self.integration_service.config_manager.update_section(
-                ConfigSection.RESTORE,
+                "restore",
                 {
                         "verify_after_restore":    True,
                         "create_target_directory": True,
@@ -285,19 +287,18 @@ class TestEndToEndWorkflow:
         """Test workflow driven by configuration settings"""
         # Configure backup settings
         self.integration_service.config_manager.update_section(
-                ConfigSection.BACKUP,
+                "backup",
                 {
                         "compression":         "gzip",
                         "exclude_caches":      True,
                         "check_before_backup": True,
-                        "verify_after_backup": True,
-                        "retention_keep_last": 5
+                        "verify_after_backup": True
                 }
         )
 
         # Configure security settings
         self.integration_service.config_manager.update_section(
-                ConfigSection.SECURITY,
+                "security",
                 {
                         "encryption_enabled":  True,
                         "audit_logging":       True,
@@ -306,11 +307,11 @@ class TestEndToEndWorkflow:
         )
 
         # Verify configuration is accessible
-        backup_config = self.integration_service.config_manager.get(ConfigSection.BACKUP)
+        backup_config = self.integration_service.config_manager.get_section("backup")
         assert backup_config["compression"] == "gzip"
         assert backup_config["check_before_backup"] is True
 
-        security_config = self.integration_service.config_manager.get(ConfigSection.SECURITY)
+        security_config = self.integration_service.config_manager.get_section("security")
         assert security_config["encryption_enabled"] is True
         assert security_config["audit_logging"] is True
 
