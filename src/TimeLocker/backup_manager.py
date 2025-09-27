@@ -188,11 +188,17 @@ class BackupManager:
                         logger.info("Backup completed successfully")
                         return result
                     else:
-                        logger.error(f"All backup attempts failed. Last error: {e}")
+                        # Trigger retry by raising, avoid referencing undefined variables
+                        raise RuntimeError("Backup verification failed")
+                else:
+                    # Ensure retries happen if no snapshot returned
+                    raise RuntimeError("Backup did not return a snapshot_id")
 
-            raise BackupManagerError(f"Backup failed after {max_retries + 1} attempts: {last_exception}")
-
+            # Execute with retries; if all attempts fail, the last exception is re-raised
             return _execute_single_backup()
+        except Exception as e:
+            # Wrap in domain-specific error with attempts count
+            raise BackupManagerError(f"Backup failed after {max_retries + 1} attempts: {e}")
 
         finally:
             complete_operation_tracking(operation_id)
