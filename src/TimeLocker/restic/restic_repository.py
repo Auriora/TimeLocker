@@ -47,10 +47,10 @@ RESTIC_MIN_VERSION = "0.18.0"
 class ResticRepository(BackupRepository):
     def __init__(self, location: str, tags: Optional[List[str]] = None, password: Optional[str] = None,
                  min_version: str = RESTIC_MIN_VERSION, credential_manager: Optional[CredentialManager] = None):
-        logger.info(f"Initializing repository at location: {location}")
+        logger.debug(f"Initializing repository at location: {location}")
         self._command = CommandBuilder(restic_command_def).param("json")
         self._restic_version = self._verify_restic_executable(min_version)
-        logger.info("Detected restic version: %s", self._restic_version)  # from logging import logger
+        logger.debug("Detected restic version: %s", self._restic_version)
         self._location = location
         self._explicit_password = password
         logger.debug(f"ResticRepository initialized with explicit password: {'***' if password else 'None'}")
@@ -530,12 +530,16 @@ class ResticRepository(BackupRepository):
         """
         cmdline = self._command.command("forget")
         if prune:
-            cmdline.param("--prune")
-        result = cmdline.run(self.to_env())
-        if result.returncode != 0:
-            logger.error("Failed to implement Retention Policy: {result.stderr}")
+            cmdline.param("prune")
+        try:
+            cmdline.run(self.to_env())
+            return True
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to implement Retention Policy: {e.stderr}")
             return False
-        return True
+        except Exception as e:
+            logger.error(f"Failed to implement Retention Policy: {e}")
+            return False
 
     def forget_snapshot(self, snapshotid: str, prune: bool = False) -> bool:
         """
@@ -548,12 +552,16 @@ class ResticRepository(BackupRepository):
         """
         cmdline = self._command.command("forget").param(snapshotid)
         if prune:
-            cmdline.param("--prune")
-        result = cmdline.run(self.to_env())
-        if result.returncode != 0:
-            logger.error("Failed to initialize repository: {result.stderr}")
+            cmdline.param("prune")
+        try:
+            cmdline.run(self.to_env())
+            return True
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to forget snapshot: {e.stderr}")
             return False
-        return True
+        except Exception as e:
+            logger.error(f"Failed to forget snapshot: {e}")
+            return False
 
     def prune_data(self) -> str:
         """
