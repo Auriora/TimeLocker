@@ -332,8 +332,13 @@ class ConfigurationModule(IConfigurationProvider):
                 self._load_configuration()
             return self._config_cache
 
-    def save_config(self, config: TimeLockerConfig) -> None:
-        """Save complete configuration"""
+    def save_config(self, config: Optional[TimeLockerConfig] = None) -> None:
+        """Save complete configuration.
+
+        If config is None, save the current in-memory configuration.
+        """
+        if config is None:
+            config = self.get_config()
         # Validate before saving
         validation_result = self._validator.validate_config(config)
         if not validation_result:

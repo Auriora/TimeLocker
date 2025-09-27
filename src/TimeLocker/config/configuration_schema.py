@@ -144,6 +144,7 @@ class RepositoryConfig:
     location: Optional[str] = None
     # Compatibility alias used by some tests/legacy code
     path: Optional[str] = None
+
     password: Optional[str] = None
     password_file: Optional[str] = None
     password_command: Optional[str] = None
@@ -253,6 +254,7 @@ class TimeLockerConfig:
                     name: target.to_dict() if hasattr(target, 'to_dict') else target
                     for name, target in self.backup_targets.items()
             }
+
 
         # Convert enums to their values for JSON serialization
         def convert_enums(obj):

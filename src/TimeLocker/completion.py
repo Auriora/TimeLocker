@@ -245,12 +245,12 @@ def complete_repositories(incomplete: str) -> List[str]:
         pass
 
     # If user is typing a URI pattern, also provide URI completions
-    if (incomplete.startswith(("file://", "s3:", "sftp:", "rest:", "/")) or
+    if (incomplete.startswith(("file://", "s3:", "sftp:", "rest:")) or
             "://" in incomplete):
         uri_completions = complete_repository_uris(incomplete)
         completions.extend(uri_completions)
 
-    # If no matches and no incomplete text, show both repo names and URI patterns
+    # If no matches and no incomplete text, only show configured repository names
     elif not incomplete:
         try:
             repositories = list_available_repositories()
@@ -259,15 +259,6 @@ def complete_repositories(incomplete: str) -> List[str]:
                 completions.extend(repositories.keys())
         except Exception:
             pass
-
-        # Also add common URI patterns
-        completions.extend([
-                "file://",
-                "s3:",
-                "sftp:",
-                "rest:",
-        ])
-
     return completions
 
 
