@@ -37,7 +37,7 @@ from .errors import RepositoryError, ResticError
 from .logging import logger
 from .restic_command_definition import restic_command_def
 from ..command_builder import CommandBuilder
-from ..security import CredentialManager
+from ..security import CredentialManager, CredentialManagerError
 
 RESTIC_COMMAND = "restic"
 RESTIC_VERSION_COMMAND = f"{RESTIC_COMMAND} --json version"
@@ -113,15 +113,18 @@ class ResticRepository(BackupRepository):
             logger.debug("Returning explicit password")
             return self._explicit_password
 
-        # Try credential manager with auto-unlock (non-interactive)
+        # Try credential manager; if locked, fall through gracefully
         if self._credential_manager:
-            stored_password = self._credential_manager.get_repository_password(
-                    self._repository_id,
-                    allow_prompt=False  # Non-interactive for automated operations
-            )
-            if stored_password:
-                logger.debug("Returning credential manager password")
-                return stored_password
+            try:
+                stored_password = self._credential_manager.get_repository_password(
+                        self._repository_id,
+                        allow_prompt=False  # Non-interactive for automated operations
+                )
+                if stored_password:
+                    logger.debug("Returning credential manager password")
+                    return stored_password
+            except CredentialManagerError:
+                logger.debug("Credential manager locked; skipping stored password retrieval")
 
         # Check TimeLocker environment variable first, then fall back to RESTIC_PASSWORD
         env_password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
@@ -544,7 +547,7 @@ class ResticRepository(BackupRepository):
         """
         cmdline = self._command.command("forget")
         if prune:
-            cmdline.param("prune")
+            cmdline.param("--prune")
         try:
             cmdline.run(self.to_env())
             return True
@@ -566,7 +569,7 @@ class ResticRepository(BackupRepository):
         """
         cmdline = self._command.command("forget").param(snapshotid)
         if prune:
-            cmdline.param("prune")
+            cmdline.param("--prune")
         try:
             cmdline.run(self.to_env())
             return True

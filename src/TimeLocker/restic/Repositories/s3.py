@@ -107,8 +107,14 @@ class S3ResticRepository(ResticRepository):
             # - restic style: s3:host/bucket[/path]
             # - simplified style used here: s3:bucket[/path]
             path_parts = location_parts.split("/")
-            if len(path_parts) >= 2 and "." in path_parts[0]:
-                # Looks like a hostname in the first segment; bucket follows
+            host = path_parts[0]
+            # More reliable hostname detection for host/bucket style
+            is_hostname = (
+                host.endswith('.amazonaws.com') or
+                host.endswith('.backblazeb2.com') or
+                ('.' in host and len(host.split('.')) >= 3)
+            )
+            if len(path_parts) >= 2 and is_hostname:
                 bucket_name = path_parts[1]
             else:
                 bucket_name = path_parts[0]

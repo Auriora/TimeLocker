@@ -209,8 +209,8 @@ class BackupManager:
             # Execute with retries; if all attempts fail, the last exception is re-raised
             return _execute_single_backup()
         except Exception as e:
-            # Wrap in domain-specific error with attempts count
-            raise BackupManagerError(f"Backup failed after {max_retries + 1} attempts: {e}")
+            # Wrap in domain-specific error with attempts count, preserve context
+            raise BackupManagerError(f"Backup failed after {max_retries + 1} attempts: {e}") from e
 
         finally:
             complete_operation_tracking(operation_id)
@@ -275,7 +275,7 @@ class BackupManager:
 
         except Exception as e:
             logger.error(f"Incremental backup failed: {e}")
-            raise BackupManagerError(f"Incremental backup failed: {e}")
+            raise BackupManagerError(f"Incremental backup failed: {e}") from e
 
     def create_full_backup(self,
                            repository: BackupRepository,
