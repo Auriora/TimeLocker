@@ -185,26 +185,14 @@ python3 -m TimeLocker.cli snapshots prune --repository myrepo --dry-run
 
 ## Next Steps for Phase 4
 
-### Advanced Service Implementation
+Remaining items are now tracked in GitHub issues:
 
-1. **Snapshot Service**: Complete snapshot management service
-2. **Credential Service**: Secure credential management implementation
-3. **Scheduling Service**: Advanced backup scheduling capabilities
-4. **Notification Service**: Backup completion and error notifications
-
-### CLI Feature Completion
-
-1. **Missing Commands**: Implement remaining stub commands
-2. **Advanced Features**: Mount/unmount, diff, find operations
-3. **Batch Operations**: Multi-repository and multi-target operations
-4. **Interactive Mode**: Enhanced interactive command experience
-
-### Testing and Documentation
-
-1. **Comprehensive Test Suite**: Full CLI and service test coverage
-2. **User Documentation**: Updated user guides and tutorials
-3. **Migration Guide**: Guide for transitioning from legacy usage
-4. **Performance Benchmarks**: Detailed performance analysis
+- #29 Snapshots: Implement content and path-based search
+- #34 Snapshots: Complete advanced diff functionality
+- #28 Security: Integrate Credential Service with CLI and per-repo secrets
+- #33 CLI: Implement interactive mode
+- #31 Scheduling and #32 Notifications
+- #8 Tests, #17 Docs, #21 Benchmarks
 
 ## Files Modified/Created
 

@@ -74,81 +74,18 @@ Phase 4 focuses on **Advanced Services and Feature Completion**, implementing th
 
 ## 🚧 Remaining Work in Phase 4
 
-### 1. **CLI Commands** (All Complete! ✅)
+The remaining work and next steps are tracked in GitHub issues:
 
-- ✅ `snapshot forget` - Remove specific snapshot
-- ✅ `snapshots diff` - Compare two snapshots
-- ✅ `snapshots find` - Search across all snapshots
-- ✅ `repo migrate` - Repository format migration
-- ✅ `repos check` - Check all repositories
-- ✅ `repos stats` - Statistics for all repositories
-- ✅ `config repositories show` - Show repository configuration
-- ✅ `config target show` - Show target configuration
-- ✅ `config target edit/remove` - Target configuration management
-
-### 2. **Advanced Features to Complete**
-
-- ❌ **Credential Service Integration**: Connect existing `credential_manager.py` with CLI
-- ✅ **Multi-Repository Operations**: Batch operations across multiple repositories (check-all, stats-all implemented)
-- ✅ **Configuration Management (CLI)**: `config show`, target show/edit/remove implemented; repository details via `repos show` (enhanced config service
-  pending)
-- ✅ **Snapshot Diff Implementation**: Advanced snapshot comparison implemented
-- ❌ **Content Search**: Implement content and path-based search in snapshots
-
-### 3. **Service Enhancements**
-
-- ✅ **Snapshot Service**: Diff functionality completed
-- ✅ **Repository Service**: Multi-repository batch operations implemented
-- ❌ **Configuration Service**: Enhanced config management operations (pending)
-
-## 📊 Phase 4 Statistics
-
-### Implementation Progress
-
-- **Services Created**: 2/3 (67% complete)
-    - ✅ SnapshotService (100% core features)
-    - ✅ RepositoryService (100% core features)
-    - ❌ Enhanced ConfigurationService (pending)
-
-- **CLI Commands Implemented**: 14/17 (82% complete)
-    - ✅ Snapshot commands: 6/6 (100% complete)
-    - ✅ Repository commands: 4/5 (80% complete)
-    - ❌ Multi-repo commands: 0/2 (0% complete)
-    - ❌ Config commands: 0/4 (0% complete)
-
-- **Advanced Features**: 3/6 (50% complete)
-    - ✅ Snapshot mounting/unmounting
-    - ✅ Repository integrity checking
-    - ✅ Retention policy management
-    - ❌ Snapshot comparison
-    - ❌ Multi-repository operations
-    - ❌ Advanced configuration management
+- #28 Security: Integrate Credential Service with CLI and per-repo secrets
+- #30 Config: Implement Enhanced Configuration Service operations
+- #29 Snapshots: Implement content and path-based search
+- #34 Snapshots: Complete advanced diff functionality
+- #31 Scheduling: Implement scheduling service for automated backups
+- #32 Notifications: Implement notification service for backup completion/error
 
 ## 🎯 Next Steps for Phase 4 Completion
 
-### Priority 1: Complete Core CLI Commands
-
-1. **Implement `snapshot forget`** - Remove specific snapshots
-2. **Implement `repo migrate`** - Repository format migration
-3. **Implement `snapshots diff`** - Snapshot comparison functionality
-
-### Priority 2: Multi-Repository Operations
-
-1. **Implement `repos check`** - Check all configured repositories
-2. **Implement `repos stats`** - Statistics across all repositories
-3. **Create multi-repository service methods**
-
-### Priority 3: Configuration Management
-
-1. **Integrate credential service** with CLI commands
-2. **Implement config show/edit/remove** operations
-3. **Enhanced configuration validation**
-
-### Priority 4: Advanced Features
-
-1. **Complete snapshot diff functionality**
-2. **Implement content-based search**
-3. **Add batch operation support**
+See the issues above for current scope and acceptance criteria.
 
 ## 🔧 Technical Debt and Improvements
 

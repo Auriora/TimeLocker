@@ -168,23 +168,13 @@ Single Responsibility Principle.
 
 ## Next Steps for Phase 3
 
-### Service Integration
+Tracked in GitHub issues:
 
-1. **CLI Integration**: Update CLI to use new orchestrator
-2. **Configuration Migration**: Migrate existing ConfigurationManager usage
-3. **Repository Usage**: Update all repository creation to use factory
-
-### Advanced Features
-
-1. **Credential Service**: Implement secure credential management
-2. **Scheduling Service**: Advanced backup scheduling capabilities
-3. **Notification Service**: Backup completion notifications
-
-### Testing and Validation
-
-1. **Unit Tests**: Comprehensive test suite for all services
-2. **Integration Tests**: End-to-end workflow testing
-3. **Performance Tests**: Validate performance improvements
+- #28 Security: Integrate Credential Service with CLI and per-repo secrets
+- #31 Scheduling: Implement scheduling service for automated backups
+- #32 Notifications: Implement notification service for backup completion/error
+- #30 Config: Implement Enhanced Configuration Service operations
+- #8 Testing: Comprehensive test suite; #21 Benchmarks
 
 ## Files Modified/Created
 

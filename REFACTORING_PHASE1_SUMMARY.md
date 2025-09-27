@@ -183,20 +183,14 @@ All refactored components tested successfully:
 
 ## Next Steps (Phase 2)
 
-1. **Interface Extraction**
-    - Extract `IRepositoryFactory` interface
-    - Extract `IConfigurationProvider` interface
-    - Create abstract base classes for better DIP compliance
+This historical section has been superseded by GitHub issues. Relevant remaining work is tracked here:
 
-2. **Service Decomposition**
-    - Split `ConfigurationManager` into focused services
-    - Create `RepositoryService` for repository lifecycle management
-    - Create `BackupOrchestrator` for high-level backup coordination
+- #30 Config: Implement Enhanced Configuration Service operations
+- #28 Security: Integrate Credential Service with CLI and per-repo secrets
+- #31 Scheduling: Implement scheduling service for automated backups
+- #32 Notifications: Implement notification service for backup completion/error
 
-3. **CLI Refactoring**
-    - Separate command routing from business logic
-    - Create dedicated command handlers
-    - Extract UI formatting utilities
+See docs/tasks-to-issues-map.md for full mapping.
 
 ## Impact Assessment
 
