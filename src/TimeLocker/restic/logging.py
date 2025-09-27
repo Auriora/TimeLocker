@@ -20,10 +20,5 @@ import os
 
 RESTIC_LOG_LEVEL_ENV_KEY = "RESTIC_LOG_LEVEL"
 
-# Configure default logger
+# Library logger: do not configure global logging here; leave it to CLI/app
 logger = logging.getLogger("restic")
-
-# Only configure logging if it hasn't been configured yet
-# This prevents interference with completion and other contexts
-if not logging.getLogger().handlers:
-    logging.basicConfig(level=os.environ.get(RESTIC_LOG_LEVEL_ENV_KEY, "INFO").upper())
