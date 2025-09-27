@@ -4,7 +4,7 @@ This file maps documentation sources to the GitHub issues that now track the wor
 
 | Issue | Title | Source |
 |------:|-------|--------|
-| #5 | CLI: Implement missing functionality for stub commands | docs/CLI-Implementation-Status.md#L134-L142 |
+| #5 | CLI: Implement missing functionality for stub commands | docs/archive/CLI-Implementation-Status.md#L134-L142 |
 | #6 | CLI: Add validation for snapshot IDs and repository names | docs/CLI-Implementation-Status.md#L138-L142 |
 | #7 | CLI: Improve error messages for invalid commands/parameters | docs/CLI-Implementation-Status.md#L138-L142 |
 | #8 | Testing: Create comprehensive test suite for new CLI command structure | docs/CLI-Implementation-Status.md#L134-L142 |
@@ -15,13 +15,13 @@ This file maps documentation sources to the GitHub issues that now track the wor
 | #13 | CLI: Update shell completion scripts for new command hierarchy | docs/CLI-Implementation-Status.md#L150-L155 |
 | #14 | Docs: Create migration guide for transitioning from old commands | docs/CLI-Implementation-Status.md#L150-L155 |
 | #15 | Performance: Optimize CLI command loading for large numbers of sub-commands | docs/CLI-Implementation-Status.md#L150-L155 |
-| #16 | Docs: Audit and update README and INSTALLATION for v1.0.0 | docs/final-status-report.md#L148-L152; docs/INSTALLATION.md#L255-L266 |
+| #16 | Docs: Audit and update README and INSTALLATION for v1.0.0 | docs/archive/final-status-report.md#L148-L152; docs/INSTALLATION.md#L255-L266 |
 | #17 | Docs: Prepare user guides and API documentation | docs/final-status-report.md#L148-L152 |
 | #18 | Performance: Profile and optimize file selection algorithms | docs/final-status-report.md#L153-L159 |
 | #19 | Performance: Improve backup progress reporting efficiency | docs/final-status-report.md#L153-L159 |
 | #20 | Performance: Optimize memory usage for large operations | docs/final-status-report.md#L153-L159 |
 | #21 | Testing: Add performance benchmarks to the test suite | docs/final-status-report.md#L153-L159 |
-| #22 | Packaging: Prepare PyPI distribution (build and publish) | docs/final-status-report.md#L160-L166; docs/MODERNIZATION_SUMMARY.md#L167-L173 |
+| #22 | Packaging: Prepare PyPI distribution (build and publish) | docs/final-status-report.md#L160-L166; docs/archive/MODERNIZATION_SUMMARY.md#L167-L173 |
 | #23 | Release: Finalize release notes and changelog for v1.0.0 | docs/final-status-report.md#L160-L166 |
 | #24 | Release: Set up version tagging and release process | docs/final-status-report.md#L160-L166 |
 | #25 | Testing: Verify installation on clean environments | docs/final-status-report.md#L160-L166; docs/INSTALLATION.md#L255-L266 |
@@ -37,4 +37,4 @@ This file maps documentation sources to the GitHub issues that now track the wor
 
 Notes:
 - After closing any issue, consider removing or updating the corresponding documentation references.
-- This mapping intentionally focuses on non-archived docs (docs/archive/* not included).
+- This mapping includes references to archived docs (docs/archive/*) and current docs.
