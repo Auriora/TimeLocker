@@ -120,7 +120,19 @@ class BackupManager:
 
         # Use the global repository factory for backward compatibility
         from .services import repository_factory
-        return repository_factory.create_repository(uri, password)
+        from urllib.parse import urlparse
+
+        # Early, user-friendly validation for unsupported schemes
+        parsed = urlparse(uri)
+        scheme = parsed.scheme.lower() if parsed.scheme else 'local'
+        if scheme not in repository_factory.get_supported_schemes():
+            raise BackupManagerError(f"Unsupported repository scheme: {scheme}")
+
+        try:
+            return repository_factory.create_repository(uri, password)
+        except Exception as e:
+            # Normalize exceptions into BackupManagerError for higher-level callers/tests
+            raise BackupManagerError(f"Failed to create repository from URI: {e}")
 
     def create_repository(self, uri: str, password: Optional[str] = None) -> 'BackupRepository':
         """
@@ -188,11 +200,17 @@ class BackupManager:
                         logger.info("Backup completed successfully")
                         return result
                     else:
-                        logger.error(f"All backup attempts failed. Last error: {e}")
+                        # Trigger retry by raising, avoid referencing undefined variables
+                        raise RuntimeError("Backup verification failed")
+                else:
+                    # Ensure retries happen if no snapshot returned
+                    raise RuntimeError("Backup did not return a snapshot_id")
 
-            raise BackupManagerError(f"Backup failed after {max_retries + 1} attempts: {last_exception}")
-
+            # Execute with retries; if all attempts fail, the last exception is re-raised
             return _execute_single_backup()
+        except Exception as e:
+            # Wrap in domain-specific error with attempts count, preserve context
+            raise BackupManagerError(f"Backup failed after {max_retries + 1} attempts: {e}") from e
 
         finally:
             complete_operation_tracking(operation_id)
@@ -257,7 +275,7 @@ class BackupManager:
 
         except Exception as e:
             logger.error(f"Incremental backup failed: {e}")
-            raise BackupManagerError(f"Incremental backup failed: {e}")
+            raise BackupManagerError(f"Incremental backup failed: {e}") from e
 
     def create_full_backup(self,
                            repository: BackupRepository,

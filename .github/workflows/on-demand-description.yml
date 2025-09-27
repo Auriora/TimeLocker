@@ -2,7 +2,8 @@
 # Generates descriptions when the "augment_describe" label is added to a PR
 
 name: On-Demand PR Description
-#on:
+on:
+  workflow_dispatch:
 #  pull_request:
 #    types: [labeled]
 

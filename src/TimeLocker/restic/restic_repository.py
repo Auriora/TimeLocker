@@ -37,7 +37,7 @@ from .errors import RepositoryError, ResticError
 from .logging import logger
 from .restic_command_definition import restic_command_def
 from ..command_builder import CommandBuilder
-from ..security import CredentialManager
+from ..security import CredentialManager, CredentialManagerError
 
 RESTIC_COMMAND = "restic"
 RESTIC_VERSION_COMMAND = f"{RESTIC_COMMAND} --json version"
@@ -47,10 +47,10 @@ RESTIC_MIN_VERSION = "0.18.0"
 class ResticRepository(BackupRepository):
     def __init__(self, location: str, tags: Optional[List[str]] = None, password: Optional[str] = None,
                  min_version: str = RESTIC_MIN_VERSION, credential_manager: Optional[CredentialManager] = None):
-        logger.info(f"Initializing repository at location: {location}")
+        logger.debug(f"Initializing repository at location: {location}")
         self._command = CommandBuilder(restic_command_def).param("json")
         self._restic_version = self._verify_restic_executable(min_version)
-        logger.info("Detected restic version: %s", self._restic_version)  # from logging import logger
+        logger.debug("Detected restic version: %s", self._restic_version)
         self._location = location
         self._explicit_password = password
         logger.debug(f"ResticRepository initialized with explicit password: {'***' if password else 'None'}")
@@ -113,15 +113,18 @@ class ResticRepository(BackupRepository):
             logger.debug("Returning explicit password")
             return self._explicit_password
 
-        # Try credential manager with auto-unlock (non-interactive)
+        # Try credential manager; if locked, fall through gracefully
         if self._credential_manager:
-            stored_password = self._credential_manager.get_repository_password(
-                    self._repository_id,
-                    allow_prompt=False  # Non-interactive for automated operations
-            )
-            if stored_password:
-                logger.debug("Returning credential manager password")
-                return stored_password
+            try:
+                stored_password = self._credential_manager.get_repository_password(
+                        self._repository_id,
+                        allow_prompt=False  # Non-interactive for automated operations
+                )
+                if stored_password:
+                    logger.debug("Returning credential manager password")
+                    return stored_password
+            except CredentialManagerError:
+                logger.debug("Credential manager locked; skipping stored password retrieval")
 
         # Check TimeLocker environment variable first, then fall back to RESTIC_PASSWORD
         env_password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
@@ -129,14 +132,28 @@ class ResticRepository(BackupRepository):
         return env_password
 
     def store_password(self, password: str, allow_prompt: bool = True) -> bool:
-        """Store password in credential manager if available"""
+        """Store password in credential manager if available
+
+        Locked behavior: do not attempt to auto-unlock here; callers should
+        explicitly unlock via CredentialManager. This ensures non-interactive
+        flows can determine lock state reliably.
+        """
         if self._credential_manager:
             try:
-                self._credential_manager.store_repository_password(
+                # Respect lock state; do not trigger unlock attempts here
+                if hasattr(self._credential_manager, 'is_locked') and self._credential_manager.is_locked():
+                    logger.debug("Credential manager is locked; skipping password store")
+                    return False
+
+                result = self._credential_manager.store_repository_password(
                         self._repository_id,
                         password,
                         allow_prompt=allow_prompt
                 )
+                # Some implementations might return None; treat None as success
+                if result is False:
+                    logger.error("Credential manager declined storing password")
+                    return False
                 logger.info(f"Password stored for repository {self._repository_id}")
                 return True
             except Exception as e:
@@ -531,11 +548,15 @@ class ResticRepository(BackupRepository):
         cmdline = self._command.command("forget")
         if prune:
             cmdline.param("--prune")
-        result = cmdline.run(self.to_env())
-        if result.returncode != 0:
-            logger.error("Failed to implement Retention Policy: {result.stderr}")
+        try:
+            cmdline.run(self.to_env())
+            return True
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to implement Retention Policy: {e.stderr}")
             return False
-        return True
+        except Exception as e:
+            logger.error(f"Failed to implement Retention Policy: {e}")
+            return False
 
     def forget_snapshot(self, snapshotid: str, prune: bool = False) -> bool:
         """
@@ -549,11 +570,15 @@ class ResticRepository(BackupRepository):
         cmdline = self._command.command("forget").param(snapshotid)
         if prune:
             cmdline.param("--prune")
-        result = cmdline.run(self.to_env())
-        if result.returncode != 0:
-            logger.error("Failed to initialize repository: {result.stderr}")
+        try:
+            cmdline.run(self.to_env())
+            return True
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to forget snapshot: {e.stderr}")
             return False
-        return True
+        except Exception as e:
+            logger.error(f"Failed to forget snapshot: {e}")
+            return False
 
     def prune_data(self) -> str:
         """

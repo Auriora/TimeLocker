@@ -372,19 +372,22 @@ class CredentialManager:
         """
         Store password for a repository
 
+        Security policy: do not auto-unlock here. If locked, raise
+        CredentialManagerError so callers can decide how to unlock.
+
         Args:
             repository_id: Unique identifier for the repository
             password: Repository password to store
-            allow_prompt: Whether to prompt for master password if needed
+            allow_prompt: Unused here (kept for API compatibility)
         """
         self._check_auto_lock()
 
         if not repository_id or not password:
             raise CredentialManagerError("Repository ID and password cannot be empty")
 
-        # Ensure credential store is unlocked
-        if not self.ensure_unlocked(allow_prompt=allow_prompt):
-            raise CredentialManagerError("Could not unlock credential store to store password")
+        # Strict: do not auto-unlock in storage path
+        if self.is_locked():
+            raise CredentialManagerError("Credential store is locked")
 
         with self._file_lock:
             try:
@@ -412,20 +415,21 @@ class CredentialManager:
         """
         Retrieve password for a repository
 
+        Security policy: do not auto-unlock here. If locked, raise
+        CredentialManagerError so callers can decide how to unlock.
+
         Args:
             repository_id: Unique identifier for the repository
-            allow_prompt: Whether to prompt for master password if needed
+            allow_prompt: Unused here (kept for API compatibility)
 
         Returns:
             str: Repository password if found, None otherwise
         """
         self._check_auto_lock()
 
-        # Ensure credential store is unlocked
-        if not self.ensure_unlocked(allow_prompt=allow_prompt):
-            self._log_audit_event("get_repository_password", repository_id, success=False,
-                                  details="Could not unlock credential store")
-            return None
+        # Strict: do not auto-unlock in retrieval path
+        if self.is_locked():
+            raise CredentialManagerError("Credential store is locked")
 
         with self._file_lock:
             try:
