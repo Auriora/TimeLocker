@@ -129,14 +129,28 @@ class ResticRepository(BackupRepository):
         return env_password
 
     def store_password(self, password: str, allow_prompt: bool = True) -> bool:
-        """Store password in credential manager if available"""
+        """Store password in credential manager if available
+
+        Locked behavior: do not attempt to auto-unlock here; callers should
+        explicitly unlock via CredentialManager. This ensures non-interactive
+        flows can determine lock state reliably.
+        """
         if self._credential_manager:
             try:
-                self._credential_manager.store_repository_password(
+                # Respect lock state; do not trigger unlock attempts here
+                if hasattr(self._credential_manager, 'is_locked') and self._credential_manager.is_locked():
+                    logger.debug("Credential manager is locked; skipping password store")
+                    return False
+
+                result = self._credential_manager.store_repository_password(
                         self._repository_id,
                         password,
                         allow_prompt=allow_prompt
                 )
+                # Some implementations might return None; treat None as success
+                if result is False:
+                    logger.error("Credential manager declined storing password")
+                    return False
                 logger.info(f"Password stored for repository {self._repository_id}")
                 return True
             except Exception as e:
