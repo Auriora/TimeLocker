@@ -166,10 +166,10 @@ This modernization ensures TimeLocker complies with:
 
 ## Next Steps
 
-1. **Monitor CI/CD**: Ensure all workflows function correctly with new configuration
-2. **Update PyPI**: Next release will use modern packaging for distribution
-3. **Documentation**: Continue updating any remaining references to old installation methods
-4. **Community**: Communicate changes to users and contributors
+1. **Monitor CI/CD** - Tracked in https://github.com/Auriora/TimeLocker/issues/26
+2. **Packaging for PyPI** - Tracked in https://github.com/Auriora/TimeLocker/issues/22
+3. **Documentation cleanup** - Tracked in https://github.com/Auriora/TimeLocker/issues/27
+4. **Communicate changes** - Included in release notes task https://github.com/Auriora/TimeLocker/issues/23
 
 ## Conclusion
 

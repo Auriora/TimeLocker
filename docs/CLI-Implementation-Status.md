@@ -133,25 +133,24 @@ into logical groups with proper sub-apps.
 
 ### 📋 Next Steps
 
-#### High Priority
+This section is now tracked in GitHub issues:
 
-1. **Implement Missing Functionality**: Add actual implementation for stub commands
-2. **Parameter Validation**: Add proper validation for snapshot IDs and repository names
-3. **Error Handling**: Improve error messages for invalid commands/parameters
-4. **Testing**: Create comprehensive test suite for new command structure
+- High Priority
+  - Implement missing functionality for stub commands - https://github.com/Auriora/TimeLocker/issues/5
+  - Add validation for snapshot IDs and repository names - https://github.com/Auriora/TimeLocker/issues/6
+  - Improve error messages for invalid commands/parameters - https://github.com/Auriora/TimeLocker/issues/7
+  - Create comprehensive test suite for new command structure - https://github.com/Auriora/TimeLocker/issues/8
 
-#### Medium Priority
+- Medium Priority
+  - Implement command aliases via separate command definitions - https://github.com/Auriora/TimeLocker/issues/9
+  - Enforce file:// prefix validation for repository URIs - https://github.com/Auriora/TimeLocker/issues/10
+  - Implement multi-repository defaults for snapshots commands - https://github.com/Auriora/TimeLocker/issues/11
+  - Update user documentation to reflect new CLI command structure - https://github.com/Auriora/TimeLocker/issues/12
 
-1. **Aliases**: Implement command aliases using separate command definitions
-2. **URI Validation**: Add file:// prefix validation for repository URIs
-3. **Default Behaviors**: Implement multi-repository defaults for snapshots commands
-4. **Documentation**: Update user documentation to reflect new command structure
-
-#### Low Priority
-
-1. **Shell Completion**: Update completion scripts for new hierarchy
-2. **Migration Guide**: Create guide for users transitioning from old commands
-3. **Performance**: Optimize command loading for large numbers of sub-commands
+- Low Priority
+  - Update shell completion scripts for new hierarchy - https://github.com/Auriora/TimeLocker/issues/13
+  - Create migration guide for transitioning from old commands - https://github.com/Auriora/TimeLocker/issues/14
+  - Optimize CLI command loading for large numbers of sub-commands - https://github.com/Auriora/TimeLocker/issues/15
 
 ## Testing Commands
 
