@@ -27,6 +27,13 @@ This file maps documentation sources to the GitHub issues that now track the wor
 | #25 | Testing: Verify installation on clean environments | docs/final-status-report.md#L160-L166; docs/INSTALLATION.md#L255-L266 |
 | #26 | CI/CD: Monitor workflows post-modernization | docs/MODERNIZATION_SUMMARY.md#L167-L173 |
 | #27 | Docs: Remove remaining references to old installation methods | docs/MODERNIZATION_SUMMARY.md#L167-L173 |
+| #28 | Security: Integrate Credential Service with CLI and per-repo secrets | REFACTORING_PHASE4_PROGRESS.md#L89-L103; REFACTORING_PHASE3_SUMMARY.md#L190-L194 |
+| #29 | Snapshots: Implement content and path-based search | REFACTORING_PHASE4_PROGRESS.md#L89-L97; REFACTORING_PHASE3_SUMMARY.md#L198-L201 |
+| #30 | Config: Implement Enhanced Configuration Service operations | REFACTORING_PHASE4_PROGRESS.md#L98-L103; REFACTORING_PHASE1_SUMMARY.md#L191-L195 |
+| #31 | Scheduling: Implement scheduling service for automated backups | REFACTORING_PHASE2_SUMMARY.md#L177-L181; REFACTORING_PHASE3_SUMMARY.md#L192-L193 |
+| #32 | Notifications: Implement notification service for backup completion/error | REFACTORING_PHASE2_SUMMARY.md#L177-L181; REFACTORING_PHASE3_SUMMARY.md#L193-L194 |
+| #33 | CLI: Implement interactive mode | REFACTORING_PHASE3_SUMMARY.md#L200-L201 |
+| #34 | Snapshots: Complete advanced diff functionality | REFACTORING_PHASE4_PROGRESS.md#L147-L151; REFACTORING_PHASE3_SUMMARY.md#L198-L199 |
 
 Notes:
 - After closing any issue, consider removing or updating the corresponding documentation references.
