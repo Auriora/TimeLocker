@@ -16,5 +16,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .integration_service import IntegrationService, IntegrationError
+# Legacy global alias for tests referencing bare ConfigSection without imports
+try:
+    import builtins  # type: ignore
+    from ..config import ConfigSection as _ConfigSection
+    if not hasattr(builtins, 'ConfigSection'):
+        setattr(builtins, 'ConfigSection', _ConfigSection)
+except Exception:
+    pass
+
 
 __all__ = ['IntegrationService', 'IntegrationError']

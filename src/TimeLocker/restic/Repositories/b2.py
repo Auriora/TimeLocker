@@ -34,7 +34,7 @@ class B2ResticRepository(ResticRepository):
         self.b2_account_key = b2_account_key or os.getenv("B2_ACCOUNT_KEY")
 
     @classmethod
-    def from_parsed_uri(cls, parsed_uri, password: Optional[str] = None) -> 'B2ResticRepository':
+    def from_parsed_uri(cls, parsed_uri, password: Optional[str] = None, **kwargs) -> 'B2ResticRepository':
         bucket = parsed_uri.netloc
         path = parsed_uri.path.lstrip('/')
         location = f"b2:{bucket}/{path}"
@@ -44,7 +44,8 @@ class B2ResticRepository(ResticRepository):
             location=location,
             password=password,
             b2_account_id=query_params.get('account_id', [None])[0],
-            b2_account_key=query_params.get('account_key', [None])[0]
+            b2_account_key=query_params.get('account_key', [None])[0],
+            **kwargs
         )
 
     def backend_env(self) -> Dict[str, str]:

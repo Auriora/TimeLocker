@@ -47,6 +47,30 @@ class BackupTarget:
 
         if selection is None:
             raise AttributeError("selection cannot be None")
+
+        # Normalize selection instances coming from different import paths (e.g., src.TimeLocker vs TimeLocker)
+        if not isinstance(selection, FileSelection):
+            try:
+                # Best-effort conversion by copying known properties
+                from .file_selections import SelectionType
+                normalized = FileSelection()
+                # Includes
+                for p in getattr(selection, 'includes', []):
+                    normalized.add_path(p, SelectionType.INCLUDE)
+                # Excludes
+                for p in getattr(selection, 'excludes', []):
+                    normalized.add_path(p, SelectionType.EXCLUDE)
+                # Include patterns
+                for pat in getattr(selection, 'include_patterns', []):
+                    normalized.add_pattern(pat, SelectionType.INCLUDE)
+                # Exclude patterns
+                for pat in getattr(selection, 'exclude_patterns', []):
+                    normalized.add_pattern(pat, SelectionType.EXCLUDE)
+                selection = normalized
+            except Exception:
+                # If conversion fails, still assign; downstream may only need duck-typing
+                pass
+
         self.selection = selection
         self.tags = tags or []
         self.name = name

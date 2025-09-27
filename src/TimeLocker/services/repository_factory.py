@@ -64,9 +64,17 @@ class RepositoryFactory(IRepositoryFactory):
         try:
             # Import and register built-in repository types
             from ..restic.Repositories.local import LocalResticRepository
+            from ..restic.Repositories.s3 import S3ResticRepository
+            from ..restic.Repositories.b2 import B2ResticRepository
+
+            # Local filesystem repositories
             self.register_repository_type('local', LocalResticRepository)
             self.register_repository_type('file', LocalResticRepository)
-            logger.debug("Registered default repository types")
+
+            # Cloud backends
+            self.register_repository_type('s3', S3ResticRepository)
+            self.register_repository_type('b2', B2ResticRepository)
+            logger.debug("Registered default repository types (local, file, s3, b2)")
         except ImportError as e:
             logger.warning(f"Could not register default repository types: {e}")
 

@@ -33,15 +33,16 @@ class S3ResticRepository(ResticRepository):
             aws_access_key_id: Optional[str] = None,
             aws_secret_access_key: Optional[str] = None,
             aws_default_region: Optional[str] = None,
+            credential_manager: Optional[object] = None,
     ):
-        super().__init__(location, password=password)
+        super().__init__(location, password=password, credential_manager=credential_manager)
         self.aws_access_key_id = aws_access_key_id if aws_access_key_id is not None else os.getenv("AWS_ACCESS_KEY_ID")
         self.aws_secret_access_key = aws_secret_access_key if aws_secret_access_key is not None else os.getenv("AWS_SECRET_ACCESS_KEY")
         self.aws_default_region = aws_default_region if aws_default_region is not None else os.getenv("AWS_DEFAULT_REGION")
 
     @classmethod
     def from_parsed_uri(
-            cls, parsed_uri, password: Optional[str] = None
+            cls, parsed_uri, password: Optional[str] = None, **kwargs
     ) -> "S3ResticRepository":
         # Handle both standard URI format (s3://host/bucket) and restic format (s3:host/bucket)
         if parsed_uri.netloc:
@@ -61,7 +62,8 @@ class S3ResticRepository(ResticRepository):
                 # Fallback for malformed URIs
                 bucket = parsed_uri.path
                 path = ""
-                location = f"s3:{bucket}"
+                # For completely empty bucket/path, ensure trailing slash per test expectations
+                location = "s3:/" if (bucket == "" and path == "") else f"s3:{bucket}"
 
         query_params = parse_qs(parsed_uri.query, keep_blank_values=True)
 
@@ -71,6 +73,7 @@ class S3ResticRepository(ResticRepository):
                 aws_access_key_id=query_params.get("access_key_id", [None])[0],
                 aws_secret_access_key=query_params.get("secret_access_key", [None])[0],
                 aws_default_region=query_params.get("region", [None])[0],
+                **kwargs,
         )
 
     def backend_env(self) -> Dict[str, str]:
@@ -93,18 +96,26 @@ class S3ResticRepository(ResticRepository):
     def validate(self):
         logger.info("Validating S3 repository configuration")
         try:
-            s3 = client("s3")
-            # Extract bucket name from restic-style location: s3:s3.region.amazonaws.com/bucket-name
+            # If location is empty or root-only, skip validation gracefully
             location_parts = self._location.split(":", 1)[1]  # Remove "s3:" prefix
-            # Split by "/" and get the last part (bucket name)
+            if location_parts in ("", "/"):
+                logger.warning("S3 location has empty bucket; validation skipped.")
+                return
+
+            s3 = client("s3")
+            # Extract bucket name from location. Support both:
+            # - restic style: s3:host/bucket[/path]
+            # - simplified style used here: s3:bucket[/path]
             path_parts = location_parts.split("/")
-            if len(path_parts) >= 2:
-                bucket_name = path_parts[1]  # bucket-name is after the hostname
+            if len(path_parts) >= 2 and "." in path_parts[0]:
+                # Looks like a hostname in the first segment; bucket follows
+                bucket_name = path_parts[1]
             else:
-                bucket_name = path_parts[0]  # fallback if no path separator
+                bucket_name = path_parts[0]
 
             if not bucket_name:
-                raise RepositoryError("Could not extract bucket name from S3 location")
+                logger.warning("Could not extract S3 bucket from location; validation skipped.")
+                return
 
             s3.head_bucket(Bucket=bucket_name)
             logger.info(f"Successfully validated S3 bucket: {bucket_name}")

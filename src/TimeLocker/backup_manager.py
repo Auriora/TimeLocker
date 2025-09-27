@@ -120,7 +120,19 @@ class BackupManager:
 
         # Use the global repository factory for backward compatibility
         from .services import repository_factory
-        return repository_factory.create_repository(uri, password)
+        from urllib.parse import urlparse
+
+        # Early, user-friendly validation for unsupported schemes
+        parsed = urlparse(uri)
+        scheme = parsed.scheme.lower() if parsed.scheme else 'local'
+        if scheme not in repository_factory.get_supported_schemes():
+            raise BackupManagerError(f"Unsupported repository scheme: {scheme}")
+
+        try:
+            return repository_factory.create_repository(uri, password)
+        except Exception as e:
+            # Normalize exceptions into BackupManagerError for higher-level callers/tests
+            raise BackupManagerError(f"Failed to create repository from URI: {e}")
 
     def create_repository(self, uri: str, password: Optional[str] = None) -> 'BackupRepository':
         """
