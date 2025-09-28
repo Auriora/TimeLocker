@@ -16,15 +16,15 @@ TimeLocker now supports named repositories, allowing you to use memorable names 
 
 ```bash
 # Add a repository with a name
-tl config add-repo <name> <uri> [options]
+tl repos add <name> <uri> [options]
 
 # Examples
-tl config add-repo production "s3:s3.af-south-1.amazonaws.com/prod-backup"
-tl config add-repo local-backup "/home/user/backups"
-tl config add-repo remote-sftp "sftp://user@server:/backup/path"
+tl repos add production "s3:s3.af-south-1.amazonaws.com/prod-backup"
+tl repos add local-backup file:///home/user/backups
+tl repos add remote-sftp "sftp://user@server:/backup/path"
 
 # Add with description and set as default
-tl config add-repo production "s3://bucket/path" \
+tl repos add production "s3://bucket/path" \
   --description "Production backup repository" \
   --set-default
 ```
@@ -33,7 +33,7 @@ tl config add-repo production "s3://bucket/path" \
 
 ```bash
 # List all configured repositories
-tl config list-repos
+tl repos list
 ```
 
 Output shows:
@@ -48,20 +48,20 @@ Output shows:
 
 ```bash
 # Set a repository as default
-tl config set-default-repo <name>
+tl repos default <name>
 
 # Example
-tl config set-default-repo production
+tl repos default production
 ```
 
 ### Remove a Repository
 
 ```bash
 # Remove a repository (with confirmation)
-tl config remove-repo <name>
+tl repos remove <name>
 
 # Example
-tl config remove-repo old-backup
+tl repos remove old-backup
 ```
 
 ## 🚀 **Using Named Repositories**
@@ -70,30 +70,30 @@ tl config remove-repo old-backup
 
 ```bash
 # Use repository name instead of URI
-tl list -r production
-tl backup -r production /home/user/documents
-tl restore -r production /restore/path
+tl snapshots list --repository production
+tl backup create --repository production /home/user/documents
+tl snapshots restore <snapshot-id> /restore/path --repository production
 
 # All commands support repository names
-tl init -r new-repo
-tl verify -r production
+tl repos init new-repo
+tl backup verify --repository production
 ```
 
 ### With Default Repository
 
 ```bash
-# No need to specify -r when using default repository
-tl list
-tl backup /home/user/documents
-tl restore /restore/path
+# No need to specify --repository when using default repository
+tl snapshots list
+tl backup create /home/user/documents
+tl snapshots restore <snapshot-id> /restore/path
 ```
 
 ### Backward Compatibility
 
 ```bash
 # Direct URIs still work
-tl list -r "s3://bucket/path"
-tl backup -r "/local/path" /home/user/docs
+tl snapshots list --repository "s3://bucket/path"
+tl backup create --repository file:///local/path /home/user/docs
 ```
 
 ## 🔧 **Repository Types**
@@ -105,7 +105,7 @@ TimeLocker automatically detects repository types:
 | `s3://` or `s3:`     | S3           | `s3:s3.region.amazonaws.com/bucket` |
 | `b2://` or `b2:`     | Backblaze B2 | `b2://bucket/path`                  |
 | `sftp://` or `sftp:` | SFTP         | `sftp://user@host:/path`            |
-| `/path` or `file://` | Local        | `/home/user/backup`                 |
+| `file://`            | Local        | `file:///home/user/backup`          |
 
 ## 📝 **Configuration Structure**
 
@@ -124,7 +124,7 @@ The configuration is now cleanly separated:
       "created": "2025-06-30T09:00:00"
     },
     "local-test": {
-      "uri": "/tmp/test-backup",
+      "uri": "file:///tmp/test-backup",
       "description": "Local test repository",
       "type": "local",
       "created": "2025-06-30T09:05:00"
@@ -146,22 +146,22 @@ If you have existing restic environment variables:
 # Import from restic environment
 export RESTIC_REPOSITORY="s3:s3.region.amazonaws.com/bucket"
 export RESTIC_PASSWORD="your-password"
-tl config import-restic
+tl config import restic
 ```
 
 ### Manual Migration
 
 ```bash
 # Add your existing repositories with names
-tl config add-repo main "s3:s3.region.amazonaws.com/main-backup"
-tl config add-repo archive "/mnt/archive/backup"
+tl repos add main "s3:s3.region.amazonaws.com/main-backup"
+tl repos add archive file:///mnt/archive/backup
 
 # Set a default
-tl config set-default-repo main
+tl repos default main
 
 # Test the migration
-tl list -r main  # Should work the same as before
-tl list          # Uses default repository
+tl snapshots list --repository main  # Should work the same as before
+tl snapshots list                    # Uses default repository
 ```
 
 ## 💡 **Best Practices**
@@ -176,20 +176,20 @@ tl list          # Uses default repository
 
 - Set your most frequently used repository as default
 - Use specific names for special operations
-- Change default as needed: `tl config set-default-repo staging`
+- Change default as needed: `tl repos default staging`
 
 ### Organization
 
 ```bash
 # Organize by environment
-tl config add-repo prod-main "s3://prod-bucket/main"
-tl config add-repo prod-db "s3://prod-bucket/database"
-tl config add-repo staging-main "s3://staging-bucket/main"
+tl repos add prod-main "s3://prod-bucket/main"
+tl repos add prod-db "s3://prod-bucket/database"
+tl repos add staging-main "s3://staging-bucket/main"
 
 # Organize by purpose
-tl config add-repo daily-backup "/mnt/daily"
-tl config add-repo weekly-archive "/mnt/weekly"
-tl config add-repo offsite-backup "sftp://backup-server:/vault"
+tl repos add daily-backup file:///mnt/daily
+tl repos add weekly-archive file:///mnt/weekly
+tl repos add offsite-backup "sftp://backup-server:/vault"
 ```
 
 ## 🛠️ **Troubleshooting**
@@ -198,34 +198,34 @@ tl config add-repo offsite-backup "sftp://backup-server:/vault"
 
 ```bash
 # Error: Repository 'myrepo' not found
-tl list -r myrepo
+tl snapshots list --repository myrepo
 
 # Solution: Check available repositories
-tl config list-repos
+tl repos list
 
 # Or add the repository
-tl config add-repo myrepo "s3://bucket/path"
+tl repos add myrepo "s3://bucket/path"
 ```
 
 ### No Default Repository
 
 ```bash
 # Error: No repository specified and no default repository set
-tl list
+tl snapshots list
 
 # Solution: Set a default repository
-tl config set-default-repo production
+tl repos default production
 ```
 
 ### Repository Already Exists
 
 ```bash
 # Error: Repository 'production' already exists
-tl config add-repo production "s3://new-bucket"
+tl repos add production "s3://new-bucket"
 
 # Solution: Remove old repository first or use different name
-tl config remove-repo production
-tl config add-repo production "s3://new-bucket"
+tl repos remove production
+tl repos add production "s3://new-bucket"
 ```
 
 ## 🔗 **Integration with Existing Workflows**
@@ -244,19 +244,19 @@ else
 fi
 
 # Run backup
-tl backup -r "$REPO" /important/data
+tl backup create --repository "$REPO" /important/data
 ```
 
 ### Multiple Environments
 
 ```bash
 # Development
-tl config add-repo dev-local "/tmp/dev-backup"
-tl config set-default-repo dev-local
+tl repos add dev-local file:///tmp/dev-backup
+tl repos default dev-local
 
 # Production
-tl config add-repo prod-s3 "s3://prod-bucket/backup"
-tl config set-default-repo prod-s3
+tl repos add prod-s3 "s3://prod-bucket/backup"
+tl repos default prod-s3
 ```
 
 This new repository management system makes TimeLocker much more user-friendly while maintaining full backward compatibility with existing configurations and

@@ -163,17 +163,18 @@ our [Installation Guide](docs/INSTALLATION.md).
 #### Command Line Interface
 
 ```bash
-# Initialize a new repository
-timelocker init --repository /path/to/repo
+# Add and initialize a local repository (file:// is required for local paths)
+tl repos add myrepo file:///path/to/repo --default
+tl repos init myrepo
 
-# Create a backup
-timelocker backup --repository /path/to/repo /home/user/documents
+# Create a backup (sources can be specified directly or via a target)
+tl backup create --repository myrepo /home/user/documents
 
-# List snapshots
-timelocker list --repository /path/to/repo
+# List snapshots (for a specific repo; omit --repository to use default behavior if applicable)
+tl snapshots list --repository myrepo
 
-# Restore from backup
-timelocker restore --repository /path/to/repo --snapshot abc123 /restore/path
+# Restore from a snapshot
+tl snapshots restore abc123 /restore/path --repository myrepo
 ```
 
 Note: Credentials are resolved via the Credential Manager (preferred), then the TIMELOCKER_PASSWORD environment variable, then RESTIC_PASSWORD. The --password flag has been removed from CLI commands.
