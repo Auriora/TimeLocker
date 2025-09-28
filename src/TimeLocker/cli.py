@@ -44,6 +44,9 @@ from .completion import (
 )
 from .importers.timeshift_importer import TimeshiftConfigParser, TimeshiftToTimeLockerMapper
 
+from .utils.repository_resolver import validate_repository_name_or_uri
+from .utils.snapshot_validation import validate_snapshot_id_format
+
 # Test-friendly patch: ensure stderr is captured separately in Typer's CliRunner
 # so tests can safely access result.stderr when using CliRunner.
 try:
@@ -521,6 +524,15 @@ def snapshots_restore(
     """Restore files from this snapshot."""
     setup_logging(verbose)
 
+    # Validate inputs early
+    try:
+        if repository:
+            validate_repository_name_or_uri(repository)
+        validate_snapshot_id_format(snapshot_id, allow_latest=True)
+    except ValueError as ve:
+        show_error_panel("Invalid Input", str(ve))
+        raise typer.Exit(1)
+
     try:
         # Resolve repository name to URI
         from .utils.repository_resolver import resolve_repository_uri
@@ -656,6 +668,14 @@ def snapshots_list(
 ) -> None:
     """List snapshots in repository with a beautiful table."""
     setup_logging(verbose)
+    # Validate repository option (syntactic) before resolution
+    try:
+        if repository:
+            validate_repository_name_or_uri(repository)
+    except ValueError as ve:
+        show_error_panel("Invalid Repository", str(ve))
+        raise typer.Exit(1)
+
 
     try:
         # Resolve repository name to URI
@@ -2046,6 +2066,16 @@ def backup_verify(
     """Verify backup integrity. Verifies the latest snapshot by default unless --snapshot is specified."""
     setup_logging(verbose)
 
+    # Validate options early
+    try:
+        if repository:
+            validate_repository_name_or_uri(repository)
+        if snapshot and snapshot.lower() != "latest":
+            validate_snapshot_id_format(snapshot)
+    except ValueError as ve:
+        show_error_panel("Invalid Input", str(ve))
+        raise typer.Exit(1)
+
     try:
         # Resolve repository name to URI
         from .utils.repository_resolver import resolve_repository_uri
@@ -2127,6 +2157,15 @@ def snapshots_show(
 ) -> None:
     """Show snapshot details."""
     setup_logging(verbose)
+    # Validate inputs early
+    try:
+        if repository:
+            validate_repository_name_or_uri(repository)
+        validate_snapshot_id_format(snapshot_id)
+    except ValueError as ve:
+        show_error_panel("Invalid Input", str(ve))
+        raise typer.Exit(1)
+
 
     try:
         service_manager = get_cli_service_manager()
@@ -2190,6 +2229,15 @@ def snapshots_contents(
 ) -> None:
     """List contents of a specific snapshot."""
     setup_logging(verbose)
+    # Validate inputs early
+    try:
+        if repository:
+            validate_repository_name_or_uri(repository)
+        validate_snapshot_id_format(snapshot_id)
+    except ValueError as ve:
+        show_error_panel("Invalid Input", str(ve))
+        raise typer.Exit(1)
+
 
     try:
         service_manager = get_cli_service_manager()
@@ -2248,6 +2296,15 @@ def snapshots_mount(
 ) -> None:
     """Mount this snapshot as filesystem."""
     setup_logging(verbose)
+    # Validate inputs early
+    try:
+        if repository:
+            validate_repository_name_or_uri(repository)
+        validate_snapshot_id_format(snapshot_id)
+    except ValueError as ve:
+        show_error_panel("Invalid Input", str(ve))
+        raise typer.Exit(1)
+
 
     try:
         service_manager = get_cli_service_manager()
@@ -2286,6 +2343,15 @@ def snapshots_umount(
 ) -> None:
     """Unmount this snapshot."""
     setup_logging(verbose)
+    # Validate snapshot ID early
+    try:
+        validate_snapshot_id_format(snapshot_id)
+        if repository:
+            validate_repository_name_or_uri(repository)
+    except ValueError as ve:
+        show_error_panel("Invalid Input", str(ve))
+        raise typer.Exit(1)
+
 
     try:
         service_manager = get_cli_service_manager()
@@ -2318,6 +2384,15 @@ def snapshots_find_in(
 ) -> None:
     """Search within a specific snapshot."""
     setup_logging(verbose)
+    # Validate inputs early
+    try:
+        if repository:
+            validate_repository_name_or_uri(repository)
+        validate_snapshot_id_format(snapshot_id)
+    except ValueError as ve:
+        show_error_panel("Invalid Input", str(ve))
+        raise typer.Exit(1)
+
 
     try:
         service_manager = get_cli_service_manager()
@@ -2375,6 +2450,15 @@ def snapshots_forget(
 ) -> None:
     """Remove this specific snapshot."""
     setup_logging(verbose)
+    # Validate inputs early
+    try:
+        if repository:
+            validate_repository_name_or_uri(repository)
+        validate_snapshot_id_format(snapshot_id)
+    except ValueError as ve:
+        show_error_panel("Invalid Input", str(ve))
+        raise typer.Exit(1)
+
 
     try:
         service_manager = get_cli_service_manager()

@@ -345,6 +345,14 @@ class ConfigurationModule(IConfigurationProvider):
                 self._load_configuration()
             return self._config_cache
 
+
+    def get_configuration(self) -> Dict[str, Any]:
+        """Get complete configuration as a plain dictionary (legacy-compatible).
+        Returns a JSON-serializable dict representing current configuration.
+        """
+        cfg = self.get_config()
+        return cfg.to_dict()
+
     def save_config(self, config: Optional[TimeLockerConfig] = None) -> None:
         """Save complete configuration.
 
