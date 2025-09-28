@@ -89,7 +89,8 @@ app = typer.Typer(
             "  tl targets add <name> --path ~/Documents\n"
             "  tl backup run --target <name>\n"
             "  tl snapshots list  # lists snapshots (see --repository)\n"
-            "  tl snapshots restore <id|latest> /restore/path --repository <name>\n"
+            "  tl snapshots restore <id|latest> /restore/path --repository <name>\n\n"
+            "Note: Local repository paths must use the file:// prefix (e.g., file:///path/to/repo).\n"
         ),
         epilog="Made with ❤️  by Bruce Cherrington",
         rich_markup_mode="rich",
@@ -786,6 +787,18 @@ def repo_init(
 ) -> None:
     """Initialize this repository."""
     setup_logging(verbose)
+
+    # If user provided a repository URI directly, validate it (names are allowed)
+    if repository:
+        try:
+            from .utils.repository_resolver import validate_repository_name_or_uri
+            validate_repository_name_or_uri(repository)
+        except ValueError as ve:
+            show_error_panel(
+                "Invalid Repository URI",
+                f"{ve}\n\nTip: Use names for configured repositories (e.g., '{name}'), or URIs like file:///path, s3://bucket/path."
+            )
+            raise typer.Exit(1)
 
     try:
         # Resolve repository name to URI
@@ -1753,6 +1766,18 @@ def repos_add(
 
     if not uri:
         uri = Prompt.ask("Repository URI")
+
+    # Enforce file:// for local paths
+    try:
+        from .utils.repository_resolver import validate_repository_name_or_uri
+        validate_repository_name_or_uri(uri)
+    except ValueError as ve:
+        show_error_panel(
+            "Invalid Repository URI",
+            f"{ve}\n\nTip: Use names for configured repositories (e.g., '{name}'), or URIs like file:///path, s3://bucket/path."
+        )
+        raise typer.Exit(1)
+
 
     try:
         from .config.configuration_module import ConfigurationModule

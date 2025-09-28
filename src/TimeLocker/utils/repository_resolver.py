@@ -6,6 +6,8 @@ supporting both named repositories from configuration and direct URI usage.
 """
 
 import logging
+import os
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -254,3 +256,58 @@ def get_default_repository(config_dir: Optional[Path] = None) -> Optional[str]:
         return None
     except ConfigurationError:
         return None
+
+
+# ------------------------------
+# Validation helpers
+# ------------------------------
+
+
+def validate_repository_name_or_uri(value: str) -> None:
+    """
+    Validate user-provided repository identifier.
+
+    Rules:
+    - Allowed: configured name (no path separators), or a URI with a scheme (e.g., file://, s3://, s3:, b2:, rclone:, swift:, azure://, gs://, rest:).
+    - Disallowed: local filesystem paths without an explicit file:// scheme (absolute or relative), including Windows drive paths.
+
+    Raises:
+        ValueError: if the value looks like a local path but lacks the required file:// scheme
+    """
+    if not value:
+        return
+
+    v = value.strip()
+
+    # Accept explicit schemes
+    if "://" in v or v.startswith((
+        "s3:", "b2:", "rclone:", "rest:", "sftp:", "swift:",
+    )):
+        return
+
+    # Windows drive path: C:\path or C:/path
+    if re.match(r"^[A-Za-z]:[\\/]", v):
+        raise ValueError(
+            f"Local paths must use file:// prefix (e.g., file:///C:/backups). Received: {value}"
+        )
+
+    # UNC path \\server\share
+    if v.startswith("\\\\"):
+        raise ValueError(
+            f"UNC paths must use file:// prefix (e.g., file://server/share). Received: {value}"
+        )
+
+    # Unix absolute path
+    if v.startswith("/"):
+        raise ValueError(
+            f"Local paths must use file:// prefix (e.g., file:///var/backups). Received: {value}"
+        )
+
+    # Relative path containing separators
+    if ("/" in v) or ("\\" in v):
+        raise ValueError(
+            f"Local paths must use file:// prefix (e.g., file://{os.path.abspath(v)}). Received: {value}"
+        )
+
+    # Otherwise treat as a name and allow
+    return
