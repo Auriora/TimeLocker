@@ -71,7 +71,7 @@ tl repos remove old-backup
 ```bash
 # Use repository name instead of URI
 tl snapshots list --repository production
-tl backup create --repository production /home/user/documents
+tl backup create /home/user/documents --repository production
 tl snapshots restore <snapshot-id> /restore/path --repository production
 
 # All commands support repository names
@@ -93,7 +93,7 @@ tl snapshots restore <snapshot-id> /restore/path
 ```bash
 # Direct URIs still work
 tl snapshots list --repository "s3://bucket/path"
-tl backup create --repository file:///local/path /home/user/docs
+tl backup create /home/user/docs --repository file:///local/path
 ```
 
 ## 🔧 **Repository Types**
@@ -246,7 +246,7 @@ else
 fi
 
 # Run backup
-tl backup create --repository "$REPO" /important/data
+tl backup create /important/data --repository "$REPO"
 ```
 
 ### Multiple Environments

@@ -185,7 +185,7 @@ tl snapshots find "*.pdf" --repository local-backup
 tl repos list
 
 # Add repository to configuration
-tl repos add myrepo file:///backup/repo --default
+tl repos add myrepo file:///backup/repo --set-default
 
 # Initialize repository
 tl repos init myrepo

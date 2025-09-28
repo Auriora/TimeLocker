@@ -168,7 +168,7 @@ tl repos add myrepo file:///path/to/repo --set-default
 tl repos init myrepo
 
 # Create a backup (sources can be specified directly or via a target)
-tl backup create --repository myrepo /home/user/documents
+tl backup create /home/user/documents --repository myrepo
 
 # List snapshots (for a specific repo; omit --repository to use default behavior if applicable)
 tl snapshots list --repository myrepo
