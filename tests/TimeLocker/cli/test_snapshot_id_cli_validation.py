@@ -1,4 +1,5 @@
 import re
+import pytest
 from typer.testing import CliRunner
 
 from src.TimeLocker.cli import app
@@ -20,3 +21,17 @@ def test_umount_rejects_invalid_snapshot_id():
     # Check for our validation message
     assert re.search(r"Invalid\s+snapshot\s+ID\s+format", combined, flags=re.IGNORECASE)
 
+
+@pytest.mark.parametrize("command", [
+    ["snapshots", "umount", "bad$$id"],
+    ["snapshots", "show", "bad$$id"],
+    ["snapshots", "contents", "bad$$id"],
+    ["snapshots", "mount", "bad$$id", "."],
+    ["snapshots", "find-in", "bad$$id", "namepattern"],
+    ["snapshots", "forget", "bad$$id"],
+])
+def test_commands_reject_invalid_snapshot_id(command):
+    result = runner.invoke(app, command)
+    combined = _combined_output(result)
+    assert result.exit_code != 0
+    assert re.search(r"Invalid\s+snapshot\s+ID\s+format", combined, flags=re.IGNORECASE)

@@ -3,9 +3,8 @@
 
 name: On-Demand PR Review
 on:
-  workflow_dispatch:
-#  pull_request:
-#    types: [labeled]
+  pull_request:
+    types: [labeled]
 
 jobs:
   review:

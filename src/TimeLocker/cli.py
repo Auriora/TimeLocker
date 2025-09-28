@@ -2348,11 +2348,11 @@ def snapshots_umount(
 ) -> None:
     """Unmount this snapshot."""
     setup_logging(verbose)
-    # Validate snapshot ID early
+    # Validate inputs early
     try:
-        validate_snapshot_id_format(snapshot_id)
         if repository:
             validate_repository_name_or_uri(repository)
+        validate_snapshot_id_format(snapshot_id)
     except ValueError as ve:
         show_error_panel("Invalid Input", str(ve))
         raise typer.Exit(1)
