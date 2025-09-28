@@ -11,7 +11,6 @@ Store backups on local disk or mounted drives.
 **Format:**
 
 ```
-/path/to/repository
 file:///path/to/repository
 ```
 
@@ -19,16 +18,13 @@ file:///path/to/repository
 
 ```bash
 # Local directory
-/home/user/backups/restic-repo
+file:///home/user/backups/restic-repo
 
 # External drive
-/mnt/backup-drive/restic-repo
+file:///mnt/backup-drive/restic-repo
 
 # Network mounted drive
-/mnt/nas/backups/restic-repo
-
-# Explicit file protocol
-file:///home/user/backups/restic-repo
+file:///mnt/nas/backups/restic-repo
 ```
 
 ### 2. **AWS S3**
@@ -233,7 +229,7 @@ echo $RESTIC_REPOSITORY
 ### Method 2: Check TimeLocker Configuration
 
 ```bash
-cd src && python3 -m TimeLocker.cli config list-repos
+tl repos list
 ```
 
 ### Method 3: Check Original Configuration Files
@@ -258,7 +254,7 @@ sudo cat /var/restic/.resticrc | grep RESTIC_REPOSITORY
 
 1. **Create directory:** `mkdir -p /path/to/backup/repo`
 2. **Set permissions:** `chmod 700 /path/to/backup/repo`
-3. **Use path as URI:** `/path/to/backup/repo`
+3. **Use URI:** `file:///path/to/backup/repo`
 
 ### For SFTP:
 
@@ -271,13 +267,13 @@ sudo cat /var/restic/.resticrc | grep RESTIC_REPOSITORY
 ### List Snapshots:
 
 ```bash
-cd src && python3 -m TimeLocker.cli list -r "s3:s3.af-south-1.amazonaws.com/5560-restic"
+tl snapshots list --repository "s3:s3.af-south-1.amazonaws.com/5560-restic"
 ```
 
 ### Create Backup:
 
 ```bash
-cd src && python3 -m TimeLocker.cli backup -r "s3:s3.af-south-1.amazonaws.com/5560-restic" /path/to/backup
+tl backup create --repository "s3:s3.af-south-1.amazonaws.com/5560-restic" /path/to/backup
 ```
 
 ### Import from Environment:
@@ -288,8 +284,10 @@ export RESTIC_REPOSITORY="s3:s3.region.amazonaws.com/bucket"
 export RESTIC_PASSWORD="your-password"
 
 # Then import
-cd src && python3 -m TimeLocker.cli config import-restic
+tl config import restic
 ```
+> Note: `tl config import restic` is not yet implemented in the current CLI. Please add repositories manually with `tl repos add` and set a default with `tl repos default`.
+
 
 ## 🔐 **Security Notes**
 
