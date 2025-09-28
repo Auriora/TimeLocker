@@ -10,6 +10,7 @@ permissions:
 
 jobs:
   triage-issue:
+    if: ${{ !contains(join(github.event.issue.labels.*.name, ', '), 'auto-triaged') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,14 +26,14 @@ jobs:
         run:  |
               cat > /tmp/triage-instruction.txt << 'EOF'
               Analyze the following GitHub issue and provide comprehensive triage recommendations:
-              
+
               **Issue Information:**
               - Issue Number: ${ISSUE_NUMBER}
               - Repository: ${REPOSITORY}
               - Title: ${ISSUE_TITLE}
               - Author: ${ISSUE_AUTHOR}
               - Current Labels: ${CURRENT_LABELS}
-              
+
               **Triage Analysis:**
               Please analyze this issue and provide detailed triage recommendations including:
               - **Priority Level**: Assess urgency and impact (Critical/High/Medium/Low)
@@ -44,15 +45,15 @@ jobs:
               - **Reproducibility**: For bugs, assess if reproduction steps are clear
               - **Acceptance Criteria**: Identify if requirements are well-defined
               - **Similar Issues**: Note if this appears related to existing issues
-              
+
               **Recommendations:**
               - Suggest next steps for handling this issue
               - Recommend if additional information is needed from the reporter
               - Identify potential assignees or teams based on the issue content
               - Note any immediate actions that should be taken
-              
+
               Focus on providing actionable insights that will help maintainers efficiently process and prioritize this issue.
-              
+
               Update the Issue labels based on the analysis. If a recommended label does not exist, create it first; then add it to the issue. Do not remove existing labels. Set exactly one priority:* label.
 
               Recommend the Issue Type (Bug, Feature, or Task) based on the analysis.
@@ -65,3 +66,14 @@ jobs:
           augment_session_auth: ${{ secrets.AUGMENT_SESSION_AUTH }}
           github_token:         ${{ secrets.GITHUB_TOKEN }}
           instruction_file:     /tmp/triage-instruction.txt
+      - name: Mark issue as triaged
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7
+        with:
+          script: |
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['auto-triaged']
+            });
+
