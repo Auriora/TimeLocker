@@ -2070,8 +2070,8 @@ def backup_verify(
     try:
         if repository:
             validate_repository_name_or_uri(repository)
-        if snapshot and snapshot.lower() != "latest":
-            validate_snapshot_id_format(snapshot)
+        if snapshot:
+            validate_snapshot_id_format(snapshot, allow_latest=True)
     except ValueError as ve:
         show_error_panel("Invalid Input", str(ve))
         raise typer.Exit(1)

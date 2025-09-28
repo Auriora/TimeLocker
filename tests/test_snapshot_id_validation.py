@@ -1,6 +1,6 @@
 import pytest
 
-from TimeLocker.utils.snapshot_validation import validate_snapshot_id_format
+from src.TimeLocker.utils.snapshot_validation import validate_snapshot_id_format
 
 
 @pytest.mark.parametrize("value", [
