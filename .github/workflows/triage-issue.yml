@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   triage-issue:
-    if: ${{ !contains(join(github.event.issue.labels.*.name, ', '), 'auto-triaged') }}
+    if: ${{ github.event.issue.labels && !contains(join(github.event.issue.labels.*.name, ', '), 'auto-triaged') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
