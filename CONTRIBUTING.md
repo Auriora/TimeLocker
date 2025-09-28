@@ -11,8 +11,8 @@ By participating in this project, you agree to abide by the [Code of Conduct](CO
 ### Reporting Bugs
 
 Before submitting a bug report:
-- Check the [issue tracker](https://github.com/yourusername/TimeLocker/issues) to see if the issue has already been reported.
-- If you're unable to find an open issue addressing the problem, [open a new one](https://github.com/yourusername/TimeLocker/issues/new).
+- Check the [issue tracker](https://github.com/Auriora/TimeLocker/issues) to see if the issue has already been reported.
+- If you're unable to find an open issue addressing the problem, [open a new one](https://github.com/Auriora/TimeLocker/issues/new).
 
 When reporting bugs, please include:
 - A clear and descriptive title
@@ -24,7 +24,7 @@ When reporting bugs, please include:
 
 ### Suggesting Enhancements
 
-Enhancement suggestions are tracked as [GitHub issues](https://github.com/yourusername/TimeLocker/issues).
+Enhancement suggestions are tracked as [GitHub issues](https://github.com/Auriora/TimeLocker/issues).
 - Use a clear and descriptive title
 - Provide a detailed description of the suggested enhancement
 - Explain why this enhancement would be useful
@@ -44,13 +44,13 @@ Enhancement suggestions are tracked as [GitHub issues](https://github.com/yourus
 
 1. Clone the repository
    ```bash
-   git clone https://github.com/yourusername/TimeLocker.git
+   git clone https://github.com/Auriora/TimeLocker.git
    cd TimeLocker
    ```
 
 2. Install dependencies
    ```bash
-   pip install -r requirements.txt
+   pip install -e ".[dev]"
    ```
 
 3. Run tests
@@ -78,6 +78,6 @@ By contributing to TimeLocker, you agree that your contributions will be license
 
 ## Questions?
 
-If you have any questions, please feel free to [open an issue](https://github.com/yourusername/TimeLocker/issues/new) or contact the maintainers directly.
+If you have any questions, please feel free to [open an issue](https://github.com/Auriora/TimeLocker/issues/new) or contact the maintainers directly.
 
 Thank you for contributing to TimeLocker!

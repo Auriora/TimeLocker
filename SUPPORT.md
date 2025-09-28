@@ -12,11 +12,11 @@ Before seeking direct support, please check if your question is already answered
 
 - [README](README.md) - Basic overview and quick start guide
 - [Command Builder Documentation](docs/command_builder.md) - Details on using the command builder
-- [Project Wiki](https://github.com/yourusername/TimeLocker/wiki) - Comprehensive guides and tutorials
+- [Project Wiki](https://github.com/Auriora/TimeLocker/wiki) - Comprehensive guides and tutorials
 
 ### Issue Tracker
 
-If you've found a bug or have a feature request, please use our [issue tracker](https://github.com/yourusername/TimeLocker/issues):
+If you've found a bug or have a feature request, please use our [issue tracker](https://github.com/Auriora/TimeLocker/issues):
 
 1. Search existing issues to see if your problem has already been reported
 2. If not, create a new issue with a clear description and steps to reproduce (for bugs)
@@ -25,7 +25,7 @@ If you've found a bug or have a feature request, please use our [issue tracker](
 
 Connect with other TimeLocker users and developers:
 
-- [GitHub Discussions](https://github.com/yourusername/TimeLocker/discussions) - Ask questions and share ideas
+- [GitHub Discussions](https://github.com/Auriora/TimeLocker/discussions) - Ask questions and share ideas
 - [Matrix Chat](https://matrix.to/#/#timelocker:matrix.org) - Real-time chat with the community
 
 ## Support Tiers
