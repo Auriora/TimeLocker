@@ -158,8 +158,8 @@ pytest --cov=TimeLocker --cov-report=term-missing
 
 Expected results:
 
-- All 367 tests should pass
-- Test coverage should be ≥ 80% (currently 83.3%)
+- All tests should pass
+- Test coverage should be ≥ 80% (target)
 
 #### Modern Python Packaging
 
@@ -261,7 +261,7 @@ Now that you have successfully installed TimeLocker, you can:
 3. Set up scheduled backups
 4. Explore advanced features like pattern groups and snapshot management
 
-For more information, refer to the [Quick Start Guide](README.md#quick-start) and [Examples](README.md#more-detailed-examples) in the README.
+For more information, refer to the [Quick Start Guide](../README.md#quick-start) and [Examples](../README.md#more-detailed-examples) in the README.
 
 ## Related Resources
 

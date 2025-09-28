@@ -11,7 +11,7 @@
 ![TimeLocker](resources/images/TimeLocker-Logo-Color-White-64.png)
 
 TimeLocker provides a robust, object-oriented interface for managing backups using the Restic backup tool (in future other backup tools maybe supported). It
-simplifies backup operations by providing a high-level GUI that handles repository management, file selection patterns, and backup configurations across
+simplifies backup operations by providing a high-level CLI that handles repository management, file selection patterns, and backup configurations across
 multiple storage backends including local, network, S3, and B2.
 
 ## Table of Contents
@@ -168,7 +168,7 @@ tl repos add myrepo file:///path/to/repo --set-default
 tl repos init myrepo
 
 # Create a backup (sources can be specified directly or via a target)
-tl backup create --repository myrepo /home/user/documents
+tl backup create /home/user/documents --repository myrepo
 
 # List snapshots (for a specific repo; omit --repository to use default behavior if applicable)
 tl snapshots list --repository myrepo
@@ -177,7 +177,7 @@ tl snapshots list --repository myrepo
 tl snapshots restore abc123 /restore/path --repository myrepo
 ```
 
-Note: Credentials are resolved via the Credential Manager (preferred), then the TIMELOCKER_PASSWORD environment variable, then RESTIC_PASSWORD. The --password flag has been removed from CLI commands.
+Note: Credentials are resolved via the Credential Service (system keyring preferred), then the TIMELOCKER_PASSWORD environment variable (fallback), then RESTIC_PASSWORD. The --password flag is available but discouraged; prefer secure storage via the Credential Service or environment variables.
 
 
 #### Python API
