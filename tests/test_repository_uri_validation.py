@@ -27,7 +27,7 @@ def test_validate_accepts_valid_names_and_uris(value):
     "./local/repo",
     "..\\relative\\repo",
     "C:/repo",
-    "C\\\\repo",
+    r"C:\\repo",
 ])
 def test_validate_rejects_local_paths_without_file_scheme(value):
     with pytest.raises(ValueError) as exc:

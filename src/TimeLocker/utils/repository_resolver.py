@@ -6,6 +6,8 @@ supporting both named repositories from configuration and direct URI usage.
 """
 
 import logging
+import os
+import re
 from pathlib import Path
 from typing import Optional
 
@@ -259,8 +261,7 @@ def get_default_repository(config_dir: Optional[Path] = None) -> Optional[str]:
 # ------------------------------
 # Validation helpers
 # ------------------------------
-import os
-import re
+
 
 def validate_repository_name_or_uri(value: str) -> None:
     """
