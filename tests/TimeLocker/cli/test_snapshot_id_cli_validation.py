@@ -22,8 +22,6 @@ def test_umount_rejects_invalid_snapshot_id():
     assert re.search(r"Invalid\s+snapshot\s+ID\s+format", combined, flags=re.IGNORECASE)
 
 
-
-
 @pytest.mark.parametrize("command", [
     ["snapshots", "umount", "bad$$id"],
     ["snapshots", "show", "bad$$id"],
