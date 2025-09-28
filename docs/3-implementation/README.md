@@ -78,8 +78,8 @@ cd TimeLocker
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Install dependencies
-pip install -r requirements.txt
+# Install in editable mode with dev dependencies (PEP 660)
+pip install -e ".[dev]"
 
 # Run tests
 pytest
