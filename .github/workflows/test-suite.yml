@@ -83,31 +83,31 @@ jobs:
         env:
           PYTHONPATH: src
         run:  |
-              pytest tests/TimeLocker/ -v --tb=short --maxfail=10 -m "not performance"
+              pytest tests/TimeLocker/ -v --tb=short --maxfail=10 -m "not performance" -n auto
 
       - name: Run unit tests with coverage
         env:
           PYTHONPATH: src
         run:  |
-              pytest tests/TimeLocker/ --cov=src --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=70 -m "not performance"
+              pytest tests/TimeLocker/ --cov=src --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=70 -m "not performance" -n auto
 
       - name: Run integration tests
         env:
           PYTHONPATH: src
         run:  |
-              pytest tests/TimeLocker/integration/ -v --tb=short
+              pytest tests/TimeLocker/integration/ -v --tb=short -n auto
 
       - name: Run security tests
         env:
           PYTHONPATH: src
         run:  |
-              pytest tests/TimeLocker/security/ -v --tb=short
+              pytest tests/TimeLocker/security/ -v --tb=short -n auto
 
       - name: Run critical path tests
         env:
           PYTHONPATH: src
         run:  |
-              pytest tests/TimeLocker/backup/test_critical_backup_paths.py -v --tb=short
+              pytest tests/TimeLocker/backup/test_critical_backup_paths.py -v --tb=short -n auto
 
       - name: Run performance tests (serial)
         env:
