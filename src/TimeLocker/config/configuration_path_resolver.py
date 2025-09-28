@@ -7,6 +7,7 @@ Principle by focusing solely on determining configuration file locations.
 
 import os
 import logging
+import tempfile
 from pathlib import Path
 from typing import Optional, List
 
@@ -189,19 +190,36 @@ class ConfigurationPathResolver:
             xdg_runtime_dir = os.environ.get('XDG_RUNTIME_DIR')
             if xdg_runtime_dir:
                 return Path(xdg_runtime_dir) / "timelocker"
-            else:
-                # Fallback to temp directory
-                return Path("/tmp") / f"timelocker-{os.getuid()}"
+            # Cross-platform fallback to a temp directory
+            try:
+                uid = os.getuid() if hasattr(os, "getuid") else os.getpid()
+            except Exception:
+                uid = os.getpid()
+            return Path(tempfile.gettempdir()) / f"timelocker-{uid}"
 
     @staticmethod
     def is_system_context() -> bool:
         """
-        Check if running in system context (as root).
+        Check if running in system context (as root/system/admin) in a cross-platform way.
 
         Returns:
-            bool: True if running as root/system
+            bool: True if running with elevated privileges
         """
-        return os.geteuid() == 0
+        try:
+            # POSIX: root has euid 0
+            if hasattr(os, "geteuid"):
+                return os.geteuid() == 0
+            # Windows: use Shell API when available
+            if os.name == "nt":
+                try:
+                    import ctypes  # type: ignore
+                    return bool(ctypes.windll.shell32.IsUserAnAdmin())
+                except Exception:
+                    return False
+            # Other platforms: conservative default
+            return False
+        except Exception:
+            return False
 
     @staticmethod
     def should_migrate_from_legacy() -> bool:

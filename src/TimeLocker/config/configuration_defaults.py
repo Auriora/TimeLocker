@@ -185,7 +185,7 @@ class ConfigurationDefaults:
             Path: Default configuration directory
         """
         # Check if running as root/system context
-        if os.geteuid() == 0:
+        if hasattr(os, "geteuid") and os.geteuid() == 0:
             # System-wide configuration
             return Path("/etc/timelocker")
         else:
