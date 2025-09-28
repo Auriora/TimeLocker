@@ -148,6 +148,8 @@ export RESTIC_REPOSITORY="s3:s3.region.amazonaws.com/bucket"
 export RESTIC_PASSWORD="your-password"
 tl config import restic
 ```
+> Note: `tl config import restic` is not yet implemented in the current CLI. Please configure repositories manually using `tl repos add` and set the default with `tl repos default`.
+
 
 ### Manual Migration
 

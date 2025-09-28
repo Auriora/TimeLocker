@@ -286,6 +286,8 @@ export RESTIC_PASSWORD="your-password"
 # Then import
 tl config import restic
 ```
+> Note: `tl config import restic` is not yet implemented in the current CLI. Please add repositories manually with `tl repos add` and set a default with `tl repos default`.
+
 
 ## 🔐 **Security Notes**
 

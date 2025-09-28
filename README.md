@@ -164,7 +164,7 @@ our [Installation Guide](docs/INSTALLATION.md).
 
 ```bash
 # Add and initialize a local repository (file:// is required for local paths)
-tl repos add myrepo file:///path/to/repo --default
+tl repos add myrepo file:///path/to/repo --set-default
 tl repos init myrepo
 
 # Create a backup (sources can be specified directly or via a target)
