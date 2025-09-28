@@ -66,7 +66,7 @@ class TestEndToEndWorkflow:
         """Test complete backup workflow with all integrations"""
         # Configure system
         self.integration_service.config_manager.update_section(
-                ConfigSection.NOTIFICATIONS,
+                "notifications",
                 {
                         "enabled":           True,
                         "desktop_enabled":   False,  # Disable to avoid actual notifications

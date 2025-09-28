@@ -1104,8 +1104,13 @@ def config_setup(
             repo_desc = Prompt.ask("Repository description", default=f"{repo_name} backup repository")
 
             # Add repository using ConfigurationModule
-            config_manager.add_repository(repo_name, repo_uri, repo_desc)
-            config_manager.set_default_repository(repo_name)
+            repo_config = {
+                "name": repo_name,
+                "location": repo_uri,
+                "description": repo_desc,
+            }
+            config_module.add_repository(repo_config)
+            config_module.set_default_repository(repo_name)
 
         # Backup target setup
         if Confirm.ask("Would you like to add a backup target?"):
@@ -1137,19 +1142,19 @@ def config_setup(
                         "include_patterns": ["*"],
                         "exclude_patterns": ["*.tmp", "*.log", "Thumbs.db", ".DS_Store"]
                 }
-                config_manager.add_backup_target(target_config)
+                config_module.add_backup_target(target_config)
 
         # Configuration is automatically saved by ConfigurationModule methods
 
         # Get counts for display
-        repositories = config_manager.get_repositories()
-        backup_targets = config_manager.get_backup_targets()
+        repositories = config_module.get_repositories()
+        backup_targets = config_module.get_backup_targets()
 
         show_success_panel(
                 "Configuration Created",
                 "Configuration setup completed successfully!",
                 {
-                        "Config file":    str(config_manager.config_file),
+                        "Config file":    str(config_module.config_file),
                         "Repositories":   str(len(repositories)),
                         "Backup targets": str(len(backup_targets))
                 }
@@ -1496,7 +1501,7 @@ def config_import_restic(
                 "Configuration Imported Successfully!",
                 f"✅ Repository '{repository_name}' added\n"
                 f"✅ Backup target '{target_name}' created\n"
-                f"✅ Configuration saved to {config_manager.config_file}\n\n"
+                f"✅ Configuration saved successfully\n\n"
                 f"💡 Next steps:\n"
                 f"   • Test connection: timelocker list -r {repo_uri}\n"
                 f"   • Create backup: timelocker backup {target_name}\n"
