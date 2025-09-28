@@ -310,7 +310,7 @@ class TimeLockerConfig:
             if 'uri' in repo_data_copy:
                 repo_data_copy['location'] = repo_data_copy.pop('uri')
             # Remove legacy fields not supported by new RepositoryConfig
-            legacy_fields = ['type', 'created']
+            legacy_fields = ['type', 'created', 'encryption']
             for field in legacy_fields:
                 repo_data_copy.pop(field, None)
             repositories[name] = RepositoryConfig(name=name, **repo_data_copy)
