@@ -3,9 +3,9 @@ name: TimeLocker Test Suite
 on:
   workflow_dispatch:
 #  push:
-#    branches: [main, develop]
+#    branches: [main, staging]
 #  pull_request:
-#    branches: [main, develop]
+#    branches: [main, staging]
 
 jobs:
   test:
@@ -83,13 +83,13 @@ jobs:
         env:
           PYTHONPATH: src
         run:  |
-              pytest tests/TimeLocker/ -v --tb=short --maxfail=10
+              pytest tests/TimeLocker/ -v --tb=short --maxfail=10 -m "not performance"
 
       - name: Run unit tests with coverage
         env:
           PYTHONPATH: src
         run:  |
-              pytest tests/TimeLocker/ --cov=src --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=70
+              pytest tests/TimeLocker/ --cov=src --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=70 -m "not performance"
 
       - name: Run integration tests
         env:
@@ -108,6 +108,13 @@ jobs:
           PYTHONPATH: src
         run:  |
               pytest tests/TimeLocker/backup/test_critical_backup_paths.py -v --tb=short
+
+      - name: Run performance tests (serial)
+        env:
+          PYTHONPATH: src
+        run:  |
+              pytest -n 0 -vv -s -m "performance"
+
 
       - name: Upload coverage reports to Codecov
         if:   matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
@@ -283,22 +290,22 @@ jobs:
         with:
           script: |
                   const fs = require('fs');
-                  
+
                   try {
                     const qualityReport = JSON.parse(fs.readFileSync('quality-report.json', 'utf8'));
-                  
+
                     const comment = `## 🧪 Test Results
-                  
+
                     | Metric | Value | Status |
                     |--------|-------|--------|
                     | Coverage | ${qualityReport.coverage_percentage.toFixed(1)}% | ${qualityReport.coverage_passed ? '✅' : '❌'} |
                     | Threshold | ${qualityReport.coverage_threshold}% | - |
-                  
+
                     ${qualityReport.coverage_passed ?
                       '✅ All quality gates passed!' :
                       '❌ Quality gates failed. Please improve test coverage to meet the threshold.'}
                     `;
-                  
+
                     github.rest.issues.createComment({
                       issue_number: context.issue.number,
                       owner: context.repo.owner,
