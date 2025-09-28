@@ -116,13 +116,6 @@ jobs:
               pytest -n 0 -vv -s -m "performance"
 
 
-      - name: Run performance tests (serial)
-        env:
-          PYTHONPATH: src
-        run:  |
-              pytest -n 0 -vv -s -m "performance"
-
-
       - name: Upload coverage reports to Codecov
         if:   matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         uses: codecov/codecov-action@v3
