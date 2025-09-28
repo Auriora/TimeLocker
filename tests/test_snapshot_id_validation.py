@@ -19,6 +19,7 @@ def test_validate_accepts_valid_snapshot_ids(value):
     "1234567",  # too short
     "g1234567",  # non-hex
     "bad$$id",  # invalid chars
+    "a" * 65,  # too long
 ])
 def test_validate_rejects_invalid_snapshot_ids(value):
     with pytest.raises(ValueError) as exc:
