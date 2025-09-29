@@ -13,6 +13,7 @@ def _combined_output(result):
     return out + "\n" + err
 
 
+@pytest.mark.unit
 def test_umount_rejects_invalid_snapshot_id():
     result = runner.invoke(app, ["snapshots", "umount", "bad$$id"])  # repository not needed for umount
     combined = _combined_output(result)
@@ -30,6 +31,7 @@ def test_umount_rejects_invalid_snapshot_id():
     ["snapshots", "find-in", "bad$$id", "namepattern"],
     ["snapshots", "forget", "bad$$id"],
 ])
+@pytest.mark.unit
 def test_commands_reject_invalid_snapshot_id(command):
     result = runner.invoke(app, command)
     combined = _combined_output(result)

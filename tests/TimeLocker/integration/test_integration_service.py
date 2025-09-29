@@ -47,6 +47,7 @@ class TestIntegrationService:
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 
+    @pytest.mark.integration
     def test_initialization(self):
         """Test integration service initialization"""
         assert self.integration_service.config_manager is not None
@@ -54,6 +55,7 @@ class TestIntegrationService:
         assert self.integration_service.notification_service is not None
         assert self.integration_service.security_service is not None
 
+    @pytest.mark.integration
     def test_security_initialization(self):
         """Test security service initialization"""
         # Create new service without security
@@ -65,6 +67,7 @@ class TestIntegrationService:
         assert service.security_service is not None
 
     @patch('TimeLocker.integration.integration_service.IntegrationService._execute_backup_operation')
+    @pytest.mark.integration
     def test_execute_backup_success(self, mock_backup):
         """Test successful backup execution"""
         # Setup mocks
@@ -100,6 +103,7 @@ class TestIntegrationService:
                 assert mock_log.called
 
     @patch('TimeLocker.integration.integration_service.IntegrationService._execute_backup_operation')
+    @pytest.mark.integration
     def test_execute_backup_failure(self, mock_backup):
         """Test backup execution failure"""
         # Setup mocks
@@ -126,6 +130,7 @@ class TestIntegrationService:
         assert result.operation_type == "backup"
 
     @patch('TimeLocker.integration.integration_service.IntegrationService._execute_restore_operation')
+    @pytest.mark.integration
     def test_execute_restore_success(self, mock_restore):
         """Test successful restore execution"""
         # Setup mocks
@@ -160,6 +165,7 @@ class TestIntegrationService:
         self.integration_service.security_service.validate_backup_integrity.assert_called_once()
 
     @patch('TimeLocker.integration.integration_service.IntegrationService._execute_restore_operation')
+    @pytest.mark.integration
     def test_execute_restore_integrity_failure(self, mock_restore):
         """Test restore execution with integrity failure"""
         # Setup mocks
@@ -184,6 +190,7 @@ class TestIntegrationService:
         assert "failed" in result.message.lower()
         assert result.operation_type == "restore"
 
+    @pytest.mark.integration
     def test_status_update_handling(self):
         """Test status update handling and notification integration"""
         # Create a mock status
@@ -205,6 +212,7 @@ class TestIntegrationService:
             # Verify notification was sent
             mock_notify.assert_called_once_with(status)
 
+    @pytest.mark.integration
     def test_security_event_handling(self):
         """Test security event handling"""
         from TimeLocker.security import SecurityEvent, SecurityLevel
@@ -231,6 +239,7 @@ class TestIntegrationService:
             assert call_args.operation_type == "security"
             assert call_args.status == StatusLevel.CRITICAL
 
+    @pytest.mark.integration
     def test_get_system_status(self):
         """Test system status retrieval"""
         status = self.integration_service.get_system_status()
@@ -250,6 +259,7 @@ class TestIntegrationService:
         assert components["notifications"] == "active"
         assert components["security"] == "active"
 
+    @pytest.mark.integration
     def test_configuration_integration(self):
         """Test configuration integration with other components"""
         # Update notification configuration
@@ -268,6 +278,7 @@ class TestIntegrationService:
         assert notification_config["desktop_enabled"] is False
         assert notification_config["email_enabled"] is True
 
+    @pytest.mark.integration
     def test_operation_tracking(self):
         """Test operation tracking across components"""
         # Start an operation
@@ -306,6 +317,7 @@ class TestIntegrationService:
         current_ops = self.integration_service.status_reporter.get_current_operations()
         assert not any(op.operation_id == operation_id for op in current_ops)
 
+    @pytest.mark.integration
     def test_error_handling(self):
         """Test error handling in integration scenarios"""
         # Test with invalid repository (missing _location attribute)

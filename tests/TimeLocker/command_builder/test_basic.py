@@ -48,21 +48,25 @@ def builder(cmd_def):
     return CommandBuilder(cmd_def)
 
 class TestBasicCommandBuilding:
+    @pytest.mark.unit
     def test_basic_command(self, builder):
         """Test basic command without parameters"""
         result = builder.build()
         assert result == ["test-cmd"]
 
+    @pytest.mark.unit
     def test_with_parameter_no_value(self, builder):
         """Test parameter without value (flag-style)"""
         result = builder.param("verbose").build()
         assert result == ["test-cmd", "--verbose"]
 
+    @pytest.mark.unit
     def test_with_parameter_with_value(self, builder):
         """Test parameter with value"""
         result = builder.param("output", "file.txt").build()
         assert result == ["test-cmd", "--output", "file.txt"]
 
+    @pytest.mark.unit
     def test_parameter_chaining(self, builder):
         """Test chaining multiple parameters"""
         result = (builder
@@ -73,11 +77,13 @@ class TestBasicCommandBuilding:
         assert result == ["test-cmd", "--verbose", "--output", "file.txt", "--format", "json"]
 
 class TestSubcommands:
+    @pytest.mark.unit
     def test_subcommand(self, builder):
         """Test adding a subcommand"""
         result = builder.command("backup").build()
         assert result == ["test-cmd", "backup"]
 
+    @pytest.mark.unit
     def test_subcommand_with_parameters(self, builder):
         """Test subcommand with parameters"""
         result = (builder
@@ -88,6 +94,7 @@ class TestSubcommands:
         assert result == ["test-cmd", "backup", "--source", "/path", "--verbose"]
 
 class TestBuilderState:
+    @pytest.mark.unit
     def test_reset(self, builder):
         """Test resetting the builder"""
         builder.param("verbose")

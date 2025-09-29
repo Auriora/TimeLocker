@@ -20,6 +20,8 @@ class TestSnapshotManager:
         self.repository = MockRecoveryRepository()
         self.manager = SnapshotManager(self.repository)
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_list_snapshots_returns_all_snapshots(self):
         """Test that list_snapshots returns all available snapshots"""
         snapshots = self.manager.list_snapshots()
@@ -30,6 +32,8 @@ class TestSnapshotManager:
         assert "def456" in snapshot_ids
         assert "ghi789" in snapshot_ids
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_list_snapshots_with_tag_filter(self):
         """Test filtering snapshots by tags"""
         filter_criteria = SnapshotFilter().with_tags(["full"])
@@ -39,6 +43,8 @@ class TestSnapshotManager:
         for snapshot in snapshots:
             assert "full" in snapshot.tags
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_list_snapshots_with_date_filter(self):
         """Test filtering snapshots by date range"""
         # Filter for recent snapshots (last 5 days)
@@ -50,6 +56,8 @@ class TestSnapshotManager:
         for snapshot in snapshots:
             assert snapshot.timestamp >= date_from
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_list_snapshots_with_max_results(self):
         """Test limiting number of results"""
         filter_criteria = SnapshotFilter().with_max_results(2)
@@ -57,6 +65,8 @@ class TestSnapshotManager:
 
         assert len(snapshots) == 2
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_get_snapshot_by_id_exact_match(self):
         """Test retrieving snapshot by exact ID"""
         snapshot = self.manager.get_snapshot_by_id("abc123")
@@ -64,17 +74,23 @@ class TestSnapshotManager:
         assert snapshot.id == "abc123"
         assert "full" in snapshot.tags
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_get_snapshot_by_id_partial_match(self):
         """Test retrieving snapshot by partial ID"""
         snapshot = self.manager.get_snapshot_by_id("abc")
 
         assert snapshot.id == "abc123"
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_get_snapshot_by_id_not_found(self):
         """Test error when snapshot ID is not found"""
         with pytest.raises(SnapshotNotFoundError):
             self.manager.get_snapshot_by_id("nonexistent")
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_get_latest_snapshot(self):
         """Test retrieving the most recent snapshot"""
         latest = self.manager.get_latest_snapshot()
@@ -82,6 +98,8 @@ class TestSnapshotManager:
         assert latest is not None
         assert latest.id == "abc123"  # This should be the most recent
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_get_latest_snapshot_with_filter(self):
         """Test retrieving latest snapshot with filter"""
         filter_criteria = SnapshotFilter().with_tags(["incremental"])
@@ -91,6 +109,8 @@ class TestSnapshotManager:
         assert latest.id == "def456"
         assert "incremental" in latest.tags
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_get_latest_snapshot_no_snapshots(self):
         """Test getting latest snapshot when no snapshots exist"""
         self.repository.clear_snapshots()
@@ -98,6 +118,8 @@ class TestSnapshotManager:
 
         assert latest is None
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_get_snapshots_by_date(self):
         """Test getting snapshots near a specific date"""
         target_date = datetime.now() - timedelta(days=3)
@@ -106,6 +128,8 @@ class TestSnapshotManager:
         assert len(snapshots) >= 1
         # Should include the snapshot from 3 days ago
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_snapshot_caching(self):
         """Test that snapshots are cached properly"""
         # First call should hit the repository
@@ -117,6 +141,8 @@ class TestSnapshotManager:
         assert len(snapshots1) == len(snapshots2)
         assert snapshots1[0].id == snapshots2[0].id
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_force_refresh_cache(self):
         """Test forcing cache refresh"""
         # Get initial snapshots
@@ -134,6 +160,8 @@ class TestSnapshotManager:
         snapshots3 = self.manager.list_snapshots(force_refresh=True)
         assert len(snapshots3) == len(snapshots1) + 1
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_get_snapshot_summary(self):
         """Test getting snapshot summary information"""
         snapshot = self.manager.get_snapshot_by_id("abc123")
@@ -145,6 +173,8 @@ class TestSnapshotManager:
         assert "tags" in summary
         assert summary["repository"] == self.repository.location()
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_clear_cache(self):
         """Test clearing the snapshot cache"""
         # Load cache
@@ -156,6 +186,8 @@ class TestSnapshotManager:
         assert self.manager._cached_snapshots is None
         assert self.manager._cache_timestamp is None
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_list_snapshots_repository_error(self):
         """Test handling repository errors when listing snapshots"""
         self.repository.set_snapshots_failure(True)
@@ -163,6 +195,8 @@ class TestSnapshotManager:
         with pytest.raises(RecoveryError):
             self.manager.list_snapshots()
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_filter_by_paths(self):
         """Test filtering snapshots by paths"""
         filter_criteria = SnapshotFilter().with_paths([Path("/home/user/documents")])
@@ -172,6 +206,8 @@ class TestSnapshotManager:
         for snapshot in snapshots:
             assert any(Path("/home/user/documents") in snapshot.paths for path in [Path("/home/user/documents")])
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_combined_filters(self):
         """Test using multiple filters together"""
         date_from = datetime.now() - timedelta(days=5)

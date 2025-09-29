@@ -23,29 +23,44 @@ from TimeLocker.backup_target import BackupTarget
 from TimeLocker.file_selections import FileSelection, SelectionType
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_create_backup_target(selection):
     """Test creating a basic backup target"""
     target = BackupTarget(selection)
     assert isinstance(target.selection, FileSelection)
     assert target.tags == []
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_create_backup_target_with_tags(selection):
     """Test creating a backup target with tags"""
     tags = ["daily", "important"]
     target = BackupTarget(selection, tags=tags)
     assert target.tags == tags
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_init_with_none_selection():
     """Test initializing BackupTarget with None as the selection argument."""
     with pytest.raises(AttributeError):
         BackupTarget(None)
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_init_with_none_tags():
     """Test initializing BackupTarget with None as the tags argument."""
     selection = FileSelection()
     target = BackupTarget(selection, None)
     assert target.tags == []
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_init_with_selection_and_tags():
     """Test the initialization of BackupTarget with a FileSelection and tags."""
     selection = FileSelection()
@@ -54,6 +69,9 @@ def test_init_with_selection_and_tags():
     assert target.selection == selection
     assert target.tags == tags
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_validate_requires_folder(selection, test_dir, test_file):
     """Test that validation requires at least one folder"""
     target = BackupTarget(selection)
@@ -69,6 +87,9 @@ def test_validate_requires_folder(selection, test_dir, test_file):
     target = BackupTarget(selection)
     assert target.validate()
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_validate_raises_value_error():
     """Test that validate() method raises ValueError when the selection configuration is invalid."""
     mock_selection = Mock(spec=FileSelection)
@@ -77,6 +98,9 @@ def test_validate_raises_value_error():
     with pytest.raises(ValueError):
         backup_target.validate()
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_validate_returns_true_for_valid_selection():
     """Test that the validate method returns True when the selection is valid."""
     mock_selection = FileSelection()
@@ -84,6 +108,9 @@ def test_validate_returns_true_for_valid_selection():
     backup_target = BackupTarget(selection=mock_selection)
     assert backup_target.validate() == True
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_backup_target_with_patterns(selection, test_dir):
     """Test backup target with include/exclude patterns"""
     selection.add_path(test_dir)  # Add required folder
@@ -95,6 +122,9 @@ def test_backup_target_with_patterns(selection, test_dir):
     assert "*.txt" in target.selection.include_patterns
     assert "*.tmp" in target.selection.exclude_patterns
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_backup_target_with_pattern_group(selection, test_dir):
     """Test backup target with pattern groups"""
     selection.add_path(test_dir)  # Add required folder

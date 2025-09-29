@@ -52,6 +52,9 @@ class TestEnhancedFileSelection:
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_pattern_group_common_groups(self):
         """Test predefined common pattern groups"""
         # Test office documents group
@@ -79,11 +82,17 @@ class TestEnhancedFileSelection:
         assert "*.mp4" in media_group.patterns
         assert "*.mp3" in media_group.patterns
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_pattern_group_invalid_group(self):
         """Test error handling for invalid pattern group"""
         with pytest.raises(KeyError, match="Pattern group 'invalid_group' not found"):
             PatternGroup.get_common_group("invalid_group")
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_file_selection_pattern_groups(self):
         """Test adding and removing pattern groups"""
         selection = FileSelection()
@@ -103,6 +112,9 @@ class TestEnhancedFileSelection:
         assert "*.pdf" not in selection.include_patterns
         assert "*.docx" not in selection.include_patterns
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_file_selection_custom_pattern_group(self):
         """Test adding custom pattern groups"""
         selection = FileSelection()
@@ -115,6 +127,9 @@ class TestEnhancedFileSelection:
         assert "*.md" in selection.include_patterns
         assert "*.rst" in selection.include_patterns
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_matches_pattern_functionality(self):
         """Test pattern matching functionality"""
         selection = FileSelection()
@@ -134,6 +149,9 @@ class TestEnhancedFileSelection:
         assert not selection.matches_pattern("file.pdf", patterns)
         assert not selection.matches_pattern("document.docx", patterns)
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_should_include_file_logic(self):
         """Test comprehensive file inclusion logic"""
         selection = FileSelection()
@@ -155,6 +173,9 @@ class TestEnhancedFileSelection:
         assert not selection.should_include_file(self.test_dir / "subdir1" / "nested.txt")
         assert not selection.should_include_file(self.test_dir / "subdir1" / "temp.tmp")
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_get_effective_paths(self):
         """Test effective path resolution"""
         selection = FileSelection()
@@ -175,6 +196,9 @@ class TestEnhancedFileSelection:
         assert "backup_file.bak" not in included_names
         assert "cache_file.cache" not in included_names
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_estimate_backup_size(self):
         """Test backup size estimation"""
         selection = FileSelection()
@@ -197,6 +221,9 @@ class TestEnhancedFileSelection:
         assert stats["total_size"] <= stats_all["total_size"]
         assert stats["file_count"] <= stats_all["file_count"]
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_complex_selection_scenario(self):
         """Test complex file selection scenario"""
         selection = FileSelection()
@@ -219,6 +246,9 @@ class TestEnhancedFileSelection:
         assert not selection.should_include_file(self.test_dir / "temp_file.tmp")  # Temp file
         assert not selection.should_include_file(self.test_dir / "subdir1" / "nested.txt")  # Excluded dir
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_file_selection_edge_cases(self):
         """Test edge cases in file selection"""
         selection = FileSelection()
@@ -236,6 +266,9 @@ class TestEnhancedFileSelection:
         assert stats["total_size"] == 0
         assert stats["file_count"] == 0
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_file_selection_properties(self):
         """Test file selection property accessors"""
         selection = FileSelection()
@@ -262,6 +295,9 @@ class TestEnhancedFileSelection:
         includes.add(Path("/new/path"))
         assert Path("/new/path") not in selection.includes
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_file_selection_repr(self):
         """Test string representation of file selection"""
         selection = FileSelection()

@@ -25,6 +25,9 @@ from TimeLocker.backup_manager import BackupManager, BackupManagerError
 from TimeLocker.backup_repository import BackupRepository
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_init_creates_empty_repository_factories():
     """Test that __init__ creates an empty repository factories dictionary"""
     manager = BackupManager()
@@ -32,6 +35,9 @@ def test_init_creates_empty_repository_factories():
     assert len(manager._repository_factories) == 0
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_redact_sensitive_info_no_username():
     """Test redacting sensitive info from URL without username"""
     uri = "https://example.com/path"
@@ -39,6 +45,9 @@ def test_redact_sensitive_info_no_username():
     assert result == uri, "URL without username should not be modified"
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_redact_sensitive_info_with_username():
     """Test redacting username and password from URL"""
     uri = "https://username:password@example.com/path"
@@ -47,6 +56,9 @@ def test_redact_sensitive_info_with_username():
     assert result == expected_result
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_get_repository_factory_nonexistent():
     """Test getting nonexistent repository factory"""
     manager = BackupManager()
@@ -54,6 +66,9 @@ def test_get_repository_factory_nonexistent():
     assert result is None
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_get_repository_factory_nonexistent_type():
     """Test getting nonexistent repository type from existing factory"""
     manager = BackupManager()
@@ -62,6 +77,9 @@ def test_get_repository_factory_nonexistent_type():
     assert result is None
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_register_repository_factory():
     """Test registering a new repository factory"""
     manager = BackupManager()
@@ -83,6 +101,9 @@ def test_register_repository_factory():
     assert manager._repository_factories[name][repo_type] == MockRepository
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_register_repository_factory_overwrite_warning(capfd):
     """Test warning when overwriting existing repository factory"""
     manager = BackupManager()
@@ -92,6 +113,9 @@ def test_register_repository_factory_overwrite_warning(capfd):
     assert "Warning: Overwriting existing repository class for test/repo_type" in captured.out
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_list_registered_backends():
     """Test listing registered backends and their types"""
     manager = BackupManager()
@@ -107,6 +131,9 @@ def test_list_registered_backends():
     assert result == expected
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_list_registered_backends_empty():
     """Test listing backends when none are registered"""
     manager = BackupManager()
@@ -116,6 +143,9 @@ def test_list_registered_backends_empty():
 
 
 @patch('TimeLocker.restic.Repositories.s3.client')
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_from_uri_supported_scheme(mock_boto_client):
     """Test creating repository from supported URI scheme"""
     # Mock the S3 client to avoid AWS authentication
@@ -141,6 +171,9 @@ def test_from_uri_supported_scheme(mock_boto_client):
     # The password handling is tested in the S3ResticRepository tests
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_from_uri_unsupported_scheme():
     """Test error when using unsupported URI scheme"""
     unsupported_uri = "unsupported://example.com/path"

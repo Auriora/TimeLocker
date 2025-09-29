@@ -235,6 +235,7 @@ def selection():
 
 
 @pytest.fixture
+@pytest.mark.unit
 def test_dir():
     """Mock test directory"""
     from unittest.mock import Mock
@@ -247,6 +248,7 @@ def test_dir():
 
 
 @pytest.fixture
+@pytest.mark.unit
 def test_file():
     """Mock test file"""
     from unittest.mock import Mock

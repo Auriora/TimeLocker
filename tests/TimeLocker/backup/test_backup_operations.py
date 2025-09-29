@@ -37,6 +37,9 @@ class TestBackupOperations:
             shutil.rmtree(self.temp_dir)
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_file_selection_to_restic_args(self, mock_verify):
         """Test FileSelection conversion to restic arguments"""
         mock_verify.return_value = "0.18.0"
@@ -61,6 +64,9 @@ class TestBackupOperations:
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_target_success(self, mock_subprocess, mock_verify):
         """Test successful backup operation"""
         mock_verify.return_value = "0.18.0"
@@ -119,6 +125,9 @@ class TestBackupOperations:
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_target_with_multiple_targets(self, mock_subprocess, mock_verify):
         """Test backup with multiple targets"""
         mock_verify.return_value = "0.18.0"
@@ -177,6 +186,9 @@ class TestBackupOperations:
         assert "*.log" in command_list
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_target_no_targets(self, mock_verify):
         """Test backup with no targets raises error"""
         mock_verify.return_value = "0.18.0"
@@ -192,6 +204,9 @@ class TestBackupOperations:
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_target_command_failure(self, mock_subprocess, mock_verify):
         """Test backup failure handling"""
         mock_verify.return_value = "0.18.0"
@@ -222,6 +237,9 @@ class TestBackupOperations:
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_verification_success(self, mock_subprocess, mock_verify):
         """Test successful backup verification"""
         mock_verify.return_value = "0.18.0"
@@ -250,6 +268,9 @@ class TestBackupOperations:
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_verification_failure(self, mock_subprocess, mock_verify):
         """Test backup verification failure"""
         mock_verify.return_value = "0.18.0"
@@ -273,6 +294,9 @@ class TestBackupOperations:
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_with_tags(self, mock_subprocess, mock_verify):
         """Test backup with tags"""
         mock_verify.return_value = "0.18.0"

@@ -32,3 +32,4 @@ htmlcov/
 # Project artifacts
 performance_metrics.json
 /tests.log
+/coverage.xml

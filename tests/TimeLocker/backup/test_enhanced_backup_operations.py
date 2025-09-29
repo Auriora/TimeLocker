@@ -46,6 +46,9 @@ class TestEnhancedBackupOperations:
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_file_selection_pattern_matching(self):
         """Test enhanced pattern matching in FileSelection"""
         selection = FileSelection()
@@ -62,6 +65,9 @@ class TestEnhancedBackupOperations:
         assert selection.matches_pattern("tempfile", patterns)
         assert not selection.matches_pattern("file.pdf", patterns)
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_file_selection_should_include_file(self):
         """Test file inclusion logic"""
         selection = FileSelection()
@@ -75,6 +81,9 @@ class TestEnhancedBackupOperations:
         assert not selection.should_include_file(self.source_path / "file3.tmp")
         assert selection.should_include_file(self.source_path / "document.pdf")
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_file_selection_effective_paths(self):
         """Test effective path resolution"""
         selection = FileSelection()
@@ -93,6 +102,9 @@ class TestEnhancedBackupOperations:
         assert "file3.tmp" not in included_files
         assert "cache.tmp" not in included_files
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_file_selection_estimate_backup_size(self):
         """Test backup size estimation"""
         selection = FileSelection()
@@ -106,6 +118,9 @@ class TestEnhancedBackupOperations:
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_with_retry_success_first_attempt(self, mock_subprocess, mock_verify):
         """Test successful backup on first attempt"""
         mock_verify.return_value = "0.18.0"
@@ -141,6 +156,9 @@ class TestEnhancedBackupOperations:
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_with_retry_success_after_failure(self, mock_subprocess, mock_verify):
         """Test successful backup after initial failure"""
         mock_verify.return_value = "0.18.0"
@@ -186,6 +204,9 @@ class TestEnhancedBackupOperations:
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_with_retry_all_attempts_fail(self, mock_subprocess, mock_verify):
         """Test backup failure after all retry attempts"""
         mock_verify.return_value = "0.18.0"
@@ -215,6 +236,9 @@ class TestEnhancedBackupOperations:
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_create_full_backup(self, mock_subprocess, mock_verify):
         """Test full backup creation"""
         mock_verify.return_value = "0.18.0"
@@ -260,6 +284,9 @@ class TestEnhancedBackupOperations:
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_create_incremental_backup(self, mock_subprocess, mock_verify):
         """Test incremental backup creation"""
         mock_verify.return_value = "0.18.0"
@@ -308,6 +335,9 @@ class TestEnhancedBackupOperations:
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_comprehensive_verification_success(self, mock_subprocess, mock_verify):
         """Test comprehensive backup verification success"""
         mock_verify.return_value = "0.18.0"
@@ -358,6 +388,9 @@ class TestEnhancedBackupOperations:
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_comprehensive_verification_failure(self, mock_subprocess, mock_verify):
         """Test comprehensive backup verification failure"""
         mock_verify.return_value = "0.18.0"
@@ -383,6 +416,9 @@ class TestEnhancedBackupOperations:
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_comprehensive_verification_with_warnings(self, mock_subprocess, mock_verify):
         """Test comprehensive verification with warnings"""
         mock_verify.return_value = "0.18.0"
@@ -427,6 +463,9 @@ class TestEnhancedBackupOperations:
         assert any("Could not gather statistics" in w for w in result["warnings"])
         assert any("Data verification timed out" in w for w in result["warnings"])
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_manager_verify_backup_integrity(self):
         """Test backup manager verification method"""
         # Mock repository with verify_backup method
@@ -447,6 +486,9 @@ class TestEnhancedBackupOperations:
         assert result is True
         mock_repo_no_verify.check.assert_called_once()
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_file_selection_validation_enhanced(self):
         """Test enhanced file selection validation"""
         selection = FileSelection()

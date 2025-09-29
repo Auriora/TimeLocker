@@ -3,6 +3,8 @@ Tests for retention-related methods in ResticRepository that previously
 assumed CommandBuilder.run returned a CompletedProcess.
 """
 
+import pytest
+
 import subprocess
 from typing import Any
 
@@ -44,6 +46,7 @@ class _ConcreteRepo(ResticRepository):
         return "test-password"
 
 
+@pytest.mark.unit
 def test_apply_retention_policy_success():
     repo = _ConcreteRepo(location="file:///tmp/repo")
     repo._command = _StubCommand(should_fail=False)
@@ -51,6 +54,7 @@ def test_apply_retention_policy_success():
     assert repo.apply_retention_policy(policy=None, prune=True) is True
 
 
+@pytest.mark.unit
 def test_apply_retention_policy_failure():
     repo = _ConcreteRepo(location="file:///tmp/repo")
     repo._command = _StubCommand(should_fail=True, stderr="forget failed")
@@ -58,6 +62,7 @@ def test_apply_retention_policy_failure():
     assert repo.apply_retention_policy(policy=None, prune=False) is False
 
 
+@pytest.mark.unit
 def test_forget_snapshot_success():
     repo = _ConcreteRepo(location="file:///tmp/repo")
     repo._command = _StubCommand(should_fail=False)
@@ -65,6 +70,7 @@ def test_forget_snapshot_success():
     assert repo.forget_snapshot("abc123", prune=True) is True
 
 
+@pytest.mark.unit
 def test_forget_snapshot_failure():
     repo = _ConcreteRepo(location="file:///tmp/repo")
     repo._command = _StubCommand(should_fail=True, stderr="forget failed")

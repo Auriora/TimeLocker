@@ -25,6 +25,8 @@ class TestPerformanceBenchmarks:
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 
+    @pytest.mark.performance
+    @pytest.mark.unit
     def test_pattern_matching_performance(self):
         """Test that optimized pattern matching is faster than legacy"""
         with PerformanceBenchmarks(self.temp_dir) as benchmarks:
@@ -47,6 +49,8 @@ class TestPerformanceBenchmarks:
             if results['legacy_match_time'] > 0.001:  # Only check if meaningful time
                 assert results['speedup_factor'] >= 0.5  # At least not 2x slower
 
+    @pytest.mark.performance
+    @pytest.mark.unit
     def test_file_traversal_performance(self):
         """Test file traversal performance meets expectations"""
         with PerformanceBenchmarks(self.temp_dir) as benchmarks:
@@ -69,6 +73,8 @@ class TestPerformanceBenchmarks:
             if results['file_count'] > 100:
                 assert results['throughput_files_per_sec'] >= 50  # Conservative threshold
 
+    @pytest.mark.performance
+    @pytest.mark.unit
     def test_large_directory_performance(self):
         """Test performance with large directory structures"""
         with PerformanceBenchmarks(self.temp_dir) as benchmarks:
@@ -86,6 +92,8 @@ class TestPerformanceBenchmarks:
             total_time = results['traversal_time'] + results['size_estimation_time']
             assert total_time < 30.0  # Should complete within 30 seconds
 
+    @pytest.mark.performance
+    @pytest.mark.unit
     def test_benchmark_consistency(self):
         """Test that benchmarks produce consistent results"""
         with PerformanceBenchmarks(self.temp_dir) as benchmarks:
@@ -105,6 +113,8 @@ class TestPerformanceBenchmarks:
                          max(min(results1['traversal_time'], results2['traversal_time']), 0.001)
             assert time_ratio < 10.0  # Should not vary by more than 10x
 
+    @pytest.mark.performance
+    @pytest.mark.unit
     def test_performance_regression_detection(self):
         """Test that we can detect performance regressions"""
         with PerformanceBenchmarks(self.temp_dir) as benchmarks:
@@ -129,6 +139,8 @@ class TestPerformanceBenchmarks:
             # (This is expected due to more patterns)
             assert regression_time >= baseline['traversal_time']
 
+    @pytest.mark.performance
+    @pytest.mark.unit
     def test_memory_usage_tracking(self):
         """Test that memory usage is tracked during benchmarks"""
         with PerformanceBenchmarks(self.temp_dir) as benchmarks:
@@ -145,6 +157,8 @@ class TestPerformanceBenchmarks:
                 assert summary['operation_count'] >= 0
                 assert 'avg_duration_seconds' in summary or summary['operation_count'] == 0
 
+    @pytest.mark.performance
+    @pytest.mark.unit
     def test_full_benchmark_suite(self):
         """Test running the full benchmark suite"""
         with PerformanceBenchmarks(self.temp_dir) as benchmarks:
@@ -170,6 +184,8 @@ class TestPerformanceBenchmarks:
             assert 'num_files_created' in ld
             assert 'traversal_time' in ld
 
+    @pytest.mark.performance
+    @pytest.mark.unit
     def test_performance_report_generation(self):
         """Test performance report generation"""
         with PerformanceBenchmarks(self.temp_dir) as benchmarks:

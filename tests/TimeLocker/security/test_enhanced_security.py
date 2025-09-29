@@ -43,6 +43,8 @@ class TestEnhancedSecurity:
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_credential_encryption_integrity(self):
         """Test that credentials are properly encrypted and cannot be read without key"""
         # Test data
@@ -62,6 +64,8 @@ class TestEnhancedSecurity:
             # Verify store was called with correct parameters
             mock_store.assert_called_once_with("test_repo", test_credential["password"])
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_credential_access_auditing(self):
         """Test that all credential access is properly audited"""
         # Test credential access
@@ -79,6 +83,8 @@ class TestEnhancedSecurity:
             assert "read" in content
             assert "SUCCESS" in content
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_failed_credential_access_detection(self):
         """Test detection and logging of failed credential access attempts"""
         # Simulate failed access
@@ -94,6 +100,8 @@ class TestEnhancedSecurity:
             assert "credential_access" in content
             assert "FAILED" in content
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_security_event_integrity(self):
         """Test that security events cannot be tampered with"""
         # Create security event
@@ -119,6 +127,8 @@ class TestEnhancedSecurity:
             assert event.user_id in content
             assert event.repository_id in content
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_audit_log_tampering_detection(self):
         """Test detection of audit log tampering attempts"""
         # Create initial audit log entry
@@ -146,6 +156,8 @@ class TestEnhancedSecurity:
             assert "modified_event" in modified_content
             assert "test_event" not in modified_content
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_concurrent_security_operations(self):
         """Test security service behavior under concurrent access"""
         import threading
@@ -186,6 +198,8 @@ class TestEnhancedSecurity:
             for i in range(5):
                 assert f"concurrent_test_{i}" in content
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_security_level_escalation(self):
         """Test proper handling of security level escalation"""
         # Log events with increasing security levels
@@ -207,6 +221,8 @@ class TestEnhancedSecurity:
             for level in levels:
                 assert level.value in content
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_backup_operation_security_validation(self):
         """Test security validation during backup operations"""
         # Test backup operation auditing
@@ -227,6 +243,8 @@ class TestEnhancedSecurity:
             assert "full_backup" in content
             assert "started" in content
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_restore_operation_security_validation(self):
         """Test security validation during restore operations"""
         # Test restore operation auditing
@@ -247,6 +265,8 @@ class TestEnhancedSecurity:
             assert "snapshot_123" in content
             assert "completed" in content
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_security_configuration_validation(self):
         """Test validation of security configuration settings"""
         # Test valid configuration
@@ -271,6 +291,8 @@ class TestEnhancedSecurity:
         result = self.security_service.validate_security_config(invalid_config)
         assert result["valid"] is False
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_emergency_security_lockdown(self):
         """Test emergency security lockdown functionality"""
         # Trigger security lockdown
@@ -286,6 +308,8 @@ class TestEnhancedSecurity:
             assert "Multiple failed authentication attempts" in content
             assert "automated_security_monitor" in content
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_data_integrity_validation(self):
         """Test data integrity validation mechanisms"""
         # Test file integrity validation

@@ -12,7 +12,8 @@ import pytest
 
 def get_project_root():
     """Get the project root directory."""
-    return Path(__file__).parent.parent
+    # From tests/TimeLocker/project/test_version_management.py, go up 4 levels to reach project root
+    return Path(__file__).parent.parent.parent.parent
 
 
 def get_version_from_file(file_path, pattern):
@@ -37,7 +38,8 @@ class TestVersionConsistency:
     def test_pyproject_toml_has_version(self):
         """Test that pyproject.toml contains a version."""
         pyproject_file = get_project_root() / "pyproject.toml"
-        version = get_version_from_file(pyproject_file, r'version = "([^"]+)"')
+        # Use more flexible regex to handle whitespace variations
+        version = get_version_from_file(pyproject_file, r'version\s*=\s*["\']([^"\']+)["\']')
 
         assert version is not None, "pyproject.toml should contain a version"
         assert re.match(r'\d+\.\d+\.\d+', version), f"Version should be semantic: {version}"
@@ -47,7 +49,8 @@ class TestVersionConsistency:
     def test_init_py_has_version(self):
         """Test that __init__.py contains a version."""
         init_file = get_project_root() / "src" / "TimeLocker" / "__init__.py"
-        version = get_version_from_file(init_file, r'__version__ = "([^"]+)"')
+        # Use more flexible regex to handle whitespace variations
+        version = get_version_from_file(init_file, r'__version__\s*=\s*["\']([^"\']+)["\']')
 
         assert version is not None, "__init__.py should contain a __version__"
         assert re.match(r'\d+\.\d+\.\d+', version), f"Version should be semantic: {version}"
@@ -59,8 +62,9 @@ class TestVersionConsistency:
         pyproject_file = get_project_root() / "pyproject.toml"
         init_file = get_project_root() / "src" / "TimeLocker" / "__init__.py"
 
-        pyproject_version = get_version_from_file(pyproject_file, r'version = "([^"]+)"')
-        init_version = get_version_from_file(init_file, r'__version__ = "([^"]+)"')
+        # Use more flexible regex patterns
+        pyproject_version = get_version_from_file(pyproject_file, r'version\s*=\s*["\']([^"\']+)["\']')
+        init_version = get_version_from_file(init_file, r'__version__\s*=\s*["\']([^"\']+)["\']')
 
         assert pyproject_version == init_version, (
                 f"Versions must be consistent: "
