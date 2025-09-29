@@ -17,7 +17,8 @@ class TestTimeshiftCLIIntegration:
 
     def setup_method(self):
         """Set up test environment"""
-        self.runner = CliRunner()
+        # Set wider terminal width to prevent help text truncation in CI
+        self.runner = CliRunner(env={'COLUMNS': '200'})
 
         # Create sample Timeshift configuration
         self.timeshift_config = {
