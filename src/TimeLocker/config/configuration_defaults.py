@@ -9,6 +9,8 @@ from pathlib import Path
 from typing import Dict, Any
 import os
 
+from .configuration_path_resolver import ConfigurationPathResolver
+
 from .configuration_schema import (
     TimeLockerConfig,
     GeneralConfig,
@@ -27,7 +29,7 @@ from .configuration_schema import (
 class ConfigurationDefaults:
     """
     Centralized configuration defaults following Single Responsibility Principle.
-    
+
     This class provides the single source of truth for all default configuration
     values, eliminating duplication across the codebase.
     """
@@ -36,7 +38,7 @@ class ConfigurationDefaults:
     def get_default_config() -> TimeLockerConfig:
         """
         Get the complete default configuration.
-        
+
         Returns:
             TimeLockerConfig: Complete default configuration
         """
@@ -166,10 +168,10 @@ class ConfigurationDefaults:
     def get_legacy_config_dict() -> Dict[str, Any]:
         """
         Get default configuration in legacy dictionary format.
-        
+
         This method provides backward compatibility with the existing
         configuration system during migration.
-        
+
         Returns:
             Dict[str, Any]: Configuration in legacy format
         """
@@ -180,14 +182,18 @@ class ConfigurationDefaults:
     def _get_default_config_directory() -> Path:
         """
         Get the default configuration directory based on context.
-        
+
         Returns:
             Path: Default configuration directory
         """
-        # Check if running as root/system context
-        if hasattr(os, "geteuid") and os.geteuid() == 0:
+        # Use centralized system context detection
+        if ConfigurationPathResolver.is_system_context():
             # System-wide configuration
-            return Path("/etc/timelocker")
+            if os.name == "nt":
+                program_data = os.environ.get('PROGRAMDATA', r'C:\\ProgramData')
+                return Path(program_data) / "timelocker"
+            else:
+                return Path("/etc/timelocker")
         else:
             # User configuration following XDG specification
             xdg_config_home = os.environ.get('XDG_CONFIG_HOME')
@@ -200,10 +206,10 @@ class ConfigurationDefaults:
     def get_environment_overrides() -> Dict[str, Any]:
         """
         Get configuration overrides from environment variables.
-        
+
         This method checks for TimeLocker-specific environment variables
         and returns configuration overrides.
-        
+
         Returns:
             Dict[str, Any]: Configuration overrides from environment
         """
@@ -244,10 +250,10 @@ class ConfigurationDefaults:
     def apply_environment_overrides(config: TimeLockerConfig) -> TimeLockerConfig:
         """
         Apply environment variable overrides to configuration.
-        
+
         Args:
             config: Base configuration to override
-            
+
         Returns:
             TimeLockerConfig: Configuration with environment overrides applied
         """
