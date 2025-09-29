@@ -25,18 +25,24 @@ class TestCredentialManager:
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_initialization(self):
         """Test credential manager initialization"""
         assert self.credential_manager.config_dir == self.temp_dir
         assert self.credential_manager.is_locked()
         assert self.temp_dir.exists()
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_unlock_with_new_password(self):
         """Test unlocking with a new master password"""
         result = self.credential_manager.unlock(self.master_password)
         assert result is True
         assert not self.credential_manager.is_locked()
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_unlock_with_wrong_password(self):
         """Test unlocking with wrong password after setting one"""
         # First, set up credentials with correct password
@@ -48,6 +54,8 @@ class TestCredentialManager:
         with pytest.raises(CredentialManagerError):
             self.credential_manager.unlock("wrong_password")
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_store_and_retrieve_repository_password(self):
         """Test storing and retrieving repository passwords"""
         self.credential_manager.unlock(self.master_password)
@@ -62,6 +70,8 @@ class TestCredentialManager:
         retrieved_password = self.credential_manager.get_repository_password(repo_id)
         assert retrieved_password == password
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_store_and_retrieve_backend_credentials(self):
         """Test storing and retrieving backend credentials"""
         self.credential_manager.unlock(self.master_password)
@@ -80,6 +90,8 @@ class TestCredentialManager:
         retrieved_credentials = self.credential_manager.get_backend_credentials(backend_type)
         assert retrieved_credentials == credentials
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_list_repositories(self):
         """Test listing stored repositories"""
         self.credential_manager.unlock(self.master_password)
@@ -96,6 +108,8 @@ class TestCredentialManager:
         stored_repos = self.credential_manager.list_repositories()
         assert set(stored_repos) == set(repos)
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_remove_repository(self):
         """Test removing repository credentials"""
         self.credential_manager.unlock(self.master_password)
@@ -115,6 +129,8 @@ class TestCredentialManager:
         result = self.credential_manager.remove_repository("non_existent")
         assert result is False
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_persistence_across_sessions(self):
         """Test that credentials persist across lock/unlock cycles"""
         # First session
@@ -129,6 +145,8 @@ class TestCredentialManager:
         retrieved_password = self.credential_manager.get_repository_password(repo_id)
         assert retrieved_password == password
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_change_master_password(self):
         """Test changing the master password"""
         # Set up initial credentials
@@ -157,6 +175,8 @@ class TestCredentialManager:
         with pytest.raises(CredentialManagerError):
             self.credential_manager.unlock(self.master_password)
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_operations_when_locked(self):
         """Test that operations fail when credential store is locked"""
         # Don't unlock the credential manager
@@ -173,6 +193,8 @@ class TestCredentialManager:
         with pytest.raises(CredentialManagerError):
             self.credential_manager.get_backend_credentials("s3")
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_get_nonexistent_credentials(self):
         """Test retrieving non-existent credentials"""
         self.credential_manager.unlock(self.master_password)
@@ -185,6 +207,8 @@ class TestCredentialManager:
         credentials = self.credential_manager.get_backend_credentials("nonexistent")
         assert credentials == {}
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_empty_credentials_handling(self):
         """Test handling of empty credential dictionaries"""
         self.credential_manager.unlock(self.master_password)
@@ -196,6 +220,9 @@ class TestCredentialManager:
         credentials = self.credential_manager.get_backend_credentials("empty_backend")
         assert credentials == {}
 
+    @pytest.mark.security
+    @pytest.mark.slow
+    @pytest.mark.unit
     def test_auto_lock_timeout(self):
         """Test auto-lock functionality"""
         # Create credential manager with short timeout
@@ -212,6 +239,8 @@ class TestCredentialManager:
         with pytest.raises(CredentialAccessError):
             short_timeout_manager.get_repository_password("test_repo")
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_failed_attempt_lockout(self):
         """Test lockout after failed attempts"""
         # Set up credentials first
@@ -231,6 +260,8 @@ class TestCredentialManager:
         with pytest.raises(CredentialAccessError):
             lockout_manager.unlock("wrong_password")
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_credential_rotation(self):
         """Test credential rotation functionality"""
         self.credential_manager.unlock(self.master_password)
@@ -250,6 +281,8 @@ class TestCredentialManager:
         retrieved_password = self.credential_manager.get_repository_password(repo_id)
         assert retrieved_password == new_password
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_secure_delete_credential(self):
         """Test secure deletion of credentials"""
         self.credential_manager.unlock(self.master_password)
@@ -268,6 +301,8 @@ class TestCredentialManager:
         # Verify it's gone
         assert self.credential_manager.get_repository_password(repo_id) is None
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_credential_metadata(self):
         """Test credential metadata functionality"""
         self.credential_manager.unlock(self.master_password)
@@ -286,6 +321,8 @@ class TestCredentialManager:
         assert "created_at" in metadata
         assert "access_count" in metadata
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_security_status(self):
         """Test security status reporting"""
         status = self.credential_manager.get_security_status()
@@ -295,6 +332,8 @@ class TestCredentialManager:
         assert "auto_lock_timeout" in status
         assert status["is_locked"] is True  # Initially locked
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_audit_events(self):
         """Test audit event logging and retrieval"""
         self.credential_manager.unlock(self.master_password)
@@ -315,6 +354,8 @@ class TestCredentialManager:
         assert "store_repository_password" in operations
         assert "get_repository_password" in operations
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_credential_integrity_validation(self):
         """Test credential integrity validation"""
         self.credential_manager.unlock(self.master_password)
@@ -327,12 +368,16 @@ class TestCredentialManager:
         result = self.credential_manager.validate_credential_integrity()
         assert result is True
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_credential_integrity_validation_when_locked(self):
         """Test that integrity validation fails when locked"""
         # Don't unlock the credential manager
         with pytest.raises(CredentialSecurityError):
             self.credential_manager.validate_credential_integrity()
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_access_tracking(self):
         """Test that credential access is properly tracked"""
         self.credential_manager.unlock(self.master_password)
@@ -351,6 +396,8 @@ class TestCredentialManager:
         metadata = self.credential_manager.get_credential_metadata(repo_id)
         assert metadata["access_count"] == 3
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_empty_repository_id_validation(self):
         """Test validation of empty repository IDs"""
         self.credential_manager.unlock(self.master_password)
@@ -361,6 +408,8 @@ class TestCredentialManager:
         with pytest.raises(CredentialManagerError):
             self.credential_manager.store_repository_password("repo", "")
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_audit_log_creation(self):
         """Test that audit logs are created properly"""
         self.credential_manager.unlock(self.master_password)
@@ -376,6 +425,8 @@ class TestCredentialManager:
             content = f.read()
             assert "store_repository_password" in content
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_concurrent_access_safety(self):
         """Test that concurrent access is handled safely"""
         import threading

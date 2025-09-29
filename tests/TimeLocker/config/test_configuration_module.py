@@ -26,11 +26,15 @@ class TestConfigurationModule:
         import shutil
         shutil.rmtree(self.temp_dir, ignore_errors=True)
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_initialization(self):
         """Test ConfigurationModule initialization"""
         assert self.config_module.config_file.parent == self.temp_dir
         assert self.config_module.config_file.name == "config.json"
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_default_configuration(self):
         """Test default configuration values"""
         # Get complete configuration
@@ -62,6 +66,8 @@ class TestConfigurationModule:
         assert config.security.audit_logging is True
         assert config.security.credential_timeout == 3600
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_get_section(self):
         """Test getting configuration sections"""
         # Get general section
@@ -76,6 +82,8 @@ class TestConfigurationModule:
         assert backup["compression"] == "auto"
         assert backup["exclude_caches"] is True
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_update_section(self):
         """Test updating configuration sections"""
         # Update general section with valid fields only
@@ -90,6 +98,8 @@ class TestConfigurationModule:
         assert general["app_name"] == "Updated TimeLocker"
         assert general["version"] == "2.0.0"
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_config_value_access(self):
         """Test dot notation configuration access"""
         # Get specific value
@@ -105,6 +115,8 @@ class TestConfigurationModule:
         nonexistent = self.config_module.get_config_value("general.nonexistent", "default")
         assert nonexistent == "default"
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_repository_management(self):
         """Test repository configuration management"""
         # Add repository
@@ -130,6 +142,8 @@ class TestConfigurationModule:
         repos = self.config_module.get_repositories()
         assert not any(repo["name"] == "test-repo" for repo in repos)
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_backup_target_management(self):
         """Test backup target configuration management"""
         # Add backup target (using correct field names)
@@ -156,6 +170,8 @@ class TestConfigurationModule:
         targets = self.config_module.get_backup_targets()
         assert not any(target["name"] == "test-target" for target in targets)
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_configuration_persistence(self):
         """Test configuration save and load"""
         # Modify configuration (using valid field)
@@ -168,6 +184,8 @@ class TestConfigurationModule:
         value = new_module.get_config_value("general.version")
         assert value == "persistent_version"
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_configuration_export_import(self):
         """Test configuration export and import"""
         # Export configuration
@@ -191,6 +209,8 @@ class TestConfigurationModule:
         app_name = self.config_module.get_config_value("general.app_name")
         assert app_name == "TimeLocker"
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_reset_to_defaults(self):
         """Test resetting configuration to defaults"""
         # Modify configuration
@@ -206,6 +226,8 @@ class TestConfigurationModule:
         assert app_name == "TimeLocker"
         assert compression == "auto"
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_configuration_validation(self):
         """Test configuration validation"""
         # Get validation result
@@ -213,6 +235,8 @@ class TestConfigurationModule:
         assert result.is_valid
         assert len(result.errors) == 0
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_configuration_defaults(self):
         """Test configuration defaults"""
         # Test default configuration structure
@@ -239,6 +263,8 @@ class TestConfigurationModule:
         assert ui_config.theme.value == "auto"
         assert ui_config.confirm_destructive_actions is True
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_error_handling(self):
         """Test error handling for invalid operations"""
         # Test getting non-existent repository

@@ -32,6 +32,8 @@ class TestRestoreManager:
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_snapshot_success(self):
         """Test successful snapshot restore"""
         target_path = self.temp_dir / "restore_target"
@@ -44,6 +46,8 @@ class TestRestoreManager:
         assert result.target_path == target_path
         assert len(result.errors) == 0
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_snapshot_not_found(self):
         """Test restore with non-existent snapshot"""
         target_path = self.temp_dir / "restore_target"
@@ -55,6 +59,8 @@ class TestRestoreManager:
         assert len(result.errors) > 0
         assert "not found" in result.errors[0].lower()
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_without_target_path(self):
         """Test restore without specifying target path"""
         options = RestoreOptions()
@@ -64,6 +70,8 @@ class TestRestoreManager:
         assert result.success is False
         assert any("target path is required" in error.lower() for error in result.errors)
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_with_dry_run(self):
         """Test restore in dry run mode"""
         target_path = self.temp_dir / "restore_target"
@@ -76,6 +84,8 @@ class TestRestoreManager:
         assert result.success is True
         assert not target_path.exists()  # No actual restore in dry run
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_with_verification_disabled(self):
         """Test restore with verification disabled"""
         target_path = self.temp_dir / "restore_target"
@@ -88,6 +98,8 @@ class TestRestoreManager:
         assert result.success is True
         assert result.verification_passed is False  # Verification was disabled
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_creates_target_directory(self):
         """Test that restore creates target directory if it doesn't exist"""
         target_path = self.temp_dir / "new_directory" / "restore_target"
@@ -98,6 +110,8 @@ class TestRestoreManager:
         assert result.success is True
         # In a real implementation, the directory would be created
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_latest_snapshot(self):
         """Test restoring the latest snapshot"""
         target_path = self.temp_dir / "restore_target"
@@ -108,6 +122,8 @@ class TestRestoreManager:
         assert result.success is True
         assert result.snapshot_id == "abc123"  # Should be the latest
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_latest_no_snapshots(self):
         """Test restore latest when no snapshots exist"""
         self.repository.clear_snapshots()
@@ -119,6 +135,8 @@ class TestRestoreManager:
         assert result.success is False
         assert any("no snapshots found" in error.lower() for error in result.errors)
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_with_include_paths(self):
         """Test restore with specific include paths"""
         target_path = self.temp_dir / "restore_target"
@@ -132,6 +150,8 @@ class TestRestoreManager:
         assert result.success is True
         assert options.include_paths == include_paths
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_with_exclude_paths(self):
         """Test restore with specific exclude paths"""
         target_path = self.temp_dir / "restore_target"
@@ -145,6 +165,8 @@ class TestRestoreManager:
         assert result.success is True
         assert options.exclude_paths == exclude_paths
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_with_conflict_resolution(self):
         """Test restore with different conflict resolution strategies"""
         target_path = self.temp_dir / "restore_target"
@@ -159,6 +181,8 @@ class TestRestoreManager:
         assert result.success is True
         assert options.conflict_resolution == ConflictResolution.OVERWRITE
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_with_progress_callback(self):
         """Test restore with progress callback"""
         target_path = self.temp_dir / "restore_target"
@@ -176,6 +200,8 @@ class TestRestoreManager:
         assert result.success is True
         assert options.progress_callback is not None
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_repository_failure(self):
         """Test handling repository restore failures"""
         self.repository.set_restore_failure(True)
@@ -187,6 +213,8 @@ class TestRestoreManager:
         assert result.success is False
         assert len(result.errors) > 0
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_result_timing(self):
         """Test that restore result includes timing information"""
         import time
@@ -203,6 +231,8 @@ class TestRestoreManager:
         # Allow for very fast execution but ensure it's not negative
         assert result.duration_seconds <= (end_time - start_time) + 0.1
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_with_existing_files(self):
         """Test restore when target directory already contains files"""
         target_path = self.temp_dir / "restore_target"
@@ -219,6 +249,8 @@ class TestRestoreManager:
         assert result.success is True
 
     @patch('shutil.disk_usage')
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_insufficient_space(self, mock_disk_usage):
         """Test restore when there's insufficient disk space"""
         # Mock insufficient disk space
@@ -232,6 +264,8 @@ class TestRestoreManager:
         # Should have error about insufficient space
         assert any("insufficient" in error.lower() for error in result.errors)
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_options_chaining(self):
         """Test that RestoreOptions methods can be chained"""
         target_path = self.temp_dir / "restore_target"
@@ -247,6 +281,8 @@ class TestRestoreManager:
         assert options.dry_run is False
         assert options.conflict_resolution == ConflictResolution.SKIP
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_result_statistics(self):
         """Test that restore result includes proper statistics"""
         target_path = self.temp_dir / "restore_target"
@@ -260,6 +296,8 @@ class TestRestoreManager:
         assert hasattr(result, 'bytes_restored')
         assert hasattr(result, 'duration_seconds')
 
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_error_and_warning_handling(self):
         """Test error and warning collection in restore result"""
         result = self.restore_manager.restore_snapshot("abc123", RestoreOptions())

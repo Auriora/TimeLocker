@@ -47,12 +47,16 @@ class TestSecurityService:
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_initialization(self):
         """Test security service initialization"""
         assert self.security_service.credential_manager == self.credential_manager
         assert self.security_service.config_dir.exists()
         assert self.security_service.audit_log_file.exists()
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_audit_log_initialization(self):
         """Test audit log file initialization"""
         # Check that audit log was created with proper headers
@@ -62,6 +66,8 @@ class TestSecurityService:
             assert "Initialized:" in content
             assert "Format:" in content
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_log_security_event(self):
         """Test security event logging"""
         event = SecurityEvent(
@@ -84,11 +90,15 @@ class TestSecurityService:
             assert event.description in content
             assert event.level.value in content
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_event_handlers(self):
         """Test security event handlers"""
         handler_called = False
         received_event = None
 
+        @pytest.mark.security
+        @pytest.mark.unit
         def test_handler(event):
             nonlocal handler_called, received_event
             handler_called = True
@@ -118,6 +128,8 @@ class TestSecurityService:
         self.security_service.log_security_event(event)
         assert not handler_called
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_verify_repository_encryption_encrypted(self):
         """Test repository encryption verification for encrypted repository"""
         # Mock repository
@@ -140,6 +152,8 @@ class TestSecurityService:
         assert status.last_verified is not None
         assert status.verification_hash is not None
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_verify_repository_encryption_unencrypted(self):
         """Test repository encryption verification for unencrypted repository"""
         # Mock repository
@@ -160,6 +174,8 @@ class TestSecurityService:
         assert status.encryption_algorithm is None
         assert status.key_derivation is None
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_verify_repository_encryption_uninitialized(self):
         """Test repository encryption verification for uninitialized repository"""
         # Mock repository
@@ -172,6 +188,8 @@ class TestSecurityService:
         # Check results
         assert status.is_encrypted is False
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_validate_backup_integrity_success(self):
         """Test successful backup integrity validation"""
         # Mock repository
@@ -186,6 +204,8 @@ class TestSecurityService:
         assert result is True
         mock_repository.check.assert_called_once()
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_validate_backup_integrity_failure(self):
         """Test failed backup integrity validation"""
         # Mock repository
@@ -200,6 +220,8 @@ class TestSecurityService:
         assert result is False
         mock_repository.check.assert_called_once()
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_validate_backup_integrity_specific_snapshot(self):
         """Test backup integrity validation for specific snapshot"""
         # Mock repository
@@ -214,6 +236,8 @@ class TestSecurityService:
         assert result is True
         mock_repository.check_snapshot.assert_called_once_with("snapshot123")
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_validate_backup_integrity_exception(self):
         """Test backup integrity validation with exception"""
         # Mock repository
@@ -227,6 +251,8 @@ class TestSecurityService:
         # Check results
         assert result is False
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_audit_credential_access(self):
         """Test credential access auditing"""
         # Audit credential access
@@ -244,6 +270,8 @@ class TestSecurityService:
             assert "read" in content
             assert "SUCCESS" in content
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_get_security_summary(self):
         """Test security summary generation"""
         # Log some test events
@@ -287,6 +315,8 @@ class TestSecurityService:
         assert "backup_started" in summary["events_by_type"]
         assert "medium" in summary["events_by_level"]
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_security_event_creation(self):
         """Test SecurityEvent dataclass"""
         event = SecurityEvent(
@@ -306,6 +336,8 @@ class TestSecurityService:
         assert event.repository_id == "repo456"
         assert event.metadata["test"] == "data"
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_encryption_status_creation(self):
         """Test EncryptionStatus dataclass"""
         from TimeLocker.security.security_service import EncryptionStatus
@@ -323,6 +355,8 @@ class TestSecurityService:
         assert status.key_derivation == "scrypt"
         assert status.verification_hash == "abc123"
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_error_handling_in_event_logging(self):
         """Test error handling in security event logging"""
 
@@ -348,6 +382,8 @@ class TestSecurityService:
             content = f.read()
             assert "test_event" in content
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_audit_backup_operation(self):
         """Test backup operation auditing"""
         # Mock repository
@@ -371,6 +407,8 @@ class TestSecurityService:
             assert "full" in content
             assert "SUCCESS" in content
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_audit_restore_operation(self):
         """Test restore operation auditing"""
         # Mock repository
@@ -394,6 +432,8 @@ class TestSecurityService:
             assert "snapshot123" in content
             assert "SUCCESS" in content
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_validate_security_config_valid(self):
         """Test security configuration validation with valid config"""
         valid_config = {
@@ -409,6 +449,8 @@ class TestSecurityService:
         assert result["valid"] is True
         assert len(result["issues"]) == 0
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_validate_security_config_invalid(self):
         """Test security configuration validation with invalid config"""
         invalid_config = {
@@ -423,6 +465,8 @@ class TestSecurityService:
         assert len(result["issues"]) > 0
         assert any("Encryption is disabled" in issue for issue in result["issues"])
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_emergency_lockdown(self):
         """Test emergency lockdown functionality"""
         # Test emergency lockdown
@@ -443,6 +487,8 @@ class TestSecurityService:
             assert "emergency_lockdown" in content
             assert "Security breach detected" in content
 
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_audit_integrity_check(self):
         """Test integrity check auditing"""
         # Mock repository

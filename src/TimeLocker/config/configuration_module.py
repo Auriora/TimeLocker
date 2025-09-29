@@ -10,7 +10,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Dict, Any, Optional, List, Union
-from threading import Lock
+from threading import RLock
 from datetime import datetime
 
 from .configuration_schema import TimeLockerConfig, RepositoryConfig, BackupTargetConfig
@@ -50,7 +50,7 @@ class ConfigurationModule(IConfigurationProvider):
 
         # Configuration cache and synchronization
         self._config_cache: Optional[TimeLockerConfig] = None
-        self._cache_lock = Lock()
+        self._cache_lock = RLock()  # Use RLock to prevent deadlocks from recursive calls
         self._last_modified: Optional[datetime] = None
 
         # Initialize configuration
@@ -248,10 +248,16 @@ class ConfigurationModule(IConfigurationProvider):
 
         current_modified = datetime.fromtimestamp(self._config_file.stat().st_mtime)
 
+        # Check if reload is needed without holding lock
+        needs_reload = False
         with self._cache_lock:
             if self._last_modified is None or current_modified > self._last_modified:
-                logger.debug("Configuration file updated externally, reloading")
-                self._load_configuration()
+                needs_reload = True
+
+        # Reload outside of lock check to avoid recursive locking
+        if needs_reload:
+            logger.debug("Configuration file updated externally, reloading")
+            self._load_configuration()
 
     # IConfigurationProvider implementation
 
@@ -338,11 +344,29 @@ class ConfigurationModule(IConfigurationProvider):
 
     def get_config(self) -> TimeLockerConfig:
         """Get complete configuration"""
-        self._check_for_updates()
+        needs_reload = False
 
+        # Check for updates and cache status while holding lock
+        with self._cache_lock:
+            # Check if file has been updated externally
+            if self._config_file.exists():
+                current_modified = datetime.fromtimestamp(self._config_file.stat().st_mtime)
+                if self._last_modified is None or current_modified > self._last_modified:
+                    needs_reload = True
+                elif self._config_cache is not None:
+                    return self._config_cache
+            elif self._config_cache is not None:
+                return self._config_cache
+
+        # Load configuration outside of lock to avoid recursive locking in _load_configuration
+        if needs_reload:
+            logger.debug("Configuration file updated externally, reloading")
+        self._load_configuration()
+
+        # Return the loaded config
         with self._cache_lock:
             if self._config_cache is None:
-                self._load_configuration()
+                raise ConfigurationError("Failed to load configuration")
             return self._config_cache
 
 
@@ -577,8 +601,14 @@ class ConfigurationModule(IConfigurationProvider):
 
     def reload_configuration(self) -> None:
         """Force reload configuration from file"""
+        logger.debug("Forcing configuration reload")
+
+        # Clear cache first
         with self._cache_lock:
             self._config_cache = None
+            self._last_modified = None
+
+        # Reload configuration
         self._load_configuration()
 
     # Additional utility methods

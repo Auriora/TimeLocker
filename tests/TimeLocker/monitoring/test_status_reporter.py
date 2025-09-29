@@ -39,12 +39,16 @@ class TestStatusReporter:
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_initialization(self):
         """Test status reporter initialization"""
         assert self.status_reporter.config_dir.exists()
         assert self.status_reporter.status_log_file.parent.exists()
         assert self.status_reporter.current_operations_file.parent.exists()
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_start_operation(self):
         """Test starting a new operation"""
         operation_id = "test_op_001"
@@ -72,6 +76,8 @@ class TestStatusReporter:
         assert len(current_ops) == 1
         assert current_ops[0].operation_id == operation_id
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_update_operation(self):
         """Test updating an operation"""
         # Start operation
@@ -101,6 +107,8 @@ class TestStatusReporter:
         assert updated_status.total_bytes == 2 * 1024 * 1024
         assert updated_status.metadata["additional"] == "info"
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_update_nonexistent_operation(self):
         """Test updating a non-existent operation"""
         result = self.status_reporter.update_operation(
@@ -111,6 +119,8 @@ class TestStatusReporter:
 
         assert result is None
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_complete_operation(self):
         """Test completing an operation"""
         # Start operation
@@ -134,6 +144,8 @@ class TestStatusReporter:
         current_ops = self.status_reporter.get_current_operations()
         assert not any(op.operation_id == operation_id for op in current_ops)
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_get_operation_status(self):
         """Test getting operation status"""
         # Start operation
@@ -147,16 +159,22 @@ class TestStatusReporter:
         assert retrieved_status.operation_id == operation_id
         assert retrieved_status.operation_type == "check"
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_get_operation_status_nonexistent(self):
         """Test getting status for non-existent operation"""
         status = self.status_reporter.get_operation_status("nonexistent")
         assert status is None
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_status_handlers(self):
         """Test status update handlers"""
         handler_called = False
         received_status = None
 
+        @pytest.mark.monitoring
+        @pytest.mark.unit
         def test_handler(status):
             nonlocal handler_called, received_status
             handler_called = True
@@ -181,6 +199,8 @@ class TestStatusReporter:
         self.status_reporter.update_operation(operation_id, message="Updated")
         assert not handler_called
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_operation_history(self):
         """Test operation history retrieval"""
         # Complete some operations
@@ -201,6 +221,8 @@ class TestStatusReporter:
         assert "history_op_1" in operation_ids
         assert "history_op_2" in operation_ids
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_operation_history_filtering(self):
         """Test operation history filtering"""
         # Create operations of different types
@@ -232,6 +254,8 @@ class TestStatusReporter:
         assert len(repo1_history) >= 1
         assert all(op.repository_id == "repo1" for op in repo1_history)
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_status_summary(self):
         """Test status summary generation"""
         # Create operations with different statuses
@@ -265,6 +289,8 @@ class TestStatusReporter:
         assert summary["by_status"]["success"] >= 2
         assert summary["by_status"]["error"] >= 1
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_operation_status_serialization(self):
         """Test OperationStatus serialization"""
         status = OperationStatus(
@@ -292,6 +318,8 @@ class TestStatusReporter:
         assert restored_status.status == status.status
         assert restored_status.timestamp.replace(microsecond=0) == status.timestamp.replace(microsecond=0)
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_progress_estimation(self):
         """Test progress estimation for completion time"""
         # Start operation with a start time in the past to ensure meaningful elapsed time
@@ -315,6 +343,8 @@ class TestStatusReporter:
         # Allow for small timing differences by checking it's not more than 1 second in the past
         assert updated_status.estimated_completion >= before_update - timedelta(seconds=1)
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_persistence(self):
         """Test operation persistence across service restarts"""
         # Start operation
@@ -329,6 +359,8 @@ class TestStatusReporter:
         assert len(current_ops) >= 1
         assert any(op.operation_id == operation_id for op in current_ops)
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_concurrent_operations(self):
         """Test handling multiple concurrent operations"""
         operation_ids = ["concurrent_1", "concurrent_2", "concurrent_3"]

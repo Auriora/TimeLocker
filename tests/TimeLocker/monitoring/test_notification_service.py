@@ -39,12 +39,16 @@ class TestNotificationService:
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_initialization(self):
         """Test notification service initialization"""
         assert self.notification_service.config_dir.exists()
         assert self.notification_service.config is not None
         assert self.notification_service.config.enabled is True
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_default_configuration(self):
         """Test default configuration values"""
         config = self.notification_service.config
@@ -56,6 +60,8 @@ class TestNotificationService:
         assert config.notify_on_error is True
         assert config.min_operation_duration == 60
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_configuration_persistence(self):
         """Test configuration save and load"""
         # Update configuration
@@ -75,6 +81,8 @@ class TestNotificationService:
         assert new_service.config.email_smtp_server == "smtp.example.com"
         assert "test@example.com" in new_service.config.email_to
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_should_notify_success(self):
         """Test notification decision for success status"""
         status = OperationStatus(
@@ -93,6 +101,8 @@ class TestNotificationService:
         self.notification_service.update_config(notify_on_success=False)
         assert self.notification_service.should_notify(status) is False
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_should_notify_error(self):
         """Test notification decision for error status"""
         status = OperationStatus(
@@ -111,6 +121,8 @@ class TestNotificationService:
         self.notification_service.update_config(notify_on_error=False)
         assert self.notification_service.should_notify(status) is False
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_should_notify_duration_filter(self):
         """Test notification filtering based on operation duration"""
         # Short operation (less than minimum duration)
@@ -139,6 +151,8 @@ class TestNotificationService:
         # Should notify for long operations
         assert self.notification_service.should_notify(long_status) is True
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_should_notify_disabled(self):
         """Test notification when service is disabled"""
         status = OperationStatus(
@@ -155,6 +169,8 @@ class TestNotificationService:
         # Should not notify when disabled
         assert self.notification_service.should_notify(status) is False
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_format_notification(self):
         """Test notification formatting"""
         status = OperationStatus(
@@ -184,6 +200,8 @@ class TestNotificationService:
         assert "50.0 MB" in message
 
     @patch('subprocess.run')
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_send_linux_notification(self, mock_subprocess):
         """Test Linux desktop notification"""
         mock_subprocess.return_value = None
@@ -201,6 +219,8 @@ class TestNotificationService:
         assert "Test Message" in call_args
 
     @patch('subprocess.run')
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_send_macos_notification(self, mock_subprocess):
         """Test macOS desktop notification"""
         mock_subprocess.return_value = None
@@ -216,6 +236,8 @@ class TestNotificationService:
         assert "osascript" in call_args
 
     @patch('subprocess.run')
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_send_windows_notification(self, mock_subprocess):
         """Test Windows desktop notification"""
         mock_subprocess.return_value = None
@@ -231,6 +253,8 @@ class TestNotificationService:
         assert "powershell" in call_args
 
     @patch('smtplib.SMTP')
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_send_email_notification(self, mock_smtp_class):
         """Test email notification"""
         # Setup email configuration
@@ -267,6 +291,8 @@ class TestNotificationService:
         mock_smtp.login.assert_called_once_with("test@example.com", "password")
         mock_smtp.send_message.assert_called_once()
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_create_email_html(self):
         """Test HTML email creation"""
         status = OperationStatus(
@@ -291,6 +317,8 @@ class TestNotificationService:
 
     @patch.object(NotificationService, '_send_desktop_notification')
     @patch.object(NotificationService, '_send_email_notification')
+    @pytest.mark.integration
+    @pytest.mark.monitoring
     def test_send_notification_integration(self, mock_email, mock_desktop):
         """Test integrated notification sending"""
         status = OperationStatus(
@@ -316,6 +344,8 @@ class TestNotificationService:
         mock_desktop.assert_called_once()
         mock_email.assert_called_once()
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_send_notification_filtering(self):
         """Test notification filtering"""
         # Create status that should not trigger notification
@@ -333,6 +363,8 @@ class TestNotificationService:
             # Should not send notification for INFO level
             mock_desktop.assert_not_called()
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_test_notifications(self):
         """Test notification testing functionality"""
         with patch.object(self.notification_service, '_send_desktop_notification') as mock_desktop, \
@@ -357,6 +389,8 @@ class TestNotificationService:
             mock_desktop.assert_called_once()
             mock_email.assert_called_once()
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_notification_logging(self):
         """Test notification logging"""
         status = OperationStatus(
@@ -384,6 +418,8 @@ class TestNotificationService:
             # Check for the main message content (newlines are escaped in JSON)
             assert "Backup completed" in log_content
 
+    @pytest.mark.monitoring
+    @pytest.mark.unit
     def test_notification_config_dataclass(self):
         """Test NotificationConfig dataclass"""
         from TimeLocker.monitoring.notification_service import NotificationConfig

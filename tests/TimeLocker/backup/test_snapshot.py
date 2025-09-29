@@ -24,6 +24,9 @@ from TimeLocker.backup_snapshot import BackupSnapshot
 from .mock_repository import MockBackupRepository
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test___init___initializes_attributes_correctly():
     """
     Test that the __init__ method of BackupSnapshot correctly initializes all attributes.
@@ -40,6 +43,9 @@ def test___init___initializes_attributes_correctly():
     assert snapshot.timestamp == timestamp
     assert snapshot.paths == paths
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_delete_snapshot():
     """
     Test that the delete method calls the forget_snapshot method of the repository
@@ -58,6 +64,9 @@ def test_delete_snapshot():
     # Assert
     assert result == True  # MockBackupRepository.forget_snapshot returns True for valid IDs
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_find_empty_pattern():
     """
     Test the find method with an empty pattern string.
@@ -67,6 +76,9 @@ def test_find_empty_pattern():
     result = snapshot.find("")
     assert result == [], "Expected empty list for empty pattern"
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_find_matches_pattern():
     """
     Test that the find method returns a list of files matching the given pattern.
@@ -83,6 +95,9 @@ def test_find_matches_pattern():
     assert all(isinstance(item, str) for item in result)
     # Additional assertions would depend on the expected behavior of the find method
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_from_dict_1():
     """
     Test that from_dict method correctly creates a BackupSnapshot instance
@@ -108,6 +123,9 @@ def test_from_dict_1():
     assert snapshot.timestamp == datetime(2023, 5, 20, 12, 34, 56)
     assert snapshot.paths == Path('/test/backup/path')
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_from_dict_invalid_timestamp_format():
     """
     Test that from_dict method raises a ValueError when the timestamp in the input dictionary has an invalid format.
@@ -122,6 +140,9 @@ def test_from_dict_invalid_timestamp_format():
     with pytest.raises(ValueError):
         BackupSnapshot.from_dict(repository, data)
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_from_dict_missing_required_key():
     """
     Test that from_dict method raises a KeyError when a required key is missing from the input dictionary.
@@ -136,6 +157,9 @@ def test_from_dict_missing_required_key():
     with pytest.raises(KeyError):
         BackupSnapshot.from_dict(repository, data)
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_list_files_in_snapshot():
     """
     Test that the list method returns the correct list of files in the snapshot.
@@ -156,6 +180,9 @@ def test_list_files_in_snapshot():
     assert isinstance(result, list)
     assert all(isinstance(item, str) for item in result)
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_restore_default_target_path():
     """
     Test the restore method of BackupSnapshot when no target path is provided.
@@ -174,6 +201,9 @@ def test_restore_default_target_path():
 
     assert result == "Mock restore completed successfully"
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_restore_file_1():
     """
     Test the restore_file method of BackupSnapshot class.
@@ -194,6 +224,9 @@ def test_restore_file_1():
     # Assert that the method returns True
     assert result == True, "restore_file should return True for successful restoration"
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_restore_file_invalid_target_path():
     """
     Test restore_file method with a snapshot that doesn't exist in repository.
@@ -212,6 +245,9 @@ def test_restore_file_invalid_target_path():
     # Assert - MockBackupRepository doesn't raise exceptions, so restore_file always returns True
     assert result == True, "restore_file returns True because MockBackupRepository doesn't raise exceptions"
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_restore_with_nonexistent_target_path():
     """
     Test the restore method with a non-existent target path.
@@ -231,6 +267,9 @@ def test_restore_with_nonexistent_target_path():
     # Assert that the result is what we expect from our mock
     assert result == "Mock restore completed successfully"
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_verify_example_negative_test():
     """
     Test the verify method when the snapshot integrity check fails.
@@ -247,6 +286,9 @@ def test_verify_example_negative_test():
     # Assert
     assert result == False, "Expected verify to return False for a corrupted snapshot"
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_verify_snapshot_integrity():
     """
     Test that the verify method correctly checks the integrity of a backup snapshot.

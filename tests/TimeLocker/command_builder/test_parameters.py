@@ -15,10 +15,12 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
+import pytest
 from TimeLocker.command_builder import CommandBuilder, CommandDefinition, CommandParameter, ParameterStyle
 
 
 class TestParameterStyles:
+    @pytest.mark.unit
     def test_different_parameter_styles(self):
         """Test different parameter styles"""
         cmd_def = CommandDefinition(
@@ -37,6 +39,7 @@ class TestParameterStyles:
                 .build())
         assert result == ["test-cmd", "-v", "-output", "file.txt"]
 
+    @pytest.mark.unit
     def test_parameter_style_equality(self):
         """Test equality between two ParameterStyle instances with same value."""
         style1 = ParameterStyle.SEPARATE
@@ -44,6 +47,7 @@ class TestParameterStyles:
         assert style1 == style2
         assert not (style1 != style2)
 
+    @pytest.mark.unit
     def test_parameter_style_string_comparison(self):
         """Test equality between ParameterStyle and string."""
         style = ParameterStyle.JOINED
@@ -52,6 +56,7 @@ class TestParameterStyles:
         assert not (style != "joined")
         assert not (style != "JOINED")
 
+    @pytest.mark.unit
     def test_parameter_style_inequality(self):
         """Test inequality between different ParameterStyle values."""
         style1 = ParameterStyle.SEPARATE
@@ -59,12 +64,14 @@ class TestParameterStyles:
         assert style1 != style2
         assert not (style1 == style2)
 
+    @pytest.mark.unit
     def test_parameter_style_none_comparison(self):
         """Test inequality with None value."""
         style = ParameterStyle.SEPARATE
         assert style != None
         assert not (style == None)
 
+    @pytest.mark.unit
     def test_parameter_style_other_types(self):
         """Test inequality with other types."""
         style = ParameterStyle.SEPARATE
@@ -74,6 +81,7 @@ class TestParameterStyles:
         assert not (style == True)
 
 class TestListParameters:
+    @pytest.mark.unit
     def test_list_positional_parameters(self):
         """Test parameters with list values"""
         cmd_def = CommandDefinition(
@@ -88,6 +96,7 @@ class TestListParameters:
                 .build())
         assert result == ["test-cmd", "tags", "tag1", "tags", "tag2", "tags", "tag3"]
 
+    @pytest.mark.unit
     def test_list_separate_parameters(self):
         """Test parameters with list values using separate style"""
         cmd_def = CommandDefinition(
@@ -102,6 +111,7 @@ class TestListParameters:
                 .build())
         assert result == ["test-cmd", "--tags", "tag1", "--tags", "tag2", "--tags", "tag3"]
 
+    @pytest.mark.unit
     def test_list_joined_parameters(self):
         """Test parameters with list values using joined style"""
         cmd_def = CommandDefinition(

@@ -38,6 +38,7 @@ class TestLocalResticRepositoryEnhanced:
             shutil.rmtree(self.temp_dir)
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_initialize_repository_success(self, mock_verify):
         """Test successful repository initialization"""
         mock_verify.return_value = "0.18.0"
@@ -54,6 +55,7 @@ class TestLocalResticRepositoryEnhanced:
         assert self.repo_path.is_dir()
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_initialize_repository_with_credential_storage(self, mock_verify):
         """Test repository initialization with credential storage"""
         mock_verify.return_value = "0.18.0"
@@ -76,6 +78,7 @@ class TestLocalResticRepositoryEnhanced:
         mock_store.assert_called_once_with(self.repo_password)
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_initialize_repository_already_initialized(self, mock_verify):
         """Test initialization when repository is already initialized"""
         mock_verify.return_value = "0.18.0"
@@ -91,6 +94,7 @@ class TestLocalResticRepositoryEnhanced:
         assert result is True  # Should return True for already initialized repo
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_initialize_repository_directory_creation_fails(self, mock_verify):
         """Test initialization when directory creation fails"""
         mock_verify.return_value = "0.18.0"
@@ -107,6 +111,7 @@ class TestLocalResticRepositoryEnhanced:
         assert result is False
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_is_repository_initialized(self, mock_verify):
         """Test repository initialization status checking"""
         mock_verify.return_value = "0.18.0"
@@ -124,6 +129,7 @@ class TestLocalResticRepositoryEnhanced:
         assert repo.is_repository_initialized() is True
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_get_repository_info_basic(self, mock_verify):
         """Test getting basic repository information"""
         mock_verify.return_value = "0.18.0"
@@ -142,6 +148,7 @@ class TestLocalResticRepositoryEnhanced:
         assert info["config"] == {}
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_get_repository_info_with_directory(self, mock_verify):
         """Test getting repository information with existing directory"""
         mock_verify.return_value = "0.18.0"
@@ -160,6 +167,7 @@ class TestLocalResticRepositoryEnhanced:
         assert info["size_bytes"] > 0
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_get_repository_info_with_config(self, mock_verify):
         """Test getting repository information with config file"""
         mock_verify.return_value = "0.18.0"
@@ -178,6 +186,7 @@ class TestLocalResticRepositoryEnhanced:
         assert info["config"] == config_data
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_validate_repository_health_healthy(self, mock_verify):
         """Test repository health validation for healthy repository"""
         mock_verify.return_value = "0.18.0"
@@ -204,6 +213,7 @@ class TestLocalResticRepositoryEnhanced:
         assert health["checks"]["restic_accessible"] is True
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_validate_repository_health_unhealthy(self, mock_verify):
         """Test repository health validation for unhealthy repository"""
         mock_verify.return_value = "0.18.0"
@@ -219,6 +229,7 @@ class TestLocalResticRepositoryEnhanced:
         assert "No repository password available" in health["issues"]
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_setup_repository_with_credentials_success(self, mock_verify):
         """Test complete repository setup with credentials"""
         mock_verify.return_value = "0.18.0"
@@ -240,6 +251,7 @@ class TestLocalResticRepositoryEnhanced:
         assert repo._credential_manager == self.credential_manager
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_setup_repository_with_credentials_initialization_fails(self, mock_verify):
         """Test repository setup when initialization fails"""
         mock_verify.return_value = "0.18.0"
@@ -253,6 +265,7 @@ class TestLocalResticRepositoryEnhanced:
         assert result is False
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_get_common_repository_issues(self, mock_verify):
         """Test getting common repository issues and solutions"""
         mock_verify.return_value = "0.18.0"
@@ -274,6 +287,7 @@ class TestLocalResticRepositoryEnhanced:
             assert len(solution) > 0
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_initialize_repository_password_restoration(self, mock_verify):
         """Test that original password is restored after temporary password use"""
         mock_verify.return_value = "0.18.0"
@@ -295,6 +309,7 @@ class TestLocalResticRepositoryEnhanced:
         assert repo.password() == original_password
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_validate_repository_health_with_check_failure(self, mock_verify):
         """Test health validation when repository check fails"""
         mock_verify.return_value = "0.18.0"
@@ -317,6 +332,7 @@ class TestLocalResticRepositoryEnhanced:
         assert any("Repository check failed" in issue for issue in health["issues"])
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_validate_repository_health_with_exception(self, mock_verify):
         """Test health validation when check raises exception"""
         mock_verify.return_value = "0.18.0"
@@ -338,6 +354,7 @@ class TestLocalResticRepositoryEnhanced:
         assert any("Repository accessibility check failed" in issue for issue in health["issues"])
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_setup_repository_health_check_fails(self, mock_verify):
         """Test repository setup when health check fails"""
         mock_verify.return_value = "0.18.0"
@@ -353,6 +370,7 @@ class TestLocalResticRepositoryEnhanced:
         assert result is False
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_get_repository_info_with_permission_error(self, mock_verify):
         """Test repository info gathering with permission errors"""
         mock_verify.return_value = "0.18.0"
@@ -369,6 +387,7 @@ class TestLocalResticRepositoryEnhanced:
         assert info["size_bytes"] == 0  # Should default to 0 on error
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_is_repository_initialized_with_exception(self, mock_verify):
         """Test initialization check with exception handling"""
         mock_verify.return_value = "0.18.0"
@@ -382,6 +401,7 @@ class TestLocalResticRepositoryEnhanced:
         assert result is False
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_get_repository_info_config_parsing_error(self, mock_verify):
         """Test repository info with invalid config file"""
         mock_verify.return_value = "0.18.0"
@@ -400,6 +420,7 @@ class TestLocalResticRepositoryEnhanced:
         assert info["config"]["raw"] == "invalid json content"
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_validate_repository_health_password_exception(self, mock_verify):
         """Test health validation when password access raises exception"""
         mock_verify.return_value = "0.18.0"
@@ -418,6 +439,7 @@ class TestLocalResticRepositoryEnhanced:
         assert any("Error accessing password" in issue for issue in health["issues"])
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_initialize_repository_exception_handling(self, mock_verify):
         """Test repository initialization with exception handling"""
         mock_verify.return_value = "0.18.0"

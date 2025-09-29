@@ -16,6 +16,8 @@ from TimeLocker.utils.repository_resolver import validate_repository_name_or_uri
     "myrepo",
     "prod_backup",
 ])
+@pytest.mark.config
+@pytest.mark.unit
 def test_validate_accepts_valid_names_and_uris(value):
     # Should not raise
     validate_repository_name_or_uri(value)
@@ -29,6 +31,8 @@ def test_validate_accepts_valid_names_and_uris(value):
     "C:/repo",
     r"C:\\repo",
 ])
+@pytest.mark.config
+@pytest.mark.unit
 def test_validate_rejects_local_paths_without_file_scheme(value):
     with pytest.raises(ValueError) as exc:
         validate_repository_name_or_uri(value)

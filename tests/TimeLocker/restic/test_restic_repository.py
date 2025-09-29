@@ -40,6 +40,7 @@ class ConcreteResticRepository(ResticRepository):
         return "0.18.0"
 
 
+@pytest.mark.unit
 def test___init___1():
     location = "/path/to/backup"
     tags = ["test", "backup"]
@@ -53,6 +54,7 @@ def test___init___1():
     assert repo._command is not None
     assert repo._cached_env is None
 
+@pytest.mark.unit
 def test__handle_restic_output_1():
     repo = ConcreteResticRepository(location="test_location")
     repo._on_backup_summary = Mock()
@@ -62,6 +64,7 @@ def test__handle_restic_output_1():
 
     repo._on_backup_summary.assert_called_once_with(test_output)
 
+@pytest.mark.unit
 def test__handle_restic_output_2():
     repo = Mock(spec=ResticRepository)
 
@@ -72,6 +75,7 @@ def test__handle_restic_output_2():
     repo._on_backup_status.assert_called_once_with(output)
     repo._on_backup_summary.assert_not_called()
 
+@pytest.mark.unit
 def test__handle_restic_output_3():
     repo = ConcreteResticRepository(location="test_location")
     output = {"message_type": "other_type", "data": "test_data"}
@@ -83,6 +87,7 @@ def test__handle_restic_output_3():
         mock_summary.assert_not_called()
         mock_status.assert_not_called()
 
+@pytest.mark.unit
 def test__on_backup_status_prints_status(capsys):
     repo = ConcreteResticRepository(location="test_location")
     status = {"message_type": "status", "percent_done": 50}
@@ -92,6 +97,7 @@ def test__on_backup_status_prints_status(capsys):
     captured = capsys.readouterr()
     assert captured.out.strip() == f"Backup Status: {status}"
 
+@pytest.mark.unit
 def test__on_backup_status_with_empty_dict(capsys):
     repo = ConcreteResticRepository("dummy_location")
 
@@ -100,6 +106,7 @@ def test__on_backup_status_with_empty_dict(capsys):
     captured = capsys.readouterr()
     assert captured.out.strip() == "Backup Status: {}"
 
+@pytest.mark.unit
 def test__on_backup_summary_prints_summary(capsys):
     repo = ConcreteResticRepository(location="test_location")
     summary = {"files": 100, "dirs": 10, "size": 1024}
@@ -109,6 +116,7 @@ def test__on_backup_summary_prints_summary(capsys):
     captured = capsys.readouterr()
     assert captured.out.strip() == f"Backup Summary: {summary}"
 
+@pytest.mark.unit
 def test__on_backup_summary_with_empty_dict(capsys):
     repo = ConcreteResticRepository("dummy_location")
 
@@ -117,6 +125,7 @@ def test__on_backup_summary_with_empty_dict(capsys):
     captured = capsys.readouterr()
     assert "Backup Summary: {}" in captured.out
 
+@pytest.mark.unit
 def test__verify_restic_executable_2():
     with patch('TimeLocker.restic.restic_repository.CommandBuilder') as mock_builder:
         # Create a mock command builder instance
@@ -132,6 +141,7 @@ def test__verify_restic_executable_2():
 
         assert result == "0.18.1"
 
+@pytest.mark.unit
 def test__verify_restic_executable_not_found():
     with patch('TimeLocker.restic.restic_repository.CommandBuilder') as mock_builder:
         # Create a mock command builder instance that raises FileNotFoundError
@@ -148,6 +158,7 @@ def test__verify_restic_executable_not_found():
 
         assert "restic executable not found" in str(exc_info.value)
 
+@pytest.mark.unit
 def test_verify_restic_executable_older_version():
     min_version = "0.10.0"
     older_version = "0.9.6"
@@ -167,6 +178,7 @@ def test_verify_restic_executable_older_version():
 
         assert f"restic version {older_version} is below the required minimum version {min_version}" in str(exc_info.value)
 
+@pytest.mark.unit
 def test__verify_restic_executable_version_below_minimum():
     with patch('TimeLocker.restic.restic_repository.CommandBuilder') as mock_builder:
         # Create a mock command builder instance

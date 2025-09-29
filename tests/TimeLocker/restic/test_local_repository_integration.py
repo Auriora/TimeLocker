@@ -32,6 +32,7 @@ class TestLocalResticRepositoryIntegration:
             shutil.rmtree(self.temp_dir)
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_repository_creation_with_credential_manager(self, mock_verify):
         """Test creating a repository with credential manager integration"""
         mock_verify.return_value = "0.18.0"
@@ -53,6 +54,7 @@ class TestLocalResticRepositoryIntegration:
         assert len(repo.repository_id()) == 16  # SHA256 hash truncated to 16 chars
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_password_storage_and_retrieval(self, mock_verify):
         """Test storing and retrieving passwords via credential manager"""
         mock_verify.return_value = "0.18.0"
@@ -83,6 +85,7 @@ class TestLocalResticRepositoryIntegration:
         assert repo2.password() == self.repo_password
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_password_priority_order(self, mock_verify):
         """Test password priority: explicit > credential manager > environment"""
         mock_verify.return_value = "0.18.0"
@@ -128,6 +131,7 @@ class TestLocalResticRepositoryIntegration:
                 del os.environ["RESTIC_PASSWORD"]
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_repository_validation_new_directory(self, mock_verify):
         """Test validation when repository directory doesn't exist"""
         mock_verify.return_value = "0.18.0"
@@ -148,6 +152,7 @@ class TestLocalResticRepositoryIntegration:
         assert self.repo_path.is_dir()
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_repository_validation_existing_directory(self, mock_verify):
         """Test validation when repository directory already exists"""
         mock_verify.return_value = "0.18.0"
@@ -163,6 +168,7 @@ class TestLocalResticRepositoryIntegration:
         assert result is True
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_repository_validation_existing_restic_repo(self, mock_verify):
         """Test validation when directory contains existing restic repository"""
         mock_verify.return_value = "0.18.0"
@@ -176,6 +182,7 @@ class TestLocalResticRepositoryIntegration:
         assert repo.location() == str(self.repo_path)
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_repository_validation_invalid_parent(self, mock_verify):
         """Test validation when parent directory doesn't exist"""
         mock_verify.return_value = "0.18.0"
@@ -188,6 +195,7 @@ class TestLocalResticRepositoryIntegration:
             LocalResticRepository(location=str(invalid_path))
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_repository_validation_file_instead_of_directory(self, mock_verify):
         """Test validation when path points to a file instead of directory"""
         mock_verify.return_value = "0.18.0"
@@ -201,6 +209,7 @@ class TestLocalResticRepositoryIntegration:
             LocalResticRepository(location=str(self.repo_path))
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_repository_id_consistency(self, mock_verify):
         """Test that repository ID is consistent for the same location"""
         mock_verify.return_value = "0.18.0"
@@ -220,6 +229,7 @@ class TestLocalResticRepositoryIntegration:
         assert repo1.repository_id() != repo3.repository_id()
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_credential_manager_locked_behavior(self, mock_verify):
         """Test behavior when credential manager is locked"""
         mock_verify.return_value = "0.18.0"

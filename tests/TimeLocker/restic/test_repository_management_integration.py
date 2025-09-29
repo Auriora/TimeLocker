@@ -40,6 +40,7 @@ class TestRepositoryManagementIntegration:
             shutil.rmtree(self.temp_dir)
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.integration
     def test_complete_repository_setup_workflow(self, mock_verify):
         """Test complete repository setup from start to finish"""
         mock_verify.return_value = "0.18.0"
@@ -90,6 +91,7 @@ class TestRepositoryManagementIntegration:
         assert len(health["issues"]) == 0
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.integration
     def test_repository_recovery_workflow(self, mock_verify):
         """Test repository recovery from various error conditions"""
         mock_verify.return_value = "0.18.0"
@@ -151,6 +153,7 @@ class TestRepositoryManagementIntegration:
         assert health["healthy"] is True
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_multiple_repositories_management(self, mock_verify):
         """Test managing multiple repositories with credential manager"""
         mock_verify.return_value = "0.18.0"
@@ -210,6 +213,7 @@ class TestRepositoryManagementIntegration:
         assert info2["initialized"] is True
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.integration
     def test_repository_password_priority_workflow(self, mock_verify):
         """Test password priority handling in real workflow"""
         mock_verify.return_value = "0.18.0"
@@ -269,6 +273,7 @@ class TestRepositoryManagementIntegration:
                 del os.environ["RESTIC_PASSWORD"]
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.integration
     def test_repository_error_diagnosis_workflow(self, mock_verify):
         """Test error diagnosis and solution suggestions"""
         mock_verify.return_value = "0.18.0"
@@ -305,6 +310,7 @@ class TestRepositoryManagementIntegration:
                        ["directory", "password", "repository", "access"])
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.unit
     def test_repository_configuration_persistence(self, mock_verify):
         """Test that repository configuration persists across sessions"""
         mock_verify.return_value = "0.18.0"

@@ -48,6 +48,7 @@ class TestCommandShortForm:
         """Fixture providing a command builder instance"""
         return CommandBuilder(cmd_def)
 
+    @pytest.mark.unit
     def test_short_form_parameters(self, builder):
         """Test building command with short form parameters
 
@@ -61,6 +62,7 @@ class TestCommandShortForm:
                 .build(use_short_form=True))
         assert result == ["test-cmd", "-h", "-o", "file.txt"]
 
+    @pytest.mark.unit
     def test_long_form_parameters(self, builder):
         """Test building command with long form parameters
 

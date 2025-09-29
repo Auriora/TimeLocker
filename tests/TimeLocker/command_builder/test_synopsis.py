@@ -37,6 +37,7 @@ class TestSynopsisParameters:
         """Command builder instance"""
         return CommandBuilder(cmd_def)
 
+    @pytest.mark.unit
     def test_synopsis_parameters(self, builder):
         """Test handling of synopsis parameters"""
         # Test with required synopsis parameter
@@ -55,6 +56,7 @@ class TestSynopsisParameters:
         with pytest.raises(ValueError):
             builder.build(synopsis_values={})
 
+    @pytest.mark.unit
     def test_synopsis_parameters_with_subcommands(self):
         """Test handling of synopsis parameters with subcommands"""
         cmd_def = CommandDefinition(

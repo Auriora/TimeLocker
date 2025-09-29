@@ -68,6 +68,9 @@ class TestCriticalBackupPaths:
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_with_file_permission_errors(self, mock_subprocess, mock_verify):
         """Test backup behavior when encountering permission denied errors"""
         mock_verify.return_value = "0.18.0"
@@ -101,6 +104,9 @@ class TestCriticalBackupPaths:
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_with_disk_space_exhaustion(self, mock_subprocess, mock_verify):
         """Test backup behavior when disk space is exhausted"""
         mock_verify.return_value = "0.18.0"
@@ -132,6 +138,10 @@ class TestCriticalBackupPaths:
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.network
+    @pytest.mark.unit
     def test_backup_with_network_interruption(self, mock_subprocess, mock_verify):
         """Test backup behavior during network interruption (for remote repositories)"""
         mock_verify.return_value = "0.18.0"
@@ -163,6 +173,9 @@ class TestCriticalBackupPaths:
 
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_with_corrupted_repository(self, mock_subprocess, mock_verify):
         """Test backup behavior with corrupted repository"""
         mock_verify.return_value = "0.18.0"
@@ -192,6 +205,9 @@ class TestCriticalBackupPaths:
 
         # Repository corruption should be detected and handled appropriately
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_file_selection_with_complex_patterns(self):
         """Test file selection with complex inclusion/exclusion patterns"""
         selection = FileSelection()
@@ -226,6 +242,9 @@ class TestCriticalBackupPaths:
         backup_paths = selection.get_backup_paths()
         assert str(self.source_path) in backup_paths
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_verification_with_checksum_mismatch(self):
         """Test backup verification when checksums don't match"""
         # Create a file
@@ -245,6 +264,9 @@ class TestCriticalBackupPaths:
         # Verify checksums are different
         assert original_hash != modified_hash
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_incremental_backup_with_file_modifications(self):
         """Test incremental backup behavior with various file modifications"""
         # Create initial files
@@ -272,6 +294,9 @@ class TestCriticalBackupPaths:
         assert file3.exists()
         assert not file2.exists()
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_with_symbolic_links(self):
         """Test backup behavior with symbolic links"""
         # Create target file
@@ -295,6 +320,9 @@ class TestCriticalBackupPaths:
             # Skip test if symbolic links are not supported
             pytest.skip("Symbolic links not supported on this platform")
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_with_very_long_filenames(self):
         """Test backup behavior with very long filenames"""
         # Create file with very long name (approaching filesystem limits)
@@ -314,6 +342,9 @@ class TestCriticalBackupPaths:
             # Skip test if filename is too long for filesystem
             pytest.skip("Filename too long for this filesystem")
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_with_unicode_filenames(self):
         """Test backup behavior with Unicode filenames"""
         import sys
@@ -357,6 +388,9 @@ class TestCriticalBackupPaths:
         effective_paths = selection.get_effective_paths()
         assert len(effective_paths["included"]) > 0
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_concurrent_backup_operations(self):
         """Test behavior when multiple backup operations run concurrently"""
         import threading
@@ -401,6 +435,9 @@ class TestCriticalBackupPaths:
         assert len(results) == 3
         assert len(errors) == 0
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_retention_policy_application(self):
         """Test application of retention policies"""
         # Create retention policy
@@ -417,6 +454,9 @@ class TestCriticalBackupPaths:
         invalid_policy = RetentionPolicy()
         assert not invalid_policy.is_valid()
 
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_with_empty_directories(self):
         """Test backup behavior with empty directories"""
         # Create empty directories

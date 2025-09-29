@@ -34,6 +34,7 @@ def mock_s3_client():
         yield mock_s3
 
 
+@pytest.mark.unit
 def test_init_missing_credentials(monkeypatch, mock_s3_client):
     """
     Test initialization of S3ResticRepository when AWS credentials are missing from both
@@ -57,6 +58,7 @@ def test_init_missing_credentials(monkeypatch, mock_s3_client):
     assert "AWS_SECRET_ACCESS_KEY" in str(exc_info.value)
 
 
+@pytest.mark.unit
 def test___init___with_explicit_credentials(mock_s3_client):
     """
     Test initializing S3ResticRepository with explicitly provided credentials.
@@ -83,6 +85,7 @@ def test___init___with_explicit_credentials(mock_s3_client):
     assert repo.aws_default_region == aws_default_region
 
 
+@pytest.mark.unit
 def test_backend_env_2(mock_s3_client):
     """
     Test backend_env method when AWS access key is present, but secret access key is missing,
@@ -110,6 +113,7 @@ def test_backend_env_2(mock_s3_client):
     assert "AWS_ACCESS_KEY_ID" not in str(exc_info.value)
 
 
+@pytest.mark.unit
 def test_backend_env_3(mock_s3_client):
     """
     Test that backend_env raises RepositoryError when AWS_ACCESS_KEY_ID is missing,
@@ -131,6 +135,7 @@ def test_backend_env_3(mock_s3_client):
     )
 
 
+@pytest.mark.unit
 def test_backend_env_4(mock_s3_client):
     """
     Test that backend_env raises a RepositoryError when both AWS credentials are missing,
@@ -148,6 +153,7 @@ def test_backend_env_4(mock_s3_client):
     assert "AWS_SECRET_ACCESS_KEY" in str(exc_info.value)
 
 
+@pytest.mark.unit
 def test_backend_env_missing_credentials(mock_s3_client):
     """
     Test that backend_env raises a RepositoryError when AWS credentials are missing.
@@ -165,6 +171,7 @@ def test_backend_env_missing_credentials(mock_s3_client):
     assert "AWS_SECRET_ACCESS_KEY" in str(exc_info.value)
 
 
+@pytest.mark.unit
 def test_backend_env_missing_credentials_2(mock_s3_client):
     """
     Test backend_env method when both AWS access key ID and secret access key are missing.
@@ -185,6 +192,7 @@ def test_backend_env_missing_credentials_2(mock_s3_client):
     assert "AWS_SECRET_ACCESS_KEY" in str(exc_info.value)
 
 
+@pytest.mark.unit
 def test_backend_env_missing_credentials_3(mock_s3_client):
     """
     Test the backend_env method when both AWS access key ID and secret access key are missing.
@@ -206,6 +214,7 @@ def test_backend_env_missing_credentials_3(mock_s3_client):
     assert "AWS_SECRET_ACCESS_KEY" in str(excinfo.value)
 
 
+@pytest.mark.unit
 def test_from_parsed_uri_empty_bucket(mock_s3_client):
     """
     Test the from_parsed_uri method with an empty bucket name.
@@ -216,6 +225,7 @@ def test_from_parsed_uri_empty_bucket(mock_s3_client):
     assert result.location() == "s3:/"
 
 
+@pytest.mark.unit
 def test_from_parsed_uri_empty_path(mock_s3_client):
     """
     Test the from_parsed_uri method with an empty path.
@@ -226,6 +236,7 @@ def test_from_parsed_uri_empty_path(mock_s3_client):
     assert result.location() == "s3:mybucket/"
 
 
+@pytest.mark.unit
 def test_from_parsed_uri_empty_query_params(mock_s3_client):
     """
     Test the from_parsed_uri method with empty query parameters.
@@ -240,6 +251,7 @@ def test_from_parsed_uri_empty_query_params(mock_s3_client):
     assert result.aws_default_region == ""
 
 
+@pytest.mark.unit
 def test_from_parsed_uri_no_query_params(mock_s3_client):
     """
     Test the from_parsed_uri method with no query parameters.
@@ -252,6 +264,7 @@ def test_from_parsed_uri_no_query_params(mock_s3_client):
     assert result.aws_default_region is None
 
 
+@pytest.mark.unit
 def test_from_parsed_uri_with_all_parameters(mock_s3_client):
     """
     Test the from_parsed_uri method with all parameters provided in the query string.
@@ -272,6 +285,7 @@ def test_from_parsed_uri_with_all_parameters(mock_s3_client):
     assert repo.aws_default_region == "us-west-2"
 
 
+@pytest.mark.unit
 def test_validate_boto3_not_installed(caplog):
     """
     Test the validate method when boto3 is not installed.
@@ -286,6 +300,7 @@ def test_validate_boto3_not_installed(caplog):
         )
 
 
+@pytest.mark.unit
 def test_validate_s3_exception():
     """
     Test the validate method when an exception occurs during S3 bucket validation.
@@ -299,6 +314,7 @@ def test_validate_s3_exception():
         assert "Failed to validate S3 repository: S3 Error" in str(exc_info.value)
 
 
+@pytest.mark.unit
 def test_validate_successful_s3_bucket():
     """
     Test that validate method successfully validates an S3 bucket.

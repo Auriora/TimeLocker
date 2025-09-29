@@ -121,6 +121,7 @@ class TestComprehensiveWorkflows:
         default_selection.add_path(self.source_dir / "documents", SelectionType.INCLUDE)
         self.backup_target = BackupTarget(selection=default_selection, tags=["default_test"])
 
+    @pytest.mark.integration
     def test_complete_backup_to_restore_workflow(self):
         """Test complete workflow from backup creation to successful restore"""
         # Step 1: Configure backup
@@ -222,6 +223,7 @@ class TestComprehensiveWorkflows:
         assert restore_result.operation_id is not None
         assert restore_result.status is not None
 
+    @pytest.mark.integration
     def test_backup_failure_and_recovery_workflow(self):
         """Test workflow when backup fails and recovery procedures"""
         # Step 1: Configure backup that will fail
@@ -253,6 +255,7 @@ class TestComprehensiveWorkflows:
             assert recovery_result["status"] == "success"
             assert recovery_result["snapshot_id"] == "recovery_snapshot_001"
 
+    @pytest.mark.integration
     def test_multi_repository_workflow(self):
         """Test workflow involving multiple repositories"""
         # Setup multiple repositories
@@ -310,6 +313,7 @@ class TestComprehensiveWorkflows:
         assert all(result.status == StatusLevel.SUCCESS for result in backup_results)
         assert len(backup_results) == 2
 
+    @pytest.mark.integration
     def test_scheduled_backup_workflow(self):
         """Test scheduled backup workflow"""
         # Configure scheduled backup
@@ -341,6 +345,7 @@ class TestComprehensiveWorkflows:
             result = self.integration_service.execute_backup(self.mock_repository, target)
             assert result.status == StatusLevel.SUCCESS
 
+    @pytest.mark.integration
     def test_configuration_driven_workflow(self):
         """Test workflow driven by configuration files"""
         # Create configuration
@@ -390,6 +395,7 @@ class TestComprehensiveWorkflows:
             result = self.integration_service.execute_backup(self.mock_repository, target)
             assert result.status == StatusLevel.SUCCESS
 
+    @pytest.mark.integration
     def test_monitoring_and_notification_workflow(self):
         """Test monitoring and notification integration"""
         # Configure notifications
@@ -428,6 +434,7 @@ class TestComprehensiveWorkflows:
             # Verify notification was sent (notifications are sent for completed operations)
             mock_notify.assert_called()
 
+    @pytest.mark.integration
     def test_security_audit_workflow(self):
         """Test security auditing throughout workflow"""
         # Execute backup with security auditing
@@ -456,6 +463,7 @@ class TestComprehensiveWorkflows:
                 content = f.read()
                 assert "backup_started" in content or "backup_completed" in content
 
+    @pytest.mark.integration
     def test_error_recovery_workflow(self):
         """Test comprehensive error recovery workflow"""
         # Test various error scenarios and recovery

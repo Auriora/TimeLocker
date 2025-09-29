@@ -89,6 +89,9 @@ class MockTestBackupRepository(BackupRepository):
         return self._initialized
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_apply_retention_policy_1():
     """
     Test that apply_retention_policy correctly applies the retention policy
@@ -100,6 +103,9 @@ def test_apply_retention_policy_1():
     assert result is None  # Base implementation returns None
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_apply_retention_policy_with_invalid_policy():
     """
     Test apply_retention_policy with an invalid retention policy.
@@ -111,6 +117,9 @@ def test_apply_retention_policy_with_invalid_policy():
     assert result is None  # Base implementation returns None for invalid policy
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_backup_target_1():
     """
     Test that the backup_target method creates a new backup successfully.
@@ -142,6 +151,9 @@ def test_backup_target_1():
     assert result["status"] == "success", "The backup should be successful"
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_backup_target_with_empty_targets_list():
     """
     Test the backup_target method with an empty list of targets.
@@ -152,6 +164,9 @@ def test_backup_target_with_empty_targets_list():
     assert result == {"error": "No backup targets provided"}
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_backup_target_with_invalid_tags():
     """
     Test the backup_target method with invalid tags.
@@ -166,6 +181,9 @@ def test_backup_target_with_invalid_tags():
         repo.backup_target([target], tags=[1, 2, 3])
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_check_method_not_implemented():
     """
     Test that trying to instantiate an incomplete concrete class raises TypeError.
@@ -177,6 +195,9 @@ def test_check_method_not_implemented():
         repository = IncompleteBackupRepository()
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_check_repository_availability():
     """
     Test that the check method returns a boolean indicating repository availability.
@@ -202,6 +223,9 @@ def test_check_repository_availability():
     assert result is True, "The repository should be available after initialization"
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_initialize_not_implemented():
     """
     Test that trying to instantiate an incomplete concrete class raises TypeError.
@@ -214,6 +238,9 @@ def test_initialize_not_implemented():
         repo = IncompleteBackupRepository()
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_initialize_returns_true():
     """
     Test that the initialize method of BackupRepository returns True when successful.
@@ -227,6 +254,9 @@ def test_initialize_returns_true():
     assert result == True, "The initialize method should return True when successful"
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_restore_snapshot_to_target_path():
     """
     Test restoring a snapshot to a specific target path.
@@ -252,6 +282,9 @@ def test_restore_snapshot_to_target_path():
     assert result == f"Snapshot {created_snapshot_id} restored to {target_path}"
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_snapshots_list_all():
     """
     Test that snapshots() returns a list of all available BackupSnapshot objects when called without tags.
@@ -262,6 +295,9 @@ def test_snapshots_list_all():
     assert len(result) == 0  # Initially empty
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_stats_empty_repository():
     """
     Test the stats method when the repository is empty.
@@ -273,6 +309,9 @@ def test_stats_empty_repository():
     assert len(result) > 0, "Stats should contain default values"
 
 
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
 def test_stats_returns_dict():
     """
     Test that the stats method returns a dictionary.

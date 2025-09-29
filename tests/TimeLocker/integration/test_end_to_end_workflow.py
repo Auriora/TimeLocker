@@ -62,6 +62,7 @@ class TestEndToEndWorkflow:
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 
+    @pytest.mark.integration
     def test_complete_backup_workflow(self):
         """Test complete backup workflow with all integrations"""
         # Configure system
@@ -122,6 +123,7 @@ class TestEndToEndWorkflow:
             assert status_summary["by_type"]["backup"] >= 1
             assert status_summary["by_status"]["success"] >= 1
 
+    @pytest.mark.integration
     def test_complete_restore_workflow(self):
         """Test complete restore workflow with all integrations"""
         # Configure system
@@ -174,6 +176,7 @@ class TestEndToEndWorkflow:
             assert "restore_started" in security_summary["events_by_type"]
             assert "restore_completed" in security_summary["events_by_type"]
 
+    @pytest.mark.integration
     def test_backup_failure_workflow(self):
         """Test backup failure handling workflow"""
         mock_backup_target = Mock()
@@ -204,6 +207,7 @@ class TestEndToEndWorkflow:
             # Verify critical security event was logged
             assert "critical" in security_summary["events_by_level"]
 
+    @pytest.mark.integration
     def test_security_breach_detection_workflow(self):
         """Test security breach detection and notification workflow"""
         # Mock unencrypted repository
@@ -233,6 +237,7 @@ class TestEndToEndWorkflow:
             assert "unencrypted_backup_attempt" in security_summary["events_by_type"]
             assert "high" in security_summary["events_by_level"]
 
+    @pytest.mark.integration
     def test_concurrent_operations_workflow(self):
         """Test handling of concurrent operations"""
         mock_backup_target = Mock()
@@ -283,6 +288,7 @@ class TestEndToEndWorkflow:
             current_ops = self.integration_service.status_reporter.get_current_operations()
             assert len(current_ops) == 0
 
+    @pytest.mark.integration
     def test_configuration_driven_workflow(self):
         """Test workflow driven by configuration settings"""
         # Configure backup settings
@@ -334,6 +340,7 @@ class TestEndToEndWorkflow:
             # Verify security checks were performed (based on config)
             # Note: This would be verified through mocking in a real test
 
+    @pytest.mark.integration
     def test_system_status_comprehensive(self):
         """Test comprehensive system status reporting"""
         # Execute some operations to generate data
@@ -373,6 +380,7 @@ class TestEndToEndWorkflow:
         assert system_status["status_summary"]["total_operations"] > 0
         assert system_status["configuration_summary"]["total_settings"] > 0
 
+    @pytest.mark.integration
     def test_error_recovery_workflow(self):
         """Test error recovery and resilience"""
         # Test recovery from configuration errors
@@ -413,6 +421,7 @@ class TestEndToEndWorkflow:
                 # Operation should still complete successfully
                 assert result.status == StatusLevel.SUCCESS
 
+    @pytest.mark.integration
     def test_audit_trail_completeness(self):
         """Test that complete audit trail is maintained"""
         mock_backup_target = Mock()
