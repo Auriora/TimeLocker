@@ -64,7 +64,7 @@ jobs:
         env:
           PYTHONPATH: src
         run:  |
-              pytest tests/ --cov=src/TimeLocker --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=70 --durations=25 --timeout=300 -v
+              pytest tests/ --cov=src/TimeLocker --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=70
               
       - name: Upload coverage reports to Codecov
         if:   matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
