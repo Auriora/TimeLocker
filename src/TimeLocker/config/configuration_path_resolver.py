@@ -8,7 +8,7 @@ Principle by focusing solely on determining configuration file locations.
 import os
 import logging
 import tempfile
-import uuid
+import time
 
 from pathlib import Path
 from typing import Optional, List
@@ -211,13 +211,14 @@ class ConfigurationPathResolver:
                     uid_or_pid = os.getuid()
                 elif hasattr(os, "getpid"):
                     pid = os.getpid()
-                    uid_or_pid = f"pid-{pid}-{uuid.uuid4().hex[:8]}"
+                    timestamp = int(time.time() * 1000)
+                    uid_or_pid = f"pid-{pid}-{timestamp}"
                 else:
                     logger.debug("Neither os.getuid nor os.getpid available; using default UID 1000")
                     uid_or_pid = "uid-1000"
             except (AttributeError, OSError) as e:
                 logger.debug(f"Failed to get UID/PID, using default: {e}")
-                uid_or_pid = f"pid-{os.getpid()}-{uuid.uuid4().hex[:8]}" if hasattr(os, "getpid") else "uid-1000"
+                uid_or_pid = f"pid-{os.getpid()}-{int(time.time() * 1000)}" if hasattr(os, "getpid") else "uid-1000"
             return Path(tempfile.gettempdir()) / f"timelocker-{uid_or_pid}"
 
     @staticmethod
@@ -240,7 +241,7 @@ class ConfigurationPathResolver:
             try:
                 import ctypes  # type: ignore
                 return bool(ctypes.windll.shell32.IsUserAnAdmin())
-            except Exception as e:  # Windows can raise various OS-specific errors
+            except (ImportError, AttributeError, OSError) as e:
                 logger.debug(f"Windows admin check failed: {e}")
                 return False
         # Other platforms: conservative default

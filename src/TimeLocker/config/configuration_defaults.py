@@ -186,21 +186,8 @@ class ConfigurationDefaults:
         Returns:
             Path: Default configuration directory
         """
-        # Use centralized system context detection
-        if ConfigurationPathResolver.is_system_context():
-            # System-wide configuration
-            if os.name == "nt":
-                program_data = os.environ.get('PROGRAMDATA', r'C:\\ProgramData')
-                return Path(program_data) / "timelocker"
-            else:
-                return Path("/etc/timelocker")
-        else:
-            # User configuration following XDG specification
-            xdg_config_home = os.environ.get('XDG_CONFIG_HOME')
-            if xdg_config_home:
-                return Path(xdg_config_home) / "timelocker"
-            else:
-                return Path.home() / ".config" / "timelocker"
+        # Delegate to centralized resolver for consistency
+        return ConfigurationPathResolver.get_config_directory()
 
     @staticmethod
     def get_environment_overrides() -> Dict[str, Any]:
