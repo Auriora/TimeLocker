@@ -347,21 +347,16 @@ class ConfigurationModule(IConfigurationProvider):
         # Check for updates first (this may trigger a reload)
         self._check_for_updates()
 
-        # Return cached config with minimal lock time
+        # Check cache with lock
         with self._cache_lock:
-            if self._config_cache is None:
-                # This should rarely happen after _check_for_updates()
-                # but we handle it for safety
-                logger.debug("Cache miss in get_config, loading configuration")
-                # Release lock and reload (avoid recursive locking)
-                pass
-            else:
+            if self._config_cache is not None:
                 return self._config_cache
+            # Cache is None, we need to load - but release lock first to avoid recursive locking
 
-        # Handle cache miss outside of lock
-        if self._config_cache is None:
-            self._load_configuration()
+        # Load configuration outside of lock to avoid recursive locking in _load_configuration
+        self._load_configuration()
 
+        # Re-acquire lock and return the loaded config
         with self._cache_lock:
             if self._config_cache is None:
                 raise ConfigurationError("Failed to load configuration")
