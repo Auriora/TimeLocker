@@ -18,6 +18,8 @@ from src.TimeLocker.importers.timeshift_importer import (
 class TestTimeshiftConfigParser:
     """Test Timeshift configuration parser"""
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_parse_valid_config(self):
         """Test parsing valid Timeshift configuration"""
         config_data = {
@@ -54,6 +56,8 @@ class TestTimeshiftConfigParser:
         finally:
             config_file.unlink()
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_parse_missing_file(self):
         """Test parsing non-existent file"""
         parser = TimeshiftConfigParser()
@@ -61,6 +65,8 @@ class TestTimeshiftConfigParser:
         with pytest.raises(FileNotFoundError):
             parser.parse_config(Path("/nonexistent/file.json"))
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_parse_invalid_json(self):
         """Test parsing invalid JSON"""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
@@ -76,6 +82,8 @@ class TestTimeshiftConfigParser:
         finally:
             config_file.unlink()
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_get_summary(self):
         """Test configuration summary generation"""
         config_data = {
@@ -107,6 +115,8 @@ class TestTimeshiftConfigParser:
 class TestTimeshiftToTimeLockerMapper:
     """Test Timeshift to TimeLocker configuration mapper"""
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_map_exclude_patterns(self):
         """Test exclude pattern mapping"""
         mapper = TimeshiftToTimeLockerMapper()
@@ -131,6 +141,8 @@ class TestTimeshiftToTimeLockerMapper:
         assert mapped == expected
 
     @patch('subprocess.run')
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_resolve_device_uuid_success(self, mock_run):
         """Test successful UUID to path resolution"""
         # Mock blkid command
@@ -146,6 +158,8 @@ class TestTimeshiftToTimeLockerMapper:
         assert mock_run.call_count == 2
 
     @patch('subprocess.run')
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_resolve_device_uuid_failure(self, mock_run):
         """Test failed UUID to path resolution"""
         # Mock failed blkid command
@@ -156,6 +170,8 @@ class TestTimeshiftToTimeLockerMapper:
 
         assert result is None
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_create_repository_config(self):
         """Test repository configuration creation"""
         mapper = TimeshiftToTimeLockerMapper()
@@ -176,6 +192,8 @@ class TestTimeshiftToTimeLockerMapper:
         assert repo_config["_display_original_uuid"] == "test-uuid"
         assert "Imported from Timeshift" in repo_config["description"]
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_create_backup_target_config(self):
         """Test backup target configuration creation"""
         mapper = TimeshiftToTimeLockerMapper()
@@ -198,6 +216,8 @@ class TestTimeshiftToTimeLockerMapper:
         assert "**/var/cache" in target_config["exclude_patterns"]
         assert "**/proc/**" in target_config["exclude_patterns"]  # Default exclude
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_create_backup_target_config_default_paths(self):
         """Test backup target configuration with default paths (root filesystem)"""
         mapper = TimeshiftToTimeLockerMapper()
@@ -225,6 +245,8 @@ class TestTimeshiftToTimeLockerMapper:
         assert len(mapper.warnings) > 0
         assert any("full system backup" in warning for warning in mapper.warnings)
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_import_configuration_success(self):
         """Test successful configuration import"""
         mapper = TimeshiftToTimeLockerMapper()
@@ -250,6 +272,8 @@ class TestTimeshiftToTimeLockerMapper:
         assert result.backup_target_config["paths"] == ["/"]  # Should default to root filesystem
         assert len(result.warnings) > 0  # Should have warnings about differences
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_import_configuration_btrfs_warning(self):
         """Test BTRFS mode warning"""
         mapper = TimeshiftToTimeLockerMapper()
@@ -268,6 +292,8 @@ class TestTimeshiftToTimeLockerMapper:
 class TestTimeshiftImportResult:
     """Test TimeshiftImportResult dataclass"""
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_default_initialization(self):
         """Test default initialization"""
         result = TimeshiftImportResult(success=True)
@@ -278,6 +304,8 @@ class TestTimeshiftImportResult:
         assert result.warnings == []
         assert result.errors == []
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_with_data(self):
         """Test initialization with data"""
         repo_config = {"name": "test"}

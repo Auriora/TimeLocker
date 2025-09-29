@@ -32,6 +32,8 @@ def get_version_from_file(file_path, pattern):
 class TestVersionConsistency:
     """Test version consistency across files."""
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_pyproject_toml_has_version(self):
         """Test that pyproject.toml contains a version."""
         pyproject_file = get_project_root() / "pyproject.toml"
@@ -40,6 +42,8 @@ class TestVersionConsistency:
         assert version is not None, "pyproject.toml should contain a version"
         assert re.match(r'\d+\.\d+\.\d+', version), f"Version should be semantic: {version}"
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_init_py_has_version(self):
         """Test that __init__.py contains a version."""
         init_file = get_project_root() / "src" / "TimeLocker" / "__init__.py"
@@ -48,6 +52,8 @@ class TestVersionConsistency:
         assert version is not None, "__init__.py should contain a __version__"
         assert re.match(r'\d+\.\d+\.\d+', version), f"Version should be semantic: {version}"
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_versions_are_consistent(self):
         """Test that versions are consistent across files."""
         pyproject_file = get_project_root() / "pyproject.toml"
@@ -65,17 +71,23 @@ class TestVersionConsistency:
 class TestVersionManagementScript:
     """Test the version management script."""
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_script_exists(self):
         """Test that the version management script exists."""
         script_path = get_project_root() / "scripts" / "bump_version.py"
         assert script_path.exists(), "Version management script should exist"
         assert script_path.is_file(), "Script should be a file"
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_script_is_executable(self):
         """Test that the script has execute permissions."""
         script_path = get_project_root() / "scripts" / "bump_version.py"
         assert script_path.stat().st_mode & 0o111, "Script should be executable"
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_show_command_works(self):
         """Test that the show command works."""
         script_path = get_project_root() / "scripts" / "bump_version.py"
@@ -91,6 +103,8 @@ class TestVersionManagementScript:
         assert "Current version:" in result.stdout, "Should show current version"
         assert "Versions are consistent" in result.stdout, "Should check consistency"
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_dry_run_works(self):
         """Test that dry run works without making changes."""
         script_path = get_project_root() / "scripts" / "bump_version.py"
@@ -118,11 +132,15 @@ class TestVersionManagementScript:
 class TestBumpVersionConfig:
     """Test bump2version configuration."""
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_config_file_exists(self):
         """Test that .bumpversion.cfg exists."""
         config_file = get_project_root() / ".bumpversion.cfg"
         assert config_file.exists(), ".bumpversion.cfg should exist"
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_config_has_required_sections(self):
         """Test that config file has required sections."""
         config_file = get_project_root() / ".bumpversion.cfg"
@@ -134,6 +152,8 @@ class TestBumpVersionConfig:
         assert "[bumpversion:file:pyproject.toml]" in content, "Should configure pyproject.toml"
         assert "[bumpversion:file:src/TimeLocker/__init__.py]" in content, "Should configure __init__.py"
 
+    @pytest.mark.config
+    @pytest.mark.unit
     def test_config_current_version_matches(self):
         """Test that config current_version matches actual version."""
         config_file = get_project_root() / ".bumpversion.cfg"

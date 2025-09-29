@@ -35,6 +35,8 @@ class TestTimeshiftCLIIntegration:
                 "count_daily":        "7"
         }
 
+    @pytest.mark.config
+    @pytest.mark.integration
     def test_timeshift_import_dry_run(self):
         """Test Timeshift import in dry-run mode"""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
@@ -62,6 +64,8 @@ class TestTimeshiftCLIIntegration:
         finally:
             config_file.unlink()
 
+    @pytest.mark.config
+    @pytest.mark.integration
     def test_timeshift_import_help(self):
         """Test Timeshift import help command"""
         result = self.runner.invoke(app, [
@@ -76,6 +80,8 @@ class TestTimeshiftCLIIntegration:
         assert "--repo-path" in result.stdout
         assert "--dry-run" in result.stdout
 
+    @pytest.mark.config
+    @pytest.mark.integration
     def test_timeshift_import_missing_config(self):
         """Test Timeshift import with missing config file"""
         result = self.runner.invoke(app, [
@@ -87,6 +93,8 @@ class TestTimeshiftCLIIntegration:
         assert result.exit_code == 1
         assert "Timeshift Configuration Not Found" in result.stdout
 
+    @pytest.mark.config
+    @pytest.mark.integration
     def test_timeshift_import_invalid_json(self):
         """Test Timeshift import with invalid JSON"""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
@@ -106,6 +114,8 @@ class TestTimeshiftCLIIntegration:
         finally:
             config_file.unlink()
 
+    @pytest.mark.config
+    @pytest.mark.integration
     def test_timeshift_import_custom_names(self):
         """Test Timeshift import with custom repository and target names"""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
@@ -131,6 +141,8 @@ class TestTimeshiftCLIIntegration:
         finally:
             config_file.unlink()
 
+    @pytest.mark.config
+    @pytest.mark.integration
     def test_timeshift_import_custom_paths(self):
         """Test Timeshift import with custom backup paths"""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
@@ -154,6 +166,8 @@ class TestTimeshiftCLIIntegration:
         finally:
             config_file.unlink()
 
+    @pytest.mark.config
+    @pytest.mark.integration
     def test_timeshift_import_verbose(self):
         """Test Timeshift import with verbose output"""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
@@ -178,6 +192,8 @@ class TestTimeshiftCLIIntegration:
             config_file.unlink()
 
     @patch('src.TimeLocker.importers.timeshift_importer.subprocess.run')
+    @pytest.mark.config
+    @pytest.mark.integration
     def test_timeshift_import_uuid_resolution(self, mock_subprocess):
         """Test Timeshift import with UUID resolution"""
         # Mock successful UUID resolution
@@ -204,6 +220,8 @@ class TestTimeshiftCLIIntegration:
         finally:
             config_file.unlink()
 
+    @pytest.mark.config
+    @pytest.mark.integration
     def test_timeshift_import_btrfs_warning(self):
         """Test Timeshift import with BTRFS mode warning"""
         btrfs_config = self.timeshift_config.copy()
