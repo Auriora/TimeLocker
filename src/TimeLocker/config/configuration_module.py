@@ -361,12 +361,11 @@ class ConfigurationModule(IConfigurationProvider):
         # Handle cache miss outside of lock
         if self._config_cache is None:
             self._load_configuration()
-            with self._cache_lock:
-                if self._config_cache is None:
-                    raise ConfigurationError("Failed to load configuration")
-                return self._config_cache
 
-        return self._config_cache
+        with self._cache_lock:
+            if self._config_cache is None:
+                raise ConfigurationError("Failed to load configuration")
+            return self._config_cache
 
 
     def get_configuration(self) -> Dict[str, Any]:
