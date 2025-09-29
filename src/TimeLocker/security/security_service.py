@@ -83,7 +83,7 @@ class SecurityService:
         self.credential_manager = credential_manager
 
         if config_dir is None:
-            from ..config.configuration_manager import ConfigurationPathResolver
+            from ..config.configuration_path_resolver import ConfigurationPathResolver
             base_config_dir = ConfigurationPathResolver.get_config_directory()
             config_dir = base_config_dir / "security"
 

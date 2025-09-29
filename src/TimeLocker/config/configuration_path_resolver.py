@@ -7,6 +7,9 @@ Principle by focusing solely on determining configuration file locations.
 
 import os
 import logging
+import tempfile
+import time
+
 from pathlib import Path
 from typing import Optional, List
 
@@ -76,6 +79,11 @@ class ConfigurationPathResolver:
         Returns:
             Path: System configuration directory
         """
+        # Windows system directory under ProgramData
+        if os.name == "nt":
+            program_data = os.environ.get('PROGRAMDATA', r'C:\\ProgramData')
+            return Path(program_data) / "timelocker"
+
         # Prefer /etc/timelocker if it exists or can be created
         system_config = Path("/etc/timelocker")
         if system_config.exists() or system_config.parent.exists():
@@ -167,7 +175,11 @@ class ConfigurationPathResolver:
             Path: Cache directory
         """
         if ConfigurationPathResolver.is_system_context():
-            return Path("/var/cache/timelocker")
+            if os.name == "nt":
+                program_data = os.environ.get('PROGRAMDATA', r'C:\\ProgramData')
+                return Path(program_data) / "timelocker" / "cache"
+            else:
+                return Path("/var/cache/timelocker")
         else:
             xdg_cache_home = os.environ.get('XDG_CACHE_HOME')
             if xdg_cache_home:
@@ -184,24 +196,56 @@ class ConfigurationPathResolver:
             Path: Runtime directory
         """
         if ConfigurationPathResolver.is_system_context():
-            return Path("/run/timelocker")
+            if os.name == "nt":
+                program_data = os.environ.get('PROGRAMDATA', r'C:\\ProgramData')
+                return Path(program_data) / "timelocker" / "runtime"
+            else:
+                return Path("/run/timelocker")
         else:
             xdg_runtime_dir = os.environ.get('XDG_RUNTIME_DIR')
             if xdg_runtime_dir:
                 return Path(xdg_runtime_dir) / "timelocker"
-            else:
-                # Fallback to temp directory
-                return Path("/tmp") / f"timelocker-{os.getuid()}"
+            # Cross-platform fallback to a temp directory
+            try:
+                if hasattr(os, "getuid"):
+                    uid_or_pid = os.getuid()
+                elif hasattr(os, "getpid"):
+                    pid = os.getpid()
+                    timestamp = int(time.time() * 1000)
+                    uid_or_pid = f"pid-{pid}-{timestamp}"
+                else:
+                    logger.debug("Neither os.getuid nor os.getpid available; using default UID 1000")
+                    uid_or_pid = "uid-1000"
+            except (AttributeError, OSError) as e:
+                logger.debug(f"Failed to get UID/PID, using default: {e}")
+                uid_or_pid = f"pid-{os.getpid()}-{int(time.time() * 1000)}" if hasattr(os, "getpid") else "uid-1000"
+            return Path(tempfile.gettempdir()) / f"timelocker-{uid_or_pid}"
 
     @staticmethod
     def is_system_context() -> bool:
         """
-        Check if running in system context (as root).
+        Check if running in system context (as root/system/admin) in a cross-platform way.
 
         Returns:
-            bool: True if running as root/system
+            bool: True if running with elevated privileges
         """
-        return os.geteuid() == 0
+        # POSIX: root has euid 0
+        if hasattr(os, "geteuid"):
+            try:
+                return os.geteuid() == 0
+            except OSError as e:
+                logger.debug(f"geteuid check failed: {e}")
+                return False
+        # Windows: use Shell API when available
+        if os.name == "nt":
+            try:
+                import ctypes  # type: ignore
+                return bool(ctypes.windll.shell32.IsUserAnAdmin())
+            except (ImportError, AttributeError, OSError) as e:
+                logger.debug(f"Windows admin check failed: {e}")
+                return False
+        # Other platforms: conservative default
+        return False
 
     @staticmethod
     def should_migrate_from_legacy() -> bool:

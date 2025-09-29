@@ -51,79 +51,7 @@ class RepositoryAlreadyExistsError(ConfigurationError):
 # Old dataclasses removed - use ConfigurationDefaults.get_*_defaults() instead
 
 
-class ConfigurationPathResolver:
-    """
-    Utility class for resolving configuration directory paths
-    Handles XDG Base Directory Specification and system vs user contexts
-    """
 
-    @staticmethod
-    def is_system_context() -> bool:
-        """
-        Determine if running in system context (as root for system backups)
-
-        Returns:
-            bool: True if running as root or in system context
-        """
-        return os.geteuid() == 0 if hasattr(os, 'geteuid') else False
-
-    @staticmethod
-    def get_xdg_config_home() -> Path:
-        """
-        Get XDG config home directory
-
-        Returns:
-            Path: XDG config home directory
-        """
-        xdg_config_home = os.environ.get('XDG_CONFIG_HOME')
-        if xdg_config_home:
-            return Path(xdg_config_home)
-        return Path.home() / ".config"
-
-    @staticmethod
-    def get_config_directory() -> Path:
-        """
-        Get appropriate configuration directory based on context
-
-        Returns:
-            Path: Configuration directory to use
-        """
-        if ConfigurationPathResolver.is_system_context():
-            # System-wide configuration for root/system backups
-            system_config = Path("/etc/timelocker")
-            if system_config.exists() or system_config.parent.exists():
-                return system_config
-            # Fallback to XDG system directory
-            return Path("/etc/xdg/timelocker")
-        else:
-            # User configuration following XDG specification
-            return ConfigurationPathResolver.get_xdg_config_home() / "timelocker"
-
-    @staticmethod
-    def get_legacy_config_directory() -> Path:
-        """
-        Get legacy configuration directory for migration
-
-        Returns:
-            Path: Legacy configuration directory
-        """
-        return Path.home() / ".timelocker"
-
-    @staticmethod
-    def should_migrate_from_legacy() -> bool:
-        """
-        Check if migration from legacy config is needed
-
-        Returns:
-            bool: True if legacy config exists and new config doesn't
-        """
-        legacy_dir = ConfigurationPathResolver.get_legacy_config_directory()
-        new_dir = ConfigurationPathResolver.get_config_directory()
-
-        legacy_config = legacy_dir / "config.json"
-        new_config = new_dir / "config.json"
-
-        return legacy_config.exists() and not new_config.exists()
 
 
 class ConfigurationMigrationManager:
