@@ -20,7 +20,7 @@ coverage:
     - "**/.venv/"          # Ignore virtual environments
 
 comment:
-  layout: "reach,diff,flags,tree,reach"
+  layout: "reach,diff,flags,tree"
   behavior: default
   require_changes: false   # Comment on all PRs
   require_base: no        # Don't require base commit
