@@ -28,7 +28,8 @@ class TestUserExperienceValidation:
         self.config_dir = self.temp_dir / "config"
         self.config_dir.mkdir(parents=True)
 
-        self.runner = CliRunner()
+        # Set wider terminal width to prevent help text truncation in CI
+        self.runner = CliRunner(env={'COLUMNS': '200'})
 
     def teardown_method(self):
         """Cleanup test environment"""
