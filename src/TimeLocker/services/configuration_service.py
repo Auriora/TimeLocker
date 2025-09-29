@@ -386,7 +386,7 @@ class ConfigurationService(IConfigurationProvider):
             return self._config_path
 
         # Use XDG Base Directory Specification
-        from ..config.configuration_manager import ConfigurationPathResolver
+        from ..config.configuration_path_resolver import ConfigurationPathResolver
         config_dir = ConfigurationPathResolver.get_config_directory()
         return config_dir / "config.json"
 

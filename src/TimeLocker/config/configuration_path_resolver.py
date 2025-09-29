@@ -193,7 +193,8 @@ class ConfigurationPathResolver:
             # Cross-platform fallback to a temp directory
             try:
                 uid = os.getuid() if hasattr(os, "getuid") else os.getpid()
-            except Exception:
+            except (AttributeError, OSError) as e:
+                logger.debug(f"Failed to get UID, falling back to PID: {e}")
                 uid = os.getpid()
             return Path(tempfile.gettempdir()) / f"timelocker-{uid}"
 
@@ -205,21 +206,23 @@ class ConfigurationPathResolver:
         Returns:
             bool: True if running with elevated privileges
         """
-        try:
-            # POSIX: root has euid 0
-            if hasattr(os, "geteuid"):
+        # POSIX: root has euid 0
+        if hasattr(os, "geteuid"):
+            try:
                 return os.geteuid() == 0
-            # Windows: use Shell API when available
-            if os.name == "nt":
-                try:
-                    import ctypes  # type: ignore
-                    return bool(ctypes.windll.shell32.IsUserAnAdmin())
-                except Exception:
-                    return False
-            # Other platforms: conservative default
-            return False
-        except Exception:
-            return False
+            except OSError as e:
+                logger.debug(f"geteuid check failed: {e}")
+                return False
+        # Windows: use Shell API when available
+        if os.name == "nt":
+            try:
+                import ctypes  # type: ignore
+                return bool(ctypes.windll.shell32.IsUserAnAdmin())
+            except (ImportError, AttributeError, OSError) as e:
+                logger.debug(f"Windows admin check failed: {e}")
+                return False
+        # Other platforms: conservative default
+        return False
 
     @staticmethod
     def should_migrate_from_legacy() -> bool:

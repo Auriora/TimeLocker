@@ -48,7 +48,7 @@ class IntegrationService:
             config_dir: Directory for configuration and data
         """
         if config_dir is None:
-            from ..config.configuration_manager import ConfigurationPathResolver
+            from ..config.configuration_path_resolver import ConfigurationPathResolver
             config_dir = ConfigurationPathResolver.get_config_directory()
 
         self.config_dir = Path(config_dir)
