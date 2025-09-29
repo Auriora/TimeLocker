@@ -118,14 +118,22 @@ addopts = [
     "--cov-fail-under=70",
 ]
 markers = [
-    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "integration: marks tests as integration tests",
-    "unit: marks tests as unit tests",
-    "critical: marks tests as critical path tests",
-    "performance: marks tests as performance tests",
-    "regression: marks tests as regression tests",
-    "security: marks tests as security tests",
-    "stress: marks tests as stress tests",
+    "unit: Unit tests for individual components",
+    "integration: Integration tests for component interactions",
+    "security: Security-focused tests",
+    "performance: Performance and benchmark tests",
+    "critical: Critical path tests that must pass",
+    "slow: Tests that take a long time to run",
+    "network: Tests that require network access",
+    "filesystem: Tests that interact with the filesystem",
+    "backup: Tests related to backup operations",
+    "restore: Tests related to restore operations",
+    "config: Tests related to configuration management",
+    "monitoring: Tests related to monitoring and notifications",
+    "e2e: End-to-end validation tests",
+    "platform: Cross-platform compatibility tests",
+    "regression: Regression tests for previously fixed issues",
+    "stress: Stress tests for high-load scenarios (run separately with longer timeouts)",
 ]
 
 [tool.coverage.run]

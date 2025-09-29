@@ -362,6 +362,8 @@ class ConfigurationModule(IConfigurationProvider):
         if self._config_cache is None:
             self._load_configuration()
             with self._cache_lock:
+                if self._config_cache is None:
+                    raise ConfigurationError("Failed to load configuration")
                 return self._config_cache
 
         return self._config_cache
