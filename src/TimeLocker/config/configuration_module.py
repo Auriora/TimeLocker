@@ -344,19 +344,26 @@ class ConfigurationModule(IConfigurationProvider):
 
     def get_config(self) -> TimeLockerConfig:
         """Get complete configuration"""
-        # Check for updates first (this may trigger a reload)
-        self._check_for_updates()
+        needs_reload = False
 
-        # Check cache with lock
+        # Check for updates and cache status while holding lock
         with self._cache_lock:
-            if self._config_cache is not None:
+            # Check if file has been updated externally
+            if self._config_file.exists():
+                current_modified = datetime.fromtimestamp(self._config_file.stat().st_mtime)
+                if self._last_modified is None or current_modified > self._last_modified:
+                    needs_reload = True
+                elif self._config_cache is not None:
+                    return self._config_cache
+            elif self._config_cache is not None:
                 return self._config_cache
-            # Cache is None, we need to load - but release lock first to avoid recursive locking
 
         # Load configuration outside of lock to avoid recursive locking in _load_configuration
+        if needs_reload:
+            logger.debug("Configuration file updated externally, reloading")
         self._load_configuration()
 
-        # Re-acquire lock and return the loaded config
+        # Return the loaded config
         with self._cache_lock:
             if self._config_cache is None:
                 raise ConfigurationError("Failed to load configuration")
