@@ -108,7 +108,6 @@ snapshots_app = typer.Typer(help="Snapshot operations")
 repos_app = typer.Typer(help="Repository operations")
 targets_app = typer.Typer(help="Backup target operations")
 config_app = typer.Typer(help="Configuration management commands")
-credentials_app = typer.Typer(help="Credential management commands")
 
 # Add sub-apps to main app
 app.add_typer(backup_app, name="backup")
@@ -117,13 +116,18 @@ app.add_typer(snapshots_app, name="snapshots")
 app.add_typer(repos_app, name="repos")
 app.add_typer(targets_app, name="targets")
 app.add_typer(config_app, name="config")
-app.add_typer(credentials_app, name="credentials")
 
 # Create config sub-apps (only import remains under config)
 config_import_app = typer.Typer(help="Import configuration commands")
 
 # Add config sub-apps
 config_app.add_typer(config_import_app, name="import")
+
+# Create repos sub-apps
+repos_credentials_app = typer.Typer(help="Repository credential management")
+
+# Add repos sub-apps
+repos_app.add_typer(repos_credentials_app, name="credentials")
 
 
 class UserFacingLogFilter(logging.Filter):
@@ -2103,7 +2107,7 @@ def repos_default(
         raise typer.Exit(1)
 
 
-@repos_app.command("credentials set")
+@repos_credentials_app.command("set")
 def repos_credentials_set(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
@@ -2207,7 +2211,7 @@ def repos_credentials_set(
         raise typer.Exit(1)
 
 
-@repos_app.command("credentials remove")
+@repos_credentials_app.command("remove")
 def repos_credentials_remove(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
@@ -2281,7 +2285,7 @@ def repos_credentials_remove(
         raise typer.Exit(1)
 
 
-@repos_app.command("credentials show")
+@repos_credentials_app.command("show")
 def repos_credentials_show(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
@@ -2740,7 +2744,7 @@ def snapshots_umount(
         raise typer.Exit(1)
 
 
-@snapshots_app.command("find in")
+@snapshots_app.command("find")
 def snapshots_find_in(
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID")],
         pattern: Annotated[str, typer.Argument(help="Search pattern")],
@@ -3904,8 +3908,9 @@ def repo_forget(
 # ============================================================================
 
 
-@repos_app.command("check all")
+@repos_app.command("check")
 def repos_check_all(
+        all: Annotated[bool, typer.Option("--all", "-a", help="Check all configured repositories")] = True,
         parallel: Annotated[bool, typer.Option("--parallel", "-p", help="Check repositories in parallel")] = True,
         max_workers: Annotated[int, typer.Option("--max-workers", help="Maximum number of parallel workers")] = 4,
         continue_on_error: Annotated[bool, typer.Option("--continue-on-error", help="Continue checking other repositories if one fails")] = True,
@@ -4210,8 +4215,9 @@ def repos_check_all(
         raise typer.Exit(1)
 
 
-@repos_app.command("stats all")
+@repos_app.command("stats")
 def repos_stats_all(
+        all: Annotated[bool, typer.Option("--all", "-a", help="Gather statistics for all configured repositories")] = True,
         parallel: Annotated[bool, typer.Option("--parallel", "-p", help="Gather statistics in parallel")] = True,
         max_workers: Annotated[int, typer.Option("--max-workers", help="Maximum number of parallel workers")] = 4,
         continue_on_error: Annotated[bool, typer.Option("--continue-on-error", help="Continue gathering stats from other repositories if one fails")] = True,
