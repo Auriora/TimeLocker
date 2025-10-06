@@ -203,3 +203,47 @@ class S3ResticRepository(ResticRepository):
         except Exception as e:
             logger.debug(f"Repository not initialized or error checking: {e}")
             return False
+
+    def initialize_repository(self, password: Optional[str] = None) -> bool:
+        """
+        Initialize a new restic repository in S3.
+
+        Args:
+            password: Optional password to use for initialization. If not provided,
+                     uses the repository's configured password
+
+        Returns:
+            bool: True if initialization successful, False otherwise
+        """
+        try:
+            # Use provided password or fall back to configured password
+            if password:
+                original_password = self._explicit_password
+                self._explicit_password = password
+                # Clear cached environment to force regeneration with new password
+                self._cached_env = None
+
+            try:
+                # Check if repository is already initialized
+                if self.is_repository_initialized():
+                    logger.warning(f"Repository at {self._location} is already initialized")
+                    return True
+
+                # Initialize the repository
+                result = self.initialize()
+
+                if result and password:
+                    # Store the password in credential manager if available
+                    self.store_password(password)
+
+                return result
+
+            finally:
+                # Restore original password if we changed it
+                if password:
+                    self._explicit_password = original_password
+                    self._cached_env = None
+
+        except Exception as e:
+            logger.error(f"Failed to initialize repository: {e}")
+            return False
