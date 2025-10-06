@@ -1857,6 +1857,37 @@ def repos_add(
                 config_manager.update_repository(name, repository_config)
                 logger.debug(f"Password stored temporarily in configuration for repository '{name}': {e}")
 
+        # Helper function to store backend credentials with proper credential manager locking
+        def store_backend_credentials(backend_type: str, backend_name: str, credentials_dict: dict) -> bool:
+            """
+            Store backend credentials in credential manager with proper locking.
+
+            Args:
+                backend_type: Backend type identifier ('s3' or 'b2')
+                backend_name: Human-readable backend name for messages ('AWS' or 'B2')
+                credentials_dict: Dictionary of credentials to store
+
+            Returns:
+                True if credentials were stored successfully, False otherwise
+            """
+            credential_manager = CredentialManager()
+
+            # Ensure credential manager is unlocked
+            if credential_manager.is_locked():
+                if not credential_manager.ensure_unlocked(allow_prompt=True):
+                    console.print(f"[yellow]⚠️  Could not unlock credential manager. {backend_name} credentials not stored.[/yellow]")
+                    return False
+
+            # Store credentials
+            credential_manager.store_repository_backend_credentials(name, backend_type, credentials_dict)
+
+            # Update repository config to indicate credentials are stored
+            repository_config['has_backend_credentials'] = True
+            config_manager.update_repository(name, repository_config)
+
+            logger.info(f"{backend_name} credentials stored for repository '{name}'")
+            return True
+
         # Handle backend credentials for S3/B2 repositories
         backend_credentials_stored = False
         if normalized_uri.startswith(('s3://', 's3:')):
@@ -1867,8 +1898,6 @@ def repos_add(
                 secret_access_key = Prompt.ask("AWS Secret Access Key", password=True)
                 region = Prompt.ask("AWS Region (optional, press Enter to skip)", default="")
 
-                # Store credentials in credential manager
-                credential_manager = CredentialManager()
                 credentials_dict = {
                     "access_key_id": access_key_id,
                     "secret_access_key": secret_access_key,
@@ -1876,21 +1905,7 @@ def repos_add(
                 if region:
                     credentials_dict["region"] = region
 
-                def store_aws_credentials(name, credential_manager, config_manager, repository_config, credentials_dict, logger):
-                    credential_manager.store_repository_backend_credentials(name, "s3", credentials_dict)
-                    repository_config['has_backend_credentials'] = True
-                    config_manager.update_repository(name, repository_config)
-                    nonlocal backend_credentials_stored
-                    backend_credentials_stored = True
-                    logger.info(f"AWS credentials stored for repository '{name}'")
-
-                if credential_manager.is_locked():
-                    if not credential_manager.ensure_unlocked(allow_prompt=True):
-                        console.print("[yellow]⚠️  Could not unlock credential manager. Backend credentials not stored.[/yellow]")
-                    else:
-                        store_aws_credentials(name, credential_manager, config_manager, repository_config, credentials_dict, logger)
-                else:
-                    store_aws_credentials(name, credential_manager, config_manager, repository_config, credentials_dict, logger)
+                backend_credentials_stored = store_backend_credentials("s3", "AWS", credentials_dict)
         elif normalized_uri.startswith(('b2://', 'b2:')):
             # B2 repository - prompt for B2 credentials
             if Confirm.ask(f"Would you like to store B2 credentials for repository '{name}'?", default=True):
@@ -1898,37 +1913,12 @@ def repos_add(
                 account_id = Prompt.ask("B2 Account ID", password=True)
                 account_key = Prompt.ask("B2 Account Key", password=True)
 
-                # Store credentials in credential manager
-                credential_manager = CredentialManager()
-                if credential_manager.is_locked():
-                    if not credential_manager.ensure_unlocked(allow_prompt=True):
-                        console.print("[yellow]⚠️  Could not unlock credential manager. Backend credentials not stored.[/yellow]")
-                    else:
-                        credentials_dict = {
-                            "account_id": account_id,
-                            "account_key": account_key,
-                        }
+                credentials_dict = {
+                    "account_id": account_id,
+                    "account_key": account_key,
+                }
 
-                        credential_manager.store_repository_backend_credentials(name, "b2", credentials_dict)
-
-                        # Update repository config to indicate credentials are stored
-                        repository_config['has_backend_credentials'] = True
-                        config_manager.update_repository(name, repository_config)
-                        backend_credentials_stored = True
-                        logger.info(f"B2 credentials stored for repository '{name}'")
-                else:
-                    credentials_dict = {
-                        "account_id": account_id,
-                        "account_key": account_key,
-                    }
-
-                    credential_manager.store_repository_backend_credentials(name, "b2", credentials_dict)
-
-                    # Update repository config to indicate credentials are stored
-                    repository_config['has_backend_credentials'] = True
-                    config_manager.update_repository(name, repository_config)
-                    backend_credentials_stored = True
-                    logger.info(f"B2 credentials stored for repository '{name}'")
+                backend_credentials_stored = store_backend_credentials("b2", "B2", credentials_dict)
 
         # Set as default if requested
         if set_default:

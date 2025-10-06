@@ -26,6 +26,13 @@ from ..restic_repository import RepositoryError, ResticRepository
 
 
 class S3ResticRepository(ResticRepository):
+    """
+    S3-backed restic repository implementation.
+
+    Supports per-repository credential management through the credential manager,
+    with fallback to constructor parameters and environment variables.
+    """
+
     def __init__(
             self,
             location: str,
@@ -36,6 +43,20 @@ class S3ResticRepository(ResticRepository):
             credential_manager: Optional[object] = None,
             repository_name: Optional[str] = None,
     ):
+        """
+        Initialize S3 restic repository.
+
+        Args:
+            location: S3 repository location (e.g., 's3:s3.amazonaws.com/bucket/path')
+            password: Repository password for encryption
+            aws_access_key_id: AWS access key ID (optional, can be retrieved from credential manager or environment)
+            aws_secret_access_key: AWS secret access key (optional, can be retrieved from credential manager or environment)
+            aws_default_region: AWS region (optional, can be retrieved from credential manager or environment)
+            credential_manager: CredentialManager instance for retrieving stored credentials
+            repository_name: Repository name for per-repository credential lookup from credential manager.
+                           If provided with credential_manager, will attempt to retrieve repository-specific
+                           credentials before falling back to constructor parameters or environment variables.
+        """
         super().__init__(location, password=password, credential_manager=credential_manager)
 
         # Try to get per-repository credentials from credential manager first

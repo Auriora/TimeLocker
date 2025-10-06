@@ -26,11 +26,31 @@ from ..restic_repository import RepositoryError, ResticRepository
 
 
 class B2ResticRepository(ResticRepository):
+    """
+    Backblaze B2-backed restic repository implementation.
+
+    Supports per-repository credential management through the credential manager,
+    with fallback to constructor parameters and environment variables.
+    """
+
     def __init__(self, location: str, password: Optional[str] = None,
                  b2_account_id: Optional[str] = None,
                  b2_account_key: Optional[str] = None,
                  credential_manager: Optional[object] = None,
                  repository_name: Optional[str] = None):
+        """
+        Initialize B2 restic repository.
+
+        Args:
+            location: B2 repository location (e.g., 'b2:bucket-name/path')
+            password: Repository password for encryption
+            b2_account_id: B2 account ID (optional, can be retrieved from credential manager or environment)
+            b2_account_key: B2 account key (optional, can be retrieved from credential manager or environment)
+            credential_manager: CredentialManager instance for retrieving stored credentials
+            repository_name: Repository name for per-repository credential lookup from credential manager.
+                           If provided with credential_manager, will attempt to retrieve repository-specific
+                           credentials before falling back to constructor parameters or environment variables.
+        """
         super().__init__(location, password, credential_manager=credential_manager)
 
         # Try to get per-repository credentials from credential manager first

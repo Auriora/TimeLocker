@@ -8,19 +8,9 @@ import pytest
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
-from typer.testing import CliRunner
 
 from src.TimeLocker.cli import app
-
-# Set wider terminal width to prevent help text truncation in CI
-runner = CliRunner(env={'COLUMNS': '200'})
-
-
-def _combined_output(result):
-    """Combine stdout and stderr for matching convenience across environments."""
-    out = result.stdout or ""
-    err = getattr(result, "stderr", "") or ""
-    return out + "\n" + err
+from .test_utils import runner, _combined_output
 
 
 class TestSnapshotsCommands:
