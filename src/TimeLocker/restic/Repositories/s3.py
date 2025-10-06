@@ -59,8 +59,6 @@ class S3ResticRepository(ResticRepository):
                            If provided with credential_manager, will attempt to retrieve repository-specific
                            credentials before falling back to constructor parameters or environment variables.
         """
-        super().__init__(location, password=password, credential_manager=credential_manager)
-
         # Try to get per-repository credentials from credential manager first
         if credential_manager and repository_name:
             try:
@@ -75,11 +73,14 @@ class S3ResticRepository(ResticRepository):
                 # Log but don't fail - fall back to other credential sources
                 logger.debug(f"Could not retrieve per-repository S3 credentials: {e}")
 
-        # Fall back to constructor parameters or environment variables
+        # Set attributes BEFORE calling super().__init__() because validate() needs them
         self.aws_access_key_id = aws_access_key_id if aws_access_key_id is not None else os.getenv("AWS_ACCESS_KEY_ID")
         self.aws_secret_access_key = aws_secret_access_key if aws_secret_access_key is not None else os.getenv("AWS_SECRET_ACCESS_KEY")
         self.aws_default_region = aws_default_region if aws_default_region is not None else os.getenv("AWS_DEFAULT_REGION")
         self.aws_s3_endpoint = aws_s3_endpoint if aws_s3_endpoint is not None else os.getenv("AWS_S3_ENDPOINT")
+
+        # Call parent __init__ which will trigger validate()
+        super().__init__(location, password=password, credential_manager=credential_manager)
 
     @classmethod
     def from_parsed_uri(
@@ -147,7 +148,18 @@ class S3ResticRepository(ResticRepository):
                 logger.warning("S3 location has empty bucket; validation skipped.")
                 return
 
-            s3 = client("s3")
+            # Create S3 client with credentials and endpoint
+            client_kwargs = {}
+            if self.aws_access_key_id:
+                client_kwargs["aws_access_key_id"] = self.aws_access_key_id
+            if self.aws_secret_access_key:
+                client_kwargs["aws_secret_access_key"] = self.aws_secret_access_key
+            if self.aws_default_region:
+                client_kwargs["region_name"] = self.aws_default_region
+            if self.aws_s3_endpoint:
+                client_kwargs["endpoint_url"] = self.aws_s3_endpoint
+
+            s3 = client("s3", **client_kwargs)
             # Extract bucket name from location. Support both:
             # - restic style: s3:host/bucket[/path]
             # - simplified style used here: s3:bucket[/path]
