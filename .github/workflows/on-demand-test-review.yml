@@ -17,7 +17,7 @@ jobs:
       pull-requests: write
     steps:
       - name: Analyze Test Coverage
-        uses: augmentcode/review-pr-test-coverage@v0
+        uses: bcherrington/review-pr-test-coverage@v1
         with:
           augment_session_auth: ${{ secrets.AUGMENT_SESSION_AUTH }}
           github_token:         ${{ secrets.GITHUB_TOKEN }}

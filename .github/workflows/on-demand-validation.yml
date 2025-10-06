@@ -20,7 +20,7 @@ jobs:
     name:    Validate PR implements referenced issues
     steps:
       - name: Validate Issue Implementation
-        uses: augmentcode/issue-review-pr@v0
+        uses: bcherrington/issue-review-pr@v1
         with:
           augment_session_auth: ${{ secrets.AUGMENT_SESSION_AUTH }}
           github_token:         ${{ secrets.GITHUB_TOKEN }}
