@@ -1869,40 +1869,28 @@ def repos_add(
 
                 # Store credentials in credential manager
                 credential_manager = CredentialManager()
+                credentials_dict = {
+                    "access_key_id": access_key_id,
+                    "secret_access_key": secret_access_key,
+                }
+                if region:
+                    credentials_dict["region"] = region
+
+                def store_aws_credentials(name, credential_manager, config_manager, repository_config, credentials_dict, logger):
+                    credential_manager.store_repository_backend_credentials(name, "s3", credentials_dict)
+                    repository_config['has_backend_credentials'] = True
+                    config_manager.update_repository(name, repository_config)
+                    nonlocal backend_credentials_stored
+                    backend_credentials_stored = True
+                    logger.info(f"AWS credentials stored for repository '{name}'")
+
                 if credential_manager.is_locked():
                     if not credential_manager.ensure_unlocked(allow_prompt=True):
                         console.print("[yellow]⚠️  Could not unlock credential manager. Backend credentials not stored.[/yellow]")
                     else:
-                        credentials_dict = {
-                            "access_key_id": access_key_id,
-                            "secret_access_key": secret_access_key,
-                        }
-                        if region:
-                            credentials_dict["region"] = region
-
-                        credential_manager.store_repository_backend_credentials(name, "s3", credentials_dict)
-
-                        # Update repository config to indicate credentials are stored
-                        repository_config['has_backend_credentials'] = True
-                        config_manager.update_repository(name, repository_config)
-                        backend_credentials_stored = True
-                        logger.info(f"AWS credentials stored for repository '{name}'")
+                        store_aws_credentials(name, credential_manager, config_manager, repository_config, credentials_dict, logger)
                 else:
-                    credentials_dict = {
-                        "access_key_id": access_key_id,
-                        "secret_access_key": secret_access_key,
-                    }
-                    if region:
-                        credentials_dict["region"] = region
-
-                    credential_manager.store_repository_backend_credentials(name, "s3", credentials_dict)
-
-                    # Update repository config to indicate credentials are stored
-                    repository_config['has_backend_credentials'] = True
-                    config_manager.update_repository(name, repository_config)
-                    backend_credentials_stored = True
-                    logger.info(f"AWS credentials stored for repository '{name}'")
-
+                    store_aws_credentials(name, credential_manager, config_manager, repository_config, credentials_dict, logger)
         elif normalized_uri.startswith(('b2://', 'b2:')):
             # B2 repository - prompt for B2 credentials
             if Confirm.ask(f"Would you like to store B2 credentials for repository '{name}'?", default=True):
