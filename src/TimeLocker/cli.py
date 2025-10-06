@@ -417,13 +417,16 @@ def backup_create(
 
     try:
         # Resolve repository name to URI
-        from .utils.repository_resolver import resolve_repository_uri
+        from .utils.repository_resolver import resolve_repository_uri, get_default_repository
+
+        # Get the actual repository name (for credential manager)
+        actual_repository_name = repository or get_default_repository()
         repository_uri = resolve_repository_uri(repository)
 
         # Create repository instance to leverage full password resolution chain
         # (explicit password → credential manager → environment → prompt)
         backup_manager = BackupManager()
-        repo = backup_manager.from_uri(repository_uri, password=password)
+        repo = backup_manager.from_uri(repository_uri, password=password, repository_name=actual_repository_name)
 
         # Get password from repository (uses full resolution chain)
         resolved_password = repo.password()
@@ -542,7 +545,10 @@ def snapshots_restore(
 
     try:
         # Resolve repository name to URI
-        from .utils.repository_resolver import resolve_repository_uri
+        from .utils.repository_resolver import resolve_repository_uri, get_default_repository
+
+        # Get the actual repository name (for credential manager)
+        actual_repository_name = repository or get_default_repository()
         repository_uri = resolve_repository_uri(repository)
 
         if not password:
@@ -564,7 +570,7 @@ def snapshots_restore(
         ) as progress:
             task = progress.add_task("Finding latest snapshot...", total=None)
             backup_manager = BackupManager()
-            repo = backup_manager.from_uri(repository_uri, password=password)
+            repo = backup_manager.from_uri(repository_uri, password=password, repository_name=actual_repository_name)
             snapshot_manager = SnapshotManager(repo)
             snapshots = snapshot_manager.list_snapshots()
 
@@ -621,7 +627,7 @@ def snapshots_restore(
 
             # Create repository
             progress.update(task, description="Connecting to repository...")
-            repo = backup_manager.from_uri(repository_uri, password=password)
+            repo = backup_manager.from_uri(repository_uri, password=password, repository_name=actual_repository_name)
 
             # Initialize restore manager with repository
             restore_manager = RestoreManager(repo)
@@ -703,7 +709,7 @@ def snapshots_list(
         # Create repository instance to leverage full password resolution chain
         # (explicit password → credential manager → environment → prompt)
         backup_manager = BackupManager()
-        repo = backup_manager.from_uri(repository_uri, password=password)
+        repo = backup_manager.from_uri(repository_uri, password=password, repository_name=actual_repository_name)
 
         # Get password from repository (uses full resolution chain)
         resolved_password = repo.password()
