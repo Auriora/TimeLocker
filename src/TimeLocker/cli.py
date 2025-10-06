@@ -1794,7 +1794,7 @@ def repos_add(
 
     # Enforce file:// for local paths
     try:
-        from .utils.repository_resolver import validate_repository_name_or_uri
+        from .utils.repository_resolver import validate_repository_name_or_uri, normalize_repository_uri
         validate_repository_name_or_uri(uri)
     except ValueError as ve:
         show_error_panel(
@@ -1803,6 +1803,8 @@ def repos_add(
         )
         raise typer.Exit(1)
 
+    # Normalize URI to restic format (e.g., s3://host/bucket -> s3:host/bucket)
+    normalized_uri = normalize_repository_uri(uri)
 
     try:
         from .config.configuration_module import ConfigurationModule
@@ -1813,10 +1815,10 @@ def repos_add(
         logger = logging.getLogger(__name__)
         config_manager = ConfigurationModule(config_dir=config_dir)
 
-        # Add repository configuration
+        # Add repository configuration with normalized URI
         repository_config = {
                 'name':        name,
-                'location':    uri,
+                'location':    normalized_uri,
                 'description': description or f"{name} repository"
         }
         config_manager.add_repository(repository_config)
@@ -1855,13 +1857,86 @@ def repos_add(
                 config_manager.update_repository(name, repository_config)
                 logger.debug(f"Password stored temporarily in configuration for repository '{name}': {e}")
 
+        # Handle backend credentials for S3/B2 repositories
+        backend_credentials_stored = False
+        if normalized_uri.startswith(('s3://', 's3:')):
+            # S3 repository - prompt for AWS credentials
+            if Confirm.ask(f"Would you like to store AWS credentials for repository '{name}'?", default=True):
+                console.print("\n[bold]AWS Credentials:[/bold]")
+                access_key_id = Prompt.ask("AWS Access Key ID", password=True)
+                secret_access_key = Prompt.ask("AWS Secret Access Key", password=True)
+                region = Prompt.ask("AWS Region (optional, press Enter to skip)", default="")
+
+                # Store credentials in credential manager
+                credential_manager = CredentialManager()
+                credentials_dict = {
+                    "access_key_id": access_key_id,
+                    "secret_access_key": secret_access_key,
+                }
+                if region:
+                    credentials_dict["region"] = region
+
+                def store_aws_credentials(name, credential_manager, config_manager, repository_config, credentials_dict, logger):
+                    credential_manager.store_repository_backend_credentials(name, "s3", credentials_dict)
+                    repository_config['has_backend_credentials'] = True
+                    config_manager.update_repository(name, repository_config)
+                    nonlocal backend_credentials_stored
+                    backend_credentials_stored = True
+                    logger.info(f"AWS credentials stored for repository '{name}'")
+
+                if credential_manager.is_locked():
+                    if not credential_manager.ensure_unlocked(allow_prompt=True):
+                        console.print("[yellow]⚠️  Could not unlock credential manager. Backend credentials not stored.[/yellow]")
+                    else:
+                        store_aws_credentials(name, credential_manager, config_manager, repository_config, credentials_dict, logger)
+                else:
+                    store_aws_credentials(name, credential_manager, config_manager, repository_config, credentials_dict, logger)
+        elif normalized_uri.startswith(('b2://', 'b2:')):
+            # B2 repository - prompt for B2 credentials
+            if Confirm.ask(f"Would you like to store B2 credentials for repository '{name}'?", default=True):
+                console.print("\n[bold]B2 Credentials:[/bold]")
+                account_id = Prompt.ask("B2 Account ID", password=True)
+                account_key = Prompt.ask("B2 Account Key", password=True)
+
+                # Store credentials in credential manager
+                credential_manager = CredentialManager()
+                if credential_manager.is_locked():
+                    if not credential_manager.ensure_unlocked(allow_prompt=True):
+                        console.print("[yellow]⚠️  Could not unlock credential manager. Backend credentials not stored.[/yellow]")
+                    else:
+                        credentials_dict = {
+                            "account_id": account_id,
+                            "account_key": account_key,
+                        }
+
+                        credential_manager.store_repository_backend_credentials(name, "b2", credentials_dict)
+
+                        # Update repository config to indicate credentials are stored
+                        repository_config['has_backend_credentials'] = True
+                        config_manager.update_repository(name, repository_config)
+                        backend_credentials_stored = True
+                        logger.info(f"B2 credentials stored for repository '{name}'")
+                else:
+                    credentials_dict = {
+                        "account_id": account_id,
+                        "account_key": account_key,
+                    }
+
+                    credential_manager.store_repository_backend_credentials(name, "b2", credentials_dict)
+
+                    # Update repository config to indicate credentials are stored
+                    repository_config['has_backend_credentials'] = True
+                    config_manager.update_repository(name, repository_config)
+                    backend_credentials_stored = True
+                    logger.info(f"B2 credentials stored for repository '{name}'")
+
         # Set as default if requested
         if set_default:
             config_manager.set_default_repository(name)
 
         # Build success message
         success_details = [
-                f"📍 URI: {uri}",
+                f"📍 URI: {normalized_uri}",
                 f"📝 Description: {description or f'{name} repository'}",
                 f"🎯 Default: {'Yes' if set_default else 'No'}",
         ]
@@ -1872,6 +1947,10 @@ def repos_add(
             success_details.append("🔐 Password: Provided (will be stored during initialization)")
         else:
             success_details.append("🔐 Password: Not provided")
+
+        if backend_credentials_stored:
+            backend_type = "AWS" if normalized_uri.startswith(('s3://', 's3:')) else "B2"
+            success_details.append(f"🔑 {backend_type} Credentials: Stored securely")
 
         console.print()
         console.print(Panel(
@@ -1983,6 +2062,235 @@ def repos_default(
         raise typer.Exit(1)
     except Exception as e:
         show_error_panel("Configuration Error", f"Failed to set default repository: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("credentials-set")
+def repos_credentials_set(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Set or update backend credentials for a repository."""
+    setup_logging(verbose)
+
+    try:
+        from .config.configuration_module import ConfigurationModule
+        from .security.credential_manager import CredentialManager
+        from .interfaces.exceptions import RepositoryNotFoundError
+        import logging
+        logger = logging.getLogger(__name__)
+
+        config_manager = ConfigurationModule(config_dir=config_dir)
+
+        # Get repository configuration
+        try:
+            repo_config = config_manager.get_repository(name)
+        except:
+            show_error_panel("Repository Not Found", f"Repository '{name}' not found")
+            raise typer.Exit(1)
+
+        # Determine repository type from URI
+        uri = repo_config.get('uri') or repo_config.get('location', '')
+        if uri.startswith(('s3://', 's3:')):
+            backend_type = "s3"
+            console.print(f"\n[bold]Setting AWS credentials for repository '{name}'[/bold]")
+            access_key_id = Prompt.ask("AWS Access Key ID", password=True)
+            secret_access_key = Prompt.ask("AWS Secret Access Key", password=True)
+            region = Prompt.ask("AWS Region (optional, press Enter to skip)", default="")
+
+            credentials_dict = {
+                "access_key_id": access_key_id,
+                "secret_access_key": secret_access_key,
+            }
+            if region:
+                credentials_dict["region"] = region
+
+        elif uri.startswith(('b2://', 'b2:')):
+            backend_type = "b2"
+            console.print(f"\n[bold]Setting B2 credentials for repository '{name}'[/bold]")
+            account_id = Prompt.ask("B2 Account ID", password=True)
+            account_key = Prompt.ask("B2 Account Key", password=True)
+
+            credentials_dict = {
+                "account_id": account_id,
+                "account_key": account_key,
+            }
+
+        else:
+            show_error_panel(
+                "Unsupported Repository Type",
+                f"Backend credentials are only supported for S3 and B2 repositories.\n"
+                f"Repository '{name}' has URI: {uri}"
+            )
+            raise typer.Exit(1)
+
+        # Store credentials
+        credential_manager = CredentialManager()
+        if credential_manager.is_locked():
+            if not credential_manager.ensure_unlocked(allow_prompt=True):
+                show_error_panel("Credential Manager Locked", "Could not unlock credential manager")
+                raise typer.Exit(1)
+
+        credential_manager.store_repository_backend_credentials(name, backend_type, credentials_dict)
+
+        # Update repository config to indicate credentials are stored
+        repo_config_update = {'has_backend_credentials': True}
+        config_manager.update_repository(name, repo_config_update)
+
+        console.print()
+        console.print(Panel(
+            f"✅ {backend_type.upper()} credentials stored successfully for repository '{name}'!",
+            title="[bold green]Credentials Stored[/bold green]",
+            border_style="green"
+        ))
+
+    except Exception as e:
+        show_error_panel("Error", f"Failed to set credentials: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("credentials-remove")
+def repos_credentials_remove(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
+) -> None:
+    """Remove backend credentials for a repository."""
+    setup_logging(verbose)
+
+    try:
+        from .config.configuration_module import ConfigurationModule
+        from .security.credential_manager import CredentialManager
+        from .interfaces.exceptions import RepositoryNotFoundError
+
+        config_manager = ConfigurationModule(config_dir=config_dir)
+
+        # Get repository configuration
+        try:
+            repo_config = config_manager.get_repository(name)
+        except:
+            show_error_panel("Repository Not Found", f"Repository '{name}' not found")
+            raise typer.Exit(1)
+
+        # Determine repository type from URI
+        uri = repo_config.get('uri', '')
+        if uri.startswith(('s3://', 's3:')):
+            backend_type = "s3"
+        elif uri.startswith(('b2://', 'b2:')):
+            backend_type = "b2"
+        else:
+            show_error_panel(
+                "Unsupported Repository Type",
+                f"Backend credentials are only supported for S3 and B2 repositories.\n"
+                f"Repository '{name}' has URI: {uri}"
+            )
+            raise typer.Exit(1)
+
+        # Confirm removal unless --yes flag is used
+        if not yes:
+            if not Confirm.ask(f"Remove {backend_type.upper()} credentials for repository '{name}'?"):
+                console.print("[yellow]Cancelled[/yellow]")
+                raise typer.Exit(0)
+
+        # Remove credentials
+        credential_manager = CredentialManager()
+        if credential_manager.is_locked():
+            if not credential_manager.ensure_unlocked(allow_prompt=True):
+                show_error_panel("Credential Manager Locked", "Could not unlock credential manager")
+                raise typer.Exit(1)
+
+        removed = credential_manager.remove_repository_backend_credentials(name, backend_type)
+
+        if removed:
+            # Update repository config
+            repo_config_update = {'has_backend_credentials': False}
+            config_manager.update_repository(name, repo_config_update)
+
+            console.print()
+            console.print(Panel(
+                f"✅ {backend_type.upper()} credentials removed for repository '{name}'",
+                title="[bold green]Credentials Removed[/bold green]",
+                border_style="green"
+            ))
+        else:
+            console.print(f"[yellow]No credentials found for repository '{name}'[/yellow]")
+
+    except Exception as e:
+        show_error_panel("Error", f"Failed to remove credentials: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("credentials-show")
+def repos_credentials_show(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Show whether backend credentials are configured for a repository."""
+    setup_logging(verbose)
+
+    try:
+        from .config.configuration_module import ConfigurationModule
+        from .security.credential_manager import CredentialManager
+        from .interfaces.exceptions import RepositoryNotFoundError
+
+        config_manager = ConfigurationModule(config_dir=config_dir)
+
+        # Get repository configuration
+        try:
+            repo_config = config_manager.get_repository(name)
+        except:
+            show_error_panel("Repository Not Found", f"Repository '{name}' not found")
+            raise typer.Exit(1)
+
+        # Determine repository type from URI
+        uri = repo_config.get('uri', '')
+        if uri.startswith(('s3://', 's3:')):
+            backend_type = "s3"
+            backend_name = "AWS"
+        elif uri.startswith(('b2://', 'b2:')):
+            backend_type = "b2"
+            backend_name = "B2"
+        else:
+            console.print(f"[dim]Repository '{name}' does not use S3 or B2 backend[/dim]")
+            console.print(f"[dim]URI: {uri}[/dim]")
+            raise typer.Exit(0)
+
+        # Check if credentials are stored
+        credential_manager = CredentialManager()
+        if credential_manager.is_locked():
+            if not credential_manager.ensure_unlocked(allow_prompt=True):
+                show_error_panel("Credential Manager Locked", "Could not unlock credential manager")
+                raise typer.Exit(1)
+
+        has_credentials = credential_manager.has_repository_backend_credentials(name, backend_type)
+
+        console.print()
+        if has_credentials:
+            console.print(Panel(
+                f"✅ {backend_name} credentials are configured for repository '{name}'\n\n"
+                f"[dim]Note: Actual credential values are encrypted and not displayed[/dim]",
+                title=f"[bold green]{backend_name} Credentials Status[/bold green]",
+                border_style="green"
+            ))
+        else:
+            console.print(Panel(
+                f"❌ No {backend_name} credentials configured for repository '{name}'\n\n"
+                f"💡 Use [cyan]tl repos credentials-set {name}[/cyan] to add credentials",
+                title=f"[bold yellow]{backend_name} Credentials Status[/bold yellow]",
+                border_style="yellow"
+            ))
+
+    except Exception as e:
+        show_error_panel("Error", f"Failed to check credentials: {e}")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)

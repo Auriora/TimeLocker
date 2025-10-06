@@ -161,7 +161,9 @@ class ValidationService:
 
             # Validate remote URIs
             elif scheme in {'s3', 'b2', 'azure', 'gcs'}:
-                if not parsed.netloc:
+                # Support both standard format (s3://host/bucket) and restic format (s3:host/bucket)
+                # Standard format has netloc, restic format has everything in path
+                if not parsed.netloc and not parsed.path:
                     result.add_error(f"{scheme.upper()} URI must have a hostname/bucket")
 
         except Exception as e:

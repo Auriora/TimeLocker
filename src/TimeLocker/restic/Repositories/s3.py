@@ -34,8 +34,24 @@ class S3ResticRepository(ResticRepository):
             aws_secret_access_key: Optional[str] = None,
             aws_default_region: Optional[str] = None,
             credential_manager: Optional[object] = None,
+            repository_name: Optional[str] = None,
     ):
         super().__init__(location, password=password, credential_manager=credential_manager)
+
+        # Try to get per-repository credentials from credential manager first
+        if credential_manager and repository_name:
+            try:
+                repo_creds = credential_manager.get_repository_backend_credentials(repository_name, "s3")
+                if repo_creds:
+                    logger.debug(f"Using per-repository S3 credentials for '{repository_name}'")
+                    aws_access_key_id = aws_access_key_id or repo_creds.get("access_key_id")
+                    aws_secret_access_key = aws_secret_access_key or repo_creds.get("secret_access_key")
+                    aws_default_region = aws_default_region or repo_creds.get("region")
+            except Exception as e:
+                # Log but don't fail - fall back to other credential sources
+                logger.debug(f"Could not retrieve per-repository S3 credentials: {e}")
+
+        # Fall back to constructor parameters or environment variables
         self.aws_access_key_id = aws_access_key_id if aws_access_key_id is not None else os.getenv("AWS_ACCESS_KEY_ID")
         self.aws_secret_access_key = aws_secret_access_key if aws_secret_access_key is not None else os.getenv("AWS_SECRET_ACCESS_KEY")
         self.aws_default_region = aws_default_region if aws_default_region is not None else os.getenv("AWS_DEFAULT_REGION")

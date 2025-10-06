@@ -471,15 +471,204 @@ class CredentialManager:
     def get_backend_credentials(self, backend_type: str) -> Dict[str, str]:
         """
         Retrieve backend-specific credentials
-        
+
         Args:
             backend_type: Type of backend (s3, b2, etc.)
-            
+
         Returns:
             Dict[str, str]: Dictionary of credential key-value pairs
         """
         credentials = self._load_credentials()
         return credentials.get("backends", {}).get(backend_type, {})
+
+    def store_repository_backend_credentials(
+        self,
+        repository_id: str,
+        backend_type: str,
+        credentials_dict: Dict[str, str]
+    ) -> None:
+        """
+        Store backend-specific credentials for a specific repository.
+
+        Args:
+            repository_id: Repository identifier (name)
+            backend_type: Type of backend (s3, b2, etc.)
+            credentials_dict: Dictionary of credential key-value pairs
+                For S3: {"access_key_id": "...", "secret_access_key": "...", "region": "..."}
+                For B2: {"account_id": "...", "account_key": "..."}
+        """
+        self._check_auto_lock()
+
+        if not repository_id or not backend_type:
+            raise CredentialManagerError("Repository ID and backend type cannot be empty")
+
+        if self.is_locked():
+            raise CredentialManagerError("Credential store is locked")
+
+        with self._file_lock:
+            try:
+                credentials = self._load_credentials()
+
+                # Initialize nested structure if needed
+                if "repository_backends" not in credentials:
+                    credentials["repository_backends"] = {}
+                if repository_id not in credentials["repository_backends"]:
+                    credentials["repository_backends"][repository_id] = {}
+
+                # Store credentials with metadata
+                credentials["repository_backends"][repository_id][backend_type] = {
+                    "credentials": credentials_dict,
+                    "created_at": datetime.now().isoformat(),
+                    "last_accessed": datetime.now().isoformat(),
+                    "access_count": 0
+                }
+
+                self._save_credentials(credentials)
+                self._log_audit_event(
+                    "store_repository_backend_credentials",
+                    f"{repository_id}:{backend_type}",
+                    success=True
+                )
+
+            except Exception as e:
+                self._log_audit_event(
+                    "store_repository_backend_credentials",
+                    f"{repository_id}:{backend_type}",
+                    success=False,
+                    details=str(e)
+                )
+                raise
+
+    def get_repository_backend_credentials(
+        self,
+        repository_id: str,
+        backend_type: str
+    ) -> Dict[str, str]:
+        """
+        Retrieve backend-specific credentials for a specific repository.
+
+        Args:
+            repository_id: Repository identifier (name)
+            backend_type: Type of backend (s3, b2, etc.)
+
+        Returns:
+            Dict[str, str]: Dictionary of credential key-value pairs, empty dict if not found
+        """
+        self._check_auto_lock()
+
+        if self.is_locked():
+            raise CredentialManagerError("Credential store is locked")
+
+        with self._file_lock:
+            try:
+                credentials = self._load_credentials()
+                repo_backends = credentials.get("repository_backends", {}).get(repository_id, {})
+                backend_creds = repo_backends.get(backend_type)
+
+                if backend_creds:
+                    # Update access tracking
+                    backend_creds["last_accessed"] = datetime.now().isoformat()
+                    backend_creds["access_count"] = backend_creds.get("access_count", 0) + 1
+                    self._save_credentials(credentials)
+
+                    self._log_audit_event(
+                        "get_repository_backend_credentials",
+                        f"{repository_id}:{backend_type}",
+                        success=True
+                    )
+                    return backend_creds.get("credentials", {})
+                else:
+                    self._log_audit_event(
+                        "get_repository_backend_credentials",
+                        f"{repository_id}:{backend_type}",
+                        success=False,
+                        details="Credentials not found"
+                    )
+                    return {}
+
+            except Exception as e:
+                self._log_audit_event(
+                    "get_repository_backend_credentials",
+                    f"{repository_id}:{backend_type}",
+                    success=False,
+                    details=str(e)
+                )
+                raise
+
+    def remove_repository_backend_credentials(
+        self,
+        repository_id: str,
+        backend_type: str
+    ) -> bool:
+        """
+        Remove backend credentials for a specific repository.
+
+        Args:
+            repository_id: Repository identifier (name)
+            backend_type: Type of backend (s3, b2, etc.)
+
+        Returns:
+            bool: True if removed, False if not found
+        """
+        if self.is_locked():
+            raise CredentialManagerError("Credential store is locked")
+
+        with self._file_lock:
+            try:
+                credentials = self._load_credentials()
+                repo_backends = credentials.get("repository_backends", {}).get(repository_id, {})
+
+                if backend_type in repo_backends:
+                    del repo_backends[backend_type]
+
+                    # Clean up empty repository entry
+                    if not repo_backends:
+                        del credentials["repository_backends"][repository_id]
+
+                    self._save_credentials(credentials)
+                    self._log_audit_event(
+                        "remove_repository_backend_credentials",
+                        f"{repository_id}:{backend_type}",
+                        success=True
+                    )
+                    return True
+                else:
+                    return False
+
+            except Exception as e:
+                self._log_audit_event(
+                    "remove_repository_backend_credentials",
+                    f"{repository_id}:{backend_type}",
+                    success=False,
+                    details=str(e)
+                )
+                raise
+
+    def has_repository_backend_credentials(
+        self,
+        repository_id: str,
+        backend_type: str
+    ) -> bool:
+        """
+        Check if repository has backend credentials stored.
+
+        Args:
+            repository_id: Repository identifier (name)
+            backend_type: Type of backend (s3, b2, etc.)
+
+        Returns:
+            bool: True if credentials exist, False otherwise
+        """
+        if self.is_locked():
+            # Don't raise error for check operations, just return False
+            return False
+
+        try:
+            credentials = self._load_credentials()
+            repo_backends = credentials.get("repository_backends", {}).get(repository_id, {})
+            return backend_type in repo_backends
+        except Exception:
+            return False
 
     def list_repositories(self) -> list[str]:
         """List all stored repository IDs"""
