@@ -15,13 +15,13 @@ The protocol in the URI tells restic which endpoint to use. Without it, restic m
 
 ## Overview
 
-As of the latest version, TimeLocker stores AWS credentials and S3 endpoint configuration per-repository in the credential manager. This means:
+As of the latest version, TimeLocker stores AWS credentials per-repository in the credential manager. This means:
 
 - ✅ No manual environment variable setup required
-- ✅ Endpoint stored securely per-repository
+- ✅ Credentials stored securely per-repository
 - ✅ Automatic environment configuration for restic operations
 - ✅ Easy switching between different S3-compatible services
-- ✅ Protocol (HTTP/HTTPS) specified directly in repository URI
+- ✅ Endpoint and protocol (HTTP/HTTPS) specified directly in repository URI
 
 ## Supported Services
 
@@ -36,15 +36,14 @@ Store password: yes
 Store AWS credentials: yes
 AWS Access Key ID: minioadmin
 AWS Secret Access Key: minioadmin
-AWS Region: (optional, press Enter to skip)
-AWS S3 Endpoint: (optional, already in URI)
-Skip TLS certificate verification: y (if using self-signed certificates)
+AWS Region: (press Enter to skip)
+Skip TLS certificate verification: y (for self-signed certificates)
 ```
 
 **Important Notes:**
-- Include the protocol (`http://` or `https://`) in the URI itself
+- Include the protocol (`http://` or `https://`) and endpoint in the URI itself
 - For self-hosted MinIO with self-signed certificates, answer "y" to skip TLS verification
-- The endpoint in the URI takes precedence over the separate endpoint configuration
+- The endpoint is part of the URI, not stored separately in credentials
 
 ### Wasabi
 Cloud storage service with S3-compatible API.
