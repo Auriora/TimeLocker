@@ -155,8 +155,8 @@ export AWS_S3_ENDPOINT="http://localhost:9000"
 source .env.test
 
 # Add repository
-`tl repos add minio-test "s3:http://minio.local/timelocker-test/my-repo" \
-  --description "MinIO test repository"`
+tl repos add minio-test "s3:http://minio.local/timelocker-test/my-repo" \
+  --description "MinIO test repository"
 
 # Initialize repository
 tl repos init minio-test --password "test-password-123"
