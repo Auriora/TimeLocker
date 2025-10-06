@@ -1956,7 +1956,7 @@ def repos_add(
         if password_stored:
             console.print(f"🔒 [bold]Password stored:[/bold] Repository operations will work without prompts")
         elif password:
-            console.print(f"💡 [bold]Next step:[/bold] Run [cyan]tl repo init {name}[/cyan] to initialize and store password")
+            console.print(f"💡 [bold]Next step:[/bold] Run [cyan]tl repos init {name}[/cyan] to initialize and store password")
 
     except RepositoryAlreadyExistsError as e:
         show_error_panel("Repository Exists", str(e))
