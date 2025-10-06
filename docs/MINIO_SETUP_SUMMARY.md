@@ -26,10 +26,10 @@ pytest tests/TimeLocker/integration/test_s3_minio.py -v
 All configuration files have been updated to use `minio.local`:
 
 ### Updated Files
-- ✅ `test-config.json` - Uses `minio.local:9000`
-- ✅ `test-config.example.json` - Uses `minio.local:9000`
-- ✅ `.env.test.example` - Uses `minio.local:9000`
-- ✅ `tests/TimeLocker/integration/test_s3_minio.py` - Defaults to `minio.local:9000`
+- ✅ `test-config.json` - Uses `minio.local` (no port, proxied via Traefik)
+- ✅ `test-config.example.json` - Uses `minio.local` (no port, proxied via Traefik)
+- ✅ `.env.test.example` - Uses `minio.local` (no port, proxied via Traefik)
+- ✅ `tests/TimeLocker/integration/test_s3_minio.py` - Defaults to `minio.local` (no port, proxied via Traefik)
 - ✅ `scripts/setup_minio_test.sh` - Verifies access to `minio.local`
 - ✅ `docs/MINIO_TESTING.md` - Updated for existing deployment
 - ✅ `TESTING_QUICKSTART.md` - Updated for existing deployment
