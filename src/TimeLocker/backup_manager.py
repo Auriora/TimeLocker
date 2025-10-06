@@ -109,12 +109,17 @@ class BackupManager:
         }
 
     @classmethod
-    def from_uri(cls, uri: str, password: Optional[str] = None) -> 'BackupRepository':
+    def from_uri(cls, uri: str, password: Optional[str] = None, repository_name: Optional[str] = None) -> 'BackupRepository':
         """
         Create repository from URI using the factory pattern.
 
         This method now delegates to the repository factory for better
         separation of concerns and extensibility.
+
+        Args:
+            uri: Repository URI
+            password: Optional password for repository
+            repository_name: Optional repository name for per-repository credential lookup
         """
         logger.info(f"Creating repository from URI: {cls.redact_sensitive_info(uri.replace('{', '{{').replace('}', '}}'))}")
 
@@ -129,23 +134,31 @@ class BackupManager:
             raise BackupManagerError(f"Unsupported repository scheme: {scheme}")
 
         try:
-            return repository_factory.create_repository(uri, password)
+            # Pass repository_name if provided for per-repository credential lookup
+            kwargs = {}
+            if repository_name:
+                kwargs['repository_name'] = repository_name
+            return repository_factory.create_repository(uri, password, **kwargs)
         except Exception as e:
             # Normalize exceptions into BackupManagerError for higher-level callers/tests
             raise BackupManagerError(f"Failed to create repository from URI: {e}")
 
-    def create_repository(self, uri: str, password: Optional[str] = None) -> 'BackupRepository':
+    def create_repository(self, uri: str, password: Optional[str] = None, repository_name: Optional[str] = None) -> 'BackupRepository':
         """
         Create repository using the injected factory.
 
         Args:
             uri: Repository URI
             password: Optional password
+            repository_name: Optional repository name for per-repository credential lookup
 
         Returns:
             BackupRepository instance
         """
-        return self._repository_factory.create_repository(uri, password)
+        kwargs = {}
+        if repository_name:
+            kwargs['repository_name'] = repository_name
+        return self._repository_factory.create_repository(uri, password, **kwargs)
 
     @staticmethod
     def redact_sensitive_info(uri: str) -> str:

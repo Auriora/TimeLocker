@@ -28,8 +28,24 @@ from ..restic_repository import RepositoryError, ResticRepository
 class B2ResticRepository(ResticRepository):
     def __init__(self, location: str, password: Optional[str] = None,
                  b2_account_id: Optional[str] = None,
-                 b2_account_key: Optional[str] = None):
-        super().__init__(location, password)
+                 b2_account_key: Optional[str] = None,
+                 credential_manager: Optional[object] = None,
+                 repository_name: Optional[str] = None):
+        super().__init__(location, password, credential_manager=credential_manager)
+
+        # Try to get per-repository credentials from credential manager first
+        if credential_manager and repository_name:
+            try:
+                repo_creds = credential_manager.get_repository_backend_credentials(repository_name, "b2")
+                if repo_creds:
+                    logger.debug(f"Using per-repository B2 credentials for '{repository_name}'")
+                    b2_account_id = b2_account_id or repo_creds.get("account_id")
+                    b2_account_key = b2_account_key or repo_creds.get("account_key")
+            except Exception as e:
+                # Log but don't fail - fall back to other credential sources
+                logger.debug(f"Could not retrieve per-repository B2 credentials: {e}")
+
+        # Fall back to constructor parameters or environment variables
         self.b2_account_id = b2_account_id or os.getenv("B2_ACCOUNT_ID")
         self.b2_account_key = b2_account_key or os.getenv("B2_ACCOUNT_KEY")
 

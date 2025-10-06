@@ -68,6 +68,49 @@ def _detect_type(uri: str) -> str:
     return "local"
 
 
+def normalize_repository_uri(uri: str) -> str:
+    """
+    Normalize repository URI to restic format.
+
+    Converts standard URI formats (e.g., s3://host/bucket) to restic formats (e.g., s3:host/bucket)
+    for consistent storage in configuration.
+
+    Args:
+        uri: Repository URI to normalize
+
+    Returns:
+        Normalized URI in restic format
+
+    Examples:
+        normalize_repository_uri("s3://minio.local/bucket") -> "s3:minio.local/bucket"
+        normalize_repository_uri("s3:minio.local/bucket") -> "s3:minio.local/bucket"
+        normalize_repository_uri("b2://bucket/path") -> "b2:bucket/path"
+        normalize_repository_uri("file:///path/to/repo") -> "file:///path/to/repo"
+    """
+    from urllib.parse import urlparse
+
+    if not uri:
+        return uri
+
+    parsed = urlparse(uri)
+    scheme = parsed.scheme.lower()
+
+    # S3: Convert s3://host/bucket to s3:host/bucket
+    if scheme == 's3' and parsed.netloc:
+        bucket = parsed.netloc
+        path = parsed.path.lstrip("/")
+        return f"s3:{bucket}/{path}" if path else f"s3:{bucket}/"
+
+    # B2: Convert b2://bucket/path to b2:bucket/path
+    elif scheme == 'b2' and parsed.netloc:
+        bucket = parsed.netloc
+        path = parsed.path.lstrip("/")
+        return f"b2:{bucket}/{path}" if path else f"b2:{bucket}/"
+
+    # For other schemes or already in restic format, return as-is
+    return uri
+
+
 def resolve_repository_uri(name_or_uri: Optional[str],
                            config_dir: Optional[Path] = None) -> str:
     """

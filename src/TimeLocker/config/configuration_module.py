@@ -508,6 +508,43 @@ class ConfigurationModule(IConfigurationProvider):
         config.repositories[repo.name] = repo
         self.save_config(config)
 
+    def update_repository(self, repository_name: str, repository_config: Union[Dict[str, Any], RepositoryConfig]) -> None:
+        """Update existing repository configuration"""
+        config = self.get_config()
+
+        # Check if repository exists
+        if repository_name not in config.repositories:
+            raise RepositoryNotFoundError(f"Repository '{repository_name}' not found")
+
+        if isinstance(repository_config, dict):
+            # Get existing repository
+            existing_repo = config.repositories[repository_name]
+            existing_dict = existing_repo.to_dict() if hasattr(existing_repo, 'to_dict') else existing_repo.__dict__
+
+            # Merge with new configuration
+            existing_dict.update(repository_config)
+
+            # Ensure name is set correctly
+            existing_dict['name'] = repository_name
+
+            # Map legacy 'uri' field to 'location' (same as from_dict does)
+            if 'uri' in existing_dict:
+                existing_dict['location'] = existing_dict.pop('uri')
+
+            # Remove legacy fields not supported by RepositoryConfig
+            legacy_fields = ['type', 'created', 'encryption']
+            for field in legacy_fields:
+                existing_dict.pop(field, None)
+
+            # Convert dict to RepositoryConfig
+            repo = RepositoryConfig(name=repository_name, **{k: v for k, v in existing_dict.items() if k != 'name'})
+        else:
+            repo = repository_config
+
+        config.repositories[repository_name] = repo
+        self.save_config(config)
+        logger.debug(f"Repository '{repository_name}' updated successfully")
+
     def remove_repository(self, repository_name: str) -> None:
         """Remove repository configuration"""
         config = self.get_config()

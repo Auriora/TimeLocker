@@ -33,3 +33,12 @@ htmlcov/
 performance_metrics.json
 /tests.log
 /coverage.xml
+temp/
+
+# Test configuration (contains credentials)
+test-config.json
+test-config.*.json
+.env.test
+
+# MinIO data
+minio-data/

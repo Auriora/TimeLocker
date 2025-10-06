@@ -155,6 +155,7 @@ class RepositoryConfig:
     tags: List[str] = field(default_factory=list)
     enabled: bool = True
     read_only: bool = False
+    has_backend_credentials: bool = False  # Flag indicating backend credentials are stored in credential manager
 
     def __post_init__(self):
         # If only 'path' was provided, treat it as 'location'

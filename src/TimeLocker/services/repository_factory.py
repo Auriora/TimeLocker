@@ -114,15 +114,16 @@ class RepositoryFactory(IRepositoryFactory):
                           **kwargs) -> BackupRepository:
         """
         Create a repository instance from URI.
-        
+
         Args:
             uri: Repository URI
             password: Optional password for repository
             **kwargs: Additional repository-specific parameters
-            
+                     repository_name: Optional repository name for credential lookup
+
         Returns:
             BackupRepository instance
-            
+
         Raises:
             UnsupportedSchemeError: If URI scheme is not supported
             RepositoryFactoryError: If repository creation fails
@@ -158,6 +159,10 @@ class RepositoryFactory(IRepositoryFactory):
             # Provide credential manager to repository
             kwargs['credential_manager'] = self._get_credential_manager()
             logger.debug("Credential manager added to kwargs")
+
+            # Pass repository_name if provided (for per-repository credential lookup)
+            if 'repository_name' in kwargs:
+                logger.debug(f"Repository name provided for credential lookup: {kwargs['repository_name']}")
 
             # Use from_parsed_uri class method if available, otherwise fall back to constructor
             if hasattr(repository_class, 'from_parsed_uri'):
