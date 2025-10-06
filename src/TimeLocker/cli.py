@@ -827,8 +827,9 @@ def repo_init(
 
         # Create repository instance to leverage full password resolution chain
         # (explicit password → credential manager → environment → prompt)
+        # Pass repository_name so S3/B2 repositories can retrieve backend credentials
         manager = BackupManager()
-        repo = manager.from_uri(repository_uri, password=password)
+        repo = manager.from_uri(repository_uri, password=password, repository_name=name)
 
         # Get password from repository (uses full resolution chain)
         resolved_password = repo.password()
