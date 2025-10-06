@@ -149,10 +149,12 @@ class S3ResticRepository(ResticRepository):
             env["AWS_DEFAULT_REGION"] = self.aws_default_region
         if self.aws_s3_endpoint:
             env["AWS_S3_ENDPOINT"] = self.aws_s3_endpoint
-            logger.debug(f"Setting AWS_S3_ENDPOINT to {self.aws_s3_endpoint}")
+            logger.info(f"Setting AWS_S3_ENDPOINT to {self.aws_s3_endpoint}")
         if self.insecure_tls:
             env["RESTIC_INSECURE_TLS"] = "true"
-            logger.debug("Setting RESTIC_INSECURE_TLS=true to skip TLS certificate verification")
+            logger.info("Setting RESTIC_INSECURE_TLS=true to skip TLS certificate verification")
+        else:
+            logger.info(f"insecure_tls is False or None: {self.insecure_tls}")
         return env
 
     def validate(self):
