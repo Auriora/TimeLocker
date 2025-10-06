@@ -166,10 +166,12 @@ class S3ResticRepository(ResticRepository):
             path_parts = location_parts.split("/")
             host = path_parts[0]
             # More reliable hostname detection for host/bucket style
+            # If endpoint is configured, first part is always hostname
             is_hostname = (
+                self.aws_s3_endpoint is not None or  # Endpoint configured = host/bucket format
                 host.endswith('.amazonaws.com') or
                 host.endswith('.backblazeb2.com') or
-                ('.' in host and len(host.split('.')) >= 3)
+                ('.' in host and len(host.split('.')) >= 2)  # Any domain name (e.g., minio.local)
             )
             if len(path_parts) >= 2 and is_hostname:
                 bucket_name = path_parts[1]
