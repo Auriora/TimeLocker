@@ -2334,9 +2334,36 @@ def repos_credentials_show(
 
         console.print()
         if has_credentials:
+            # Get the actual credentials to show which fields are set
+            creds = credential_manager.get_repository_backend_credentials(name, backend_type)
+
+            # Build credential fields list
+            fields = []
+            if backend_type == "s3":
+                if creds.get("access_key_id"):
+                    fields.append("✓ Access Key ID")
+                if creds.get("secret_access_key"):
+                    fields.append("✓ Secret Access Key")
+                if creds.get("region"):
+                    fields.append(f"✓ Region: {creds['region']}")
+                if creds.get("endpoint"):
+                    fields.append(f"✓ Endpoint: {creds['endpoint']}")
+                if creds.get("insecure_tls"):
+                    fields.append("✓ TLS Verification: Disabled (insecure_tls=true)")
+                else:
+                    fields.append("✓ TLS Verification: Enabled")
+            elif backend_type == "b2":
+                if creds.get("account_id"):
+                    fields.append("✓ Account ID")
+                if creds.get("account_key"):
+                    fields.append("✓ Account Key")
+
+            fields_text = "\n".join(fields)
+
             console.print(Panel(
                 f"✅ {backend_name} credentials are configured for repository '{name}'\n\n"
-                f"[dim]Note: Actual credential values are encrypted and not displayed[/dim]",
+                f"{fields_text}\n\n"
+                f"[dim]Note: Sensitive values are encrypted and not displayed[/dim]",
                 title=f"[bold green]{backend_name} Credentials Status[/bold green]",
                 border_style="green"
             ))
