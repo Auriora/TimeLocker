@@ -2,6 +2,17 @@
 
 TimeLocker supports S3-compatible storage services like MinIO, Wasabi, Backblaze B2 (via S3 API), and others through comprehensive AWS S3 endpoint configuration.
 
+## Important: URI Format
+
+**For S3-compatible services, always include the protocol (`http://` or `https://`) in the repository URI:**
+
+✅ **Correct:** `s3:https://s3.wasabisys.com/my-bucket`
+✅ **Correct:** `s3:http://minio.local:9000/my-bucket`
+❌ **Incorrect:** `s3:s3.wasabisys.com/my-bucket`
+❌ **Incorrect:** `s3:minio.local/my-bucket`
+
+The protocol in the URI tells restic which endpoint to use. Without it, restic may default to AWS S3 endpoints.
+
 ## Overview
 
 As of the latest version, TimeLocker stores AWS credentials and S3 endpoint configuration per-repository in the credential manager. This means:
@@ -10,6 +21,7 @@ As of the latest version, TimeLocker stores AWS credentials and S3 endpoint conf
 - ✅ Endpoint stored securely per-repository
 - ✅ Automatic environment configuration for restic operations
 - ✅ Easy switching between different S3-compatible services
+- ✅ Protocol (HTTP/HTTPS) specified directly in repository URI
 
 ## Supported Services
 
@@ -18,31 +30,34 @@ Self-hosted S3-compatible object storage.
 
 **Example Configuration:**
 ```bash
-tl repos add my-minio-repo
+tl repos add my-minio-repo s3:http://minio.local:9000/my-bucket
 # When prompted:
-Repository URI: s3:minio.local/my-bucket
 Store password: yes
 Store AWS credentials: yes
 AWS Access Key ID: minioadmin
 AWS Secret Access Key: minioadmin
-AWS Region: us-east-1
-AWS S3 Endpoint: http://minio.local:9000
+AWS Region: (optional, press Enter to skip)
+AWS S3 Endpoint: (optional, already in URI)
+Skip TLS certificate verification: y (if using self-signed certificates)
 ```
+
+**Important Notes:**
+- Include the protocol (`http://` or `https://`) in the URI itself
+- For self-hosted MinIO with self-signed certificates, answer "y" to skip TLS verification
+- The endpoint in the URI takes precedence over the separate endpoint configuration
 
 ### Wasabi
 Cloud storage service with S3-compatible API.
 
 **Example Configuration:**
 ```bash
-tl repos add my-wasabi-repo
+tl repos add my-wasabi-repo s3:https://s3.wasabisys.com/my-bucket
 # When prompted:
-Repository URI: s3:s3.wasabisys.com/my-bucket
 Store password: yes
 Store AWS credentials: yes
 AWS Access Key ID: <your-wasabi-access-key>
 AWS Secret Access Key: <your-wasabi-secret-key>
 AWS Region: us-east-1
-AWS S3 Endpoint: https://s3.wasabisys.com
 ```
 
 ### Backblaze B2 (S3 API)
@@ -50,15 +65,13 @@ Backblaze B2 with S3-compatible API.
 
 **Example Configuration:**
 ```bash
-tl repos add my-b2-s3-repo
+tl repos add my-b2-s3-repo s3:https://s3.us-west-002.backblazeb2.com/my-bucket
 # When prompted:
-Repository URI: s3:s3.us-west-002.backblazeb2.com/my-bucket
 Store password: yes
 Store AWS credentials: yes
 AWS Access Key ID: <your-b2-keyID>
 AWS Secret Access Key: <your-b2-applicationKey>
 AWS Region: us-west-002
-AWS S3 Endpoint: https://s3.us-west-002.backblazeb2.com
 ```
 
 ### DigitalOcean Spaces
@@ -66,15 +79,13 @@ DigitalOcean's S3-compatible object storage.
 
 **Example Configuration:**
 ```bash
-tl repos add my-do-spaces-repo
+tl repos add my-do-spaces-repo s3:https://nyc3.digitaloceanspaces.com/my-space
 # When prompted:
-Repository URI: s3:nyc3.digitaloceanspaces.com/my-space
 Store password: yes
 Store AWS credentials: yes
 AWS Access Key ID: <your-spaces-access-key>
 AWS Secret Access Key: <your-spaces-secret-key>
 AWS Region: nyc3
-AWS S3 Endpoint: https://nyc3.digitaloceanspaces.com
 ```
 
 ## Quick Start Guide
