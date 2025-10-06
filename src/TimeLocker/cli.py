@@ -836,7 +836,7 @@ def repo_init(
         config_manager = ConfigurationManager()
         try:
             repo_config = config_manager.get_repository(name)
-            stored_password = repo_config.get('password')
+            stored_password = getattr(repo_config, 'password', None)
             if stored_password and not password:
                 password = stored_password
                 logger.debug(f"Using password from repository configuration for '{name}'")
@@ -2238,7 +2238,7 @@ def repos_credentials_remove(
             raise typer.Exit(1)
 
         # Determine repository type from URI
-        uri = repo_config.get('uri') or repo_config.get('location', '')
+        uri = getattr(repo_config, 'uri', None) or repo_config.location or ''
         if uri.startswith(('s3://', 's3:')):
             backend_type = "s3"
         elif uri.startswith(('b2://', 'b2:')):
@@ -2311,7 +2311,7 @@ def repos_credentials_show(
             raise typer.Exit(1)
 
         # Determine repository type from URI
-        uri = repo_config.get('uri') or repo_config.get('location', '')
+        uri = getattr(repo_config, 'uri', None) or repo_config.location or ''
         if uri.startswith(('s3://', 's3:')):
             backend_type = "s3"
             backend_name = "AWS"
