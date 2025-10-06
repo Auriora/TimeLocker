@@ -228,7 +228,7 @@ source .env.test
 
 ```bash
 # Check MinIO is accessible
-curl -v http://minio.local:9000
+curl -v http://minio.local
 
 # Check firewall (on MinIO server)
 sudo ufw status
