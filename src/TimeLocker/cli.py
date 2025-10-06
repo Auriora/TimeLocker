@@ -2105,7 +2105,7 @@ def repos_credentials_set(
             raise typer.Exit(1)
 
         # Determine repository type from URI
-        uri = repo_config.get('uri', '')
+        uri = repo_config.get('uri') or repo_config.get('location', '')
         if uri.startswith(('s3://', 's3:')):
             backend_type = "s3"
             console.print(f"\n[bold]Setting AWS credentials for repository '{name}'[/bold]")
