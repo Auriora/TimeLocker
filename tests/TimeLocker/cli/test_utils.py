@@ -52,32 +52,36 @@ def create_mock_service_manager() -> Mock:
     """
     Create a standardized mock service manager for CLI testing.
 
+    Uses spec_set to ensure mocks match the actual CLIServiceManager interface,
+    catching typos and ensuring mocks match real implementations.
+
     Returns:
         Mock service manager with common methods configured with realistic return values
     """
-    mock_service_manager = Mock()
+    from TimeLocker.cli_services import CLIServiceManager
+    from TimeLocker.services.snapshot_service import SnapshotService
+    from TimeLocker.services.repository_service import RepositoryService
 
-    # Configure common service manager methods
-    mock_service_manager.backup_service = Mock()
-    mock_service_manager.snapshot_service = Mock()
-    mock_service_manager.repository_service = Mock()
-    mock_service_manager.target_service = Mock()
-    mock_service_manager.config_service = Mock()
-    mock_service_manager.credential_service = Mock()
+    # Create mock with spec to match actual CLIServiceManager interface
+    mock_service_manager = Mock(spec=CLIServiceManager)
+
+    # Configure service properties with specs matching actual service classes
+    mock_service_manager.snapshot_service = Mock(spec=SnapshotService)
+    mock_service_manager.repository_service = Mock(spec=RepositoryService)
+
+    # Configure backup orchestrator (using Mock without spec as it's an interface)
+    mock_service_manager.backup_orchestrator = Mock()
+    mock_service_manager.configuration_service = Mock()
+    mock_service_manager.config_module = Mock()
 
     # Configure common return values with more realistic Mock objects
     # This provides better test coverage for edge cases and attribute access
-    mock_service_manager.backup_service.create_backup.return_value = Mock(
+    mock_service_manager.backup_orchestrator.execute_backup.return_value = Mock(
         success=True,
         snapshot_id="test123abc"
     )
-    mock_service_manager.backup_service.verify_backup.return_value = Mock(
-        success=True,
-        errors=[]
-    )
     mock_service_manager.snapshot_service.list_snapshots.return_value = []
     mock_service_manager.repository_service.list_repositories.return_value = []
-    mock_service_manager.target_service.list_targets.return_value = []
 
     return mock_service_manager
 

@@ -46,7 +46,9 @@
   "notifications": {
     "enabled": false,
     "desktop_enabled": false,
-    "email_enabled": false
+    "email_enabled": false,
+    "notify_on_success": false,
+    "notify_on_error": true
   },
   "performance": {
     "compression": "auto",

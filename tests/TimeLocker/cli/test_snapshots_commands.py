@@ -126,15 +126,28 @@ class TestSnapshotsCommands:
 
     @pytest.mark.unit
     def test_snapshots_show_invalid_id(self):
-        """Test snapshots show command with invalid snapshot ID."""
+        """
+        Test snapshots show command with invalid snapshot ID.
+
+        Valid snapshot IDs are hexadecimal strings (typically 64 characters for full IDs,
+        or 8+ characters for short IDs). Invalid characters include special symbols
+        like $, %, @, etc.
+
+        This test verifies that:
+        1. Invalid snapshot IDs are rejected with non-zero exit code
+        2. Error message contains "invalid" to indicate validation failure
+        3. The command fails gracefully without crashing
+        """
         result = runner.invoke(app, [
             "snapshots", "show", "invalid$$id"
         ])
-        
-        # Should reject invalid snapshot ID format
-        assert result.exit_code != 0
+
+        # Should reject invalid snapshot ID format with non-zero exit code
+        assert result.exit_code != 0, "Invalid snapshot ID should be rejected"
+
+        # Error message should indicate the ID is invalid
         combined = _combined_output(result)
-        assert "invalid" in combined.lower()
+        assert "invalid" in combined.lower(), "Error message should mention 'invalid'"
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli.get_cli_service_manager')
