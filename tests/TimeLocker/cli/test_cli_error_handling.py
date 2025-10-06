@@ -9,19 +9,12 @@ import tempfile
 import re
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
-from typer.testing import CliRunner
 
 from src.TimeLocker.cli import app
+from tests.TimeLocker.cli.test_utils import get_cli_runner, combined_output
 
 # Set wider terminal width to prevent help text truncation in CI
-runner = CliRunner(env={'COLUMNS': '200'})
-
-
-def _combined_output(result):
-    """Combine stdout and stderr for matching convenience across environments."""
-    out = result.stdout or ""
-    err = getattr(result, "stderr", "") or ""
-    return out + "\n" + err
+runner = get_cli_runner()
 
 
 class TestCLIErrorHandling:
@@ -31,8 +24,8 @@ class TestCLIErrorHandling:
     def test_invalid_command_error(self):
         """Test error handling for invalid commands."""
         result = runner.invoke(app, ["invalid-command"])
-        combined = _combined_output(result)
-        
+        combined = combined_output(result)
+
         assert result.exit_code != 0
         # Should show helpful error message
         assert len(combined) > 10
@@ -50,10 +43,10 @@ class TestCLIErrorHandling:
             ["config", "invalid-subcmd"],
             ["credentials", "invalid-subcmd"]
         ]
-        
+
         for cmd in invalid_subcommands:
             result = runner.invoke(app, cmd)
-            combined = _combined_output(result)
+            combined = combined_output(result)
             
             assert result.exit_code != 0, f"Invalid subcommand should fail: {' '.join(cmd)}"
             assert len(combined) > 10, f"Should show error message for: {' '.join(cmd)}"
@@ -78,8 +71,8 @@ class TestCLIErrorHandling:
         
         for cmd in missing_arg_commands:
             result = runner.invoke(app, cmd)
-            combined = _combined_output(result)
-            
+            combined = combined_output(result)
+
             assert result.exit_code != 0, f"Missing args should fail: {' '.join(cmd)}"
             assert len(combined) > 10, f"Should show error message for: {' '.join(cmd)}"
 
@@ -109,9 +102,9 @@ class TestCLIErrorHandling:
                     result = runner.invoke(app, ["snapshots", cmd, snapshot_id, "/tmp"])
                 else:
                     result = runner.invoke(app, ["snapshots", cmd, snapshot_id])
-                
-                combined = _combined_output(result)
-                
+
+                combined = combined_output(result)
+
                 assert result.exit_code != 0, f"Invalid snapshot ID should fail: {snapshot_id} in {cmd}"
                 # Should mention invalid format
                 assert re.search(r"invalid.*format", combined, re.IGNORECASE), \
@@ -133,8 +126,8 @@ class TestCLIErrorHandling:
             result = runner.invoke(app, [
                 "repos", "add", "test-repo", uri
             ])
-            combined = _combined_output(result)
-            
+            combined = combined_output(result)
+
             # Should fail validation (exit code != 0)
             assert result.exit_code != 0, f"Invalid URI should fail: {uri}"
 
@@ -191,14 +184,17 @@ class TestCLIErrorHandling:
         
         for exception in exceptions_to_test:
             mock_manager.list_repositories.side_effect = exception
-            
+
             result = runner.invoke(app, ["repos", "list"])
-            combined = _combined_output(result)
-            
+            combined = combined_output(result)
+
             assert result.exit_code != 0, f"Should fail on exception: {type(exception).__name__}"
             assert len(combined) > 10, f"Should show error message for: {type(exception).__name__}"
             # Should not show full stack trace to user
             assert "traceback" not in combined.lower(), f"Should not show traceback for: {type(exception).__name__}"
+
+            # Reset mock for next iteration to ensure test isolation
+            mock_manager.reset_mock()
 
     @pytest.mark.unit
     def test_keyboard_interrupt_handling(self):
@@ -232,8 +228,8 @@ class TestCLIErrorHandling:
         
         for cmd in invalid_option_scenarios:
             result = runner.invoke(app, cmd)
-            combined = _combined_output(result)
-            
+            combined = combined_output(result)
+
             # Should fail with invalid option values
             assert result.exit_code != 0, f"Invalid option should fail: {' '.join(cmd)}"
             assert len(combined) > 10, f"Should show error message for: {' '.join(cmd)}"
@@ -267,8 +263,8 @@ class TestCLIErrorHandling:
         
         for cmd in empty_input_scenarios:
             result = runner.invoke(app, cmd)
-            combined = _combined_output(result)
-            
+            combined = combined_output(result)
+
             # Should handle empty inputs gracefully
             assert result.exit_code in [0, 1], f"Should handle empty input: {' '.join(cmd)}"
 
@@ -327,10 +323,10 @@ class TestCLIErrorHandling:
         
         for scenario in error_scenarios:
             result = runner.invoke(app, scenario["command"])
-            combined = _combined_output(result)
-            
+            combined = combined_output(result)
+
             assert result.exit_code != 0, f"Should fail: {' '.join(scenario['command'])}"
-            
+
             # Check that error message contains expected keywords
             combined_lower = combined.lower()
             for keyword in scenario["expected_keywords"]:

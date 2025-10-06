@@ -1,0 +1,58 @@
+{
+  "repositories": [
+    {
+      "name": "minio-test",
+      "uri": "s3:http://minio.local/timelocker-test/test-repo",
+      "description": "MinIO test repository at minio.local (proxied via Traefik)",
+      "default": true,
+      "credentials": {
+        "aws_access_key_id": "minioadmin",
+        "aws_secret_access_key": "minioadmin123",
+        "aws_default_region": "us-east-1"
+      }
+    },
+    {
+      "name": "local-test",
+      "uri": "file:///tmp/timelocker-test-repo",
+      "description": "Local filesystem test repository",
+      "default": false
+    }
+  ],
+  "targets": [
+    {
+      "name": "test-documents",
+      "description": "Test documents backup",
+      "paths": [
+        "/tmp/test-backup-source"
+      ],
+      "exclude_patterns": [
+        "*.tmp",
+        "*.cache",
+        "__pycache__"
+      ],
+      "tags": [
+        "test",
+        "documents"
+      ]
+    }
+  ],
+  "retention": {
+    "keep_last": 5,
+    "keep_daily": 7,
+    "keep_weekly": 4,
+    "keep_monthly": 6,
+    "keep_yearly": 2
+  },
+  "notifications": {
+    "enabled": false,
+    "desktop_enabled": false,
+    "email_enabled": false
+  },
+  "performance": {
+    "compression": "auto",
+    "pack_size": 16,
+    "upload_limit_kb": 0,
+    "download_limit_kb": 0
+  }
+}
+

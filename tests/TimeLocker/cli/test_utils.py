@@ -13,10 +13,14 @@ from typing import Any, Dict, Optional
 def get_cli_runner(columns: int = 200) -> CliRunner:
     """
     Create a standardized CLI runner for testing.
-    
+
+    The 200 column default prevents help text truncation in CI environments
+    where terminal width detection may not work correctly. This ensures
+    consistent output formatting across different testing environments.
+
     Args:
-        columns: Terminal width for consistent output formatting
-        
+        columns: Terminal width for consistent output formatting (default: 200)
+
     Returns:
         Configured CliRunner instance
     """
@@ -26,10 +30,16 @@ def get_cli_runner(columns: int = 200) -> CliRunner:
 def combined_output(result) -> str:
     """
     Combine stdout and stderr for matching convenience across environments.
-    
+
+    This is necessary because some CLI runners capture stderr differently
+    across environments (local vs CI, different OS). Combining both streams
+    ensures test assertions work consistently regardless of where output
+    appears. Useful when you need to check for text that might appear in
+    either stdout or stderr.
+
     Args:
         result: CliRunner result object
-        
+
     Returns:
         Combined output string
     """
@@ -41,12 +51,12 @@ def combined_output(result) -> str:
 def create_mock_service_manager() -> Mock:
     """
     Create a standardized mock service manager for CLI testing.
-    
+
     Returns:
-        Mock service manager with common methods configured
+        Mock service manager with common methods configured with realistic return values
     """
     mock_service_manager = Mock()
-    
+
     # Configure common service manager methods
     mock_service_manager.backup_service = Mock()
     mock_service_manager.snapshot_service = Mock()
@@ -54,14 +64,21 @@ def create_mock_service_manager() -> Mock:
     mock_service_manager.target_service = Mock()
     mock_service_manager.config_service = Mock()
     mock_service_manager.credential_service = Mock()
-    
-    # Configure common return values
-    mock_service_manager.backup_service.create_backup.return_value = True
-    mock_service_manager.backup_service.verify_backup.return_value = True
+
+    # Configure common return values with more realistic Mock objects
+    # This provides better test coverage for edge cases and attribute access
+    mock_service_manager.backup_service.create_backup.return_value = Mock(
+        success=True,
+        snapshot_id="test123abc"
+    )
+    mock_service_manager.backup_service.verify_backup.return_value = Mock(
+        success=True,
+        errors=[]
+    )
     mock_service_manager.snapshot_service.list_snapshots.return_value = []
     mock_service_manager.repository_service.list_repositories.return_value = []
     mock_service_manager.target_service.list_targets.return_value = []
-    
+
     return mock_service_manager
 
 
@@ -208,22 +225,24 @@ def assert_output_contains(result, expected_text: str, case_sensitive: bool = Fa
 def assert_help_quality(result, command_name: str):
     """
     Assert that help output meets quality standards.
-    
+
     Args:
         result: CliRunner result object from --help command
         command_name: Name of the command being tested
     """
     assert_success(result, f"Help for '{command_name}' should succeed")
-    
+
     output = combined_output(result)
-    
+
     # Check for basic help structure
     assert "Usage:" in output, f"Help for '{command_name}' should show usage"
     assert "Options" in output or "Arguments" in output, f"Help for '{command_name}' should show options/arguments"
-    
-    # Check for helpful content
+
+    # Check for helpful content (minimum 50 chars ensures more than just a basic stub)
+    # This threshold was chosen to catch cases where help text is missing or truncated
+    # while allowing for simple commands with minimal documentation
     assert len(output.strip()) > 50, f"Help for '{command_name}' should be substantial"
-    
+
     # Check that help doesn't contain error indicators
     error_indicators = ["error", "failed", "exception", "traceback"]
     output_lower = output.lower()
