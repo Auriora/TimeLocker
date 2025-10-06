@@ -329,3 +329,101 @@ def test_validate_successful_s3_bucket():
 
         mock_client.assert_called_once_with("s3")
         mock_s3.head_bucket.assert_called_once_with(Bucket="test-bucket")
+
+
+@pytest.mark.unit
+def test_endpoint_from_parameter(mock_s3_client):
+    """Test that endpoint is set from constructor parameter."""
+    repo = S3ResticRepository(
+        location="s3:minio.local/bucket",
+        aws_access_key_id="test_key",
+        aws_secret_access_key="test_secret",
+        aws_s3_endpoint="http://minio.local:9000"
+    )
+
+    assert repo.aws_s3_endpoint == "http://minio.local:9000"
+
+    # Verify it's included in backend_env
+    env = repo.backend_env()
+    assert env["AWS_S3_ENDPOINT"] == "http://minio.local:9000"
+
+
+@pytest.mark.unit
+def test_endpoint_from_environment(monkeypatch, mock_s3_client):
+    """Test that endpoint is retrieved from environment variable."""
+    monkeypatch.setenv("AWS_S3_ENDPOINT", "http://localhost:9000")
+
+    repo = S3ResticRepository(
+        location="s3:bucket/path",
+        aws_access_key_id="test_key",
+        aws_secret_access_key="test_secret"
+    )
+
+    assert repo.aws_s3_endpoint == "http://localhost:9000"
+
+    # Verify it's included in backend_env
+    env = repo.backend_env()
+    assert env["AWS_S3_ENDPOINT"] == "http://localhost:9000"
+
+
+@pytest.mark.unit
+def test_endpoint_from_credential_manager(mock_s3_client):
+    """Test that endpoint is retrieved from credential manager."""
+    mock_cred_manager = MagicMock()
+    mock_cred_manager.get_repository_backend_credentials.return_value = {
+        "access_key_id": "cred_key",
+        "secret_access_key": "cred_secret",
+        "region": "us-west-2",
+        "endpoint": "http://minio.local"
+    }
+
+    repo = S3ResticRepository(
+        location="s3:bucket/path",
+        credential_manager=mock_cred_manager,
+        repository_name="test-repo"
+    )
+
+    assert repo.aws_s3_endpoint == "http://minio.local"
+    assert repo.aws_access_key_id == "cred_key"
+    assert repo.aws_secret_access_key == "cred_secret"
+
+    # Verify it's included in backend_env
+    env = repo.backend_env()
+    assert env["AWS_S3_ENDPOINT"] == "http://minio.local"
+
+
+@pytest.mark.unit
+def test_endpoint_not_set(mock_s3_client):
+    """Test that endpoint is not included in backend_env when not configured."""
+    repo = S3ResticRepository(
+        location="s3:s3.amazonaws.com/bucket",
+        aws_access_key_id="test_key",
+        aws_secret_access_key="test_secret"
+    )
+
+    assert repo.aws_s3_endpoint is None
+
+    # Verify it's NOT included in backend_env
+    env = repo.backend_env()
+    assert "AWS_S3_ENDPOINT" not in env
+
+
+@pytest.mark.unit
+def test_endpoint_parameter_overrides_credential_manager(mock_s3_client):
+    """Test that constructor parameter takes precedence over credential manager."""
+    mock_cred_manager = MagicMock()
+    mock_cred_manager.get_repository_backend_credentials.return_value = {
+        "access_key_id": "cred_key",
+        "secret_access_key": "cred_secret",
+        "endpoint": "http://from-cred-manager"
+    }
+
+    repo = S3ResticRepository(
+        location="s3:bucket/path",
+        aws_s3_endpoint="http://from-parameter",
+        credential_manager=mock_cred_manager,
+        repository_name="test-repo"
+    )
+
+    # Parameter should take precedence
+    assert repo.aws_s3_endpoint == "http://from-parameter"

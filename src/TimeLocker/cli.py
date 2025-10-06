@@ -1897,6 +1897,7 @@ def repos_add(
                 access_key_id = Prompt.ask("AWS Access Key ID", password=True)
                 secret_access_key = Prompt.ask("AWS Secret Access Key", password=True)
                 region = Prompt.ask("AWS Region (optional, press Enter to skip)", default="")
+                endpoint = Prompt.ask("AWS S3 Endpoint (optional, for MinIO/Wasabi/etc, press Enter to skip)", default="")
 
                 credentials_dict = {
                     "access_key_id": access_key_id,
@@ -1904,6 +1905,8 @@ def repos_add(
                 }
                 if region:
                     credentials_dict["region"] = region
+                if endpoint:
+                    credentials_dict["endpoint"] = endpoint
 
                 backend_credentials_stored = store_backend_credentials("s3", "AWS", credentials_dict, credential_manager)
         elif normalized_uri.startswith(('b2://', 'b2:')):
@@ -2094,6 +2097,7 @@ def repos_credentials_set(
             access_key_id = Prompt.ask("AWS Access Key ID", password=True)
             secret_access_key = Prompt.ask("AWS Secret Access Key", password=True)
             region = Prompt.ask("AWS Region (optional, press Enter to skip)", default="")
+            endpoint = Prompt.ask("AWS S3 Endpoint (optional, for MinIO/Wasabi/etc, press Enter to skip)", default="")
 
             credentials_dict = {
                 "access_key_id": access_key_id,
@@ -2101,6 +2105,8 @@ def repos_credentials_set(
             }
             if region:
                 credentials_dict["region"] = region
+            if endpoint:
+                credentials_dict["endpoint"] = endpoint
 
         elif uri.startswith(('b2://', 'b2:')):
             backend_type = "b2"

@@ -40,6 +40,7 @@ class S3ResticRepository(ResticRepository):
             aws_access_key_id: Optional[str] = None,
             aws_secret_access_key: Optional[str] = None,
             aws_default_region: Optional[str] = None,
+            aws_s3_endpoint: Optional[str] = None,
             credential_manager: Optional[object] = None,
             repository_name: Optional[str] = None,
     ):
@@ -52,6 +53,7 @@ class S3ResticRepository(ResticRepository):
             aws_access_key_id: AWS access key ID (optional, can be retrieved from credential manager or environment)
             aws_secret_access_key: AWS secret access key (optional, can be retrieved from credential manager or environment)
             aws_default_region: AWS region (optional, can be retrieved from credential manager or environment)
+            aws_s3_endpoint: S3 endpoint URL for S3-compatible services like MinIO, Wasabi, etc. (optional)
             credential_manager: CredentialManager instance for retrieving stored credentials
             repository_name: Repository name for per-repository credential lookup from credential manager.
                            If provided with credential_manager, will attempt to retrieve repository-specific
@@ -68,6 +70,7 @@ class S3ResticRepository(ResticRepository):
                     aws_access_key_id = aws_access_key_id or repo_creds.get("access_key_id")
                     aws_secret_access_key = aws_secret_access_key or repo_creds.get("secret_access_key")
                     aws_default_region = aws_default_region or repo_creds.get("region")
+                    aws_s3_endpoint = aws_s3_endpoint or repo_creds.get("endpoint")
             except Exception as e:
                 # Log but don't fail - fall back to other credential sources
                 logger.debug(f"Could not retrieve per-repository S3 credentials: {e}")
@@ -76,6 +79,7 @@ class S3ResticRepository(ResticRepository):
         self.aws_access_key_id = aws_access_key_id if aws_access_key_id is not None else os.getenv("AWS_ACCESS_KEY_ID")
         self.aws_secret_access_key = aws_secret_access_key if aws_secret_access_key is not None else os.getenv("AWS_SECRET_ACCESS_KEY")
         self.aws_default_region = aws_default_region if aws_default_region is not None else os.getenv("AWS_DEFAULT_REGION")
+        self.aws_s3_endpoint = aws_s3_endpoint if aws_s3_endpoint is not None else os.getenv("AWS_S3_ENDPOINT")
 
     @classmethod
     def from_parsed_uri(
@@ -110,6 +114,7 @@ class S3ResticRepository(ResticRepository):
                 aws_access_key_id=query_params.get("access_key_id", [None])[0],
                 aws_secret_access_key=query_params.get("secret_access_key", [None])[0],
                 aws_default_region=query_params.get("region", [None])[0],
+                aws_s3_endpoint=query_params.get("endpoint", [None])[0],
                 **kwargs,
         )
 
@@ -128,6 +133,9 @@ class S3ResticRepository(ResticRepository):
         env["AWS_SECRET_ACCESS_KEY"] = self.aws_secret_access_key
         if self.aws_default_region:
             env["AWS_DEFAULT_REGION"] = self.aws_default_region
+        if self.aws_s3_endpoint:
+            env["AWS_S3_ENDPOINT"] = self.aws_s3_endpoint
+            logger.debug(f"Setting AWS_S3_ENDPOINT to {self.aws_s3_endpoint}")
         return env
 
     def validate(self):
