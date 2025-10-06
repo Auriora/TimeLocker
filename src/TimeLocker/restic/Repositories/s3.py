@@ -269,4 +269,4 @@ class S3ResticRepository(ResticRepository):
 
         except Exception as e:
             logger.error(f"Failed to initialize repository: {e}")
-            return False
+            raise

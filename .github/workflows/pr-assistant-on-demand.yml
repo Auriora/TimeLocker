@@ -1,0 +1,53 @@
+# On-Demand PR Assistant
+# Generates comprehensive PR review when the "auggie_review" label is added to a PR
+
+name: On-Demand PR Assistant
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: read
+
+jobs:
+  review:
+    # Only run when the specific label is added
+    if: github.event.label.name == 'auggie-complete-review'
+    runs-on: ubuntu-latest
+    name: Comprehensive PR Review
+    steps:
+      - name: Run PR Assistant
+        uses: bcherrington/pr-assistant@v1
+        with:
+          augment_session_auth: ${{ secrets.AUGMENT_SESSION_AUTH }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          pull_number: ${{ github.event.pull_request.number }}
+          repo_name: ${{ github.repository }}
+
+      - name: Remove trigger label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Remove the trigger label after processing
+            await github.rest.issues.removeLabel({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              name: 'auggie-complete-review'
+            });
+
+      - name: Add completion label
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Add a label to indicate the review was generated
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['auto-complete-review']
+            });
+
