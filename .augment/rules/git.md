@@ -1,6 +1,6 @@
 ---
 type:        "agent_requested"
-description: "Example description"
+description: "This rule provides a standardized commit message format and policy for all projects."
 ---
 
 # Git

@@ -1,5 +1,6 @@
 ---
-type: "always_apply"
+type:        "always_apply"
+description: "General project preferences"
 ---
 
 # General Preferences
