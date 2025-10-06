@@ -2103,7 +2103,7 @@ def repos_default(
         raise typer.Exit(1)
 
 
-@repos_app.command("credentials-set")
+@repos_app.command("credentials set")
 def repos_credentials_set(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
@@ -2207,7 +2207,7 @@ def repos_credentials_set(
         raise typer.Exit(1)
 
 
-@repos_app.command("credentials-remove")
+@repos_app.command("credentials remove")
 def repos_credentials_remove(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
@@ -2281,7 +2281,7 @@ def repos_credentials_remove(
         raise typer.Exit(1)
 
 
-@repos_app.command("credentials-show")
+@repos_app.command("credentials show")
 def repos_credentials_show(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
@@ -2740,7 +2740,7 @@ def snapshots_umount(
         raise typer.Exit(1)
 
 
-@snapshots_app.command("find-in")
+@snapshots_app.command("find in")
 def snapshots_find_in(
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID")],
         pattern: Annotated[str, typer.Argument(help="Search pattern")],
@@ -3904,7 +3904,7 @@ def repo_forget(
 # ============================================================================
 
 
-@repos_app.command("check-all")
+@repos_app.command("check all")
 def repos_check_all(
         parallel: Annotated[bool, typer.Option("--parallel", "-p", help="Check repositories in parallel")] = True,
         max_workers: Annotated[int, typer.Option("--max-workers", help="Maximum number of parallel workers")] = 4,
@@ -4210,7 +4210,7 @@ def repos_check_all(
         raise typer.Exit(1)
 
 
-@repos_app.command("stats-all")
+@repos_app.command("stats all")
 def repos_stats_all(
         parallel: Annotated[bool, typer.Option("--parallel", "-p", help="Gather statistics in parallel")] = True,
         max_workers: Annotated[int, typer.Option("--max-workers", help="Maximum number of parallel workers")] = 4,
