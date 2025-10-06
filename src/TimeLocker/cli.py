@@ -108,6 +108,7 @@ snapshots_app = typer.Typer(help="Snapshot operations")
 repos_app = typer.Typer(help="Repository operations")
 targets_app = typer.Typer(help="Backup target operations")
 config_app = typer.Typer(help="Configuration management commands")
+credentials_app = typer.Typer(help="Credential management commands")
 
 # Add sub-apps to main app
 app.add_typer(backup_app, name="backup")
@@ -116,6 +117,7 @@ app.add_typer(snapshots_app, name="snapshots")
 app.add_typer(repos_app, name="repos")
 app.add_typer(targets_app, name="targets")
 app.add_typer(config_app, name="config")
+app.add_typer(credentials_app, name="credentials")
 
 # Create config sub-apps (only import remains under config)
 config_import_app = typer.Typer(help="Import configuration commands")
