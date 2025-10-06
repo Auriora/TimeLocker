@@ -400,11 +400,8 @@ def backup_create(
         if not repository:
             default_repo_name = config_module.get_default_repository()
             if default_repo_name:
-                try:
-                    default_repo = config_module.get_repository(default_repo_name)
-                    repository = default_repo.get("uri")
-                except Exception:
-                    pass  # Continue without default repository
+                # Use the repository name, not the URI, so credential manager can find it
+                repository = default_repo_name
 
         console.print(f"📁 Using backup target: [bold cyan]{target}[/bold cyan]")
         console.print(f"📂 Backing up {len(sources)} path(s)")
