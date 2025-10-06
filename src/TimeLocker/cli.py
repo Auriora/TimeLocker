@@ -33,6 +33,7 @@ from .file_selections import FileSelection, SelectionType
 from .restore_manager import RestoreManager
 from .snapshot_manager import SnapshotManager
 from .config import ConfigurationModule
+from .config.configuration_manager import ConfigurationManager
 from .cli_services import get_cli_service_manager, CLIBackupRequest
 from .completion import (
     repository_name_completer,
