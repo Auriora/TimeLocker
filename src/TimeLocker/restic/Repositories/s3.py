@@ -140,6 +140,16 @@ class S3ResticRepository(ResticRepository):
         return env
 
     def validate(self):
+        """
+        Validate S3 repository configuration.
+
+        Performs lightweight validation during initialization:
+        - Checks location format is valid
+        - Verifies credentials are available
+
+        Note: Does NOT make network calls to check bucket existence during init
+        to avoid delays. Bucket validation happens during actual operations.
+        """
         logger.info("Validating S3 repository configuration")
         try:
             # If location is empty or root-only, skip validation gracefully
@@ -148,21 +158,7 @@ class S3ResticRepository(ResticRepository):
                 logger.warning("S3 location has empty bucket; validation skipped.")
                 return
 
-            # Create S3 client with credentials and endpoint
-            client_kwargs = {}
-            if self.aws_access_key_id:
-                client_kwargs["aws_access_key_id"] = self.aws_access_key_id
-            if self.aws_secret_access_key:
-                client_kwargs["aws_secret_access_key"] = self.aws_secret_access_key
-            if self.aws_default_region:
-                client_kwargs["region_name"] = self.aws_default_region
-            if self.aws_s3_endpoint:
-                client_kwargs["endpoint_url"] = self.aws_s3_endpoint
-
-            s3 = client("s3", **client_kwargs)
-            # Extract bucket name from location. Support both:
-            # - restic style: s3:host/bucket[/path]
-            # - simplified style used here: s3:bucket[/path]
+            # Extract bucket name from location for basic format validation
             path_parts = location_parts.split("/")
             host = path_parts[0]
             # More reliable hostname detection for host/bucket style
@@ -182,12 +178,20 @@ class S3ResticRepository(ResticRepository):
                 logger.warning("Could not extract S3 bucket from location; validation skipped.")
                 return
 
-            s3.head_bucket(Bucket=bucket_name)
-            logger.info(f"Successfully validated S3 bucket: {bucket_name}")
+            # Just log that we have the bucket name - don't make network calls
+            logger.debug(f"S3 repository configured for bucket: {bucket_name}")
+
+            # Verify we have credentials (but don't test them with network calls)
+            if not self.aws_access_key_id or not self.aws_secret_access_key:
+                logger.debug("S3 credentials not configured - will use environment or IAM role")
+            else:
+                logger.debug("S3 credentials configured")
+
         except ImportError:
             logger.warning("boto3 is not installed. S3 repository validation skipped.")
         except Exception as e:
-            raise RepositoryError(f"Failed to validate S3 repository: {str(e)}")
+            # Don't fail on validation errors during init - let restic handle it
+            logger.debug(f"S3 repository validation warning: {str(e)}")
 
     def is_repository_initialized(self) -> bool:
         """

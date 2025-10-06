@@ -286,49 +286,52 @@ def test_from_parsed_uri_with_all_parameters(mock_s3_client):
 
 
 @pytest.mark.unit
-def test_validate_boto3_not_installed(caplog):
+def test_validate_lightweight(caplog):
     """
-    Test the validate method when boto3 is not installed.
-    This should result in a warning log message and skip the validation.
+    Test that validate performs lightweight validation without network calls.
+    Validation should check format and log configuration but not make S3 API calls.
     """
-    with patch("TimeLocker.restic.Repositories.s3.client", side_effect=ImportError):
-        repo = S3ResticRepository(location="s3:bucket/path")
-        with caplog.at_level("WARNING"):
-            repo.validate()
-        assert (
-            "boto3 is not installed. S3 repository validation skipped." in caplog.text
-        )
+    repo = S3ResticRepository(
+        location="s3:bucket/path",
+        aws_access_key_id="test_key",
+        aws_secret_access_key="test_secret"
+    )
+    with caplog.at_level("DEBUG"):
+        repo.validate()
+    # Should log bucket configuration
+    assert "S3 repository configured for bucket: bucket" in caplog.text
+    # Should log credentials configured
+    assert "S3 credentials configured" in caplog.text
 
 
 @pytest.mark.unit
-def test_validate_s3_exception():
+def test_validate_no_credentials(caplog):
     """
-    Test the validate method when an exception occurs during S3 bucket validation.
-    This should raise a RepositoryError with an appropriate error message.
+    Test that validate handles missing credentials gracefully.
+    Should log that credentials will come from environment or IAM role.
     """
-    mock_s3 = MagicMock()
-    mock_s3.head_bucket.side_effect = Exception("S3 Error")
-    with patch("TimeLocker.restic.Repositories.s3.client", return_value=mock_s3):
-        with pytest.raises(RepositoryError) as exc_info:
-            repo = S3ResticRepository(location="s3:bucket/path")
-        assert "Failed to validate S3 repository: S3 Error" in str(exc_info.value)
+    repo = S3ResticRepository(location="s3:bucket/path")
+    with caplog.at_level("DEBUG"):
+        repo.validate()
+    # Should log that credentials not configured
+    assert "S3 credentials not configured - will use environment or IAM role" in caplog.text
 
 
 @pytest.mark.unit
-def test_validate_successful_s3_bucket():
+def test_validate_bucket_extraction(caplog):
     """
-    Test that validate method successfully validates an S3 bucket.
-    It should create an S3 client, extract the bucket name from the location,
-    call head_bucket on the S3 client, and log a success message.
+    Test that validate method correctly extracts bucket name from location.
+    Should log the bucket name without making network calls.
     """
-    with patch("TimeLocker.restic.Repositories.s3.client") as mock_client:
-        mock_s3 = MagicMock()
-        mock_client.return_value = mock_s3
-
-        repo = S3ResticRepository(location="s3:test-bucket/path")
-
-        mock_client.assert_called_once_with("s3")
-        mock_s3.head_bucket.assert_called_once_with(Bucket="test-bucket")
+    repo = S3ResticRepository(
+        location="s3:test-bucket/path",
+        aws_access_key_id="test_key",
+        aws_secret_access_key="test_secret"
+    )
+    with caplog.at_level("DEBUG"):
+        repo.validate()
+    # Should log the extracted bucket name
+    assert "S3 repository configured for bucket: test-bucket" in caplog.text
 
 
 @pytest.mark.unit
