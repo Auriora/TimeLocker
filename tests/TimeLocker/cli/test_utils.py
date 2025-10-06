@@ -100,7 +100,7 @@ def create_mock_snapshot(snapshot_id: str = "abc123def", **kwargs) -> Dict[str, 
         'username': 'test-user',
         'paths': ['/home/user'],
         'tags': [],
-        'short_id': snapshot_id[:8],
+        'short_id': snapshot_id[:8] if len(snapshot_id) >= 8 else snapshot_id,
         **kwargs
     }
     return snapshot

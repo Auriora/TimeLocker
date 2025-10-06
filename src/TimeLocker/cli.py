@@ -2088,7 +2088,7 @@ def repos_credentials_set(
         # Get repository configuration
         try:
             repo_config = config_manager.get_repository(name)
-        except:
+        except (KeyError, ValueError, Exception) as e:
             show_error_panel("Repository Not Found", f"Repository '{name}' not found")
             raise typer.Exit(1)
 
@@ -2174,12 +2174,12 @@ def repos_credentials_remove(
         # Get repository configuration
         try:
             repo_config = config_manager.get_repository(name)
-        except:
+        except (KeyError, ValueError, Exception) as e:
             show_error_panel("Repository Not Found", f"Repository '{name}' not found")
             raise typer.Exit(1)
 
         # Determine repository type from URI
-        uri = repo_config.get('uri', '')
+        uri = repo_config.get('uri') or repo_config.get('location', '')
         if uri.startswith(('s3://', 's3:')):
             backend_type = "s3"
         elif uri.startswith(('b2://', 'b2:')):
@@ -2247,12 +2247,12 @@ def repos_credentials_show(
         # Get repository configuration
         try:
             repo_config = config_manager.get_repository(name)
-        except:
+        except (KeyError, ValueError, Exception) as e:
             show_error_panel("Repository Not Found", f"Repository '{name}' not found")
             raise typer.Exit(1)
 
         # Determine repository type from URI
-        uri = repo_config.get('uri', '')
+        uri = repo_config.get('uri') or repo_config.get('location', '')
         if uri.startswith(('s3://', 's3:')):
             backend_type = "s3"
             backend_name = "AWS"
