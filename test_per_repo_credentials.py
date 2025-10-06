@@ -25,7 +25,7 @@ from TimeLocker.restic.Repositories.s3 import S3ResticRepository
 
 
 def test_repository_config_schema():
-    """Test that RepositoryConfig has has_backend_credentials field."""
+    """Test that RepositoryConfig has the has_backend_credentials field."""
     print("Testing RepositoryConfig schema...")
     
     repo = RepositoryConfig(
