@@ -71,9 +71,9 @@ class S3ResticRepository(ResticRepository):
                     aws_secret_access_key = aws_secret_access_key or repo_creds.get("secret_access_key")
                     aws_default_region = aws_default_region or repo_creds.get("region")
                     # Note: Endpoint is now part of the repository URI, not stored in credentials
-                    # Get insecure_tls from credentials if not explicitly provided
-                    if insecure_tls is None and "insecure_tls" in repo_creds:
-                        insecure_tls = repo_creds.get("insecure_tls")
+                    # Get insecure_tls from credentials if not explicitly provided (default to False)
+                    if insecure_tls is None:
+                        insecure_tls = repo_creds.get("insecure_tls", False)
             except Exception as e:
                 # Log but don't fail - fall back to other credential sources
                 logger.debug(f"Could not retrieve per-repository S3 credentials: {e}")
@@ -149,7 +149,11 @@ class S3ResticRepository(ResticRepository):
             env["AWS_DEFAULT_REGION"] = self.aws_default_region
         if self.aws_s3_endpoint:
             env["AWS_S3_ENDPOINT"] = self.aws_s3_endpoint
-            logger.info(f"Setting AWS_S3_ENDPOINT to {self.aws_s3_endpoint}")
+            # Sanitize endpoint URL for logging to avoid exposing sensitive information
+            from urllib.parse import urlparse
+            parsed_endpoint = urlparse(self.aws_s3_endpoint)
+            sanitized_endpoint = f"{parsed_endpoint.scheme}://{parsed_endpoint.netloc}{parsed_endpoint.path}"
+            logger.info(f"Setting AWS_S3_ENDPOINT to {sanitized_endpoint}")
         if self.insecure_tls:
             env["RESTIC_INSECURE_TLS"] = "true"
             logger.info("Setting RESTIC_INSECURE_TLS=true to skip TLS certificate verification")
