@@ -64,7 +64,10 @@ def test_credential_manager_per_repo_methods():
 
         # Verify the credential manager is actually unlocked
         if cred_manager.is_locked():
-            raise RuntimeError("Failed to unlock credential manager for testing")
+            raise RuntimeError(
+                "Failed to unlock credential manager for testing. "
+                "Check if auto-unlock is properly configured or if the test password is correct."
+            )
         
         # Test storing S3 credentials
         s3_creds = {

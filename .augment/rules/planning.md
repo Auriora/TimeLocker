@@ -1,5 +1,6 @@
 ---
-type: "always_apply"
+type: "agent_requested"
+description: "Use structured planning for complex, multi-file changes or feature work"
 ---
 
 You must follow the phases below exactly, using “mode=PLAN” first and only entering “mode=EXECUTE” after I approve the plan. Use brief rationales, fixed

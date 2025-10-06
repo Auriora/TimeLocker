@@ -8,6 +8,9 @@ all CLI test files to reduce code duplication and ensure consistency.
 from typer.testing import CliRunner
 from unittest.mock import Mock, MagicMock
 from typing import Any, Dict, Optional
+from TimeLocker.cli_services import CLIServiceManager
+from TimeLocker.services.snapshot_service import SnapshotService
+from TimeLocker.services.repository_service import RepositoryService
 
 
 def get_cli_runner(columns: int = 200) -> CliRunner:
@@ -58,10 +61,6 @@ def create_mock_service_manager() -> Mock:
     Returns:
         Mock service manager with common methods configured with realistic return values
     """
-    from TimeLocker.cli_services import CLIServiceManager
-    from TimeLocker.services.snapshot_service import SnapshotService
-    from TimeLocker.services.repository_service import RepositoryService
-
     # Create mock with spec to match actual CLIServiceManager interface
     mock_service_manager = Mock(spec=CLIServiceManager)
 
