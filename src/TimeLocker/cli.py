@@ -1900,6 +1900,14 @@ def repos_add(
                 region = Prompt.ask("AWS Region (optional, press Enter to skip)", default="")
                 endpoint = Prompt.ask("AWS S3 Endpoint (optional, for MinIO/Wasabi/etc, press Enter to skip)", default="")
 
+                # Ask about TLS verification if endpoint is provided
+                insecure_tls = False
+                if endpoint:
+                    insecure_tls = Confirm.ask(
+                        "Skip TLS certificate verification? (for self-signed certificates)",
+                        default=False
+                    )
+
                 credentials_dict = {
                     "access_key_id": access_key_id,
                     "secret_access_key": secret_access_key,
@@ -1908,6 +1916,8 @@ def repos_add(
                     credentials_dict["region"] = region
                 if endpoint:
                     credentials_dict["endpoint"] = endpoint
+                if insecure_tls:
+                    credentials_dict["insecure_tls"] = True
 
                 backend_credentials_stored = store_backend_credentials("s3", "AWS", credentials_dict, credential_manager)
         elif normalized_uri.startswith(('b2://', 'b2:')):
@@ -2100,6 +2110,14 @@ def repos_credentials_set(
             region = Prompt.ask("AWS Region (optional, press Enter to skip)", default="")
             endpoint = Prompt.ask("AWS S3 Endpoint (optional, for MinIO/Wasabi/etc, press Enter to skip)", default="")
 
+            # Ask about TLS verification if endpoint is provided
+            insecure_tls = False
+            if endpoint:
+                insecure_tls = Confirm.ask(
+                    "Skip TLS certificate verification? (for self-signed certificates)",
+                    default=False
+                )
+
             credentials_dict = {
                 "access_key_id": access_key_id,
                 "secret_access_key": secret_access_key,
@@ -2108,6 +2126,8 @@ def repos_credentials_set(
                 credentials_dict["region"] = region
             if endpoint:
                 credentials_dict["endpoint"] = endpoint
+            if insecure_tls:
+                credentials_dict["insecure_tls"] = True
 
         elif uri.startswith(('b2://', 'b2:')):
             backend_type = "b2"

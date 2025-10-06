@@ -494,7 +494,7 @@ class CredentialManager:
             repository_id: Repository identifier (name)
             backend_type: Type of backend (s3, b2, etc.)
             credentials_dict: Dictionary of credential key-value pairs
-                For S3: {"access_key_id": "...", "secret_access_key": "...", "region": "...", "endpoint": "..."}
+                For S3: {"access_key_id": "...", "secret_access_key": "...", "region": "...", "endpoint": "...", "insecure_tls": true/false}
                 For B2: {"account_id": "...", "account_key": "..."}
         """
         self._check_auto_lock()

@@ -187,6 +187,15 @@ class ResticRepository(BackupRepository):
             result = self._command.command("init").run(self.to_env())
             logger.info("Repository initialized successfully")
             return True
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Failed to initialize repository: {e}")
+            logger.error(f"Command: {e.cmd}")
+            logger.error(f"Return code: {e.returncode}")
+            if e.stdout:
+                logger.error(f"Stdout: {e.stdout}")
+            if e.stderr:
+                logger.error(f"Stderr: {e.stderr}")
+            return False
         except Exception as e:
             logger.error(f"Failed to initialize repository: {e}")
             return False
