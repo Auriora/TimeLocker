@@ -182,7 +182,15 @@ class ResticRepository(BackupRepository):
         return f"{self._location}"
 
     def initialize(self) -> bool:
-        """Initialize the backup repository"""
+        """
+        Initialize the backup repository.
+
+        Returns:
+            bool: True if initialization successful
+
+        Raises:
+            Exception: If initialization fails with details from restic
+        """
         try:
             result = self._command.command("init").run(self.to_env())
             logger.info("Repository initialized successfully")
@@ -195,10 +203,23 @@ class ResticRepository(BackupRepository):
                 logger.error(f"Stdout: {e.stdout}")
             if e.stderr:
                 logger.error(f"Stderr: {e.stderr}")
-            return False
+
+            # Parse JSON error from restic if available
+            error_message = "Repository initialization failed"
+            if e.stderr:
+                try:
+                    import json
+                    error_data = json.loads(e.stderr)
+                    if "message" in error_data:
+                        error_message = error_data["message"]
+                except (json.JSONDecodeError, KeyError):
+                    # If not JSON or no message field, use stderr as-is
+                    error_message = e.stderr.strip()
+
+            raise Exception(error_message)
         except Exception as e:
             logger.error(f"Failed to initialize repository: {e}")
-            return False
+            raise
 
     def check(self) -> bool:
         """Check if the backup repository is available"""

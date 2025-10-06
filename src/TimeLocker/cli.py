@@ -825,6 +825,17 @@ def repo_init(
         from .utils.repository_resolver import resolve_repository_uri
         repository_uri = resolve_repository_uri(repository or name)
 
+        # Try to get password from config first (stored during repos add)
+        config_manager = ConfigurationManager()
+        try:
+            repo_config = config_manager.get_repository(name)
+            stored_password = repo_config.get('password')
+            if stored_password and not password:
+                password = stored_password
+                logger.debug(f"Using password from repository configuration for '{name}'")
+        except Exception as e:
+            logger.debug(f"Could not retrieve password from config: {e}")
+
         # Create repository instance to leverage full password resolution chain
         # (explicit password → credential manager → environment → prompt)
         # Pass repository_name so S3/B2 repositories can retrieve backend credentials
@@ -865,8 +876,8 @@ def repo_init(
             task = progress.add_task("Initializing repository...", total=None)
 
             # Initialize repository (repo instance already created above)
-            if not repo.initialize_repository(password):
-                raise Exception("Repository initialization failed")
+            # This will raise an exception with details if it fails
+            repo.initialize_repository(password)
 
             progress.remove_task(task)
 
@@ -880,7 +891,27 @@ def repo_init(
         show_error_panel("Operation Cancelled", "Repository initialization was cancelled by user")
         raise typer.Exit(130)
     except Exception as e:
-        show_error_panel("Initialization Error", f"Failed to initialize repository: {e}")
+        error_msg = str(e)
+
+        # Provide helpful hints based on error type
+        hints = []
+        if "tls" in error_msg.lower() or "certificate" in error_msg.lower():
+            hints.append("💡 TLS certificate error detected. Try setting credentials with 'insecure_tls' option:")
+            hints.append("   tl repos credentials set " + name)
+        elif "bucket" in error_msg.lower() or "not found" in error_msg.lower():
+            hints.append("💡 Bucket not found. Make sure the bucket exists in your S3 service.")
+        elif "credentials" in error_msg.lower() or "access denied" in error_msg.lower():
+            hints.append("💡 Credentials error. Verify your credentials with:")
+            hints.append("   tl repos credentials set " + name)
+
+        # Add log file location
+        hints.append(f"\n📋 Check logs for details: ~/.cache/timelocker/logs/timelocker.log")
+
+        full_message = error_msg
+        if hints:
+            full_message += "\n\n" + "\n".join(hints)
+
+        show_error_panel("Initialization Error", full_message)
         if verbose:
             console.print_exception()
         raise typer.Exit(1)

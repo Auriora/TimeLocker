@@ -234,6 +234,9 @@ class S3ResticRepository(ResticRepository):
 
         Returns:
             bool: True if initialization successful, False otherwise
+
+        Raises:
+            Exception: If initialization fails with details from restic
         """
         try:
             # Use provided password or fall back to configured password
@@ -249,7 +252,7 @@ class S3ResticRepository(ResticRepository):
                     logger.warning(f"Repository at {self._location} is already initialized")
                     return True
 
-                # Initialize the repository
+                # Initialize the repository - this will raise exception on failure
                 result = self.initialize()
 
                 if result and password:
