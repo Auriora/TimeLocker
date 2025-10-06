@@ -221,7 +221,7 @@ grep minio /etc/hosts
 ping minio.local
 
 # Test connection
-curl http://minio.local:9000/minio/health/live
+curl http://minio.local/minio/health/live
 ```
 
 If you get "Could not resolve host", add to `/etc/hosts`:
