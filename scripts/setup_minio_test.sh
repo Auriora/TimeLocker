@@ -63,7 +63,7 @@ if python3 -c "import boto3" 2>/dev/null; then
     echo -e "${GREEN}✅ boto3 is installed${NC}"
 else
     echo -e "${YELLOW}Installing boto3...${NC}"
-    pip install boto3
+    pip install --user boto3
     echo -e "${GREEN}✅ boto3 installed${NC}"
 fi
 
