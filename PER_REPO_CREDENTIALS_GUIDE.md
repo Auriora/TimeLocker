@@ -145,7 +145,7 @@ This means:
 ### How Credentials Are Stored
 
 - Credentials are **encrypted** using the credential manager
-- Stored in `~/.timelocker/credentials/credentials.enc`
+- Stored in `~/.TimeLocker/credentials/credentials.enc`
 - **Never** stored in plain text in `config.json`
 - Protected by master password or auto-unlock
 
