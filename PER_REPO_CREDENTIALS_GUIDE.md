@@ -33,7 +33,7 @@ AWS Region (optional, press Enter to skip): us-east-1
 
 ✅ Repository 'my-minio' added successfully!
 
-📍 URI: s3:minio.local/my-bucket
+📍 URI: s3://minio.local/my-bucket
 📝 Description: my-minio repository
 🎯 Default: No
 🔐 Password: Stored securely
