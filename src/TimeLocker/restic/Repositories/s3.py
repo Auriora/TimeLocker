@@ -188,3 +188,18 @@ class S3ResticRepository(ResticRepository):
             logger.warning("boto3 is not installed. S3 repository validation skipped.")
         except Exception as e:
             raise RepositoryError(f"Failed to validate S3 repository: {str(e)}")
+
+    def is_repository_initialized(self) -> bool:
+        """
+        Check if the repository is already initialized by attempting to read config.
+
+        Returns:
+            bool: True if repository is initialized, False otherwise
+        """
+        try:
+            # Use restic cat config to check if repository exists
+            result = self._run_restic_command(["cat", "config"], capture_output=True)
+            return result.returncode == 0
+        except Exception as e:
+            logger.debug(f"Repository not initialized or error checking: {e}")
+            return False
