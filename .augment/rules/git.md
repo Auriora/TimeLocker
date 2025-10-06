@@ -1,5 +1,5 @@
 ---
-type: "agent_requested"
+type:        "agent_requested"
 description: "Example description"
 ---
 
@@ -32,15 +32,21 @@ Always use this standardized format for commit messages:
 
 - **Type**: Required, lowercase, from the approved list above
 - **Scope**: Optional, in parentheses, describes the area of change (e.g., `mdns`, `traefik`, `monitoring`)
-- **Subject**: Required, concise description in imperative mood, no period at end
+- **Subject**: Required, concise, imperative mood, no period at end, ≤ 72 characters
+- **Body Wrapping**: Wrap the description/body at roughly 72 characters per line for readability
 - **Description**: Required, detailed explanation of what and why, can be multiple paragraphs
-- **Tags/References**: Optional, include issue numbers, external references, breaking changes
+- **Tags/References**: Optional, include issue numbers, external references, breaking changes; prefer linking issues using phrases like "Refs #123" or "Fixes
+  #123"
 
 ### Example
 
 refactor(mdns): remove avahi-daemon container from mDNS automation
 
+> Note: See CONTRIBUTING.md for additional commit and branching conventions to avoid drift with these rules.
+
 ## Git Policy
 
 - commits should always be done in logical groups of changes if multiple different types of changes are made
 - all changes should be done on a branch - not on the top of tree. a branch should be created for the change before changing or commtting changes
+- branch naming: use descriptive prefixes, e.g., `feature/<short-desc>`, `fix/<issue-#>`, `docs/<topic>`, `chore/<task>`
+- when applicable, link issues in commit messages and PR descriptions using "Refs #<id>" for references and "Fixes #<id>" or "Closes #<id>" for auto-closing
