@@ -10,19 +10,12 @@ import tempfile
 import json
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
-from typer.testing import CliRunner
 
 from src.TimeLocker.cli import app
+from tests.TimeLocker.cli.test_utils import get_cli_runner, combined_output
 
 # Set wider terminal width to prevent help text truncation in CI
-runner = CliRunner(env={'COLUMNS': '200'})
-
-
-def _combined_output(result):
-    """Combine stdout and stderr for matching convenience across environments."""
-    out = result.stdout or ""
-    err = getattr(result, "stderr", "") or ""
-    return out + "\n" + err
+runner = get_cli_runner()
 
 
 class TestCLIIntegrationWorkflows:
@@ -400,7 +393,7 @@ class TestCLIIntegrationWorkflows:
             "repos", "add", "existing-repo", "file:///tmp/repo"
         ])
         assert result.exit_code != 0, "Duplicate repo add should fail gracefully"
-        combined = _combined_output(result)
+        combined = combined_output(result)
         assert len(combined) > 10, "Should show meaningful error message"
 
         # Step 2: Try backup that fails
@@ -408,5 +401,5 @@ class TestCLIIntegrationWorkflows:
             "backup", "create", "/tmp/test"
         ])
         assert result.exit_code != 0, "Failed backup should fail gracefully"
-        combined = _combined_output(result)
+        combined = combined_output(result)
         assert len(combined) > 10, "Should show meaningful error message"
