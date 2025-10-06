@@ -1936,18 +1936,16 @@ def repos_add(
             # S3 repository - prompt for AWS credentials
             if Confirm.ask(f"Would you like to store AWS credentials for repository '{name}'?", default=True):
                 console.print("\n[bold]AWS Credentials:[/bold]")
+                console.print("[dim]Note: Include the endpoint in the repository URI (e.g., s3:https://s3.wasabisys.com/bucket)[/dim]")
                 access_key_id = Prompt.ask("AWS Access Key ID", password=True)
                 secret_access_key = Prompt.ask("AWS Secret Access Key", password=True)
                 region = Prompt.ask("AWS Region (optional, press Enter to skip)", default="")
-                endpoint = Prompt.ask("AWS S3 Endpoint (optional, for MinIO/Wasabi/etc, press Enter to skip)", default="")
 
-                # Ask about TLS verification if endpoint is provided
-                insecure_tls = False
-                if endpoint:
-                    insecure_tls = Confirm.ask(
-                        "Skip TLS certificate verification? (for self-signed certificates)",
-                        default=False
-                    )
+                # Ask about TLS verification for self-signed certificates
+                insecure_tls = Confirm.ask(
+                    "Skip TLS certificate verification? (for self-signed certificates)",
+                    default=False
+                )
 
                 credentials_dict = {
                     "access_key_id": access_key_id,
@@ -1955,8 +1953,6 @@ def repos_add(
                 }
                 if region:
                     credentials_dict["region"] = region
-                if endpoint:
-                    credentials_dict["endpoint"] = endpoint
                 if insecure_tls:
                     credentials_dict["insecure_tls"] = True
 
@@ -2146,18 +2142,16 @@ def repos_credentials_set(
         if uri.startswith(('s3://', 's3:')):
             backend_type = "s3"
             console.print(f"\n[bold]Setting AWS credentials for repository '{name}'[/bold]")
+            console.print("[dim]Note: Include the endpoint in the repository URI (e.g., s3:https://s3.wasabisys.com/bucket)[/dim]")
             access_key_id = Prompt.ask("AWS Access Key ID", password=True)
             secret_access_key = Prompt.ask("AWS Secret Access Key", password=True)
             region = Prompt.ask("AWS Region (optional, press Enter to skip)", default="")
-            endpoint = Prompt.ask("AWS S3 Endpoint (optional, for MinIO/Wasabi/etc, press Enter to skip)", default="")
 
-            # Ask about TLS verification if endpoint is provided
-            insecure_tls = False
-            if endpoint:
-                insecure_tls = Confirm.ask(
-                    "Skip TLS certificate verification? (for self-signed certificates)",
-                    default=False
-                )
+            # Ask about TLS verification for self-signed certificates
+            insecure_tls = Confirm.ask(
+                "Skip TLS certificate verification? (for self-signed certificates)",
+                default=False
+            )
 
             credentials_dict = {
                 "access_key_id": access_key_id,
@@ -2165,8 +2159,6 @@ def repos_credentials_set(
             }
             if region:
                 credentials_dict["region"] = region
-            if endpoint:
-                credentials_dict["endpoint"] = endpoint
             if insecure_tls:
                 credentials_dict["insecure_tls"] = True
 
@@ -2349,12 +2341,12 @@ def repos_credentials_show(
                     fields.append("✓ Secret Access Key")
                 if creds.get("region"):
                     fields.append(f"✓ Region: {creds['region']}")
-                if creds.get("endpoint"):
-                    fields.append(f"✓ Endpoint: {creds['endpoint']}")
                 if creds.get("insecure_tls"):
                     fields.append("✓ TLS Verification: Disabled (insecure_tls=true)")
                 else:
                     fields.append("✓ TLS Verification: Enabled")
+                # Note: Endpoint is now part of the repository URI, not stored separately
+                fields.append("[dim]Note: Endpoint is specified in the repository URI[/dim]")
             elif backend_type == "b2":
                 if creds.get("account_id"):
                     fields.append("✓ Account ID")

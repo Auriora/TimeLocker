@@ -70,7 +70,7 @@ class S3ResticRepository(ResticRepository):
                     aws_access_key_id = aws_access_key_id or repo_creds.get("access_key_id")
                     aws_secret_access_key = aws_secret_access_key or repo_creds.get("secret_access_key")
                     aws_default_region = aws_default_region or repo_creds.get("region")
-                    aws_s3_endpoint = aws_s3_endpoint or repo_creds.get("endpoint")
+                    # Note: Endpoint is now part of the repository URI, not stored in credentials
                     # Get insecure_tls from credentials if not explicitly provided
                     if insecure_tls is None and "insecure_tls" in repo_creds:
                         insecure_tls = repo_creds.get("insecure_tls")
