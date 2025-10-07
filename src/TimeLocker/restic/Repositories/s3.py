@@ -26,6 +26,13 @@ from ..restic_repository import RepositoryError, ResticRepository
 
 
 class S3ResticRepository(ResticRepository):
+    """
+    S3-backed restic repository implementation.
+
+    Supports per-repository credential management through the credential manager,
+    with fallback to constructor parameters and environment variables.
+    """
+
     def __init__(
             self,
             location: str,
@@ -33,11 +40,27 @@ class S3ResticRepository(ResticRepository):
             aws_access_key_id: Optional[str] = None,
             aws_secret_access_key: Optional[str] = None,
             aws_default_region: Optional[str] = None,
+            aws_s3_endpoint: Optional[str] = None,
+            insecure_tls: Optional[bool] = None,
             credential_manager: Optional[object] = None,
             repository_name: Optional[str] = None,
     ):
-        super().__init__(location, password=password, credential_manager=credential_manager)
+        """
+        Initialize S3 restic repository.
 
+        Args:
+            location: S3 repository location (e.g., 's3:s3.amazonaws.com/bucket/path')
+            password: Repository password for encryption
+            aws_access_key_id: AWS access key ID (optional, can be retrieved from credential manager or environment)
+            aws_secret_access_key: AWS secret access key (optional, can be retrieved from credential manager or environment)
+            aws_default_region: AWS region (optional, can be retrieved from credential manager or environment)
+            aws_s3_endpoint: S3 endpoint URL for S3-compatible services like MinIO, Wasabi, etc. (optional)
+            insecure_tls: Skip TLS certificate verification (useful for self-signed certificates)
+            credential_manager: CredentialManager instance for retrieving stored credentials
+            repository_name: Repository name for per-repository credential lookup from credential manager.
+                           If provided with credential_manager, will attempt to retrieve repository-specific
+                           credentials before falling back to constructor parameters or environment variables.
+        """
         # Try to get per-repository credentials from credential manager first
         if credential_manager and repository_name:
             try:
@@ -47,14 +70,30 @@ class S3ResticRepository(ResticRepository):
                     aws_access_key_id = aws_access_key_id or repo_creds.get("access_key_id")
                     aws_secret_access_key = aws_secret_access_key or repo_creds.get("secret_access_key")
                     aws_default_region = aws_default_region or repo_creds.get("region")
+                    # Note: Endpoint is now part of the repository URI, not stored in credentials
+                    # Get insecure_tls from credentials if not explicitly provided (default to False)
+                    if insecure_tls is None:
+                        insecure_tls = repo_creds.get("insecure_tls", False)
             except Exception as e:
                 # Log but don't fail - fall back to other credential sources
                 logger.debug(f"Could not retrieve per-repository S3 credentials: {e}")
 
-        # Fall back to constructor parameters or environment variables
+        # Set attributes BEFORE calling super().__init__() because validate() needs them
         self.aws_access_key_id = aws_access_key_id if aws_access_key_id is not None else os.getenv("AWS_ACCESS_KEY_ID")
         self.aws_secret_access_key = aws_secret_access_key if aws_secret_access_key is not None else os.getenv("AWS_SECRET_ACCESS_KEY")
         self.aws_default_region = aws_default_region if aws_default_region is not None else os.getenv("AWS_DEFAULT_REGION")
+        self.aws_s3_endpoint = aws_s3_endpoint if aws_s3_endpoint is not None else os.getenv("AWS_S3_ENDPOINT")
+
+        # Handle insecure_tls setting
+        if insecure_tls is None:
+            # Check environment variable
+            env_insecure = os.getenv("RESTIC_INSECURE_TLS")
+            self.insecure_tls = env_insecure is not None and env_insecure.lower() in ("1", "true", "yes")
+        else:
+            self.insecure_tls = insecure_tls
+
+        # Call parent __init__ which will trigger validate()
+        super().__init__(location, password=password, credential_manager=credential_manager)
 
     @classmethod
     def from_parsed_uri(
@@ -89,6 +128,7 @@ class S3ResticRepository(ResticRepository):
                 aws_access_key_id=query_params.get("access_key_id", [None])[0],
                 aws_secret_access_key=query_params.get("secret_access_key", [None])[0],
                 aws_default_region=query_params.get("region", [None])[0],
+                aws_s3_endpoint=query_params.get("endpoint", [None])[0],
                 **kwargs,
         )
 
@@ -107,9 +147,31 @@ class S3ResticRepository(ResticRepository):
         env["AWS_SECRET_ACCESS_KEY"] = self.aws_secret_access_key
         if self.aws_default_region:
             env["AWS_DEFAULT_REGION"] = self.aws_default_region
+        if self.aws_s3_endpoint:
+            env["AWS_S3_ENDPOINT"] = self.aws_s3_endpoint
+            # Sanitize endpoint URL for logging to avoid exposing sensitive information
+            from urllib.parse import urlparse
+            parsed_endpoint = urlparse(self.aws_s3_endpoint)
+            sanitized_endpoint = f"{parsed_endpoint.scheme}://{parsed_endpoint.netloc}{parsed_endpoint.path}"
+            logger.info(f"Setting AWS_S3_ENDPOINT to {sanitized_endpoint}")
+        if self.insecure_tls:
+            env["RESTIC_INSECURE_TLS"] = "true"
+            logger.info("Setting RESTIC_INSECURE_TLS=true to skip TLS certificate verification")
+        else:
+            logger.info(f"insecure_tls is False or None: {self.insecure_tls}")
         return env
 
     def validate(self):
+        """
+        Validate S3 repository configuration.
+
+        Performs lightweight validation during initialization:
+        - Checks location format is valid
+        - Verifies credentials are available
+
+        Note: Does NOT make network calls to check bucket existence during init
+        to avoid delays. Bucket validation happens during actual operations.
+        """
         logger.info("Validating S3 repository configuration")
         try:
             # If location is empty or root-only, skip validation gracefully
@@ -118,17 +180,16 @@ class S3ResticRepository(ResticRepository):
                 logger.warning("S3 location has empty bucket; validation skipped.")
                 return
 
-            s3 = client("s3")
-            # Extract bucket name from location. Support both:
-            # - restic style: s3:host/bucket[/path]
-            # - simplified style used here: s3:bucket[/path]
+            # Extract bucket name from location for basic format validation
             path_parts = location_parts.split("/")
             host = path_parts[0]
             # More reliable hostname detection for host/bucket style
+            # If endpoint is configured, first part is always hostname
             is_hostname = (
+                self.aws_s3_endpoint is not None or  # Endpoint configured = host/bucket format
                 host.endswith('.amazonaws.com') or
                 host.endswith('.backblazeb2.com') or
-                ('.' in host and len(host.split('.')) >= 3)
+                ('.' in host and len(host.split('.')) >= 2)  # Any domain name (e.g., minio.local)
             )
             if len(path_parts) >= 2 and is_hostname:
                 bucket_name = path_parts[1]
@@ -139,9 +200,79 @@ class S3ResticRepository(ResticRepository):
                 logger.warning("Could not extract S3 bucket from location; validation skipped.")
                 return
 
-            s3.head_bucket(Bucket=bucket_name)
-            logger.info(f"Successfully validated S3 bucket: {bucket_name}")
+            # Just log that we have the bucket name - don't make network calls
+            logger.debug(f"S3 repository configured for bucket: {bucket_name}")
+
+            # Verify we have credentials (but don't test them with network calls)
+            if not self.aws_access_key_id or not self.aws_secret_access_key:
+                logger.debug("S3 credentials not configured - will use environment or IAM role")
+            else:
+                logger.debug("S3 credentials configured")
+
         except ImportError:
             logger.warning("boto3 is not installed. S3 repository validation skipped.")
         except Exception as e:
-            raise RepositoryError(f"Failed to validate S3 repository: {str(e)}")
+            # Don't fail on validation errors during init - let restic handle it
+            logger.debug(f"S3 repository validation warning: {str(e)}")
+
+    def is_repository_initialized(self) -> bool:
+        """
+        Check if the repository is already initialized by attempting to read config.
+
+        Returns:
+            bool: True if repository is initialized, False otherwise
+        """
+        try:
+            # Use restic cat config to check if repository exists
+            result = self._run_restic_command(["cat", "config"], capture_output=True)
+            return result.returncode == 0
+        except Exception as e:
+            logger.debug(f"Repository not initialized or error checking: {e}")
+            return False
+
+    def initialize_repository(self, password: Optional[str] = None) -> bool:
+        """
+        Initialize a new restic repository in S3.
+
+        Args:
+            password: Optional password to use for initialization. If not provided,
+                     uses the repository's configured password
+
+        Returns:
+            bool: True if initialization successful, False otherwise
+
+        Raises:
+            Exception: If initialization fails with details from restic
+        """
+        try:
+            # Use provided password or fall back to configured password
+            if password:
+                original_password = self._explicit_password
+                self._explicit_password = password
+                # Clear cached environment to force regeneration with new password
+                self._cached_env = None
+
+            try:
+                # Check if repository is already initialized
+                if self.is_repository_initialized():
+                    logger.warning(f"Repository at {self._location} is already initialized")
+                    return True
+
+                # Initialize the repository - this will raise exception on failure
+                result = self.initialize()
+
+                if result and password:
+                    # Store the password in credential manager if available
+                    self.store_password(password)
+
+                return result
+
+            finally:
+                # Restore original password if we changed it
+                if password:
+                    self._explicit_password = original_password
+                    self._cached_env = None
+
+        except Exception as e:
+            logger.error(f"Failed to initialize repository: {e}")
+            raise

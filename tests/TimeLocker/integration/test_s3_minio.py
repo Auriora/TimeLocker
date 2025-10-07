@@ -34,13 +34,18 @@ MINIO_BUCKET = os.getenv("MINIO_BUCKET", "timelocker-test")
 MINIO_REGION = os.getenv("MINIO_REGION", "us-east-1")
 
 
-@pytest.fixture
+@pytest.fixture(scope="session")
 def minio_available() -> bool:
-    """Check if MinIO is available for testing."""
+    """
+    Check if MinIO is available for testing.
+
+    This is a session-scoped fixture to avoid repeated connection attempts.
+    Returns True if MinIO is available, otherwise skips all tests that depend on it.
+    """
     try:
         import boto3
         from botocore.exceptions import ClientError
-        
+
         s3_client = boto3.client(
             's3',
             endpoint_url=f'http://{MINIO_ENDPOINT}',
@@ -48,13 +53,12 @@ def minio_available() -> bool:
             aws_secret_access_key=MINIO_SECRET_KEY,
             region_name=MINIO_REGION
         )
-        
+
         # Try to list buckets to verify connection
         s3_client.list_buckets()
         return True
     except Exception as e:
         pytest.skip(f"MinIO not available: {e}")
-        return False
 
 
 @pytest.fixture

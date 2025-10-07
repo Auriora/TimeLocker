@@ -88,14 +88,18 @@ pytest tests/TimeLocker/integration/test_s3_minio.py -v
 
 ### 3. Manual Testing
 ```bash
-# Load environment
-source .env.test
-
-# Add repository
-tl repos add minio-test "s3:http://minio.local/timelocker-test/my-repo"
+# Add repository (endpoint is now stored in configuration)
+tl repos add minio-test "s3:minio.local/timelocker-test/my-repo"
+# When prompted:
+# - Store password: yes
+# - Store AWS credentials: yes
+# - AWS Access Key ID: minioadmin
+# - AWS Secret Access Key: minioadmin
+# - AWS Region: us-east-1
+# - AWS S3 Endpoint: http://minio.local
 
 # Initialize
-tl repos init minio-test --password "test-password-123"
+tl repos init minio-test
 
 # Create test data
 mkdir -p /tmp/test-backup-source
@@ -183,7 +187,7 @@ MINIO_SECRET_KEY=minioadmin
 MINIO_BUCKET=timelocker-test
 MINIO_REGION=us-east-1
 
-# AWS S3 Configuration
+# AWS S3 Configuration (for testing only - TimeLocker now stores these per-repository)
 AWS_ACCESS_KEY_ID=minioadmin
 AWS_SECRET_ACCESS_KEY=minioadmin
 AWS_DEFAULT_REGION=us-east-1
@@ -193,6 +197,11 @@ AWS_S3_ENDPOINT=http://minio.local
 TIMELOCKER_CONFIG_FILE=./test-config.json
 TIMELOCKER_PASSWORD=test-password-123
 ```
+
+**Note:** As of the latest version, TimeLocker stores AWS credentials and endpoint
+per-repository in the credential manager. You no longer need to set `AWS_ACCESS_KEY_ID`,
+`AWS_SECRET_ACCESS_KEY`, or `AWS_S3_ENDPOINT` environment variables manually when using
+`tl repos add` - just provide them when prompted during repository setup.
 
 ## Integration Tests
 

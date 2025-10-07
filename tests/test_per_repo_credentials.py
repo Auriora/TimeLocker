@@ -14,6 +14,7 @@ import sys
 import tempfile
 import shutil
 from pathlib import Path
+from unittest.mock import patch
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
@@ -55,11 +56,18 @@ def test_credential_manager_per_repo_methods():
     temp_dir = tempfile.mkdtemp()
     try:
         cred_manager = CredentialManager(config_dir=Path(temp_dir))
-        
+
         # Unlock with auto-unlock
         if not cred_manager.auto_unlock():
             # If auto-unlock fails, use a test password
             cred_manager.unlock("test-password-123")
+
+        # Verify the credential manager is actually unlocked
+        if cred_manager.is_locked():
+            raise RuntimeError(
+                "Failed to unlock credential manager for testing. "
+                "Check if auto-unlock is properly configured or if the test password is correct."
+            )
         
         # Test storing S3 credentials
         s3_creds = {
@@ -131,6 +139,10 @@ def test_s3_repository_credential_resolution():
         if not cred_manager.auto_unlock():
             cred_manager.unlock("test-password-123")
 
+        # Verify the credential manager is actually unlocked
+        if cred_manager.is_locked():
+            raise RuntimeError("Failed to unlock credential manager for testing")
+
         # Store credentials for a repository
         s3_creds = {
             "access_key_id": "per-repo-access-key",
@@ -139,11 +151,8 @@ def test_s3_repository_credential_resolution():
         }
         cred_manager.store_repository_backend_credentials("test-s3-repo", "s3", s3_creds)
 
-        # Monkey-patch validate to skip actual S3 validation
-        original_validate = S3ResticRepository.validate
-        S3ResticRepository.validate = lambda self: None
-
-        try:
+        # Use unittest.mock.patch for better test isolation and automatic cleanup
+        with patch.object(S3ResticRepository, 'validate', lambda self: None):
             # Create S3 repository with repository_name
             repo = S3ResticRepository(
                 location="s3:minio.local/test-bucket",
@@ -175,10 +184,6 @@ def test_s3_repository_credential_resolution():
             del os.environ["AWS_ACCESS_KEY_ID"]
             del os.environ["AWS_SECRET_ACCESS_KEY"]
 
-        finally:
-            # Restore original validate method
-            S3ResticRepository.validate = original_validate
-
         print("✅ S3ResticRepository credential resolution test passed")
 
     finally:
@@ -190,46 +195,46 @@ def test_repository_factory_integration():
     """Test that RepositoryFactory passes repository_name correctly."""
     print("\nTesting RepositoryFactory integration...")
 
-    # Monkey-patch validate to skip actual S3 validation
-    original_validate = S3ResticRepository.validate
-    S3ResticRepository.validate = lambda self: None
-
     # Create temporary credential directory
     temp_dir = tempfile.mkdtemp()
     try:
-        # Create factory
-        factory = RepositoryFactory()
+        # Use unittest.mock.patch for better test isolation and automatic cleanup
+        with patch.object(S3ResticRepository, 'validate', lambda self: None):
+            # Create factory
+            factory = RepositoryFactory()
 
-        # Get credential manager and unlock
-        cred_manager = factory._get_credential_manager()
-        if cred_manager.is_locked():
-            if not cred_manager.auto_unlock():
-                cred_manager.unlock("test-password-123")
+            # Get credential manager and unlock
+            cred_manager = factory._get_credential_manager()
+            if cred_manager.is_locked():
+                if not cred_manager.auto_unlock():
+                    cred_manager.unlock("test-password-123")
 
-        # Store credentials
-        s3_creds = {
-            "access_key_id": "factory-test-key",
-            "secret_access_key": "factory-test-secret",
-            "region": "ap-southeast-1"
-        }
-        cred_manager.store_repository_backend_credentials("factory-test-repo", "s3", s3_creds)
+            # Verify the credential manager is actually unlocked
+            if cred_manager.is_locked():
+                raise RuntimeError("Failed to unlock credential manager for testing")
 
-        # Create repository through factory with repository_name
-        repo = factory.create_repository(
-            uri="s3://minio.local/test-bucket",
-            repository_name="factory-test-repo"
-        )
+            # Store credentials
+            s3_creds = {
+                "access_key_id": "factory-test-key",
+                "secret_access_key": "factory-test-secret",
+                "region": "ap-southeast-1"
+            }
+            cred_manager.store_repository_backend_credentials("factory-test-repo", "s3", s3_creds)
 
-        # Verify credentials were loaded
-        assert isinstance(repo, S3ResticRepository), "Should create S3ResticRepository"
-        assert repo.aws_access_key_id == "factory-test-key", "Factory didn't pass repository_name correctly"
-        print("  ✓ RepositoryFactory passes repository_name correctly")
+            # Create repository through factory with repository_name
+            repo = factory.create_repository(
+                uri="s3://minio.local/test-bucket",
+                repository_name="factory-test-repo"
+            )
 
-        print("✅ RepositoryFactory integration test passed")
+            # Verify credentials were loaded
+            assert isinstance(repo, S3ResticRepository), "Should create S3ResticRepository"
+            assert repo.aws_access_key_id == "factory-test-key", "Factory didn't pass repository_name correctly"
+            print("  ✓ RepositoryFactory passes repository_name correctly")
+
+            print("✅ RepositoryFactory integration test passed")
 
     finally:
-        # Restore original validate method
-        S3ResticRepository.validate = original_validate
         # Cleanup
         shutil.rmtree(temp_dir)
 

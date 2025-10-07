@@ -243,7 +243,11 @@ class BackupOrchestrator(IBackupOrchestrator):
             password = backup_result.metadata.get('password')
             logger.debug(f"Password retrieved from metadata: {'***' if password else 'None'}")
             logger.debug(f"Repository URI: {repo_config['uri']}")
-            repository = self._repository_factory.create_repository(repo_config['uri'], password=password)
+            repository = self._repository_factory.create_repository(
+                repo_config['uri'],
+                password=password,
+                repository_name=backup_result.repository_name
+            )
 
             # Get backup targets
             targets = self._get_backup_targets(backup_result.target_names)
@@ -500,7 +504,7 @@ class BackupOrchestrator(IBackupOrchestrator):
                 repository_uri = repo_config['uri']
 
             # Create repository instance directly from URI
-            repository = self._repository_factory.create_repository(repository_uri)
+            repository = self._repository_factory.create_repository(repository_uri, repository_name=repository_name)
 
             # Verify backup
             if hasattr(repository, 'verify_backup'):

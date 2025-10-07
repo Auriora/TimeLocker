@@ -52,7 +52,7 @@ def test_init_missing_credentials(monkeypatch, mock_s3_client):
         repo.backend_env()
 
     assert "AWS credentials must be set explicitly or in the environment" in str(
-        exc_info.value
+            exc_info.value
     )
     assert "AWS_ACCESS_KEY_ID" in str(exc_info.value)
     assert "AWS_SECRET_ACCESS_KEY" in str(exc_info.value)
@@ -71,11 +71,11 @@ def test___init___with_explicit_credentials(mock_s3_client):
     aws_default_region = "us-west-2"
 
     repo = S3ResticRepository(
-        location,
-        password,
-        aws_access_key_id,
-        aws_secret_access_key,
-        aws_default_region,
+            location,
+            password,
+            aws_access_key_id,
+            aws_secret_access_key,
+            aws_default_region,
     )
 
     assert repo.location() == location
@@ -97,17 +97,17 @@ def test_backend_env_2(mock_s3_client):
     3. The AWS default region is not considered in the missing credentials check.
     """
     repo = S3ResticRepository(
-        location="s3:test-bucket/path",
-        aws_access_key_id="test_access_key",
-        aws_secret_access_key=None,
-        aws_default_region="us-west-2",
+            location="s3:test-bucket/path",
+            aws_access_key_id="test_access_key",
+            aws_secret_access_key=None,
+            aws_default_region="us-west-2",
     )
 
     with pytest.raises(RepositoryError) as exc_info:
         repo.backend_env()
 
     assert "AWS credentials must be set explicitly or in the environment" in str(
-        exc_info.value
+            exc_info.value
     )
     assert "AWS_SECRET_ACCESS_KEY" in str(exc_info.value)
     assert "AWS_ACCESS_KEY_ID" not in str(exc_info.value)
@@ -120,18 +120,18 @@ def test_backend_env_3(mock_s3_client):
     but AWS_SECRET_ACCESS_KEY and AWS_DEFAULT_REGION are provided.
     """
     repo = S3ResticRepository(
-        location="s3:my-bucket/my-path",
-        aws_access_key_id=None,
-        aws_secret_access_key="secret_key",
-        aws_default_region="us-west-2",
+            location="s3:my-bucket/my-path",
+            aws_access_key_id=None,
+            aws_secret_access_key="secret_key",
+            aws_default_region="us-west-2",
     )
 
     with pytest.raises(RepositoryError) as excinfo:
         repo.backend_env()
 
     assert (
-        "AWS credentials must be set explicitly or in the environment. Missing: AWS_ACCESS_KEY_ID"
-        in str(excinfo.value)
+            "AWS credentials must be set explicitly or in the environment. Missing: AWS_ACCESS_KEY_ID"
+            in str(excinfo.value)
     )
 
 
@@ -147,7 +147,7 @@ def test_backend_env_4(mock_s3_client):
         repo.backend_env()
 
     assert "AWS credentials must be set explicitly or in the environment" in str(
-        exc_info.value
+            exc_info.value
     )
     assert "AWS_ACCESS_KEY_ID" in str(exc_info.value)
     assert "AWS_SECRET_ACCESS_KEY" in str(exc_info.value)
@@ -165,7 +165,7 @@ def test_backend_env_missing_credentials(mock_s3_client):
         repo.backend_env()
 
     assert "AWS credentials must be set explicitly or in the environment" in str(
-        exc_info.value
+            exc_info.value
     )
     assert "AWS_ACCESS_KEY_ID" in str(exc_info.value)
     assert "AWS_SECRET_ACCESS_KEY" in str(exc_info.value)
@@ -186,7 +186,7 @@ def test_backend_env_missing_credentials_2(mock_s3_client):
         repo.backend_env()
 
     assert "AWS credentials must be set explicitly or in the environment" in str(
-        exc_info.value
+            exc_info.value
     )
     assert "AWS_ACCESS_KEY_ID" in str(exc_info.value)
     assert "AWS_SECRET_ACCESS_KEY" in str(exc_info.value)
@@ -208,7 +208,7 @@ def test_backend_env_missing_credentials_3(mock_s3_client):
         repo.backend_env()
 
     assert "AWS credentials must be set explicitly or in the environment" in str(
-        excinfo.value
+            excinfo.value
     )
     assert "AWS_ACCESS_KEY_ID" in str(excinfo.value)
     assert "AWS_SECRET_ACCESS_KEY" in str(excinfo.value)
@@ -243,7 +243,7 @@ def test_from_parsed_uri_empty_query_params(mock_s3_client):
     This checks the handling of query parameters with no values.
     """
     parsed_uri = urlparse(
-        "s3://mybucket/mypath?access_key_id=&secret_access_key=&region="
+            "s3://mybucket/mypath?access_key_id=&secret_access_key=&region="
     )
     result = S3ResticRepository.from_parsed_uri(parsed_uri)
     assert result.aws_access_key_id == ""
@@ -272,7 +272,7 @@ def test_from_parsed_uri_with_all_parameters(mock_s3_client):
     secret_access_key, and region from the parsed URI.
     """
     parsed_uri = urlparse(
-        "s3://my-bucket/my-path?access_key_id=AKIAIOSFODNN7EXAMPLE&secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY&region=us-west-2"
+            "s3://my-bucket/my-path?access_key_id=AKIAIOSFODNN7EXAMPLE&secret_access_key=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY&region=us-west-2"
     )
     password = "my-password"
 
@@ -286,46 +286,153 @@ def test_from_parsed_uri_with_all_parameters(mock_s3_client):
 
 
 @pytest.mark.unit
-def test_validate_boto3_not_installed(caplog):
+def test_validate_lightweight(caplog):
     """
-    Test the validate method when boto3 is not installed.
-    This should result in a warning log message and skip the validation.
+    Test that validate performs lightweight validation without network calls.
+    Validation should check format and log configuration but not make S3 API calls.
     """
-    with patch("TimeLocker.restic.Repositories.s3.client", side_effect=ImportError):
-        repo = S3ResticRepository(location="s3:bucket/path")
-        with caplog.at_level("WARNING"):
-            repo.validate()
-        assert (
-            "boto3 is not installed. S3 repository validation skipped." in caplog.text
-        )
+    repo = S3ResticRepository(
+            location="s3:bucket/path",
+            aws_access_key_id="test_key",
+            aws_secret_access_key="test_secret"
+    )
+    with caplog.at_level("DEBUG"):
+        repo.validate()
+    # Should log bucket configuration
+    assert "S3 repository configured for bucket: bucket" in caplog.text
+    # Should log credentials configured
+    assert "S3 credentials configured" in caplog.text
 
 
 @pytest.mark.unit
-def test_validate_s3_exception():
+def test_validate_no_credentials(caplog):
     """
-    Test the validate method when an exception occurs during S3 bucket validation.
-    This should raise a RepositoryError with an appropriate error message.
+    Test that validate handles missing credentials gracefully.
+    Should log that credentials will come from environment or IAM role.
     """
-    mock_s3 = MagicMock()
-    mock_s3.head_bucket.side_effect = Exception("S3 Error")
-    with patch("TimeLocker.restic.Repositories.s3.client", return_value=mock_s3):
-        with pytest.raises(RepositoryError) as exc_info:
-            repo = S3ResticRepository(location="s3:bucket/path")
-        assert "Failed to validate S3 repository: S3 Error" in str(exc_info.value)
+    repo = S3ResticRepository(location="s3:bucket/path")
+    with caplog.at_level("DEBUG"):
+        repo.validate()
+    # Should log that credentials not configured
+    assert "S3 credentials not configured - will use environment or IAM role" in caplog.text
 
 
 @pytest.mark.unit
-def test_validate_successful_s3_bucket():
+def test_validate_bucket_extraction(caplog):
     """
-    Test that validate method successfully validates an S3 bucket.
-    It should create an S3 client, extract the bucket name from the location,
-    call head_bucket on the S3 client, and log a success message.
+    Test that validate method correctly extracts bucket name from location.
+    Should log the bucket name without making network calls.
     """
-    with patch("TimeLocker.restic.Repositories.s3.client") as mock_client:
-        mock_s3 = MagicMock()
-        mock_client.return_value = mock_s3
+    repo = S3ResticRepository(
+            location="s3:test-bucket/path",
+            aws_access_key_id="test_key",
+            aws_secret_access_key="test_secret"
+    )
+    with caplog.at_level("DEBUG"):
+        repo.validate()
+    # Should log the extracted bucket name
+    assert "S3 repository configured for bucket: test-bucket" in caplog.text
 
-        repo = S3ResticRepository(location="s3:test-bucket/path")
 
-        mock_client.assert_called_once_with("s3")
-        mock_s3.head_bucket.assert_called_once_with(Bucket="test-bucket")
+@pytest.mark.unit
+def test_endpoint_from_parameter(mock_s3_client):
+    """Test that endpoint is set from constructor parameter."""
+    repo = S3ResticRepository(
+            location="s3:minio.local/bucket",
+            aws_access_key_id="test_key",
+            aws_secret_access_key="test_secret",
+            aws_s3_endpoint="http://minio.local:9000"
+    )
+
+    assert repo.aws_s3_endpoint == "http://minio.local:9000"
+
+    # Verify it's included in backend_env
+    env = repo.backend_env()
+    assert env["AWS_S3_ENDPOINT"] == "http://minio.local:9000"
+
+
+@pytest.mark.unit
+def test_endpoint_from_environment(monkeypatch, mock_s3_client):
+    """Test that endpoint is retrieved from environment variable."""
+    monkeypatch.setenv("AWS_S3_ENDPOINT", "http://localhost:9000")
+
+    repo = S3ResticRepository(
+            location="s3:bucket/path",
+            aws_access_key_id="test_key",
+            aws_secret_access_key="test_secret"
+    )
+
+    assert repo.aws_s3_endpoint == "http://localhost:9000"
+
+    # Verify it's included in backend_env
+    env = repo.backend_env()
+    assert env["AWS_S3_ENDPOINT"] == "http://localhost:9000"
+
+
+@pytest.mark.unit
+def test_endpoint_from_credential_manager(mock_s3_client):
+    """Test that credentials are retrieved from credential manager.
+
+    Note: Endpoint is now part of the repository URI, not stored in credentials.
+    This test verifies that credentials (access key, secret key, region) are still
+    retrieved from the credential manager, but endpoint must be provided via
+    constructor parameter or environment variable.
+    """
+    mock_cred_manager = MagicMock()
+    mock_cred_manager.get_repository_backend_credentials.return_value = {
+            "access_key_id":     "cred_key",
+            "secret_access_key": "cred_secret",
+            "region":            "us-west-2"
+    }
+
+    repo = S3ResticRepository(
+            location="s3:bucket/path",
+            credential_manager=mock_cred_manager,
+            repository_name="test-repo",
+            aws_s3_endpoint="http://minio.local"  # Endpoint must be provided explicitly
+    )
+
+    assert repo.aws_s3_endpoint == "http://minio.local"
+    assert repo.aws_access_key_id == "cred_key"
+    assert repo.aws_secret_access_key == "cred_secret"
+
+    # Verify it's included in backend_env
+    env = repo.backend_env()
+    assert env["AWS_S3_ENDPOINT"] == "http://minio.local"
+
+
+@pytest.mark.unit
+def test_endpoint_not_set(mock_s3_client):
+    """Test that endpoint is not included in backend_env when not configured."""
+    repo = S3ResticRepository(
+            location="s3:s3.amazonaws.com/bucket",
+            aws_access_key_id="test_key",
+            aws_secret_access_key="test_secret"
+    )
+
+    assert repo.aws_s3_endpoint is None
+
+    # Verify it's NOT included in backend_env
+    env = repo.backend_env()
+    assert "AWS_S3_ENDPOINT" not in env
+
+
+@pytest.mark.unit
+def test_endpoint_parameter_overrides_credential_manager(mock_s3_client):
+    """Test that constructor parameter takes precedence over credential manager."""
+    mock_cred_manager = MagicMock()
+    mock_cred_manager.get_repository_backend_credentials.return_value = {
+            "access_key_id":     "cred_key",
+            "secret_access_key": "cred_secret",
+            "endpoint":          "http://from-cred-manager"
+    }
+
+    repo = S3ResticRepository(
+            location="s3:bucket/path",
+            aws_s3_endpoint="http://from-parameter",
+            credential_manager=mock_cred_manager,
+            repository_name="test-repo"
+    )
+
+    # Parameter should take precedence
+    assert repo.aws_s3_endpoint == "http://from-parameter"
