@@ -186,7 +186,7 @@ def test_s3_repository(access_key, secret_key, endpoint):
         # Get backend environment
         env = repo.backend_env()
         print(f"✓ Backend environment configured:")
-        print(f"   AWS_ACCESS_KEY_ID: {env.get('AWS_ACCESS_KEY_ID', 'NOT SET')[:4]}...")
+        print(f"   AWS_ACCESS_KEY_ID: {'***' if env.get('AWS_ACCESS_KEY_ID') else 'NOT SET'}")
         print(f"   AWS_SECRET_ACCESS_KEY: {'***' if env.get('AWS_SECRET_ACCESS_KEY') else 'NOT SET'}")
         endpoint_value = os.environ.get('AWS_S3_ENDPOINT', 'NOT SET')
         sanitized = sanitize_endpoint(endpoint_value) if endpoint_value != 'NOT SET' else 'NOT SET'
