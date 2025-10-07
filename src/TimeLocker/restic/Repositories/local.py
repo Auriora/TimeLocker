@@ -27,6 +27,24 @@ from ...security import CredentialManager
 
 
 class LocalResticRepository(ResticRepository):
+    def __init__(self, location: str, password: Optional[str] = None,
+                 credential_manager: Optional[CredentialManager] = None,
+                 repository_name: Optional[str] = None, **kwargs):
+        """
+        Initialize local restic repository.
+
+        Args:
+            location: Local filesystem path for the repository
+            password: Repository password for encryption
+            credential_manager: CredentialManager instance for retrieving stored credentials
+            repository_name: Repository name for per-repository credential lookup from credential manager.
+                           For local repositories, this is primarily used for password storage/retrieval.
+            **kwargs: Additional parameters passed to parent class
+        """
+        # Local repositories don't have backend-specific credentials like S3/B2,
+        # but we accept repository_name for consistency and password management
+        super().__init__(location, password=password, credential_manager=credential_manager, **kwargs)
+
     @classmethod
     def from_parsed_uri(cls, parsed_uri, password: Optional[str] = None, **kwargs) -> 'LocalResticRepository':
         if hasattr(parsed_uri, "netloc") and parsed_uri.netloc:
