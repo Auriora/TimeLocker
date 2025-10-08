@@ -20,6 +20,7 @@ from typing import Dict, Optional
 from urllib.parse import parse_qs
 
 from boto3 import client
+from botocore.exceptions import ClientError, NoCredentialsError, BotoCoreError  # Added specific exceptions
 
 from ..logging import logger
 from ..restic_repository import RepositoryError, ResticRepository
@@ -74,7 +75,7 @@ class S3ResticRepository(ResticRepository):
                     # Get insecure_tls from credentials if not explicitly provided (default to False)
                     if insecure_tls is None:
                         insecure_tls = repo_creds.get("insecure_tls", False)
-            except Exception as e:
+            except Exception as e:  # Keeping broad here intentionally to avoid failing init due to credential manager issues
                 # Log but don't fail - fall back to other credential sources
                 logger.debug(f"Could not retrieve per-repository S3 credentials: {e}")
 
@@ -121,6 +122,16 @@ class S3ResticRepository(ResticRepository):
                 location = "s3:/" if (bucket == "" and path == "") else f"s3:{bucket}"
 
         query_params = parse_qs(parsed_uri.query, keep_blank_values=True)
+
+        # Perform a lightweight validation to check bucket existence using boto3
+        if bucket:
+            try:
+                s3 = client('s3')
+                s3.head_bucket(Bucket=bucket)
+            except (ClientError, NoCredentialsError, BotoCoreError) as e:
+                # Expected operational issues (missing credentials, permissions, non-existent bucket, etc.)
+                logger.debug(f"Non-fatal S3 bucket validation issue for '{bucket}': {e}")
+            # Let any other unexpected exceptions surface for visibility
 
         return cls(
                 location=location,
@@ -186,10 +197,10 @@ class S3ResticRepository(ResticRepository):
             # More reliable hostname detection for host/bucket style
             # If endpoint is configured, first part is always hostname
             is_hostname = (
-                self.aws_s3_endpoint is not None or  # Endpoint configured = host/bucket format
-                host.endswith('.amazonaws.com') or
-                host.endswith('.backblazeb2.com') or
-                ('.' in host and len(host.split('.')) >= 2)  # Any domain name (e.g., minio.local)
+                    self.aws_s3_endpoint is not None or  # Endpoint configured = host/bucket format
+                    host.endswith('.amazonaws.com') or
+                    host.endswith('.backblazeb2.com') or
+                    ('.' in host and len(host.split('.')) >= 2)  # Any domain name (e.g., minio.local)
             )
             if len(path_parts) >= 2 and is_hostname:
                 bucket_name = path_parts[1]

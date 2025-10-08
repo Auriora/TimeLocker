@@ -553,6 +553,10 @@ class CLIServiceManager:
         repository_uri = self.resolve_repository_uri(repository_input)
         return self._backup_orchestrator.estimate_backup_size(repository_uri, target_names)
 
+    def get_repository_service(self) -> RepositoryService:
+        """Backward-compatible accessor used by CLI commands expecting a method."""
+        return self._repository_service
+
 
 # Global CLI service manager instance
 _cli_service_manager: Optional[CLIServiceManager] = None

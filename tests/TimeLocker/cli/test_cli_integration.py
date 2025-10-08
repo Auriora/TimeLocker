@@ -12,7 +12,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 
 from src.TimeLocker.cli import app
-from tests.TimeLocker.cli.test_utils import get_cli_runner, combined_output
+from tests.TimeLocker.cli.test_utils import get_cli_runner, combined_output, assert_success
 
 # Set wider terminal width to prevent help text truncation in CI
 runner = get_cli_runner()
@@ -67,29 +67,29 @@ class TestCLIIntegrationWorkflows:
             "repos", "add", "test-repo", f"file://{temp_repo_dir}",
             "--description", "Test repository"
         ])
-        assert result.exit_code in [0, 1], "Repository add should not crash"
+        assert_success(result, "Repository add should succeed with mocked service manager")
 
         # Step 2: List repositories
         result = runner.invoke(app, ["repos", "list"])
-        assert result.exit_code in [0, 1], "Repository list should not crash"
+        assert_success(result, "Repository list should succeed with mocked service manager")
 
         # Step 3: Show repository details
         result = runner.invoke(app, ["repos", "show", "test-repo"])
-        assert result.exit_code in [0, 1], "Repository show should not crash"
+        assert_success(result, "Repository show should succeed with mocked service manager")
 
         # Step 4: Initialize repository
         result = runner.invoke(app, [
             "repos", "init", "test-repo", "--yes"
         ])
-        assert result.exit_code in [0, 1], "Repository init should not crash"
+        assert_success(result, "Repository init should succeed with mocked service manager")
 
         # Step 5: Check repository
         result = runner.invoke(app, ["repos", "check", "test-repo"])
-        assert result.exit_code in [0, 1], "Repository check should not crash"
+        assert_success(result, "Repository check should succeed with mocked service manager")
 
         # Step 6: Remove repository
         result = runner.invoke(app, ["repos", "remove", "test-repo"])
-        assert result.exit_code in [0, 1], "Repository remove should not crash"
+        assert_success(result, "Repository remove should succeed with mocked service manager")
 
     @pytest.mark.integration
     @patch('src.TimeLocker.cli.get_cli_service_manager')
@@ -115,19 +115,19 @@ class TestCLIIntegrationWorkflows:
             "--path", str(temp_backup_dir),
             "--description", "Test target"
         ])
-        assert result.exit_code in [0, 1], "Target add should not crash"
+        assert_success(result, "Target add should succeed with mocked service manager")
 
         # Step 2: List targets
         result = runner.invoke(app, ["targets", "list"])
-        assert result.exit_code in [0, 1], "Target list should not crash"
+        assert_success(result, "Target list should succeed with mocked service manager")
 
         # Step 3: Show target details
         result = runner.invoke(app, ["targets", "show", "test-target"])
-        assert result.exit_code in [0, 1], "Target show should not crash"
+        assert_success(result, "Target show should succeed with mocked service manager")
 
         # Step 4: Remove target
         result = runner.invoke(app, ["targets", "remove", "test-target"])
-        assert result.exit_code in [0, 1], "Target remove should not crash"
+        assert_success(result, "Target remove should succeed with mocked service manager")
 
     @pytest.mark.integration
     @patch('src.TimeLocker.cli.get_cli_service_manager')
@@ -152,7 +152,7 @@ class TestCLIIntegrationWorkflows:
             "--target", "test-target",
             "--dry-run"
         ])
-        assert result.exit_code in [0, 1], "Backup create with target should not crash"
+        assert_success(result, "Backup create with target should succeed with mocked service manager")
 
         # Step 2: Create backup with direct paths
         result = runner.invoke(app, [
@@ -161,21 +161,21 @@ class TestCLIIntegrationWorkflows:
             "--repository", f"file://{temp_repo_dir}",
             "--dry-run"
         ])
-        assert result.exit_code in [0, 1], "Backup create with paths should not crash"
+        assert_success(result, "Backup create with paths should succeed with mocked service manager")
 
         # Step 3: Verify backup
         result = runner.invoke(app, [
             "backup", "verify",
             "--repository", f"file://{temp_repo_dir}"
         ])
-        assert result.exit_code in [0, 1], "Backup verify should not crash"
+        assert_success(result, "Backup verify should succeed with mocked service manager")
 
         # Step 4: List snapshots
         result = runner.invoke(app, [
             "snapshots", "list",
             "--repository", f"file://{temp_repo_dir}"
         ])
-        assert result.exit_code in [0, 1], "Snapshots list should not crash"
+        assert_success(result, "Snapshots list should succeed with mocked service manager")
 
     @pytest.mark.integration
     @patch('src.TimeLocker.cli.get_cli_service_manager')
@@ -204,28 +204,28 @@ class TestCLIIntegrationWorkflows:
             "snapshots", "list",
             "--repository", f"file://{temp_repo_dir}"
         ])
-        assert result.exit_code in [0, 1], "Snapshots list should not crash"
+        assert_success(result, "Snapshots list should succeed with mocked service manager")
 
         # Step 2: Show snapshot details
         result = runner.invoke(app, [
             "snapshots", "show", "abc123def456",
             "--repository", f"file://{temp_repo_dir}"
         ])
-        assert result.exit_code in [0, 1], "Snapshots show should not crash"
+        assert_success(result, "Snapshots show should succeed with mocked service manager")
 
         # Step 3: List snapshot contents
         result = runner.invoke(app, [
             "snapshots", "contents", "abc123def456",
             "--repository", f"file://{temp_repo_dir}"
         ])
-        assert result.exit_code in [0, 1], "Snapshots contents should not crash"
+        assert_success(result, "Snapshots contents should succeed with mocked service manager")
 
         # Step 4: Search in snapshots
         result = runner.invoke(app, [
             "snapshots", "find", "*.txt",
             "--repository", f"file://{temp_repo_dir}"
         ])
-        assert result.exit_code in [0, 1], "Snapshots find should not crash"
+        assert_success(result, "Snapshots find should succeed with mocked service manager")
 
     @pytest.mark.integration
     @patch('src.TimeLocker.cli.get_cli_service_manager')
@@ -246,7 +246,7 @@ class TestCLIIntegrationWorkflows:
                 "snapshots", "restore", "abc123def456", restore_dir,
                 "--repository", f"file://{temp_repo_dir}"
             ])
-            assert result.exit_code in [0, 1], "Snapshot restore should not crash"
+            assert_success(result, "Snapshot restore should succeed with mocked service manager")
 
             # Step 2: Mount snapshot
             mount_dir = Path(restore_dir) / "mount"
@@ -255,13 +255,13 @@ class TestCLIIntegrationWorkflows:
                 "snapshots", "mount", "abc123def456", str(mount_dir),
                 "--repository", f"file://{temp_repo_dir}"
             ])
-            assert result.exit_code in [0, 1], "Snapshot mount should not crash"
+            assert_success(result, "Snapshot mount should succeed with mocked service manager")
 
             # Step 3: Unmount snapshot
             result = runner.invoke(app, [
                 "snapshots", "umount", "abc123def456"
             ])
-            assert result.exit_code in [0, 1], "Snapshot umount should not crash"
+            assert_success(result, "Snapshot umount should succeed with mocked service manager")
 
     @pytest.mark.integration
     @patch('src.TimeLocker.cli.get_cli_service_manager')
@@ -278,20 +278,20 @@ class TestCLIIntegrationWorkflows:
 
         # Step 1: Unlock credential manager
         result = runner.invoke(app, ["credentials", "unlock"])
-        assert result.exit_code in [0, 1], "Credentials unlock should not crash"
+        assert_success(result, "Credentials unlock should succeed with mocked service manager")
 
         # Step 2: Set repository password
         result = runner.invoke(app, [
             "credentials", "set", "test-repo",
             "--password", "test-password"
         ])
-        assert result.exit_code in [0, 1], "Credentials set should not crash"
+        assert_success(result, "Credentials set should succeed with mocked service manager")
 
         # Step 3: Remove repository password
         result = runner.invoke(app, [
             "credentials", "remove", "test-repo"
         ])
-        assert result.exit_code in [0, 1], "Credentials remove should not crash"
+        assert_success(result, "Credentials remove should succeed with mocked service manager")
 
     @pytest.mark.integration
     @patch('src.TimeLocker.cli.ConfigurationModule')
@@ -317,7 +317,7 @@ class TestCLIIntegrationWorkflows:
             "config", "show",
             "--config-dir", str(temp_config_dir)
         ])
-        assert result.exit_code in [0, 1], "Config show should not crash"
+        assert_success(result, "Config show should succeed with mocked configuration")
 
     @pytest.mark.integration
     @patch('src.TimeLocker.cli.get_cli_service_manager')
@@ -346,13 +346,13 @@ class TestCLIIntegrationWorkflows:
             "--description", "My first backup repository",
             "--set-default"
         ])
-        assert result.exit_code in [0, 1], "First repo add should not crash"
+        assert_success(result, "First repo add should succeed with mocked service manager")
 
         # Step 2: Initialize repository
         result = runner.invoke(app, [
             "repos", "init", "my-backup", "--yes"
         ])
-        assert result.exit_code in [0, 1], "First repo init should not crash"
+        assert_success(result, "First repo init should succeed with mocked service manager")
 
         # Step 3: Add backup target
         result = runner.invoke(app, [
@@ -360,7 +360,7 @@ class TestCLIIntegrationWorkflows:
             "--path", str(temp_backup_dir),
             "--description", "My documents"
         ])
-        assert result.exit_code in [0, 1], "First target add should not crash"
+        assert_success(result, "First target add should succeed with mocked service manager")
 
         # Step 4: Create first backup
         result = runner.invoke(app, [
@@ -368,11 +368,11 @@ class TestCLIIntegrationWorkflows:
             "--target", "documents",
             "--tags", "first-backup"
         ])
-        assert result.exit_code in [0, 1], "First backup should not crash"
+        assert_success(result, "First backup should succeed with mocked service manager")
 
         # Step 5: List snapshots to verify
         result = runner.invoke(app, ["snapshots", "list"])
-        assert result.exit_code in [0, 1], "First snapshots list should not crash"
+        assert_success(result, "First snapshots list should succeed with mocked service manager")
 
     @pytest.mark.integration
     @patch('src.TimeLocker.cli.get_cli_service_manager')

@@ -30,6 +30,10 @@ def get_cli_runner(columns: int = 200) -> CliRunner:
     return CliRunner(env={'COLUMNS': str(columns)})
 
 
+# Export a shared runner instance for legacy tests expecting a module-level 'runner'
+runner = get_cli_runner()
+
+
 def combined_output(result) -> str:
     """
     Combine stdout and stderr for matching convenience across environments.
@@ -49,6 +53,10 @@ def combined_output(result) -> str:
     out = result.stdout or ""
     err = getattr(result, "stderr", "") or ""
     return out + "\n" + err
+
+
+# Backward compatibility alias used by some test modules
+_combined_output = combined_output
 
 
 def create_mock_service_manager() -> Mock:
@@ -76,8 +84,8 @@ def create_mock_service_manager() -> Mock:
     # Configure common return values with more realistic Mock objects
     # This provides better test coverage for edge cases and attribute access
     mock_service_manager.backup_orchestrator.execute_backup.return_value = Mock(
-        success=True,
-        snapshot_id="test123abc"
+            success=True,
+            snapshot_id="test123abc"
     )
     mock_service_manager.snapshot_service.list_snapshots.return_value = []
     mock_service_manager.repository_service.list_repositories.return_value = []
@@ -97,14 +105,14 @@ def create_mock_snapshot(snapshot_id: str = "abc123def", **kwargs) -> Dict[str, 
         Mock snapshot dictionary
     """
     snapshot = {
-        'id': snapshot_id,
-        'time': '2024-01-01T12:00:00Z',
-        'hostname': 'test-host',
-        'username': 'test-user',
-        'paths': ['/home/user'],
-        'tags': [],
-        'short_id': snapshot_id[:8] if len(snapshot_id) >= 8 else snapshot_id,
-        **kwargs
+            'id':       snapshot_id,
+            'time':     '2024-01-01T12:00:00Z',
+            'hostname': 'test-host',
+            'username': 'test-user',
+            'paths':    ['/home/user'],
+            'tags':     [],
+            'short_id': snapshot_id[:8] if len(snapshot_id) >= 8 else snapshot_id,
+            **kwargs
     }
     return snapshot
 
@@ -121,11 +129,11 @@ def create_mock_repository(name: str = "test-repo", **kwargs) -> Dict[str, Any]:
         Mock repository dictionary
     """
     repository = {
-        'name': name,
-        'uri': f'file:///tmp/{name}',
-        'initialized': True,
-        'locked': False,
-        **kwargs
+            'name':        name,
+            'uri':         f'file:///tmp/{name}',
+            'initialized': True,
+            'locked':      False,
+            **kwargs
     }
     return repository
 
@@ -142,12 +150,12 @@ def create_mock_target(name: str = "test-target", **kwargs) -> Dict[str, Any]:
         Mock target dictionary
     """
     target = {
-        'name': name,
-        'paths': ['/home/user/Documents'],
-        'exclude_patterns': [],
-        'include_patterns': [],
-        'tags': [],
-        **kwargs
+            'name':             name,
+            'paths':            ['/home/user/Documents'],
+            'exclude_patterns': [],
+            'include_patterns': [],
+            'tags':             [],
+            **kwargs
     }
     return target
 
@@ -164,8 +172,8 @@ def assert_exit_code(result, expected_code: int, message: Optional[str] = None):
     if result.exit_code != expected_code:
         output = combined_output(result)
         error_msg = (
-            f"Expected exit code {expected_code}, got {result.exit_code}\n"
-            f"Output: {output}"
+                f"Expected exit code {expected_code}, got {result.exit_code}\n"
+                f"Output: {output}"
         )
         if message:
             error_msg = f"{message}\n{error_msg}"
@@ -218,10 +226,10 @@ def assert_output_contains(result, expected_text: str, case_sensitive: bool = Fa
     if not case_sensitive:
         output = output.lower()
         expected_text = expected_text.lower()
-    
+
     if expected_text not in output:
         raise AssertionError(
-            f"Expected text '{expected_text}' not found in output:\n{output}"
+                f"Expected text '{expected_text}' not found in output:\n{output}"
         )
 
 

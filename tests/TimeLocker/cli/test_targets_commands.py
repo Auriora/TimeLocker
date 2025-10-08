@@ -8,19 +8,14 @@ import pytest
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
-from typer.testing import CliRunner
 
 from src.TimeLocker.cli import app
+from tests.TimeLocker.cli.test_utils import (
+    get_cli_runner, combined_output, assert_success, assert_exit_code, assert_handled_error
+)
 
 # Set wider terminal width to prevent help text truncation in CI
-runner = CliRunner(env={'COLUMNS': '200'})
-
-
-def _combined_output(result):
-    """Combine stdout and stderr for matching convenience across environments."""
-    out = result.stdout or ""
-    err = getattr(result, "stderr", "") or ""
-    return out + "\n" + err
+runner = get_cli_runner()
 
 
 class TestTargetsCommands:
@@ -100,18 +95,19 @@ class TestTargetsCommands:
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
         mock_manager.list_backup_targets.return_value = []
-        
+
         result = runner.invoke(app, ["targets", "list"])
-        
-        # Should not crash
-        assert result.exit_code in [0, 1]
+
+        # Mocked service manager returns empty list successfully, should exit 0
+        assert_success(result)
 
     @pytest.mark.unit
     def test_targets_add_missing_parameters(self):
         """Test targets add command with missing parameters should prompt."""
         result = runner.invoke(app, ["targets", "add"])
-        
+
         # Should either prompt for input or show helpful error
+        # Range allowed: interactive prompt success (0), validation error (1), or usage error (2)
         assert result.exit_code in [0, 1, 2]
 
     @pytest.mark.unit
@@ -122,10 +118,11 @@ class TestTargetsCommands:
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
         mock_manager.add_backup_target.return_value = Mock(success=True)
-        
+
         result = runner.invoke(app, ["targets", "add", "test-target"])
-        
+
         # Should either prompt for paths or show helpful error
+        # Range allowed: interactive prompt success (0), validation error (1), or usage error (2)
         assert result.exit_code in [0, 1, 2]
 
     @pytest.mark.unit
@@ -136,15 +133,15 @@ class TestTargetsCommands:
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
         mock_manager.add_backup_target.return_value = Mock(success=True)
-        
+
         with tempfile.TemporaryDirectory() as temp_dir:
             result = runner.invoke(app, [
                 "targets", "add", "test-target",
                 "--path", temp_dir
             ])
-            
-            # Should not crash
-            assert result.exit_code in [0, 1]
+
+            # Mocked service manager returns success, should exit 0
+            assert_success(result)
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli.get_cli_service_manager')
@@ -154,7 +151,7 @@ class TestTargetsCommands:
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
         mock_manager.add_backup_target.return_value = Mock(success=True)
-        
+
         with tempfile.TemporaryDirectory() as temp_dir1:
             with tempfile.TemporaryDirectory() as temp_dir2:
                 result = runner.invoke(app, [
@@ -162,9 +159,9 @@ class TestTargetsCommands:
                     "--path", temp_dir1,
                     "--path", temp_dir2
                 ])
-                
-                # Should accept multiple paths
-                assert result.exit_code in [0, 1]
+
+                # Mocked service manager returns success, should exit 0
+                assert_success(result)
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli.get_cli_service_manager')
@@ -174,16 +171,16 @@ class TestTargetsCommands:
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
         mock_manager.add_backup_target.return_value = Mock(success=True)
-        
+
         with tempfile.TemporaryDirectory() as temp_dir:
             result = runner.invoke(app, [
                 "targets", "add", "test-target",
                 "--path", temp_dir,
                 "--description", "Test backup target"
             ])
-            
-            # Should not crash
-            assert result.exit_code in [0, 1]
+
+            # Mocked service manager returns success, should exit 0
+            assert_success(result)
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli.get_cli_service_manager')
@@ -193,7 +190,7 @@ class TestTargetsCommands:
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
         mock_manager.add_backup_target.return_value = Mock(success=True)
-        
+
         with tempfile.TemporaryDirectory() as temp_dir:
             result = runner.invoke(app, [
                 "targets", "add", "test-target",
@@ -201,9 +198,9 @@ class TestTargetsCommands:
                 "--exclude", "*.tmp",
                 "--exclude", "*.log"
             ])
-            
-            # Should accept multiple exclude patterns
-            assert result.exit_code in [0, 1]
+
+            # Mocked service manager returns success, should exit 0
+            assert_success(result)
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli.get_cli_service_manager')
@@ -213,7 +210,7 @@ class TestTargetsCommands:
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
         mock_manager.add_backup_target.return_value = Mock(success=True)
-        
+
         with tempfile.TemporaryDirectory() as temp_dir:
             result = runner.invoke(app, [
                 "targets", "add", "test-target",
@@ -221,9 +218,9 @@ class TestTargetsCommands:
                 "--include", "*.txt",
                 "--include", "*.md"
             ])
-            
-            # Should accept multiple include patterns
-            assert result.exit_code in [0, 1]
+
+            # Mocked service manager returns success, should exit 0
+            assert_success(result)
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli.get_cli_service_manager')
@@ -233,11 +230,11 @@ class TestTargetsCommands:
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
         mock_manager.get_backup_target.return_value = Mock()
-        
+
         result = runner.invoke(app, ["targets", "show", "test-target"])
-        
-        # Should not crash
-        assert result.exit_code in [0, 1]
+
+        # Mocked service manager returns target, should exit 0
+        assert_success(result)
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli.get_cli_service_manager')
@@ -247,10 +244,11 @@ class TestTargetsCommands:
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
         mock_manager.edit_backup_target.return_value = Mock(success=True)
-        
+
         result = runner.invoke(app, ["targets", "edit", "test-target"])
-        
-        # Should not crash (may require interactive input)
+
+        # May require interactive input
+        # Range allowed: interactive success (0), validation error (1), or usage error (2)
         assert result.exit_code in [0, 1, 2]
 
     @pytest.mark.unit
@@ -261,11 +259,11 @@ class TestTargetsCommands:
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
         mock_manager.remove_backup_target.return_value = Mock(success=True)
-        
+
         result = runner.invoke(app, ["targets", "remove", "test-target"])
-        
-        # Should not crash
-        assert result.exit_code in [0, 1]
+
+        # Mocked service manager returns success, should exit 0
+        assert_success(result)
 
     @pytest.mark.unit
     def test_targets_add_nonexistent_path(self):
@@ -274,8 +272,9 @@ class TestTargetsCommands:
             "targets", "add", "test-target",
             "--path", "/nonexistent/path"
         ])
-        
-        # Should handle nonexistent path gracefully
+
+        # Should handle nonexistent path with validation error
+        # Range allowed: may accept with warning (0) or reject with error (1)
         assert result.exit_code in [0, 1]
 
     @pytest.mark.unit
@@ -286,7 +285,7 @@ class TestTargetsCommands:
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
         mock_manager.add_backup_target.return_value = Mock(success=True)
-        
+
         with tempfile.TemporaryDirectory() as temp_dir:
             result = runner.invoke(app, [
                 "targets", "add", "test-target",
@@ -294,25 +293,25 @@ class TestTargetsCommands:
                 "--tags", "important",
                 "--tags", "daily"
             ])
-            
-            # Should accept multiple tags
-            assert result.exit_code in [0, 1]
+
+            # Mocked service manager returns success, should exit 0
+            assert_success(result)
 
     @pytest.mark.unit
     def test_targets_show_nonexistent_target(self):
         """Test targets show command with nonexistent target."""
         result = runner.invoke(app, ["targets", "show", "nonexistent-target"])
-        
-        # Should handle nonexistent target gracefully
-        assert result.exit_code in [0, 1]
+
+        # Should handle nonexistent target with error
+        assert_handled_error(result)
 
     @pytest.mark.unit
     def test_targets_remove_nonexistent_target(self):
         """Test targets remove command with nonexistent target."""
         result = runner.invoke(app, ["targets", "remove", "nonexistent-target"])
-        
-        # Should handle nonexistent target gracefully
-        assert result.exit_code in [0, 1]
+
+        # Should handle nonexistent target with error
+        assert_handled_error(result)
 
     @pytest.mark.unit
     def test_targets_commands_verbose_flag(self):
@@ -321,8 +320,9 @@ class TestTargetsCommands:
             ["targets", "list", "--verbose"],
             ["targets", "show", "test-target", "--verbose"],
         ]
-        
+
         for command in commands:
             result = runner.invoke(app, command)
             # Verbose flag should be accepted
+            # Range allowed: may fail (1) if target doesn't exist or succeed (0)
             assert result.exit_code in [0, 1]

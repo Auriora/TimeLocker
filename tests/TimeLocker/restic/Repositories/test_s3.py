@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from urllib.parse import urlparse
 
 import pytest
@@ -23,15 +23,6 @@ import pytest
 from TimeLocker.restic.logging import logger
 from TimeLocker.restic.Repositories.s3 import S3ResticRepository
 from TimeLocker.restic.restic_repository import RepositoryError
-
-
-@pytest.fixture
-def mock_s3_client():
-    """Fixture to mock the S3 client for all tests"""
-    with patch('TimeLocker.restic.Repositories.s3.client') as mock_client:
-        mock_s3 = MagicMock()
-        mock_client.return_value = mock_s3
-        yield mock_s3
 
 
 @pytest.mark.unit
@@ -436,3 +427,233 @@ def test_endpoint_parameter_overrides_credential_manager(mock_s3_client):
 
     # Parameter should take precedence
     assert repo.aws_s3_endpoint == "http://from-parameter"
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+        "env_vars, cm_creds, constructor_kwargs, expected",
+        [
+                (
+                            {"AWS_ACCESS_KEY_ID": "env_key", "AWS_SECRET_ACCESS_KEY": "env_secret", "AWS_DEFAULT_REGION": "env-region"},
+                            {"access_key_id": "cm_key", "secret_access_key": "cm_secret", "region": "cm-region"},
+                            {"aws_access_key_id": "param_key"},
+                            {"aws_access_key_id": "param_key", "aws_secret_access_key": "cm_secret", "aws_default_region": "cm-region"},
+                ),
+                (
+                            {"AWS_ACCESS_KEY_ID": "env_key", "AWS_SECRET_ACCESS_KEY": "env_secret", "AWS_DEFAULT_REGION": "env-region"},
+                            {"access_key_id": "cm_key", "secret_access_key": "cm_secret", "region": "cm-region"},
+                            {},
+                            {"aws_access_key_id": "cm_key", "aws_secret_access_key": "cm_secret", "aws_default_region": "cm-region"},
+                ),
+                (
+                            {"AWS_ACCESS_KEY_ID": "env_key", "AWS_SECRET_ACCESS_KEY": "env_secret", "AWS_DEFAULT_REGION": "env-region"},
+                            {},
+                            {},
+                            {"aws_access_key_id": "env_key", "aws_secret_access_key": "env_secret", "aws_default_region": "env-region"},
+                ),
+                (
+                            {"AWS_ACCESS_KEY_ID": "env_only_key", "AWS_SECRET_ACCESS_KEY": "env_only_secret", "AWS_DEFAULT_REGION": "env-only-region"},
+                            None,
+                            {},
+                            {"aws_access_key_id": "env_only_key", "aws_secret_access_key": "env_only_secret", "aws_default_region": "env-only-region"},
+                ),
+                (
+                            {"AWS_ACCESS_KEY_ID": "env_key", "AWS_SECRET_ACCESS_KEY": "env_secret", "AWS_DEFAULT_REGION": "env-region"},
+                            {"access_key_id": "cm_key", "secret_access_key": "cm_secret"},
+                            {"aws_access_key_id": "param_key"},
+                            {"aws_access_key_id": "param_key", "aws_secret_access_key": "cm_secret", "aws_default_region": "env-region"},
+                ),
+        ],
+)
+@pytest.mark.s3creds
+def test_credential_resolution_chain(monkeypatch, clear_aws_env, env_vars, cm_creds, constructor_kwargs, expected):
+    """Consolidated parameterized credential resolution precedence test.
+
+    Precedence per field: constructor > credential manager > environment.
+    """
+    for k, v in env_vars.items():
+        monkeypatch.setenv(k, v)
+    credential_manager = None
+    repository_name = None
+    if cm_creds is not None:
+        mock_cm = MagicMock()
+        mock_cm.get_repository_backend_credentials.return_value = cm_creds
+        credential_manager = mock_cm
+        repository_name = "repo-param"
+    repo = S3ResticRepository(
+            location="s3:bucket/path",
+            credential_manager=credential_manager,
+            repository_name=repository_name,
+            **constructor_kwargs,
+    )
+    assert repo.aws_access_key_id == expected["aws_access_key_id"]
+    assert repo.aws_secret_access_key == expected["aws_secret_access_key"]
+    assert repo.aws_default_region == expected["aws_default_region"]
+
+
+@pytest.mark.unit
+@pytest.mark.s3creds
+def test_insecure_tls_precedence_constructor_overrides_credential_manager(monkeypatch, clear_aws_env):
+    monkeypatch.setenv("RESTIC_INSECURE_TLS", "false")
+    mock_cm = MagicMock()
+    mock_cm.get_repository_backend_credentials.return_value = {
+            "access_key_id":     "cm_key",
+            "secret_access_key": "cm_secret",
+            "insecure_tls":      False,
+    }
+    repo = S3ResticRepository(
+            location="s3:bucket/path",
+            aws_access_key_id="param_key",
+            aws_secret_access_key="param_secret",
+            insecure_tls=True,
+            credential_manager=mock_cm,
+            repository_name="repo4",
+    )
+    assert repo.insecure_tls is True
+
+
+@pytest.mark.unit
+@pytest.mark.s3creds
+def test_insecure_tls_from_credential_manager_over_env(monkeypatch, clear_aws_env):
+    monkeypatch.setenv("RESTIC_INSECURE_TLS", "true")
+    mock_cm = MagicMock()
+    mock_cm.get_repository_backend_credentials.return_value = {
+            "access_key_id":     "cm_key",
+            "secret_access_key": "cm_secret",
+            "insecure_tls":      False,
+    }
+    repo = S3ResticRepository(
+            location="s3:bucket/path",
+            credential_manager=mock_cm,
+            repository_name="repo5",
+    )
+    assert repo.insecure_tls is False
+
+
+@pytest.mark.unit
+@pytest.mark.s3creds
+def test_insecure_tls_env_used_when_no_constructor_or_cm(monkeypatch, clear_aws_env):
+    monkeypatch.setenv("RESTIC_INSECURE_TLS", "true")
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "env_key")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "env_secret")
+    repo = S3ResticRepository(location="s3:bucket/path")
+    assert repo.insecure_tls is True
+
+
+@pytest.mark.unit
+@pytest.mark.s3creds
+def test_backend_env_logs_insecure_tls_true(monkeypatch, clear_aws_env, caplog):
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "k")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "s")
+    repo = S3ResticRepository(
+            location="s3:bucket/path",
+            aws_access_key_id="k",
+            aws_secret_access_key="s",
+            insecure_tls=True,
+    )
+    with caplog.at_level("INFO"):
+        env = repo.backend_env()
+    assert env["RESTIC_INSECURE_TLS"] == "true"
+    assert "Setting RESTIC_INSECURE_TLS=true" in caplog.text
+
+
+@pytest.mark.unit
+@pytest.mark.s3creds
+def test_backend_env_logs_insecure_tls_false(monkeypatch, clear_aws_env, caplog):
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "k")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "s")
+    repo = S3ResticRepository(
+            location="s3:bucket/path",
+            aws_access_key_id="k",
+            aws_secret_access_key="s",
+            insecure_tls=False,
+    )
+    with caplog.at_level("INFO"):
+        env = repo.backend_env()
+    assert "RESTIC_INSECURE_TLS" not in env
+    assert "insecure_tls is False or None: False" in caplog.text
+
+
+@pytest.mark.unit
+@pytest.mark.s3creds
+def test_backend_env_logs_endpoint(monkeypatch, clear_aws_env, caplog):
+    monkeypatch.setenv("AWS_ACCESS_KEY_ID", "k")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "s")
+    repo = S3ResticRepository(
+            location="s3:minio.local/bucket",
+            aws_access_key_id="k",
+            aws_secret_access_key="s",
+            aws_s3_endpoint="http://minio.local:9000",
+    )
+    with caplog.at_level("INFO"):
+        env = repo.backend_env()
+    assert env["AWS_S3_ENDPOINT"] == "http://minio.local:9000"
+    assert "Setting AWS_S3_ENDPOINT to http://minio.local:9000" in caplog.text
+
+
+# Added backend_env matrix test
+@pytest.mark.unit
+@pytest.mark.s3creds
+@pytest.mark.parametrize(
+        "scenario",
+        [
+                {
+                        "name":       "constructor_all_insecure_true",
+                        "env":        {},
+                        "cm":         None,
+                        "ctor":       {"aws_access_key_id": "k1", "aws_secret_access_key": "s1", "aws_default_region": "r1", "insecure_tls": True},
+                        "expect_env": {"AWS_ACCESS_KEY_ID": "k1", "AWS_SECRET_ACCESS_KEY": "s1", "AWS_DEFAULT_REGION": "r1", "RESTIC_INSECURE_TLS": "true"},
+                },
+                {
+                        "name":       "cm_provides_keys_and_region_env_differs",
+                        "env":        {"AWS_ACCESS_KEY_ID": "envk", "AWS_SECRET_ACCESS_KEY": "envs", "AWS_DEFAULT_REGION": "envr"},
+                        "cm":         {"access_key_id": "cmk", "secret_access_key": "cms", "region": "cmr"},
+                        "ctor":       {},
+                        "expect_env": {"AWS_ACCESS_KEY_ID": "cmk", "AWS_SECRET_ACCESS_KEY": "cms", "AWS_DEFAULT_REGION": "cmr"},
+                },
+                {
+                        "name":       "env_only_fallback",
+                        "env":        {"AWS_ACCESS_KEY_ID": "ek", "AWS_SECRET_ACCESS_KEY": "es", "AWS_DEFAULT_REGION": "er"},
+                        "cm":         {},
+                        "ctor":       {},
+                        "expect_env": {"AWS_ACCESS_KEY_ID": "ek", "AWS_SECRET_ACCESS_KEY": "es", "AWS_DEFAULT_REGION": "er"},
+                },
+                {
+                        "name":       "mixed_constructor_key_cm_secret_env_region_insecure_env_ignored",
+                        # Env supplies RESTIC_INSECURE_TLS but credential manager path sets insecure_tls to False (default),
+                        # so environment var is intentionally ignored per precedence rules.
+                        "env":        {"AWS_SECRET_ACCESS_KEY": "envs", "AWS_DEFAULT_REGION": "envr", "RESTIC_INSECURE_TLS": "true"},
+                        "cm":         {"access_key_id": "cmk", "secret_access_key": "cms"},
+                        "ctor":       {"aws_access_key_id": "paramk"},
+                        "expect_env": {"AWS_ACCESS_KEY_ID": "paramk", "AWS_SECRET_ACCESS_KEY": "cms", "AWS_DEFAULT_REGION": "envr"},
+                },
+        ],
+)
+def test_backend_env_matrix(monkeypatch, clear_aws_env, scenario):
+    """Matrix test validating backend_env output across credential source combinations."""
+    # Set environment
+    for k, v in scenario["env"].items():
+        monkeypatch.setenv(k, v)
+    # Credential manager setup
+    credential_manager = None
+    repository_name = None
+    if scenario["cm"] is not None:
+        mock_cm = MagicMock()
+        mock_cm.get_repository_backend_credentials.return_value = scenario["cm"]
+        credential_manager = mock_cm
+        repository_name = "repo-matrix"
+    # Build repository
+    repo = S3ResticRepository(
+            location="s3:bucket/path",
+            credential_manager=credential_manager,
+            repository_name=repository_name,
+            **scenario["ctor"],
+    )
+    # Generate backend env (will raise if missing required creds)
+    env = repo.backend_env()
+    # Filter env to keys we expect (some scenarios may add optional keys) and compare
+    filtered = {k: env[k] for k in scenario["expect_env"].keys()}
+    assert filtered == scenario["expect_env"], f"Scenario {scenario['name']} failed: {filtered} != {scenario['expect_env']}"
+    # Ensure no unexpected overrides: each expected key matches exactly.
+    for k, v in scenario["expect_env"].items():
+        assert env[k] == v
