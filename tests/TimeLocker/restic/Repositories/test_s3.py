@@ -15,7 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 from urllib.parse import urlparse
 
 import pytest
@@ -23,28 +23,6 @@ import pytest
 from TimeLocker.restic.logging import logger
 from TimeLocker.restic.Repositories.s3 import S3ResticRepository
 from TimeLocker.restic.restic_repository import RepositoryError
-
-
-@pytest.fixture
-def mock_s3_client():
-    """Fixture to mock the S3 client for all tests"""
-    with patch('TimeLocker.restic.Repositories.s3.client') as mock_client:
-        mock_s3 = MagicMock()
-        mock_client.return_value = mock_s3
-        yield mock_s3
-
-
-@pytest.fixture
-def clear_aws_env(monkeypatch):
-    """Clear AWS related environment variables for a clean test surface."""
-    for var in [
-            "AWS_ACCESS_KEY_ID",
-            "AWS_SECRET_ACCESS_KEY",
-            "AWS_DEFAULT_REGION",
-            "AWS_S3_ENDPOINT",
-            "RESTIC_INSECURE_TLS",
-    ]:
-        monkeypatch.delenv(var, raising=False)
 
 
 @pytest.mark.unit
