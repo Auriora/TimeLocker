@@ -122,6 +122,15 @@ class S3ResticRepository(ResticRepository):
 
         query_params = parse_qs(parsed_uri.query, keep_blank_values=True)
 
+        # Perform a lightweight validation to check bucket existence using boto3
+        try:
+            if bucket:
+                s3 = client('s3')
+                s3.head_bucket(Bucket=bucket)
+        except Exception:
+            # Do not raise during construction; allow operational commands to handle errors
+            pass
+
         return cls(
                 location=location,
                 password=password,

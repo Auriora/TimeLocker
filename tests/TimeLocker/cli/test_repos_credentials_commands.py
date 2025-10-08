@@ -15,6 +15,12 @@ from unittest.mock import Mock, patch
 from typer.testing import CliRunner
 
 from src.TimeLocker.cli import app
+from tests.TimeLocker.cli.test_utils import (
+    combined_output,
+    assert_success,
+    assert_handled_error,
+    assert_exit_code
+)
 
 runner = CliRunner(env={'COLUMNS': '200'})
 
@@ -64,16 +70,10 @@ def repo_s3_mocks(mock_cm, mock_config_module):
     }
 
 
-def _combined_output(result):
-    out = result.stdout or ""
-    err = getattr(result, "stderr", "") or ""
-    return out + "\n" + err
-
-
 @pytest.mark.unit
 def test_repos_credentials_group_help():
     result = runner.invoke(app, ["repos", "credentials", "--help"])  # type: ignore[arg-type]
-    combined = _combined_output(result)
+    combined = combined_output(result)
     assert result.exit_code == 0
     assert "credential" in combined.lower()
     assert "set" in combined.lower()
@@ -89,7 +89,8 @@ def test_repos_credentials_set_s3_success(repo_s3_mocks):
             patch.object(Confirm, 'ask', return_value=False):
         result = runner.invoke(app, ["repos", "credentials", "set", "myrepo"])  # type: ignore[arg-type]
     combined = (result.stdout or "").lower()
-    assert result.exit_code in [0, 1]
+    # Mocked prompts and credential manager should succeed
+    assert_success(result)
     repo_s3_mocks['cm_instance'].store_repository_backend_credentials.assert_called_once_with('myrepo', 's3', {
             'access_key_id':     'AKIA123',
             'secret_access_key': 'SECRET456',
@@ -110,7 +111,8 @@ def test_repos_credentials_set_s3_insecure_tls(repo_s3_mocks):
             'secret_access_key': 'SECRETKEY',
             'insecure_tls':      True
     })
-    assert result.exit_code in [0, 1]
+    # Mocked prompts and credential manager should succeed
+    assert_success(result)
 
 
 @pytest.mark.unit
@@ -121,7 +123,7 @@ def test_repos_credentials_set_unsupported_type(mock_config_module, mock_cm):
     mock_cm.return_value.is_locked.return_value = False
 
     result = runner.invoke(app, ["repos", "credentials", "set", "localrepo"])  # type: ignore[arg-type]
-    combined = _combined_output(result)
+    combined = combined_output(result)
     assert result.exit_code != 0
     assert "unsupported" in combined.lower()
 
@@ -132,7 +134,8 @@ def test_repos_credentials_remove_found(repo_s3_mocks):
     repo_s3_mocks['cm_instance'].remove_repository_backend_credentials.return_value = True
     with patch.object(Confirm, 'ask', return_value=True):
         result = runner.invoke(app, ["repos", "credentials", "remove", "myrepo", "--yes"])  # type: ignore[arg-type]
-    assert result.exit_code in [0, 1]
+    # Mocked credential manager returns True (found and removed), should succeed
+    assert_success(result)
     repo_s3_mocks['cm_instance'].remove_repository_backend_credentials.assert_called_once_with('myrepo', 's3')
 
 
@@ -147,6 +150,8 @@ def test_repos_credentials_remove_not_found(mock_config_module, mock_cm):
     mock_cm.return_value = cm_instance
 
     result = runner.invoke(app, ["repos", "credentials", "remove", "myrepo", "--yes"])  # type: ignore[arg-type]
+    # Range allowed: may succeed (0) if command doesn't error on not-found, or fail (1) if it does
+    # TODO: Determine actual behavior and assert precise exit code
     assert result.exit_code in [0, 1]
     cm_instance.remove_repository_backend_credentials.assert_called_once()
 
@@ -159,7 +164,8 @@ def test_repos_credentials_show_present(repo_s3_mocks):
     }
     result = runner.invoke(app, ["repos", "credentials", "show", "myrepo"])  # type: ignore[arg-type]
     combined = (result.stdout or "").lower()
-    assert result.exit_code in [0, 1]
+    # Mocked credential manager returns credentials, should succeed
+    assert_success(result)
     assert 'credentials' in combined and 'access key' in combined
 
 
@@ -174,6 +180,8 @@ def test_repos_credentials_show_absent(mock_config_module, mock_cm):
     mock_cm.return_value = cm_instance
 
     result = runner.invoke(app, ["repos", "credentials", "show", "myrepo"])  # type: ignore[arg-type]
+    # Range allowed: may succeed (0) showing "no credentials" or fail (1) as error condition
+    # TODO: Determine actual behavior and assert precise exit code
     assert result.exit_code in [0, 1]
 
 
@@ -187,7 +195,8 @@ def test_repos_credentials_show_non_backend_repo(mock_config_module, mock_cm):
     mock_cm.return_value = cm_instance
 
     result = runner.invoke(app, ["repos", "credentials", "show", "localrepo"])  # early exit
-    # Some environments may return exit code 1 due to SystemExit handling differences
+    # Range allowed: early exit for unsupported repo type may return 0 or 1 depending on implementation
+    # TODO: Determine actual behavior and assert precise exit code
     assert result.exit_code in [0, 1]
 
 
@@ -225,5 +234,6 @@ def test_repos_credentials_set_locked_manager_then_unlock(mock_confirm, mock_pro
     mock_cm.return_value = cm_instance
 
     result = runner.invoke(app, ["repos", "credentials", "set", "myrepo"])  # type: ignore[arg-type]
-    assert result.exit_code in [0, 1]
+    # Mocked credential manager successfully unlocks and stores credentials, should succeed
+    assert_success(result)
     cm_instance.store_repository_backend_credentials.assert_called_once()
