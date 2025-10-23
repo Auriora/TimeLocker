@@ -13,6 +13,7 @@
 TimeLocker provides a robust, object-oriented interface for managing backups using the Restic backup tool (in future other backup tools maybe supported). It
 simplifies backup operations by providing a high-level CLI that handles repository management, file selection patterns, and backup configurations across
 multiple storage backends including local, network, S3, and B2.
+chnge
 
 ## Table of Contents
 
@@ -177,8 +178,8 @@ tl snapshots list --repository myrepo
 tl snapshots restore abc123 /restore/path --repository myrepo
 ```
 
-Note: Credentials are resolved via the Credential Service (system keyring preferred), then the TIMELOCKER_PASSWORD environment variable (fallback), then RESTIC_PASSWORD. The --password flag is available but discouraged; prefer secure storage via the Credential Service or environment variables.
-
+Note: Credentials are resolved via the Credential Service (system keyring preferred), then the TIMELOCKER_PASSWORD environment variable (fallback), then
+RESTIC_PASSWORD. The --password flag is available but discouraged; prefer secure storage via the Credential Service or environment variables.
 
 #### Python API
 
@@ -190,20 +191,20 @@ manager = BackupManager()
 
 # Create backup target
 target = BackupTarget(
-    name="my_backup",
-    source_paths=["/home/user/documents"],
-    repository_uri="local:/path/to/repo",
-    password="mypassword"
+        name="my_backup",
+        source_paths=["/home/user/documents"],
+        repository_uri="local:/path/to/repo",
+        password="mypassword"
 )
 
 # Add file selections
 target.add_file_selection(FileSelection(
-    pattern="*.txt",
-    selection_type=SelectionType.INCLUDE
+        pattern="*.txt",
+        selection_type=SelectionType.INCLUDE
 ))
 target.add_file_selection(FileSelection(
-    pattern="*.tmp",
-    selection_type=SelectionType.EXCLUDE
+        pattern="*.tmp",
+        selection_type=SelectionType.EXCLUDE
 ))
 
 # Perform backup
@@ -216,8 +217,8 @@ print(f"Backup completed: {result.success}")
 ```python
 # Using B2 backend
 repo = manager.from_uri(
-    "b2:bucket-name/backup?account_id=your-id&account_key=your-key",
-    password="your-password"
+        "b2:bucket-name/backup?account_id=your-id&account_key=your-key",
+        password="your-password"
 )
 
 # Adding pattern groups
@@ -260,6 +261,7 @@ except ValueError:
 
 ```python
 import logging
+
 logging.getLogger('restic').setLevel(logging.DEBUG)
 ```
 
