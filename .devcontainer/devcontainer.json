@@ -4,7 +4,11 @@
     "dockerfile": "Dockerfile",
     "context": ".."
   },
-  "remoteUser": "vscode",
+  "remoteUser": "devuser",
+  "runArgs": [
+    "--name",
+    "timelocker-dev"
+  ],
   "features": {
     "ghcr.io/devcontainers/features/github-cli:1": {},
     "ghcr.io/devcontainers/features/node:1": {
@@ -18,6 +22,19 @@
   },
   "postCreateCommand": "pip install --upgrade pip && pip install -e .[dev,aws,b2,diagrams] && npm install -g @openai/codex",
   "customizations": {
+    "jetbrains": {
+      "settings": {
+        "org.jetbrains.plugins.github:app:GithubSettings.clone_git_using_ssh": true,
+        "com.intellij:app:Vcs-Log-App-Settings.show_tag_names": true,
+        "com.intellij:app:VcsApplicationSettings.manage_ignore_files": true,
+        "JavaScript:app:JSEditorOptions.automatically_replace_with_template_string_on_typing": false,
+        "JavaScript:app:JSEditorOptions.escape_pasted_text": false,
+        "JavaScript:app:JSEditorOptions.close_html_single_tags": false,
+        "JavaScript:app:JSEditorOptions.convert_html_to_react": false,
+        "JavaScript:app:JSEditorOptions.escape_doc_on_copy_paste": false,
+        "com.intellij:app:HttpConfigurable.use_proxy_pac": true
+      }
+    },
     "vscode": {
       "settings": {
         "python.defaultInterpreterPath": "/usr/local/bin/python",
