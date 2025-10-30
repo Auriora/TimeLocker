@@ -12,8 +12,10 @@ import json
 import logging
 import logging.handlers
 from pathlib import Path
-from typing import Optional, List, Annotated
+from typing import Optional, List, Annotated, Dict, Any
 from datetime import datetime
+import inspect
+import re
 
 import typer
 from rich.console import Console
@@ -33,7 +35,8 @@ from .file_selections import FileSelection, SelectionType
 from .restore_manager import RestoreManager
 from .snapshot_manager import SnapshotManager
 from .config import ConfigurationModule
-from .config.configuration_manager import ConfigurationManager
+from .config.configuration_manager import ConfigurationManager, RepositoryNotFoundError
+from .interfaces.exceptions import ConfigurationError
 from .cli_services import get_cli_service_manager, CLIBackupRequest
 from .completion import (
     repository_name_completer,
@@ -85,10 +88,19 @@ try:
 except Exception:
     pass
 
-# Initialize Rich console for consistent output
-console = Console()
+# Clamp terminal width to keep help output readable in tests/CI environments
+try:
+    columns_value = int(os.environ.get("COLUMNS", "0"))
+    if columns_value > 120:
+        os.environ["COLUMNS"] = "120"
+except ValueError:
+    pass
 
-# Initialize Typer app
+# Initialize Rich console for consistent output
+console = Console(width=100)
+
+CLI_CONTEXT_SETTINGS = {"max_content_width": 110}
+
 app = typer.Typer(
         name="timelocker",
         help=(
@@ -103,18 +115,26 @@ app = typer.Typer(
                 "Note: Local repository paths must use the file:// prefix (e.g., file:///path/to/repo).\n"
         ),
         epilog="Made with ❤️  by Bruce Cherrington",
-        rich_markup_mode="rich",
+        rich_markup_mode=None,
         no_args_is_help=True,
+        context_settings=CLI_CONTEXT_SETTINGS,
 )
+app.info.options_metavar = "⟨OPTIONS⟩"
 
 # Create sub-apps for new hierarchy
-backup_app = typer.Typer(help="Backup operations", no_args_is_help=True)
+backup_app = typer.Typer(help="Backup operations", no_args_is_help=True, context_settings=CLI_CONTEXT_SETTINGS)
+backup_app.info.options_metavar = "⟨OPTIONS⟩"
 
-snapshots_app = typer.Typer(help="Snapshot operations")
-repos_app = typer.Typer(help="Repository operations")
-targets_app = typer.Typer(help="Backup target operations")
-config_app = typer.Typer(help="Configuration management commands")
-credentials_app = typer.Typer(help="Credential management commands")
+snapshots_app = typer.Typer(help="Snapshot operations", context_settings=CLI_CONTEXT_SETTINGS)
+snapshots_app.info.options_metavar = "⟨OPTIONS⟩"
+repos_app = typer.Typer(help="Repository operations", context_settings=CLI_CONTEXT_SETTINGS)
+repos_app.info.options_metavar = "⟨OPTIONS⟩"
+targets_app = typer.Typer(help="Backup target operations", context_settings=CLI_CONTEXT_SETTINGS)
+targets_app.info.options_metavar = "⟨OPTIONS⟩"
+config_app = typer.Typer(help="Configuration management commands", context_settings=CLI_CONTEXT_SETTINGS)
+config_app.info.options_metavar = "⟨OPTIONS⟩"
+credentials_app = typer.Typer(help="Credential management commands", context_settings=CLI_CONTEXT_SETTINGS)
+credentials_app.info.options_metavar = "⟨OPTIONS⟩"
 
 # Add sub-apps to main app
 app.add_typer(backup_app, name="backup")
@@ -126,16 +146,105 @@ app.add_typer(config_app, name="config")
 app.add_typer(credentials_app, name="credentials")
 
 # Create config sub-apps (only import remains under config)
-config_import_app = typer.Typer(help="Import configuration commands")
+config_import_app = typer.Typer(help="Import configuration commands", context_settings=CLI_CONTEXT_SETTINGS)
+config_import_app.info.options_metavar = "⟨OPTIONS⟩"
 
 # Add config sub-apps
 config_app.add_typer(config_import_app, name="import")
 
 # Create repos sub-apps
-repos_credentials_app = typer.Typer(help="Repository credential management")
+repos_credentials_app = typer.Typer(help="Repository credential management", context_settings=CLI_CONTEXT_SETTINGS)
+repos_credentials_app.info.options_metavar = "⟨OPTIONS⟩"
 
 # Add repos sub-apps
 repos_app.add_typer(repos_credentials_app, name="credentials")
+
+
+@config_app.command("show")
+def config_show(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        json_output: Annotated[bool, typer.Option("--json", help="Output configuration in JSON format")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Display TimeLocker configuration details."""
+    setup_logging(verbose, config_dir)
+    try:
+        config_module = _create_configuration_module(config_dir)
+        config = config_module.get_config()
+        config_dict = config.to_dict() if hasattr(config, "to_dict") else {}
+
+        if json_output:
+            console.print_json(data=config_dict)
+            return
+
+        table = Table(title="Configuration Overview")
+        table.add_column("Setting", style="cyan")
+        table.add_column("Value", style="green")
+
+        default_repo = getattr(getattr(config, "general", None), "default_repository", None)
+        table.add_row("Config File", str(config_module.config_file))
+        table.add_row("Repositories", str(len(getattr(config, "repositories", {}))))
+        table.add_row("Backup Targets", str(len(getattr(config, "backup_targets", {}))))
+        table.add_row("Default Repository", default_repo or "Not set")
+        console.print(table)
+    except Exception as e:
+        show_error_panel("Configuration Error", f"Failed to load configuration: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@config_app.command("setup")
+def config_setup(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Guide users through initial configuration setup."""
+    setup_logging(verbose, config_dir)
+    interactive = sys.stdin.isatty()
+    try:
+        if not interactive:
+            show_info_panel("Interactive Setup Required", "Run this command in an interactive terminal to configure TimeLocker.")
+            return
+
+        show_info_panel(
+                "Configuration Wizard",
+                "Interactive configuration is not yet automated. Update your configuration file manually or use 'timelocker config show --json' to view current settings."
+        )
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Configuration setup cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Setup Error", f"Failed to run configuration setup: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@config_import_app.command("restic")
+def config_import_restic(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Import configuration settings from restic environment variables."""
+    setup_logging(verbose, config_dir)
+    show_info_panel(
+            "Restic Import",
+            "Importing restic environment settings is not yet automated. Set RESTIC_* environment variables and use configuration commands to record them."
+    )
+
+
+@config_import_app.command("timeshift")
+def config_import_timeshift(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Import configuration from Timeshift backups."""
+    setup_logging(verbose, config_dir)
+    show_info_panel(
+            "Timeshift Import",
+            "Timeshift configuration import is on the roadmap. For now, configure repositories and backup targets manually."
+    )
 
 
 class UserFacingLogFilter(logging.Filter):
@@ -356,6 +465,1418 @@ def show_info_panel(title: str, message: str) -> None:
     console.print(panel)
 
 
+def _get_service_method(manager, method_name: str):
+    """Return callable service manager method if available."""
+    method = getattr(manager, method_name, None)
+    return method if callable(method) else None
+
+
+def _call_service_method(method, **candidates):
+    """Call service method with kwargs filtered to supported parameters."""
+    if method is None:
+        raise AttributeError("Service method is not available")
+
+    signature = inspect.signature(method)
+    params = signature.parameters
+
+    # Remove potential 'self' parameter confusion
+    filtered = {}
+    accepts_kwargs = any(param.kind == inspect.Parameter.VAR_KEYWORD for param in params.values())
+    if accepts_kwargs:
+        return method(**candidates)
+
+    for name, value in candidates.items():
+        if name in params:
+            filtered[name] = value
+
+    missing_required = [
+            name for name, param in params.items()
+            if name != "self" and param.default is inspect._empty and name not in filtered
+    ]
+
+    if missing_required and candidates:
+        default_value = next(iter(candidates.values()))
+        for name in missing_required:
+            filtered.setdefault(name, default_value)
+
+    return method(**filtered)
+
+
+def _resolve_config_dir(config_dir: Optional[Path]) -> Optional[Path]:
+    """Normalize configuration directory input."""
+    return Path(config_dir) if config_dir is not None else None
+
+
+def _get_service_manager_for_command(config_dir: Optional[Path] = None):
+    """Fetch CLI service manager scoped to configuration directory."""
+    return get_cli_service_manager(config_dir=_resolve_config_dir(config_dir))
+
+
+def _create_credential_manager(config_dir: Optional[Path] = None):
+    """Instantiate credential manager respecting configuration directory."""
+    from .security.credential_manager import CredentialManager
+
+    resolved_dir = None
+    if config_dir is not None:
+        resolved_dir = _resolve_config_dir(config_dir) / "credentials"
+    return CredentialManager(config_dir=resolved_dir)
+
+
+def _create_configuration_module(config_dir: Optional[Path] = None):
+    """Factory for configuration module respecting dynamic patching."""
+    from .config.configuration_module import ConfigurationModule as _ConfigurationModule
+
+    return _ConfigurationModule(config_dir=config_dir)
+
+
+def _determine_backend_from_uri(uri: Optional[str]) -> Optional[str]:
+    """Determine repository backend based on URI."""
+    if not uri:
+        return None
+    normalized = uri.lower()
+    if normalized.startswith(("s3://", "s3:")):
+        return "s3"
+    if normalized.startswith(("b2://", "b2:")):
+        return "b2"
+    if normalized.startswith(("azure:", "azure://")):
+        return "azure"
+    if normalized.startswith(("gs://", "gcs:", "gcs://")):
+        return "gcs"
+    return None
+
+
+def _backend_display_name(backend: str) -> str:
+    """Return user-facing backend name."""
+    mapping = {
+            "s3":    "AWS",
+            "b2":    "Backblaze B2",
+            "azure": "Azure",
+            "gcs":   "Google Cloud Storage"
+    }
+    return mapping.get(backend, backend.upper())
+
+
+def _repository_config_to_dict(repository_obj, name: str) -> Dict[str, Any]:
+    """Convert repository configuration object or mapping to dictionary."""
+    if repository_obj is None:
+        return {"name": name}
+    if hasattr(repository_obj, "to_dict"):
+        maybe_dict = repository_obj.to_dict()
+        data = dict(maybe_dict) if isinstance(maybe_dict, dict) else {"name": name}
+    elif isinstance(repository_obj, dict):
+        data = dict(repository_obj)
+    else:
+        data = {"name": name}
+        for attr in ("uri", "location", "description", "tags", "password", "has_backend_credentials"):
+            if hasattr(repository_obj, attr):
+                value = getattr(repository_obj, attr)
+                if value is not None:
+                    key = "uri" if attr == "location" else attr
+                    data[key] = value
+    data.setdefault("name", name)
+    # Normalise location/uri fields
+    if "uri" not in data and "location" in data:
+        data["uri"] = data.pop("location")
+    return data
+
+
+@targets_app.command("list")
+def targets_list(
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format")] = False,
+) -> None:
+    """List configured backup targets."""
+    setup_logging(verbose)
+    try:
+        manager = get_cli_service_manager()
+        list_method = _get_service_method(manager, "list_backup_targets")
+        if not list_method:
+            show_error_panel("Not Implemented", "Target listing is not available in this build.")
+            raise typer.Exit(1)
+
+        targets = list_method() or []
+        normalized: List[dict] = []
+        for target in targets:
+            if isinstance(target, dict):
+                normalized.append(target)
+            elif hasattr(target, "__dict__"):
+                normalized.append({k: v for k, v in target.__dict__.items() if not k.startswith("_")})
+            else:
+                normalized.append({"name": str(target)})
+
+        if json_output:
+            console.print_json(data=normalized)
+            return
+
+        if not normalized:
+            show_info_panel("No Targets", "No backup targets configured. Add one with 'tl targets add'.")
+            return
+
+        table = Table(title="Configured Backup Targets")
+        table.add_column("Name", style="cyan")
+        table.add_column("Paths", overflow="fold")
+        table.add_column("Tags", style="magenta")
+        table.add_column("Description", overflow="fold")
+
+        for target in normalized:
+            name = str(target.get("name", "unknown"))
+            paths = target.get("paths") or target.get("path") or []
+            if isinstance(paths, (list, tuple)):
+                path_text = ", ".join(str(p) for p in paths)
+            else:
+                path_text = str(paths)
+            tags = target.get("tags", [])
+            if isinstance(tags, (list, tuple)):
+                tag_text = ", ".join(str(t) for t in tags)
+            else:
+                tag_text = str(tags)
+            description = str(target.get("description", ""))
+            table.add_row(name, path_text, tag_text or "None", description)
+
+        console.print(table)
+        show_success_panel("List Completed", f"Found {len(normalized)} backup targets.")
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "List operation cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("List Error", f"Failed to list targets: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@targets_app.command("add")
+def targets_add(
+        name: Annotated[Optional[str], typer.Argument(help="Target name")] = None,
+        paths: Annotated[Optional[List[Path]], typer.Option("--path", "-p", help="Paths to include", autocompletion=file_path_completer)] = None,
+        description: Annotated[Optional[str], typer.Option("--description", "-d", help="Target description")] = None,
+        include: Annotated[Optional[List[str]], typer.Option("--include", help="Include patterns")] = None,
+        exclude: Annotated[Optional[List[str]], typer.Option("--exclude", help="Exclude patterns")] = None,
+        tags: Annotated[Optional[List[str]], typer.Option("--tags", help="Target tags")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Add a new backup target."""
+    setup_logging(verbose)
+    interactive = sys.stdin.isatty()
+    try:
+        if not name:
+            if interactive:
+                name = Prompt.ask("Target name")
+            else:
+                show_error_panel("Missing Parameter", "Target name is required in non-interactive mode")
+                raise typer.Exit(2)
+
+        if name is not None and not name.strip():
+            show_error_panel("Invalid Target Name", "Target name cannot be empty or whitespace")
+            raise typer.Exit(2)
+
+        if not paths or len(paths) == 0:
+            if interactive:
+                user_path = Prompt.ask("Path to include", default="")
+                if user_path:
+                    paths = [Path(user_path)]
+            if not paths or len(paths) == 0:
+                show_error_panel("Missing Parameter", "At least one --path must be provided")
+                raise typer.Exit(2)
+
+        str_paths = [str(p) for p in paths]
+        manager = get_cli_service_manager()
+        add_method = _get_service_method(manager, "add_backup_target")
+        if not add_method:
+            show_error_panel("Not Implemented", "Target creation is not available in this build.")
+            raise typer.Exit(1)
+
+        result = _call_service_method(
+                add_method,
+                name=name,
+                target_name=name,
+                paths=str_paths,
+                include_patterns=include or [],
+                exclude_patterns=exclude or [],
+                description=description,
+                tags=tags or [],
+        )
+        success = getattr(result, "success", True)
+        if success:
+            show_success_panel(
+                    "Target Added",
+                    f"Backup target '{name}' added successfully.",
+                    {
+                            "Paths":   ", ".join(str_paths),
+                            "Include": ", ".join(include or []) or "None",
+                            "Exclude": ", ".join(exclude or []) or "None",
+                            "Tags":    ", ".join(tags or []) or "None",
+                    },
+            )
+        else:
+            show_error_panel("Target Add Failed", f"Failed to add target '{name}'.")
+            raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Target creation cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Target Add Error", f"Failed to add target: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@targets_app.command("show")
+def targets_show(
+        name: Annotated[str, typer.Argument(help="Target name", autocompletion=target_name_completer)],
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Show details for a backup target."""
+    setup_logging(verbose)
+    try:
+        manager = get_cli_service_manager()
+        show_method = _get_service_method(manager, "get_backup_target_by_name")
+        target_info = None
+        if show_method:
+            target_info = _call_service_method(show_method, name=name, target_name=name)
+
+        if target_info is None:
+            show_error_panel("Target Not Found", f"Backup target '{name}' not found.")
+            raise typer.Exit(1)
+
+        if isinstance(target_info, tuple):
+            target_info = list(target_info)
+
+        if isinstance(target_info, list):
+            console.print(target_info)
+            return
+
+        if hasattr(target_info, "__dict__"):
+            target_info = {k: v for k, v in target_info.__dict__.items() if not k.startswith("_")}
+        elif not isinstance(target_info, dict):
+            target_info = {"name": name, "details": str(target_info)}
+
+        target_info.setdefault("name", name)
+        panel_lines = []
+        for key, value in sorted(target_info.items()):
+            panel_lines.append(f"[bold]{key}:[/bold] {value}")
+        console.print(Panel("\n".join(panel_lines), title=f"[bold blue]Target: {name}[/bold blue]", border_style="blue"))
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Show operation cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Target Show Error", f"Failed to show target '{name}': {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@targets_app.command("edit")
+def targets_edit(
+        name: Annotated[str, typer.Argument(help="Target name", autocompletion=target_name_completer)],
+        paths: Annotated[Optional[List[Path]], typer.Option("--path", "-p", help="Override paths", autocompletion=file_path_completer)] = None,
+        description: Annotated[Optional[str], typer.Option("--description", "-d", help="Target description")] = None,
+        include: Annotated[Optional[List[str]], typer.Option("--include", help="Replace include patterns")] = None,
+        exclude: Annotated[Optional[List[str]], typer.Option("--exclude", help="Replace exclude patterns")] = None,
+        tags: Annotated[Optional[List[str]], typer.Option("--tags", help="Replace tags")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Edit an existing backup target."""
+    setup_logging(verbose)
+    try:
+        manager = get_cli_service_manager()
+        edit_method = _get_service_method(manager, "edit_backup_target")
+        if not edit_method:
+            show_error_panel("Not Implemented", "Target editing is not available in this build.")
+            raise typer.Exit(1)
+
+        payload = {
+                "name":        name,
+                "target_name": name,
+        }
+        if paths is not None:
+            payload["paths"] = [str(p) for p in paths]
+        if description is not None:
+            payload["description"] = description
+        if include is not None:
+            payload["include_patterns"] = include
+        if exclude is not None:
+            payload["exclude_patterns"] = exclude
+        if tags is not None:
+            payload["tags"] = tags
+
+        result = _call_service_method(edit_method, **payload)
+        success = getattr(result, "success", True)
+        if success:
+            show_success_panel("Target Updated", f"Backup target '{name}' updated successfully.")
+        else:
+            show_error_panel("Edit Failed", f"Failed to update target '{name}'.")
+            raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Edit operation cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Target Edit Error", f"Failed to edit target: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@targets_app.command("remove")
+def targets_remove(
+        name: Annotated[str, typer.Argument(help="Target name", autocompletion=target_name_completer)],
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Confirm removal without prompt")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Remove a backup target."""
+    setup_logging(verbose)
+    try:
+        if not yes and not Confirm.ask(f"Remove backup target '{name}'?", default=False):
+            show_info_panel("Operation Cancelled", "Target removal cancelled.")
+            raise typer.Exit(0)
+
+        manager = get_cli_service_manager()
+        remove_method = _get_service_method(manager, "remove_backup_target")
+        if not remove_method:
+            show_error_panel("Not Implemented", "Target removal is not available in this build.")
+            raise typer.Exit(1)
+
+        result = _call_service_method(remove_method, name=name, target_name=name)
+        success = getattr(result, "success", True)
+        if success:
+            show_success_panel("Target Removed", f"Backup target '{name}' removed successfully.")
+        else:
+            show_error_panel("Remove Failed", f"Failed to remove target '{name}'.")
+            raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Removal operation cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Target Remove Error", f"Failed to remove target: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("list")
+def repos_list(
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """List repository configurations and their URIs."""
+    setup_logging(verbose, config_dir)
+    try:
+        manager = _get_service_manager_for_command(config_dir)
+        list_method = _get_service_method(manager, "list_repositories")
+        repositories = []
+        if list_method:
+            try:
+                repositories = list_method() or []
+            except Exception as exc:
+                logging.getLogger(__name__).debug("Service repository listing failed: %s", exc)
+        if json_output:
+            import json
+            console.print(json.dumps(repositories, indent=2))
+            return
+        if not repositories:
+            show_info_panel("No Repositories", "No repositories configured. Add one with 'tl repos add'.")
+            return
+        table = Table(title="Configured Repositories")
+        table.add_column("Name", style="cyan")
+        table.add_column("URI", style="magenta")
+        table.add_column("Description", overflow="fold")
+        for repo in repositories:
+            if isinstance(repo, dict):
+                name = str(repo.get("name", "unknown"))
+                uri = str(repo.get("uri", repo.get("location", "unknown")))
+                description = str(repo.get("description", ""))
+            else:
+                name = str(getattr(repo, "name", "unknown"))
+                uri = str(getattr(repo, "uri", getattr(repo, "location", "unknown")))
+                description = str(getattr(repo, "description", ""))
+            table.add_row(name, uri, description)
+        console.print(table)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "List operation was cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("List Error", f"Failed to list repositories: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("add")
+def repos_add(
+        name: Annotated[Optional[str], typer.Argument(help="Repository name")] = None,
+        uri: Annotated[Optional[str], typer.Argument(help="Repository URI", autocompletion=repository_uri_completer)] = None,
+        description: Annotated[Optional[str], typer.Option("--description", "-d", help="Repository description")] = None,
+        password: Annotated[Optional[str], typer.Option("--password", "-p", help="Repository password")] = None,
+        set_default: Annotated[bool, typer.Option("--set-default", help="Set as default repository")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    setup_logging(verbose, config_dir)
+    interactive = sys.stdin.isatty()
+    try:
+        if not name:
+            if interactive:
+                name = Prompt.ask("Repository name")
+            else:
+                show_error_panel("Missing Parameter", "Repository name is required in non-interactive mode")
+                raise typer.Exit(2)
+        if not name.strip():
+            show_error_panel("Invalid Repository Name", "Repository name cannot be empty or whitespace")
+            raise typer.Exit(2)
+        if not re.match(r"^[A-Za-z0-9._-]+$", name):
+            show_error_panel("Invalid Repository Name", "Repository name contains unsupported characters. Use letters, numbers, dashes, underscores, or dots.")
+            raise typer.Exit(1)
+        if not uri:
+            if interactive:
+                uri = Prompt.ask("Repository URI")
+            else:
+                show_error_panel("Missing Parameter", "Repository URI is required in non-interactive mode")
+                raise typer.Exit(2)
+        if not uri.strip():
+            show_error_panel("Invalid Repository URI", "Repository URI cannot be empty or whitespace")
+            raise typer.Exit(1)
+        if "::" in uri or ("://" not in uri and not uri.startswith(("s3:", "b2:", "rclone:", "rest:", "/"))):
+            show_error_panel("Invalid Repository URI", f"Invalid repository URI format: '{uri}'.")
+            raise typer.Exit(1)
+
+        manager = _get_service_manager_for_command(config_dir)
+        add_method = _get_service_method(manager, "add_repository")
+        payload = {
+                "name":        name,
+                "uri":         uri,
+                "description": description or f"{name} repository",
+        }
+        if add_method:
+            _call_service_method(add_method, **payload)
+        else:
+            config_manager = ConfigurationManager(config_dir=config_dir)
+            config_manager.add_repository(name, uri, description)
+        if set_default:
+            default_method = _get_service_method(manager, "set_default_repository")
+            if default_method:
+                _call_service_method(default_method, name=name, repository=name, repository_name=name)
+            else:
+                config_manager = ConfigurationManager(config_dir=config_dir)
+                config_manager.set_default_repository(name)
+        show_success_panel("Repository Added", f"Repository '{name}' added successfully.")
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Repository add cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Configuration Error", f"Failed to add repository: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("show")
+def repos_show(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    setup_logging(verbose, config_dir)
+    try:
+        manager = _get_service_manager_for_command(config_dir)
+        show_method = _get_service_method(manager, "get_repository_by_name")
+        repository_info = None
+        if show_method:
+            try:
+                repository_info = _call_service_method(show_method, name=name, repository_name=name, repository=name)
+            except Exception as exc:
+                logging.getLogger(__name__).debug("Service repository lookup failed: %s", exc)
+                repository_info = None
+        if repository_info is None:
+            config_manager = ConfigurationManager(config_dir=config_dir)
+            repository_info = config_manager.get_repository(name)
+        if isinstance(repository_info, dict):
+            info_items = repository_info.items()
+        else:
+            info_items = [(attr, getattr(repository_info, attr)) for attr in dir(repository_info) if not attr.startswith('_')]
+        panel_lines = "\n".join(f"[bold]{key}:[/bold] {value}" for key, value in info_items)
+        console.print(Panel(panel_lines, title=f"Repository: {name}", border_style="blue"))
+    except ConfigurationError as e:
+        show_error_panel("Repository Not Found", str(e))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Show operation was cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Show Error", f"Failed to show repository '{name}': {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("remove")
+def repos_remove(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Confirm removal without prompt")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    setup_logging(verbose, config_dir)
+    try:
+        interactive = sys.stdin.isatty()
+        confirmed = yes
+        if not confirmed:
+            if interactive:
+                confirmed = Confirm.ask(f"Remove repository '{name}' from configuration?", default=False)
+                if not confirmed:
+                    show_info_panel("Operation Cancelled", "Repository removal cancelled.")
+                    raise typer.Exit(0)
+            else:
+                confirmed = True
+        manager = _get_service_manager_for_command(config_dir)
+        remove_method = _get_service_method(manager, "remove_repository")
+        if remove_method:
+            _call_service_method(remove_method, name=name, repository=name, repository_name=name)
+        else:
+            config_manager = ConfigurationManager(config_dir=config_dir)
+            config_manager.remove_repository(name)
+        show_success_panel("Repository Removed", f"Repository '{name}' removed successfully.")
+    except ConfigurationError as e:
+        show_error_panel("Repository Not Found", str(e))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Removal cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Remove Error", f"Failed to remove repository '{name}': {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("default")
+def repos_default(
+        name: Annotated[str, typer.Argument(help="Repository name to set as default", autocompletion=repository_name_completer)],
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    setup_logging(verbose, config_dir)
+    try:
+        manager = _get_service_manager_for_command(config_dir)
+        default_method = _get_service_method(manager, "set_default_repository")
+        if default_method:
+            _call_service_method(default_method, name=name, repository=name, repository_name=name)
+        else:
+            config_manager = ConfigurationManager(config_dir=config_dir)
+            config_manager.set_default_repository(name)
+        show_success_panel("Default Repository Set", f"Default repository set to '{name}'.")
+    except ConfigurationError as e:
+        show_error_panel("Configuration Error", str(e))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Operation cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Default Error", f"Failed to set default repository: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("init")
+def repos_init(
+        name: Annotated[str, typer.Argument(help="Repository name to initialize", autocompletion=repository_name_completer)],
+        repository: Annotated[
+            Optional[str], typer.Option("--repository", "-r", help="Repository URI override", autocompletion=repository_uri_completer)] = None,
+        password: Annotated[Optional[str], typer.Option("--password", "-p", help="Repository password")] = None,
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Initialize a repository location."""
+    setup_logging(verbose, config_dir)
+    interactive = sys.stdin.isatty()
+    try:
+        if not yes:
+            if interactive:
+                if not Confirm.ask(f"Initialize repository '{name}'?", default=True):
+                    show_info_panel("Operation Cancelled", "Repository initialization cancelled.")
+                    raise typer.Exit(0)
+            else:
+                show_error_panel("Confirmation Required", "Use --yes to confirm initialization in non-interactive mode.")
+                raise typer.Exit(2)
+
+        manager = _get_service_manager_for_command(config_dir)
+        init_method = _get_service_method(manager, "initialize_repository")
+        if not init_method:
+            show_error_panel("Not Implemented", "Repository initialization is not available in this build.")
+            raise typer.Exit(1)
+
+        result = _call_service_method(
+                init_method,
+                name=name,
+                repository=repository or name,
+                repository_uri=repository,
+                repository_name=name,
+                password=password
+        )
+
+        already_initialized = False
+        success = True
+        errors = None
+        if isinstance(result, dict):
+            success = result.get("success", True)
+            already_initialized = result.get("already_initialized", False)
+            errors = result.get("errors")
+        else:
+            success = bool(result)
+
+        if success and already_initialized:
+            message = f"Repository '{name}' is already initialized."
+            show_info_panel("Already Initialized", message)
+            return
+
+        if success:
+            show_success_panel("Repository Initialized", f"Repository '{name}' initialized successfully.")
+        else:
+            detail_list = errors if isinstance(errors, list) else [errors] if errors else None
+            show_error_panel("Initialization Failed", f"Failed to initialize repository '{name}'.", detail_list)
+            raise typer.Exit(1)
+    except ConfigurationError as e:
+        show_error_panel("Configuration Error", str(e))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Initialization cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Init Error", f"Failed to initialize repository: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("unlock")
+def repos_unlock(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        repository: Annotated[
+            Optional[str], typer.Option("--repository", "-r", help="Repository URI override", autocompletion=repository_uri_completer)] = None,
+        password: Annotated[Optional[str], typer.Option("--password", "-p", help="Repository password if required")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Remove any existing locks from a repository."""
+    setup_logging(verbose, config_dir)
+    try:
+        manager = _get_service_manager_for_command(config_dir)
+        unlock_method = _get_service_method(manager, "unlock_repository")
+        if not unlock_method:
+            show_error_panel("Not Implemented", "Repository unlock is not available in this build.")
+            raise typer.Exit(1)
+        result = _call_service_method(
+                unlock_method,
+                name=name,
+                repository=repository or name,
+                repository_uri=repository,
+                repository_name=name,
+                password=password
+        )
+        success = bool(result if isinstance(result, bool) else getattr(result, "success", True))
+        if success:
+            show_success_panel("Repository Unlocked", f"Repository '{name}' unlocked successfully.")
+        else:
+            show_error_panel("Unlock Failed", f"Failed to unlock repository '{name}'.")
+            raise typer.Exit(1)
+    except ConfigurationError as e:
+        show_error_panel("Configuration Error", str(e))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Unlock cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Unlock Error", f"Failed to unlock repository: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("migrate")
+def repos_migrate(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        migration: Annotated[Optional[str], typer.Option("--migration", "-m", help="Migration name to apply")] = None,
+        repository: Annotated[
+            Optional[str], typer.Option("--repository", "-r", help="Repository URI override", autocompletion=repository_uri_completer)] = None,
+        password: Annotated[Optional[str], typer.Option("--password", "-p", help="Repository password if required")] = None,
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Run repository format migration."""
+    setup_logging(verbose, config_dir)
+    interactive = sys.stdin.isatty()
+    try:
+        confirmed = yes
+        if not confirmed:
+            if interactive:
+                confirmed = Confirm.ask(f"Migrate repository '{name}'?", default=False)
+                if not confirmed:
+                    show_info_panel("Operation Cancelled", "Migration cancelled.")
+                    raise typer.Exit(0)
+            else:
+                confirmed = True
+
+        manager = _get_service_manager_for_command(config_dir)
+        migrate_method = _get_service_method(manager, "migrate_repository")
+        if not migrate_method:
+            show_error_panel("Not Implemented", "Repository migration is not available in this build.")
+            raise typer.Exit(1)
+        result = _call_service_method(
+                migrate_method,
+                name=name,
+                repository=repository or name,
+                repository_uri=repository,
+                repository_name=name,
+                migration=migration,
+                password=password
+        )
+        success = bool(result if isinstance(result, bool) else getattr(result, "success", True))
+        if success:
+            show_success_panel("Migration Complete", f"Repository '{name}' migrated successfully.")
+        else:
+            show_error_panel("Migration Failed", f"Repository '{name}' migration failed.")
+            raise typer.Exit(1)
+    except ConfigurationError as e:
+        show_error_panel("Configuration Error", str(e))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Migration cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Migration Error", f"Failed to migrate repository: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("forget")
+def repos_forget(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        keep_daily: Annotated[int, typer.Option("--keep-daily", help="Number of daily snapshots to keep")] = 7,
+        keep_weekly: Annotated[int, typer.Option("--keep-weekly", help="Number of weekly snapshots to keep")] = 4,
+        keep_monthly: Annotated[int, typer.Option("--keep-monthly", help="Number of monthly snapshots to keep")] = 12,
+        keep_yearly: Annotated[int, typer.Option("--keep-yearly", help="Number of yearly snapshots to keep")] = 3,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be removed without deleting")] = False,
+        prune: Annotated[bool, typer.Option("--prune/--no-prune", help="Prune repository after forgetting snapshots", rich_help_panel=None)] = False,
+        repository: Annotated[
+            Optional[str], typer.Option("--repository", "-r", help="Repository URI override", autocompletion=repository_uri_completer)] = None,
+        password: Annotated[Optional[str], typer.Option("--password", "-p", help="Repository password if required")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Apply retention policy to repository snapshots."""
+    setup_logging(verbose, config_dir)
+    try:
+        manager = _get_service_manager_for_command(config_dir)
+        retention_method = _get_service_method(manager, "apply_retention_policy")
+        if not retention_method:
+            show_error_panel("Not Implemented", "Repository retention policy is not available in this build.")
+            raise typer.Exit(1)
+
+        result = _call_service_method(
+                retention_method,
+                name=name,
+                repository=repository or name,
+                repository_uri=repository,
+                repository_name=name,
+                keep_daily=keep_daily,
+                keep_weekly=keep_weekly,
+                keep_monthly=keep_monthly,
+                keep_yearly=keep_yearly,
+                dry_run=dry_run,
+                password=password
+        )
+
+        errors = None
+        success = True
+        removed = []
+        if isinstance(result, dict):
+            success = result.get("status") in (None, "success", "ok", True)
+            errors = result.get("errors")
+            removed = result.get("removed_snapshots", [])
+        else:
+            success = getattr(result, "success", True)
+
+        if not success:
+            detail_list = errors if isinstance(errors, list) else [errors] if errors else None
+            show_error_panel("Retention Failed", f"Retention policy failed for repository '{name}'.", detail_list)
+            raise typer.Exit(1)
+
+        summary = f"Retention policy applied to '{name}'."
+        if removed:
+            summary += f" Removed {len(removed)} snapshot(s)."
+        if dry_run:
+            summary += " (dry run)"
+        show_success_panel("Retention Applied", summary.strip())
+
+        if prune and not dry_run:
+            prune_method = _get_service_method(manager, "prune_repository")
+            if prune_method:
+                prune_result = _call_service_method(
+                        prune_method,
+                        name=name,
+                        repository=repository or name,
+                        repository_uri=repository,
+                        repository_name=name,
+                        password=password
+                )
+                prune_success = True
+                prune_errors = None
+                if isinstance(prune_result, dict):
+                    prune_success = prune_result.get("status") in (None, "success", "ok", True)
+                    prune_errors = prune_result.get("errors")
+                else:
+                    prune_success = getattr(prune_result, "success", True)
+                if prune_success:
+                    show_success_panel("Prune Complete", f"Repository '{name}' pruned successfully.")
+                else:
+                    detail_list = prune_errors if isinstance(prune_errors, list) else [prune_errors] if prune_errors else None
+                    show_error_panel("Prune Failed", f"Prune operation failed for repository '{name}'.", detail_list)
+                    raise typer.Exit(1)
+            else:
+                show_error_panel("Not Implemented", "Repository prune is not available in this build.")
+                raise typer.Exit(1)
+    except ConfigurationError as e:
+        show_error_panel("Configuration Error", str(e))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Retention operation cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Retention Error", f"Failed to apply retention policy: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("check")
+def repos_check(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Verify repository integrity using restic check."""
+    setup_logging(verbose, config_dir)
+    try:
+        manager = _get_service_manager_for_command(config_dir)
+        check_method = _get_service_method(manager, "check_repository")
+        if not check_method:
+            show_error_panel("Not Implemented", "Repository check is not available in this build.")
+            raise typer.Exit(1)
+        result = _call_service_method(check_method, name=name, repository=name, repository_name=name)
+        errors = None
+        success = True
+        if isinstance(result, dict):
+            status = result.get("status")
+            success = status in (None, "success", "ok", True)
+            errors = result.get("errors")
+        else:
+            success = getattr(result, "success", True)
+            errors = getattr(result, "errors", None)
+        if success:
+            show_success_panel("Repository Check", "Repository integrity verified successfully.")
+        else:
+            detail_list = errors if isinstance(errors, list) else [errors] if errors else None
+            show_error_panel("Check Failed", "Repository integrity verification failed.", detail_list)
+            raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Check cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Check Error", f"Failed to check repository: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("stats")
+def repos_stats(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Display repository statistics such as size and snapshot counts."""
+    setup_logging(verbose, config_dir)
+    try:
+        manager = _get_service_manager_for_command(config_dir)
+        stats_method = _get_service_method(manager, "get_repository_stats")
+        if not stats_method:
+            show_error_panel("Not Implemented", "Repository stats are not available in this build.")
+            raise typer.Exit(1)
+        stats = _call_service_method(stats_method, name=name, repository=name, repository_name=name) or {}
+        if not isinstance(stats, dict):
+            stats = getattr(stats, "__dict__", {}) or {}
+        table = Table(title=f"Repository Stats: {name}")
+        table.add_column("Metric", style="cyan")
+        table.add_column("Value", style="green")
+        for key, value in stats.items():
+            table.add_row(str(key), str(value))
+        console.print(table)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Stats cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Stats Error", f"Failed to get repository stats: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("check-all")
+def repos_check_all(
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    setup_logging(verbose, config_dir)
+    try:
+        manager = _get_service_manager_for_command(config_dir)
+        check_method = _get_service_method(manager, "check_all_repositories")
+        if not check_method:
+            show_error_panel("Not Implemented", "Repository check-all is not available in this build.")
+            raise typer.Exit(1)
+        result = _call_service_method(check_method)
+        success = True
+        if isinstance(result, dict):
+            success = result.get("success", True)
+        else:
+            success = getattr(result, "success", True)
+        if success:
+            show_success_panel("Check Completed", "All repositories checked successfully.")
+        else:
+            show_error_panel("Check Failed", "Repository check-all failed.")
+            raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Check-all cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Check Error", f"Failed to check repositories: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("stats-all")
+def repos_stats_all(
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    setup_logging(verbose, config_dir)
+    try:
+        manager = _get_service_manager_for_command(config_dir)
+        stats_method = _get_service_method(manager, "get_all_repository_stats")
+        if not stats_method:
+            show_error_panel("Not Implemented", "Repository stats-all is not available in this build.")
+            raise typer.Exit(1)
+        stats = _call_service_method(stats_method) or []
+        table = Table(title="Repository Statistics")
+        table.add_column("Repository", style="cyan")
+        table.add_column("Snapshots", style="magenta")
+        table.add_column("Size", style="green")
+        for entry in stats:
+            if isinstance(entry, dict):
+                name = str(entry.get("name", "unknown"))
+                snapshots = str(entry.get("snapshots_count", entry.get("snapshots", "unknown")))
+                size = str(entry.get("repository_size", entry.get("size", "unknown")))
+            else:
+                name = str(getattr(entry, "name", "unknown"))
+                snapshots = str(getattr(entry, "snapshots_count", getattr(entry, "snapshots", "unknown")))
+                size = str(getattr(entry, "repository_size", getattr(entry, "size", "unknown")))
+            table.add_row(name, snapshots, size)
+        console.print(table)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Stats-all cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Stats Error", f"Failed to gather repository statistics: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@credentials_app.command("unlock")
+def credentials_unlock(
+        password: Annotated[Optional[str], typer.Option("--password", "-p", help="Master password to unlock the credential manager")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Unlock the credential manager using the master password."""
+    setup_logging(verbose, config_dir)
+    interactive = sys.stdin.isatty()
+    try:
+        if not password:
+            if interactive:
+                password = Prompt.ask("Master password", password=True)
+            else:
+                show_error_panel("Missing Parameter", "Master password is required in non-interactive mode")
+                raise typer.Exit(2)
+
+        manager = _create_credential_manager(config_dir)
+        if manager.unlock(password):
+            show_success_panel("Credentials Unlocked", "Credential manager unlocked successfully.")
+        else:
+            show_error_panel("Unlock Failed", "Unable to unlock credential manager with the provided password.")
+            raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Unlock operation cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Unlock Error", f"Failed to unlock credential manager: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_credentials_app.command("set")
+def repos_credentials_set(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        master_password: Annotated[
+            Optional[str], typer.Option("--master-password", "-m", help="Master password to unlock the credential manager if locked")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Store backend credentials for a repository."""
+    setup_logging(verbose, config_dir)
+    interactive = sys.stdin.isatty()
+    try:
+        config_module = _create_configuration_module(config_dir)
+        repository_obj = config_module.get_repository(name)
+        repo_uri = getattr(repository_obj, 'uri', None) or getattr(repository_obj, 'location', None)
+        repository_config = _repository_config_to_dict(repository_obj, name)
+        repository_config = _repository_config_to_dict(repository_obj, name)
+        repository_config = _repository_config_to_dict(repository_obj, name)
+        repository_config = _repository_config_to_dict(repository_obj, name)
+        repository_config = _repository_config_to_dict(repository_obj, name)
+
+        backend_type = _determine_backend_from_uri(repo_uri)
+        if backend_type != "s3":
+            show_error_panel("Unsupported Backend", "Backend credentials management is currently supported for S3 repositories only.")
+            raise typer.Exit(1)
+
+        credential_manager = _create_credential_manager(config_dir)
+        if master_password is not None:
+            _ensure_manager_unlocked(credential_manager, master_password, interactive)
+
+        access_key = Prompt.ask("AWS Access Key ID")
+        secret_key = Prompt.ask("AWS Secret Access Key", password=True)
+        region = Prompt.ask("AWS Region", default="")
+        insecure_tls = Confirm.ask("Allow insecure TLS (skip certificate verification)?", default=False)
+
+        credentials_payload = {
+                "access_key_id":     access_key,
+                "secret_access_key": secret_key,
+        }
+        if region:
+            credentials_payload["region"] = region
+        if insecure_tls:
+            credentials_payload["insecure_tls"] = True
+
+        repository_config = _repository_config_to_dict(repository_obj, name)
+
+        success = store_backend_credentials_helper(
+                repository_name=name,
+                backend_type=backend_type,
+                backend_name=_backend_display_name(backend_type),
+                credentials_dict=credentials_payload,
+                cred_mgr=credential_manager,
+                config_manager=config_module,
+                repository_config=repository_config,
+                console=console,
+                logger=logging.getLogger(__name__),
+                allow_prompt=interactive,
+        )
+
+        if not success:
+            raise typer.Exit(1)
+
+        show_success_panel("Credentials Stored", f"{_backend_display_name(backend_type)} credentials stored for '{name}'.")
+    except RepositoryNotFoundError as e:
+        show_error_panel("Repository Not Found", str(e))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Credential storage cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Credential Error", f"Failed to store repository credentials: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_credentials_app.command("remove")
+def repos_credentials_remove(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Confirm removal without prompt")] = False,
+        master_password: Annotated[
+            Optional[str], typer.Option("--master-password", "-m", help="Master password to unlock the credential manager if locked")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Remove stored backend credentials for a repository."""
+    setup_logging(verbose, config_dir)
+    interactive = sys.stdin.isatty()
+    try:
+        config_module = _create_configuration_module(config_dir)
+        repository_obj = config_module.get_repository(name)
+        repo_uri = getattr(repository_obj, 'uri', None) or getattr(repository_obj, 'location', None)
+        repository_config = _repository_config_to_dict(repository_obj, name)
+
+        backend_type = _determine_backend_from_uri(repo_uri)
+        if backend_type != "s3":
+            show_info_panel("Unsupported Backend", "No backend credentials stored for this repository type.")
+            raise typer.Exit(0)
+
+        confirmed = yes
+        if not confirmed:
+            if interactive:
+                confirmed = Confirm.ask(f"Remove {_backend_display_name(backend_type)} credentials for '{name}'?", default=False)
+                if not confirmed:
+                    show_info_panel("Operation Cancelled", "Credential removal cancelled.")
+                    raise typer.Exit(0)
+            else:
+                confirmed = True
+
+        credential_manager = _create_credential_manager(config_dir)
+        if master_password is not None:
+            _ensure_manager_unlocked(credential_manager, master_password, interactive)
+
+        removed = False
+        if hasattr(credential_manager, "remove_repository_backend_credentials"):
+            removed = credential_manager.remove_repository_backend_credentials(name, backend_type)
+
+        if removed:
+            repository_config['has_backend_credentials'] = False
+            try:
+                config_module.update_repository(name, repository_config)
+            except Exception as exc:
+                logging.getLogger(__name__).debug("Failed to update repository after credential removal: %s", exc)
+            show_success_panel("Credentials Removed", f"Removed {_backend_display_name(backend_type)} credentials for '{name}'.")
+        else:
+            show_info_panel("No Credentials", f"No stored credentials found for '{name}'.")
+    except RepositoryNotFoundError as e:
+        show_error_panel("Repository Not Found", str(e))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Credential removal cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Credential Error", f"Failed to remove repository credentials: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_credentials_app.command("show")
+def repos_credentials_show(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        master_password: Annotated[
+            Optional[str], typer.Option("--master-password", "-m", help="Master password to unlock the credential manager if locked")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Display stored backend credentials for a repository."""
+    setup_logging(verbose, config_dir)
+    interactive = sys.stdin.isatty()
+    try:
+        config_module = _create_configuration_module(config_dir)
+        repository_obj = config_module.get_repository(name)
+        repo_uri = getattr(repository_obj, 'uri', None) or getattr(repository_obj, 'location', None)
+
+        backend_type = _determine_backend_from_uri(repo_uri)
+        if backend_type != "s3":
+            show_info_panel("Unsupported Backend", "No backend credentials stored for this repository type.")
+            raise typer.Exit(0)
+
+        credential_manager = _create_credential_manager(config_dir)
+        if master_password is not None:
+            _ensure_manager_unlocked(credential_manager, master_password, interactive)
+
+        has_credentials = False
+        if hasattr(credential_manager, "has_repository_backend_credentials"):
+            has_credentials = credential_manager.has_repository_backend_credentials(name, backend_type)
+
+        if not has_credentials:
+            show_info_panel("No Credentials", f"No {_backend_display_name(backend_type)} credentials stored for '{name}'.")
+            return
+
+        credentials = {}
+        if hasattr(credential_manager, "get_repository_backend_credentials"):
+            credentials = credential_manager.get_repository_backend_credentials(name, backend_type) or {}
+
+        if not credentials:
+            show_info_panel("No Credentials", f"No {_backend_display_name(backend_type)} credentials stored for '{name}'.")
+            return
+
+        table = Table(title=f"{_backend_display_name(backend_type)} Credentials for {name}")
+        table.add_column("Field", style="cyan")
+        table.add_column("Value", style="green")
+
+        for key, value in credentials.items():
+            display_key = key.replace('_', ' ').title()
+            if isinstance(value, str):
+                if len(value) > 4 and any(token in key for token in ["secret", "key"]):
+                    masked = value[:4] + "•••" + value[-2:]
+                else:
+                    masked = value
+                display_value = masked
+            else:
+                display_value = str(value)
+            table.add_row(display_key, display_value)
+
+        console.print(table)
+    except RepositoryNotFoundError as e:
+        show_error_panel("Repository Not Found", str(e))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Credential display cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Credential Error", f"Failed to display repository credentials: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+def _ensure_manager_unlocked(manager, master_password: Optional[str], interactive: bool) -> None:
+    """Unlock credential manager when required or raise typer.Exit."""
+    if not hasattr(manager, "is_locked"):
+        return
+    if not manager.is_locked():
+        return
+
+    if master_password is None:
+        if interactive:
+            master_password = Prompt.ask("Master password", password=True)
+        else:
+            show_error_panel("Credential Manager Locked", "Provide --master-password to unlock before proceeding.")
+            raise typer.Exit(1)
+
+    if not manager.unlock(master_password):
+        show_error_panel("Unlock Failed", "Unable to unlock credential manager with the provided master password.")
+        raise typer.Exit(1)
+
+
+@credentials_app.command("store")
+def credentials_store(
+        repository: Annotated[str, typer.Argument(help="Repository name to associate with the password")],
+        password: Annotated[Optional[str], typer.Option("--password", "-p", help="Repository password to store")] = None,
+        master_password: Annotated[
+            Optional[str], typer.Option("--master-password", "-m", help="Master password to unlock the credential manager if locked")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Store repository password in the credential manager."""
+    setup_logging(verbose, config_dir)
+    interactive = sys.stdin.isatty()
+    try:
+        if not password:
+            if interactive:
+                password = Prompt.ask("Repository password", password=True)
+            else:
+                show_error_panel("Missing Parameter", "Repository password is required in non-interactive mode")
+                raise typer.Exit(2)
+
+        manager = _create_credential_manager(config_dir)
+        _ensure_manager_unlocked(manager, master_password, interactive)
+
+        result = manager.store_repository_password(repository, password)
+        if result is False:
+            show_error_panel("Store Failed", f"Credential manager declined storing password for '{repository}'.")
+            raise typer.Exit(1)
+
+        show_success_panel("Password Stored", f"Stored password for repository '{repository}'.")
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Credential storage cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Store Error", f"Failed to store repository password: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@credentials_app.command("set")
+def credentials_set(
+        repository: Annotated[str, typer.Argument(help="Repository name to associate with the password")],
+        password: Annotated[Optional[str], typer.Option("--password", "-p", help="Repository password to store")] = None,
+        master_password: Annotated[
+            Optional[str], typer.Option("--master-password", "-m", help="Master password to unlock the credential manager if locked")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Alias for credentials store."""
+    credentials_store(repository, password, master_password, verbose, config_dir)
+
+
+@credentials_app.command("list")
+def credentials_list(
+        password: Annotated[Optional[str], typer.Option("--password", "-p", help="Master password to unlock the credential manager if locked")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """List repositories with stored credentials."""
+    setup_logging(verbose, config_dir)
+    interactive = sys.stdin.isatty()
+    try:
+        manager = _create_credential_manager(config_dir)
+        _ensure_manager_unlocked(manager, password, interactive)
+
+        repositories = manager.list_repositories() if hasattr(manager, "list_repositories") else []
+
+        if not repositories:
+            show_info_panel("No Credentials", "No stored repository credentials found.")
+            return
+
+        table = Table(title="Stored Repository Credentials")
+        table.add_column("Repository", style="cyan")
+        for entry in repositories:
+            if isinstance(entry, dict):
+                repo_name = entry.get("name") or entry.get("repository") or "unknown"
+            else:
+                repo_name = str(entry)
+            table.add_row(repo_name)
+        console.print(table)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Listing credentials cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("List Error", f"Failed to list repository credentials: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@credentials_app.command("remove")
+def credentials_remove(
+        repository: Annotated[str, typer.Argument(help="Repository name to remove credentials for")],
+        password: Annotated[Optional[str], typer.Option("--password", "-p", help="Master password to unlock the credential manager if locked")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Remove stored credentials for a repository."""
+    setup_logging(verbose, config_dir)
+    interactive = sys.stdin.isatty()
+    try:
+        manager = _create_credential_manager(config_dir)
+        _ensure_manager_unlocked(manager, password, interactive)
+
+        result = manager.remove_repository(repository)
+        if result:
+            show_success_panel("Credentials Removed", f"Removed stored credentials for '{repository}'.")
+        else:
+            show_info_panel("No Credentials Found", f"No stored credentials found for '{repository}'.")
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Credential removal cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Remove Error", f"Failed to remove repository credentials: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
 @backup_app.command("create")
 def backup_create(
         sources: Annotated[Optional[List[Path]], typer.Argument(help="Source paths to backup", autocompletion=file_path_completer)] = None,
@@ -372,12 +1893,13 @@ def backup_create(
 ) -> None:
     """Create a backup with beautiful progress tracking."""
     setup_logging(verbose, config_dir)
+    interactive = sys.stdin.isatty()
 
     # Handle target-based backup
     if target:
         try:
             from .config import ConfigurationModule
-            config_module = ConfigurationModule(config_dir=config_dir)
+            config_module = _create_configuration_module(config_dir)
 
             # Get backup target configuration
             backup_target = config_module.get_backup_target(target)
@@ -419,29 +1941,59 @@ def backup_create(
         console.print("💡 Either provide source paths or use --target to specify a configured backup target")
         raise typer.Exit(1)
 
-    try:
-        # Resolve repository name to URI
-        from .utils.repository_resolver import resolve_repository_uri, get_default_repository
+    repository_uri = repository
+    actual_repository_name = repository
+    resolved_password = password or ""
+    skip_repository_setup = dry_run and not repository
+    fallback_repository_uri = "dry-run://local"
 
-        # Get the actual repository name (for credential manager)
-        actual_repository_name = repository or get_default_repository()
-        repository_uri = resolve_repository_uri(repository)
+    if skip_repository_setup:
+        repository_uri = repository or fallback_repository_uri
+        actual_repository_name = repository or "dry-run"
+    else:
+        try:
+            # Resolve repository name to URI
+            from .utils.repository_resolver import resolve_repository_uri, get_default_repository
 
-        # Create repository instance to leverage full password resolution chain
-        # (explicit password → credential manager → environment → prompt)
-        backup_manager = BackupManager()
-        repo = backup_manager.from_uri(repository_uri, password=password, repository_name=actual_repository_name)
+            # Get the actual repository name (for credential manager)
+            actual_repository_name = repository or get_default_repository()
+            repository_uri = resolve_repository_uri(repository)
 
-        # Get password from repository (uses full resolution chain)
-        resolved_password = repo.password()
-        if not resolved_password:
-            # Only prompt if repository couldn't resolve password
-            resolved_password = Prompt.ask("Repository password", password=True)
+            # Create repository instance to leverage full password resolution chain
+            # (explicit password → credential manager → environment → prompt)
+            backup_manager = BackupManager()
+            repo = backup_manager.from_uri(repository_uri, password=password, repository_name=actual_repository_name)
 
-        password = resolved_password
-    except Exception as e:
-        show_error_panel("Repository Error", str(e))
-        raise typer.Exit(1)
+            # Get password from repository (uses full resolution chain)
+            resolved_password = repo.password() or ""
+            if not resolved_password:
+                if interactive:
+                    # Only prompt if repository couldn't resolve password
+                    resolved_password = Prompt.ask("Repository password", password=True)
+                else:
+                    show_error_panel(
+                            "Repository Error",
+                            "Repository password is required; provide --password or set an environment variable when running non-interactively."
+                    )
+                    raise typer.Exit(1)
+        except (RepositoryNotFoundError, ConfigurationError) as e:
+            if dry_run:
+                logger = logging.getLogger(__name__)
+                logger.debug("Proceeding with dry-run backup without configured repository: %s", e)
+                repository_uri = repository or fallback_repository_uri
+                actual_repository_name = repository or "dry-run"
+                resolved_password = password or ""
+                skip_repository_setup = True
+            else:
+                show_error_panel("Repository Error", str(e))
+                raise typer.Exit(1)
+        except Exception as e:
+            show_error_panel("Repository Error", str(e))
+            raise typer.Exit(1)
+
+    password = resolved_password
+    if repository_uri is None:
+        repository_uri = fallback_repository_uri
 
     try:
         logger = logging.getLogger(__name__)
@@ -595,6 +2147,7 @@ def snapshots_restore(
 ) -> None:
     """Restore files from this snapshot."""
     setup_logging(verbose)
+    interactive = sys.stdin.isatty()
 
     # Validate inputs early
     try:
@@ -617,7 +2170,12 @@ def snapshots_restore(
             # Check TimeLocker environment variable first, then fall back to RESTIC_PASSWORD
             password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
             if not password:
-                password = Prompt.ask("Repository password", password=True)
+                if interactive:
+                    password = Prompt.ask("Repository password", password=True)
+                else:
+                    show_error_panel("Repository Error",
+                                     "Repository password is required; provide --password or set RESTIC_PASSWORD when running non-interactively.")
+                    raise typer.Exit(1)
     except Exception as e:
         show_error_panel("Repository Error", str(e))
         raise typer.Exit(1)
@@ -645,7 +2203,11 @@ def snapshots_restore(
             progress.remove_task(task)
 
     if not snapshot:
-        snapshot = Prompt.ask("Snapshot ID to restore")
+        if interactive:
+            snapshot = Prompt.ask("Snapshot ID to restore")
+        else:
+            show_error_panel("Missing Parameter", "Snapshot ID is required when running non-interactively.")
+            raise typer.Exit(1)
 
     # Preview mode
     if preview:
@@ -743,50 +2305,97 @@ def snapshots_list(
 ) -> None:
     """List snapshots in repository with a beautiful table."""
     setup_logging(verbose)
-    # Validate repository option (syntactic) before resolution
+    interactive = sys.stdin.isatty()
+
+    repository_input = repository or ""
+    service_snapshots = None
+    using_service_manager = False
+
     try:
-        if repository:
-            validate_repository_name_or_uri(repository)
+        manager = get_cli_service_manager()
+        list_method = _get_service_method(manager, "list_snapshots")
+        if list_method:
+            try:
+                service_snapshots = list_method(repository_input)
+                using_service_manager = True
+            except Exception as exc:
+                logging.getLogger(__name__).debug("Service snapshot listing failed: %s", exc)
+                service_snapshots = None
+                using_service_manager = False
+    except Exception as exc:
+        logging.getLogger(__name__).debug("Unable to obtain service manager snapshots: %s", exc)
+
+    if using_service_manager:
+        if not service_snapshots:
+            show_info_panel("No Snapshots", "No snapshots found in repository")
+            return
+
+        table = Table(title=f"Snapshots ({len(service_snapshots)})")
+        table.add_column("ID", style="cyan", no_wrap=True)
+        table.add_column("Date", style="green")
+        table.add_column("Host", style="yellow")
+        table.add_column("Paths", style="white")
+
+        for entry in service_snapshots:
+            if isinstance(entry, dict):
+                snapshot_id = str(entry.get("id") or entry.get("short_id") or "unknown")
+                timestamp = entry.get("time") or entry.get("timestamp") or "unknown"
+                host = entry.get("hostname", "unknown")
+                paths = entry.get("paths") or []
+            else:
+                snapshot_id = getattr(entry, "short_id", getattr(entry, "id", "unknown"))
+                timestamp = getattr(entry, "time", getattr(entry, "timestamp", "unknown"))
+                host = getattr(entry, "hostname", "unknown")
+                paths = getattr(entry, "paths", [])
+
+            path_display = ", ".join(str(p) for p in paths[:2])
+            if paths and len(paths) > 2:
+                path_display += f" (+{len(paths) - 2} more)"
+
+            table.add_row(snapshot_id, str(timestamp), str(host), path_display)
+
+        console.print(table)
+        return
+
+    try:
+        if repository_input:
+            validate_repository_name_or_uri(repository_input)
     except ValueError as ve:
         show_error_panel("Invalid Repository", str(ve))
         raise typer.Exit(1)
 
     try:
-        # Resolve repository name to URI
         from .utils.repository_resolver import resolve_repository_uri, get_repository_info, get_default_repository
 
-        # Get the actual repository name (for default case)
         actual_repository_name = repository or get_default_repository()
         repository_uri = resolve_repository_uri(repository)
         repo_info = get_repository_info(actual_repository_name or repository_uri)
 
-        # Show which repository is being used if verbose or no repository specified
         if verbose or not repository:
             if repo_info.get("is_named"):
                 console.print(f"[dim]Using repository: {repo_info.get('name')} ({repository_uri})[/dim]")
             else:
                 console.print(f"[dim]Using repository: {repository_uri}[/dim]")
 
-        # Create repository instance to leverage full password resolution chain
-        # (explicit password → credential manager → environment → prompt)
         backup_manager = BackupManager()
         repo = backup_manager.from_uri(repository_uri, password=password, repository_name=actual_repository_name)
 
-        # Get password from repository (uses full resolution chain)
         resolved_password = repo.password()
         if not resolved_password:
-            # Provide helpful context about which repository needs a password
-            repo_display = repo_info.get('name', repository_uri) if repo_info.get("is_named") else repository_uri
-
-            # Check if this is a named repository without stored credentials
             if repo_info.get("is_named"):
                 console.print(f"[yellow]Repository '{repo_info.get('name')}' requires a password.[/yellow]")
                 console.print(f"[dim]💡 Store password permanently: tl repos add {repo_info.get('name')} {repository_uri}[/dim]")
             else:
                 console.print(f"[yellow]Repository {repository_uri} requires a password.[/yellow]")
 
-            # Only prompt if repository couldn't resolve password
-            resolved_password = Prompt.ask("Repository password", password=True)
+            if interactive:
+                resolved_password = Prompt.ask("Repository password", password=True)
+            else:
+                show_error_panel(
+                        "Repository Error",
+                        "Repository password is required; provide --password or set RESTIC_PASSWORD when running non-interactively."
+                )
+                raise typer.Exit(1)
 
         password = resolved_password
     except Exception as e:
@@ -801,24 +2410,16 @@ def snapshots_list(
         ) as progress:
 
             task = progress.add_task("Loading snapshots...", total=None)
-
-            # Repository already created above, just update progress
             progress.update(task, description="Connecting to repository...")
-
-            # Initialize snapshot manager with repository
             snapshot_manager = SnapshotManager(repo)
-
-            # List snapshots
             progress.update(task, description="Retrieving snapshots...")
             snapshots = snapshot_manager.list_snapshots()
-
             progress.remove_task(task)
 
         if not snapshots:
             show_info_panel("No Snapshots", "No snapshots found in repository")
             return
 
-        # Create beautiful table
         table = Table(
                 title=f"📸 Found {len(snapshots)} snapshots",
                 show_header=True,
@@ -834,28 +2435,16 @@ def snapshots_list(
         table.add_column("Paths", style="white")
 
         for snapshot in snapshots:
-            # Format snapshot data
             snapshot_id = snapshot.id[:12] if len(snapshot.id) > 12 else snapshot.id
             date_str = snapshot.time.strftime('%Y-%m-%d %H:%M:%S') if hasattr(snapshot, 'time') else snapshot.timestamp.strftime('%Y-%m-%d %H:%M:%S')
             hostname = getattr(snapshot, 'hostname', 'unknown')[:15]
-
-            # Format tags
             tags_str = ",".join(snapshot.tags) if snapshot.tags else ""
             if len(tags_str) > 20:
                 tags_str = tags_str[:17] + "..."
-
-            # Format paths
             paths_str = ",".join(str(p) for p in snapshot.paths[:2])
             if len(snapshot.paths) > 2:
                 paths_str += f" (+{len(snapshot.paths) - 2} more)"
-
-            table.add_row(
-                    snapshot_id,
-                    date_str,
-                    hostname,
-                    tags_str,
-                    paths_str
-            )
+            table.add_row(snapshot_id, date_str, hostname, tags_str, paths_str)
 
         console.print()
         console.print(table)
@@ -871,1924 +2460,6 @@ def snapshots_list(
         raise typer.Exit(1)
 
 
-@repos_app.command("init")
-def repo_init(
-        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
-        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository URI", autocompletion=repository_completer)] = None,
-        password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
-        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-        yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
-) -> None:
-    """Initialize this repository."""
-    setup_logging(verbose)
-    logger = logging.getLogger(__name__)
-
-    # If user provided a repository URI directly, validate it (names are allowed)
-    if repository:
-        try:
-            from .utils.repository_resolver import validate_repository_name_or_uri
-            validate_repository_name_or_uri(repository)
-        except ValueError as ve:
-            show_error_panel(
-                    "Invalid Repository URI",
-                    f"{ve}\n\nTip: Use names for configured repositories (e.g., '{name}'), or URIs like file:///path, s3://bucket/path."
-            )
-            raise typer.Exit(1)
-
-    try:
-        # Resolve repository name to URI
-        from .utils.repository_resolver import resolve_repository_uri
-        repository_uri = resolve_repository_uri(repository or name)
-
-        # Try to get password from config first (stored during repos add)
-        config_manager = ConfigurationManager()
-        try:
-            repo_config = config_manager.get_repository(name)
-            stored_password = getattr(repo_config, 'password', None)
-            if stored_password and not password:
-                password = stored_password
-                logger.debug(f"Using password from repository configuration for '{name}'")
-        except Exception as e:
-            logger.debug(f"Could not retrieve password from config: {e}")
-
-        # Create repository instance to leverage full password resolution chain
-        # (explicit password → credential manager → environment → prompt)
-        # Pass repository_name so S3/B2 repositories can retrieve backend credentials
-        manager = BackupManager()
-        repo = manager.from_uri(repository_uri, password=password, repository_name=name)
-
-        # Get password from repository (uses full resolution chain)
-        resolved_password = repo.password()
-        if not resolved_password:
-            # Only prompt if repository couldn't resolve password
-            resolved_password = Prompt.ask("Repository password", password=True)
-
-        password = resolved_password
-    except Exception as e:
-        show_error_panel("Repository Error", str(e))
-        raise typer.Exit(1)
-
-    # Confirm repository creation unless --yes flag is used
-    if not yes and not Confirm.ask(f"Initialize new repository at [bold]{repository_uri}[/bold]?"):
-        show_info_panel("Operation Cancelled", "Repository initialization cancelled by user")
-        raise typer.Exit(0)
-
-    try:
-        # Check if repository already exists before showing progress
-        if repo.is_repository_initialized():
-            show_info_panel(
-                    "Repository Already Exists",
-                    f"Repository at {repository_uri} is already initialized and ready to use."
-            )
-            return
-
-        with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console,
-        ) as progress:
-
-            task = progress.add_task("Initializing repository...", total=None)
-
-            # Initialize repository (repo instance already created above)
-            # This will raise an exception with details if it fails
-            repo.initialize_repository(password)
-
-            progress.remove_task(task)
-
-        show_success_panel(
-                "Repository Initialized",
-                "Repository created successfully!",
-                {"Repository URI": repository_uri}
-        )
-
-    except KeyboardInterrupt:
-        show_error_panel("Operation Cancelled", "Repository initialization was cancelled by user")
-        raise typer.Exit(130)
-    except Exception as e:
-        error_msg = str(e)
-
-        # Provide helpful hints based on error type
-        hints = []
-        if "tls" in error_msg.lower() or "certificate" in error_msg.lower():
-            hints.append("💡 TLS certificate error detected. Try setting credentials with 'insecure_tls' option:")
-            hints.append("   tl repos credentials set " + name)
-        elif "bucket" in error_msg.lower() or "not found" in error_msg.lower():
-            hints.append("💡 Bucket not found. Make sure the bucket exists in your S3 service.")
-        elif "credentials" in error_msg.lower() or "access denied" in error_msg.lower():
-            hints.append("💡 Credentials error. Verify your credentials with:")
-            hints.append("   tl repos credentials set " + name)
-
-        # Add log file location
-        hints.append(f"\n📋 Check logs for details: ~/.cache/timelocker/logs/timelocker.log")
-
-        full_message = error_msg
-        if hints:
-            full_message += "\n\n" + "\n".join(hints)
-
-        show_error_panel("Initialization Error", full_message)
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
-
-
-@app.command()
-def version() -> None:
-    """Show version information with beautiful formatting."""
-
-    # Create version info panel
-    version_info = f"""[bold cyan]TimeLocker[/bold cyan] [green]v{__version__}[/green]
-
-[dim]High-level Python interface for backup operations using Restic[/dim]
-
-[bold]Author:[/bold] Bruce Cherrington
-[bold]License:[/bold] GNU General Public License v3.0
-[bold]Repository:[/bold] https://github.com/Auriora/TimeLocker
-
-[italic]Made with ❤️  and powered by Rich + Typer[/italic]"""
-
-    panel = Panel(
-            version_info,
-            title="[bold blue]📦 TimeLocker Version Info[/bold blue]",
-            border_style="blue",
-            padding=(1, 2),
-            expand=False
-    )
-
-    console.print()
-    console.print(panel)
-    console.print()
-
-
-@app.command()
-def completion(
-        shell: Annotated[str, typer.Argument(help="Shell type (bash, zsh, fish)")] = "bash",
-        install: Annotated[bool, typer.Option("--install", help="Install completion script")] = False,
-) -> None:
-    """Generate shell completion scripts for TimeLocker."""
-
-    # Generate completion script based on shell type
-    if shell.lower() == "bash":
-        script_name = "timelocker-completion.bash"
-        completion_script = '''# TimeLocker bash completion
-_timelocker_completion() {
-    local IFS=$'\\n'
-    local response
-
-    response=$(env COMP_WORDS="${COMP_WORDS[*]}" COMP_CWORD=${COMP_CWORD} _TIMELOCKER_COMPLETE=bash_complete $1)
-
-    for completion in $response; do
-        IFS=',' read type value <<< "$completion"
-
-        if [[ $type == 'dir' ]]; then
-            COMPREPLY=()
-            compopt -o dirnames
-        elif [[ $type == 'file' ]]; then
-            COMPREPLY=()
-            compopt -o default
-        elif [[ $type == 'plain' ]]; then
-            COMPREPLY+=($value)
-        fi
-    done
-
-    return 0
-}
-
-complete -o nosort -F _timelocker_completion timelocker
-complete -o nosort -F _timelocker_completion tl
-'''
-    elif shell.lower() == "zsh":
-        script_name = "_timelocker"
-        completion_script = '''#compdef timelocker tl
-
-_timelocker_completion() {
-    local -a completions
-    local -a completions_with_descriptions
-    local -a response
-    (( ! $+commands[timelocker] )) && return 1
-
-    response=("${(@f)$(env COMP_WORDS="${words[*]}" COMP_CWORD=${#words[@]} _TIMELOCKER_COMPLETE=zsh_complete timelocker)}")
-
-    for type_and_completion in "${response[@]}"; do
-        completions+=("${type_and_completion#*,}")
-    done
-
-    if [ "${#completions[@]}" -eq 0 ]; then
-        _files
-    else
-        _describe '' completions
-    fi
-}
-
-compdef _timelocker_completion timelocker
-compdef _timelocker_completion tl
-'''
-    elif shell.lower() == "fish":
-        script_name = "timelocker.fish"
-        completion_script = '''function _timelocker_completion
-    set -l response (env _TIMELOCKER_COMPLETE=fish_complete COMP_WORDS=(commandline -cp) COMP_CWORD=(commandline -t) timelocker)
-
-    for completion in $response
-        set -l metadata (string split "," $completion)
-
-        if test $metadata[1] = "dir"
-            __fish_complete_directories $metadata[2]
-        else if test $metadata[1] = "file"
-            __fish_complete_path $metadata[2]
-        else if test $metadata[1] = "plain"
-            echo $metadata[2]
-        end
-    end
-end
-
-complete --no-files --command timelocker --arguments "(_timelocker_completion)"
-complete --no-files --command tl --arguments "(_timelocker_completion)"
-'''
-    else:
-        console.print(f"[red]Error:[/red] Unsupported shell: {shell}")
-        console.print("Supported shells: bash, zsh, fish")
-        raise typer.Exit(1)
-
-    if install:
-        # Try to install the completion script
-        try:
-            if shell.lower() == "bash":
-                completion_dir = Path.home() / ".bash_completion.d"
-                completion_dir.mkdir(exist_ok=True)
-                completion_file = completion_dir / script_name
-            elif shell.lower() == "zsh":
-                # Try common zsh completion directories
-                zsh_dirs = [
-                        Path.home() / ".zsh" / "completions",
-                        Path("/usr/local/share/zsh/site-functions"),
-                        Path("/usr/share/zsh/site-functions"),
-                ]
-                completion_dir = None
-                for zsh_dir in zsh_dirs:
-                    if zsh_dir.exists() or zsh_dir.parent.exists():
-                        completion_dir = zsh_dir
-                        break
-
-                if not completion_dir:
-                    completion_dir = Path.home() / ".zsh" / "completions"
-                    completion_dir.mkdir(parents=True, exist_ok=True)
-
-                completion_file = completion_dir / script_name
-            elif shell.lower() == "fish":
-                completion_dir = Path.home() / ".config" / "fish" / "completions"
-                completion_dir.mkdir(parents=True, exist_ok=True)
-                completion_file = completion_dir / script_name
-
-            # Write completion script
-            completion_file.write_text(completion_script)
-            console.print(f"[green]✓[/green] Completion script installed to: {completion_file}")
-
-            if shell.lower() == "bash":
-                console.print("\n[yellow]Next steps:[/yellow]")
-                console.print("Add this to your ~/.bashrc:")
-                console.print(f"[dim]source {completion_file}[/dim]")
-            elif shell.lower() == "zsh":
-                console.print("\n[yellow]Next steps:[/yellow]")
-                console.print("Make sure your ~/.zshrc includes:")
-                console.print(f"[dim]fpath=({completion_dir} $fpath)[/dim]")
-                console.print("[dim]autoload -U compinit && compinit[/dim]")
-            elif shell.lower() == "fish":
-                console.print("\n[green]✓[/green] Fish completion is automatically loaded")
-
-        except Exception as e:
-            console.print(f"[red]Error installing completion:[/red] {e}")
-            console.print("\nYou can manually save the script below:")
-            console.print(completion_script)
-    else:
-        # Just print the completion script
-        console.print(f"# {shell.title()} completion script for TimeLocker")
-        console.print(completion_script)
-
-
-# Configuration Management Commands
-@config_app.command("setup")
-def config_setup(
-        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
-        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-) -> None:
-    """Interactive configuration setup wizard."""
-    setup_logging(verbose, config_dir)
-
-    # In non-interactive contexts (e.g., tests), avoid blocking prompts
-    if os.environ.get("PYTEST_CURRENT_TEST"):
-        raise typer.Exit(2)
-    try:
-        if not hasattr(sys.stdin, "isatty") or not sys.stdin.isatty():
-            raise typer.Exit(2)
-    except Exception:
-        raise typer.Exit(2)
-
-    console.print()
-    console.print(Panel(
-            "🚀 Welcome to TimeLocker Configuration Setup!\n\n"
-            "This wizard will help you set up your backup configuration.",
-            title="[bold blue]Configuration Setup[/bold blue]",
-            border_style="blue"
-    ))
-    console.print()
-
-    try:
-        # Initialize configuration module (will use appropriate path resolution)
-        from .config import ConfigurationModule
-        config_module = ConfigurationModule(config_dir=config_dir)
-
-        # Show configuration information
-        config_info = config_module.get_config_info()
-        console.print(f"📁 Configuration directory: {config_info['current_config_dir']}")
-        if config_info['migration_marker_exists']:
-            console.print("✅ Configuration migrated from legacy location")
-        console.print()
-
-        # Repository setup
-        if Confirm.ask("Would you like to add a repository?"):
-            repo_name = Prompt.ask("Repository name", default="default")
-            repo_uri = Prompt.ask("Repository URI (e.g., /path/to/backup or s3://bucket/path)")
-            repo_desc = Prompt.ask("Repository description", default=f"{repo_name} backup repository")
-
-            # Add repository using ConfigurationModule
-            repo_config = {
-                    "name":        repo_name,
-                    "location":    repo_uri,
-                    "description": repo_desc,
-            }
-            config_module.add_repository(repo_config)
-            config_module.set_default_repository(repo_name)
-
-        # Backup target setup
-        if Confirm.ask("Would you like to add a backup target?"):
-            target_name = Prompt.ask("Target name", default="documents")
-            target_desc = Prompt.ask("Target description", default="Important documents")
-
-            # Get source paths
-            paths = []
-            console.print("\n[bold]Source paths to backup:[/bold]")
-            while True:
-                path = Prompt.ask("Enter a path to backup (or press Enter to finish)", default="")
-                if not path:
-                    break
-                if Path(path).exists():
-                    paths.append(path)
-                    console.print(f"✅ Added: {path}")
-                else:
-                    console.print(f"⚠️  Path does not exist: {path}")
-                    if not Confirm.ask("Add anyway?"):
-                        continue
-                    paths.append(path)
-
-            if paths:
-                # Add backup target using ConfigurationModule
-                target_config = {
-                        "name":             target_name,
-                        "paths":            paths,
-                        "description":      target_desc,
-                        "include_patterns": ["*"],
-                        "exclude_patterns": ["*.tmp", "*.log", "Thumbs.db", ".DS_Store"]
-                }
-                config_module.add_backup_target(target_config)
-
-        # Configuration is automatically saved by ConfigurationModule methods
-
-        # Get counts for display
-        repositories = config_module.get_repositories()
-        backup_targets = config_module.get_backup_targets()
-
-        show_success_panel(
-                "Configuration Created",
-                "Configuration setup completed successfully!",
-                {
-                        "Config file":    str(config_module.config_file),
-                        "Repositories":   str(len(repositories)),
-                        "Backup targets": str(len(backup_targets))
-                }
-        )
-
-    except KeyboardInterrupt:
-        show_error_panel("Setup Cancelled", "Configuration setup was cancelled by user")
-        raise typer.Exit(130)
-    except Exception as e:
-        show_error_panel("Setup Error", f"Configuration setup failed: {e}")
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
-
-
-@config_app.command("show")
-def config_show(
-        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
-        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-) -> None:
-    """Show configuration information and validation status."""
-    setup_logging(verbose, config_dir)
-
-    try:
-        from .config import ConfigurationModule, ConfigurationValidator
-        config_module = ConfigurationModule(config_dir=config_dir)
-        config = config_module.get_config()
-        config_file = config_module.config_file
-        config_info = config_module.get_config_info()
-
-        console.print()
-        console.print(Panel(
-                f"📁 Configuration from: {config_file}",
-                title="[bold blue]TimeLocker Configuration[/bold blue]",
-                border_style="blue"
-        ))
-
-        # Configuration paths table
-        table = Table(title="📂 Configuration Paths", border_style="green")
-        table.add_column("Setting", style="cyan", width=25)
-        table.add_column("Value", style="white")
-        table.add_column("Status", style="yellow")
-
-        # Current configuration
-        table.add_row(
-                "Config Directory",
-                config_info['current_config_dir'],
-                "✅ Active" if config_info['config_file_exists'] else "❌ Missing"
-        )
-
-        table.add_row(
-                "Config File",
-                config_info['current_config_file'],
-                "✅ Exists" if config_info['config_file_exists'] else "❌ Missing"
-        )
-
-        # System context
-        table.add_row(
-                "System Context",
-                "Root/System" if config_info['is_system_context'] else "User",
-                "🔒 System" if config_info['is_system_context'] else "👤 User"
-        )
-
-        # XDG information
-        table.add_row(
-                "XDG Config Home",
-                config_info['xdg_config_home'],
-                "📁 Standard"
-        )
-
-        console.print(table)
-        console.print()
-
-        # Configuration validation
-        console.print(Panel(
-                "🔍 Running configuration validation...",
-                title="[bold yellow]Configuration Validation[/bold yellow]",
-                border_style="yellow"
-        ))
-
-        validator = ConfigurationValidator()
-        validation_result = validator.validate_config(config)
-
-        if validation_result.is_valid:
-            console.print(Panel(
-                    "✅ Configuration validation passed successfully!\n"
-                    "All settings are valid and properly configured.",
-                    title="[bold green]Validation Successful[/bold green]",
-                    border_style="green"
-            ))
-        else:
-            # Show validation errors
-            if validation_result.errors:
-                error_text = "\n".join([f"❌ {error}" for error in validation_result.errors])
-                console.print(Panel(
-                        error_text,
-                        title="[bold red]Validation Errors[/bold red]",
-                        border_style="red"
-                ))
-
-        # Show validation warnings
-        if validation_result.warnings:
-            warning_text = "\n".join([f"⚠️  {warning}" for warning in validation_result.warnings])
-            console.print(Panel(
-                    warning_text,
-                    title="[bold yellow]Validation Warnings[/bold yellow]",
-                    border_style="yellow"
-            ))
-
-        # General settings summary
-        settings_text = ""
-        if hasattr(config.general, 'app_name') and config.general.app_name:
-            settings_text += f"[bold]App Name:[/bold] {config.general.app_name}\n"
-        if hasattr(config.general, 'default_repository') and config.general.default_repository:
-            settings_text += f"[bold]Default Repository:[/bold] {config.general.default_repository}\n"
-        if hasattr(config.general, 'max_concurrent_operations') and config.general.max_concurrent_operations:
-            settings_text += f"[bold]Max Concurrent Operations:[/bold] {config.general.max_concurrent_operations}\n"
-        if hasattr(config.general, 'log_level') and config.general.log_level:
-            settings_text += f"[bold]Log Level:[/bold] {config.general.log_level}\n"
-
-        # Repository and target counts
-        repo_count = len(config.repositories) if config.repositories else 0
-        target_count = len(config.backup_targets) if config.backup_targets else 0
-        settings_text += f"[bold]Repositories:[/bold] {repo_count} configured\n"
-        settings_text += f"[bold]Backup Targets:[/bold] {target_count} configured\n"
-
-        if settings_text:
-            console.print(Panel(
-                    settings_text.strip(),
-                    title="⚙️  Configuration Summary",
-                    border_style="blue"
-            ))
-
-        console.print()
-
-    except Exception as e:
-        show_error_panel("Configuration Error", f"Failed to load configuration: {e}")
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
-
-
-@config_import_app.command("restic")
-def config_import_restic(
-        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
-        repository_name: Annotated[str, typer.Option("--name", "-n", help="Name for the imported repository")] = "imported_restic",
-        target_name: Annotated[str, typer.Option("--target", "-t", help="Name for the backup target")] = "imported_backup",
-        paths: Annotated[Optional[List[str]], typer.Option("--backup-paths", "-p", help="Backup paths (if not using current directory)")] = None,
-        dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be imported without making changes")] = False,
-        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-        yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
-) -> None:
-    """Import configuration from restic environment variables.
-
-    This command reads RESTIC_REPOSITORY, RESTIC_PASSWORD, and AWS credentials
-    from environment variables and creates a TimeLocker configuration.
-
-    Required environment variables:
-    - RESTIC_REPOSITORY: Repository URI (e.g., s3:s3.region.amazonaws.com/bucket)
-    - RESTIC_PASSWORD: Repository password
-
-    Optional AWS environment variables:
-    - AWS_ACCESS_KEY_ID: AWS access key
-    - AWS_SECRET_ACCESS_KEY: AWS secret key
-    - AWS_DEFAULT_REGION: AWS region
-    """
-    import os
-    from urllib.parse import urlparse
-
-    setup_logging(verbose)
-
-    console.print()
-    console.print(Panel(
-            "📥 Import Restic Configuration from Environment\n\n"
-            "This will read restic settings from environment variables\n"
-            "and create a TimeLocker configuration.",
-            title="[bold green]Import from Restic Environment[/bold green]",
-            border_style="green"
-    ))
-    console.print()
-
-    # Check required environment variables
-    required_vars = {
-            'RESTIC_REPOSITORY': 'Repository URI',
-            'RESTIC_PASSWORD':   'Repository password'
-    }
-
-    missing_vars = []
-    env_config = {}
-
-    for var, description in required_vars.items():
-        value = os.getenv(var)
-        if not value:
-            missing_vars.append(f"  • {var}: {description}")
-        else:
-            env_config[var] = value
-
-    if missing_vars:
-        show_error_panel(
-                "Missing Environment Variables",
-                "The following required environment variables are not set:\n\n" +
-                "\n".join(missing_vars) +
-                "\n\nPlease set these variables and try again."
-        )
-        raise typer.Exit(1)
-
-    # Check optional AWS variables
-    aws_vars = {
-            'AWS_ACCESS_KEY_ID':     'AWS Access Key ID',
-            'AWS_SECRET_ACCESS_KEY': 'AWS Secret Access Key',
-            'AWS_DEFAULT_REGION':    'AWS Default Region'
-    }
-
-    for var, description in aws_vars.items():
-        value = os.getenv(var)
-        if value:
-            env_config[var] = value
-
-    # Parse repository URI
-    repo_uri = env_config['RESTIC_REPOSITORY']
-    parsed_uri = urlparse(repo_uri)
-
-    # Determine repository type
-    if parsed_uri.scheme == 's3':
-        repo_type = 's3'
-        aws_region = env_config.get('AWS_DEFAULT_REGION', 'us-east-1')
-    elif parsed_uri.scheme in ['', 'file']:
-        repo_type = 'local'
-        aws_region = None
-    else:
-        repo_type = 'remote'
-        aws_region = None
-
-    # Create configuration
-    config = {
-            "repositories":   {
-                    repository_name: {
-                            "type":                      repo_type,
-                            "uri":                       repo_uri,
-                            "description":               f"Imported from restic environment ({repo_type})",
-                            "encryption":                True,
-                            "imported_from_environment": True
-                    }
-            },
-            "backup_targets": {
-                    target_name: {
-                            "paths":       paths or [str(Path.cwd())],
-                            "repository":  repository_name,
-                            "description": "Imported backup target from restic environment",
-                            "patterns":    {
-                                    "exclude": [
-                                            "**/.git/**",
-                                            "**/__pycache__/**",
-                                            "**/node_modules/**",
-                                            "**/.DS_Store",
-                                            "**/Thumbs.db"
-                                    ]
-                            }
-                    }
-            },
-            "settings":       {
-                    "default_repository":  repository_name,
-                    "notification_level":  "normal",
-                    "auto_verify_backups": True
-            }
-    }
-
-    if aws_region:
-        config["repositories"][repository_name]["aws_region"] = aws_region
-
-    # Display what will be imported
-    console.print("📋 Configuration to be imported:")
-    console.print()
-
-    # Repository info
-    repo_table = Table(title="Repository Configuration")
-    repo_table.add_column("Setting", style="cyan")
-    repo_table.add_column("Value", style="green")
-
-    repo_table.add_row("Name", repository_name)
-    repo_table.add_row("Type", repo_type)
-    repo_table.add_row("URI", repo_uri)
-    if aws_region:
-        repo_table.add_row("AWS Region", aws_region)
-    repo_table.add_row("Encryption", "✅ Enabled")
-
-    console.print(repo_table)
-    console.print()
-
-    # Backup target info
-    target_table = Table(title="Backup Target Configuration")
-    target_table.add_column("Setting", style="cyan")
-    target_table.add_column("Value", style="green")
-
-    target_table.add_row("Name", target_name)
-    target_table.add_row("Repository", repository_name)
-    target_table.add_row("Paths", ", ".join(config["backup_targets"][target_name]["paths"]))
-    target_table.add_row("Exclude Patterns", str(len(config["backup_targets"][target_name]["patterns"]["exclude"])))
-
-    console.print(target_table)
-    console.print()
-
-    # Environment variables info
-    env_table = Table(title="Environment Variables Found")
-    env_table.add_column("Variable", style="cyan")
-    env_table.add_column("Status", style="green")
-
-    for var in required_vars.keys():
-        if var in env_config:
-            masked_value = env_config[var][:8] + "..." if len(env_config[var]) > 8 else "***"
-            env_table.add_row(var, f"✅ Set ({masked_value})")
-        else:
-            env_table.add_row(var, "❌ Not set")
-
-    for var in aws_vars.keys():
-        if var in env_config:
-            masked_value = env_config[var][:8] + "..." if len(env_config[var]) > 8 else "***"
-            env_table.add_row(var, f"✅ Set ({masked_value})")
-        else:
-            env_table.add_row(var, "⚠️  Not set")
-
-    console.print(env_table)
-    console.print()
-
-    if dry_run:
-        console.print("🔍 [bold yellow]Dry run mode - no changes made[/bold yellow]")
-        console.print("Configuration would be saved to:", str(config_dir / "timelocker.json"))
-        return
-
-    # Confirm before proceeding unless --yes flag is used
-    if not yes and not Confirm.ask("Import this configuration?"):
-        console.print("❌ Import cancelled")
-        raise typer.Exit(0)
-
-    try:
-        # Configuration import is no longer supported with the new configuration system
-        raise NotImplementedError(
-                "Configuration import is not supported with the new configuration system. "
-                "Please manually recreate your repositories and backup targets using the CLI commands."
-        )
-
-        console.print()
-        show_success_panel(
-                "Configuration Imported Successfully!",
-                f"✅ Repository '{repository_name}' added\n"
-                f"✅ Backup target '{target_name}' created\n"
-                f"✅ Configuration saved successfully\n\n"
-                f"💡 Next steps:\n"
-                f"   • Test connection: timelocker list -r {repo_uri}\n"
-                f"   • Create backup: timelocker backup {target_name}\n"
-                f"   • List config: timelocker config list"
-        )
-
-    except Exception as e:
-        show_error_panel("Import Failed", f"Failed to save configuration: {e}")
-        raise typer.Exit(1)
-
-
-@config_import_app.command("timeshift")
-def config_import_timeshift(
-        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
-        config_file: Annotated[Optional[Path], typer.Option("--config-file", help="Timeshift config file path")] = None,
-        repository_name: Annotated[str, typer.Option("--repo-name", "-r", help="Name for the imported repository")] = "timeshift_imported",
-        target_name: Annotated[str, typer.Option("--target-name", "-t", help="Name for the backup target")] = "timeshift_system",
-        repository_path: Annotated[Optional[str], typer.Option("--repo-path", help="Manual repository path (if UUID resolution fails)")] = None,
-        backup_paths: Annotated[Optional[List[str]], typer.Option("--paths", "-p", help="Backup paths (defaults to system paths)")] = None,
-        dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be imported without making changes")] = False,
-        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-        yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompt")] = False,
-) -> None:
-    """Import configuration from Timeshift backup tool.
-
-    This command reads Timeshift configuration files and converts them to TimeLocker
-    repository and backup target configurations.
-
-    Timeshift is a system backup tool that creates filesystem snapshots. This importer
-    converts Timeshift's configuration to TimeLocker's file-level backup approach.
-
-    The importer will:
-    - Read Timeshift configuration from /etc/timeshift/timeshift.json or /etc/timeshift.json
-    - Convert backup device UUID to repository path (if possible)
-    - Map exclude patterns to TimeLocker format
-    - Create appropriate backup targets for system paths
-
-    Note: Timeshift and TimeLocker use different backup approaches. Review the imported
-    configuration and adjust paths and settings as needed.
-    """
-    setup_logging(verbose)
-
-    console.print()
-    console.print(Panel(
-            "📥 Import Timeshift Configuration\n\n"
-            "This will read Timeshift settings and create TimeLocker\n"
-            "repository and backup target configurations.\n\n"
-            "[yellow]⚠️  Note: Timeshift uses system snapshots while TimeLocker\n"
-            "uses file-level backups. Review imported settings carefully.[/yellow]",
-            title="[bold green]Import from Timeshift[/bold green]",
-            border_style="green"
-    ))
-    console.print()
-
-    try:
-        # Initialize configuration module
-        config_module = ConfigurationModule(config_dir)
-
-        # Parse Timeshift configuration
-        parser = TimeshiftConfigParser()
-
-        with console.status("[bold green]Reading Timeshift configuration..."):
-            timeshift_config = parser.parse_config(config_file)
-
-        console.print("✅ Successfully read Timeshift configuration")
-
-        # Display Timeshift configuration summary
-        summary = parser.get_summary()
-
-        timeshift_table = Table(title="Timeshift Configuration Found")
-        timeshift_table.add_column("Setting", style="cyan")
-        timeshift_table.add_column("Value", style="green")
-
-        timeshift_table.add_row("Config File", summary.get("config_file", "Unknown"))
-        timeshift_table.add_row("Backup Device UUID", summary.get("backup_device_uuid") or "Not set")
-        timeshift_table.add_row("BTRFS Mode", "Yes" if summary.get("btrfs_mode") else "No")
-        timeshift_table.add_row("Exclude Patterns", str(len(summary.get("exclude_patterns", []))))
-
-        schedule_info = summary.get("schedule_info", {})
-        active_schedules = [k for k, v in schedule_info.items() if k.endswith("_enabled") and v]
-        timeshift_table.add_row("Active Schedules", ", ".join(active_schedules) if active_schedules else "None")
-
-        console.print(timeshift_table)
-        console.print()
-
-        # Convert to TimeLocker configuration
-        mapper = TimeshiftToTimeLockerMapper()
-
-        with console.status("[bold green]Converting configuration..."):
-            import_result = mapper.import_configuration(
-                    timeshift_config=timeshift_config,
-                    repository_name=repository_name,
-                    target_name=target_name,
-                    manual_repository_path=repository_path,
-                    backup_paths=backup_paths
-            )
-
-        if not import_result.success:
-            show_error_panel(
-                    "Import Failed",
-                    "Failed to convert Timeshift configuration:\n\n" +
-                    "\n".join(f"• {error}" for error in import_result.errors)
-            )
-            raise typer.Exit(1)
-
-        # Display warnings if any
-        if import_result.warnings:
-            console.print("⚠️  [bold yellow]Warnings:[/bold yellow]")
-            for warning in import_result.warnings:
-                console.print(f"   • {warning}")
-            console.print()
-
-        # Display what will be imported
-        console.print("📋 Configuration to be imported:")
-        console.print()
-
-        # Repository configuration
-        repo_config = import_result.repository_config
-        repo_table = Table(title="Repository Configuration")
-        repo_table.add_column("Setting", style="cyan")
-        repo_table.add_column("Value", style="green")
-
-        repo_table.add_row("Name", repo_config["name"])
-        repo_table.add_row("Location", repo_config["location"])
-        repo_table.add_row("Type", repo_config.get("_display_type", "local"))
-        repo_table.add_row("Description", repo_config.get("description", ""))
-        if repo_config.get("_display_original_uuid"):
-            repo_table.add_row("Original UUID", repo_config["_display_original_uuid"])
-
-        console.print(repo_table)
-        console.print()
-
-        # Backup target configuration
-        target_config = import_result.backup_target_config
-        target_table = Table(title="Backup Target Configuration")
-        target_table.add_column("Setting", style="cyan")
-        target_table.add_column("Value", style="green")
-
-        target_table.add_row("Name", target_config["name"])
-        target_table.add_row("Repository", target_config.get("_display_repository", ""))
-        target_table.add_row("Paths", ", ".join(target_config["paths"]))
-        target_table.add_row("Exclude Patterns", str(len(target_config.get("exclude_patterns", []))))
-        target_table.add_row("Description", target_config.get("description", ""))
-
-        console.print(target_table)
-        console.print()
-
-        if dry_run:
-            console.print("🔍 [bold yellow]Dry run mode - no changes made[/bold yellow]")
-            console.print("Configuration would be added to TimeLocker")
-            return
-
-        # Confirm before proceeding unless --yes flag is used
-        if not yes and not Confirm.ask("Import this configuration?"):
-            console.print("❌ Import cancelled")
-            raise typer.Exit(0)
-
-        # Import the configuration using ConfigurationModule API
-        with console.status("[bold green]Saving configuration..."):
-            # Add repository (filter out display-only fields)
-            repo_config_filtered = {k: v for k, v in repo_config.items() if not k.startswith("_display")}
-            config_module.add_repository(repo_config_filtered)
-
-            # Add backup target (filter out display-only fields)
-            from .config.configuration_schema import BackupTargetConfig
-            target_config_filtered = {k: v for k, v in target_config.items() if not k.startswith("_display")}
-            target = BackupTargetConfig(**target_config_filtered)
-            config_module.add_backup_target(target)
-
-        console.print()
-        show_success_panel(
-                "Timeshift Configuration Imported Successfully!",
-                f"✅ Repository '{repository_name}' added\n"
-                f"✅ Backup target '{target_name}' created\n"
-                f"✅ Configuration saved to TimeLocker\n\n"
-                f"💡 Next steps:\n"
-                f"   • Initialize repository: tl repos init {repository_name}\n"
-                f"   • Test backup: tl backup {target_name}\n"
-                f"   • List configuration: tl config show\n\n"
-                f"⚠️  Important: Review backup paths and exclude patterns\n"
-                f"   as Timeshift and TimeLocker use different backup approaches."
-        )
-
-        # Display additional warnings if any
-        if import_result.warnings:
-            console.print()
-            console.print("⚠️  [bold yellow]Please review these important notes:[/bold yellow]")
-            for warning in import_result.warnings:
-                console.print(f"   • {warning}")
-
-    except FileNotFoundError as e:
-        show_error_panel("Timeshift Configuration Not Found", str(e))
-        raise typer.Exit(1)
-    except PermissionError as e:
-        show_error_panel("Permission Denied", str(e))
-        raise typer.Exit(1)
-    except json.JSONDecodeError as e:
-        show_error_panel("Invalid Timeshift Configuration", f"JSON parsing error: {e}")
-        raise typer.Exit(1)
-    except Exception as e:
-        show_error_panel("Import Failed", f"Unexpected error: {e}")
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
-
-
-@repos_app.command("add")
-def repos_add(
-        name: Annotated[Optional[str], typer.Argument(help="Repository name")] = None,
-        uri: Annotated[Optional[str], typer.Argument(help="Repository URI", autocompletion=repository_uri_completer)] = None,
-        description: Annotated[Optional[str], typer.Option("--description", "-d", help="Repository description")] = None,
-        password: Annotated[Optional[str], typer.Option("--password", "-p", help="Repository password")] = None,
-        set_default: Annotated[bool, typer.Option("--set-default", help="Set as default repository")] = False,
-        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
-        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-) -> None:
-    """Add a new repository to configuration."""
-    setup_logging(verbose)
-
-    import sys as _sys
-    interactive = _sys.stdin.isatty()
-
-    # Prompt for missing required parameters (only if interactive)
-    if not name:
-        if interactive:
-            name = Prompt.ask("Repository name")
-        else:
-            show_error_panel("Missing Parameter", "Repository name is required in non-interactive mode")
-            raise typer.Exit(2)
-
-    if not uri:
-        if interactive:
-            uri = Prompt.ask("Repository URI")
-        else:
-            show_error_panel("Missing Parameter", "Repository URI is required in non-interactive mode")
-            raise typer.Exit(2)
-
-    # Enforce non-empty, non-whitespace name
-    if name is not None and not name.strip():
-        show_error_panel("Missing Parameter", "Repository name cannot be empty or whitespace")
-        raise typer.Exit(2)
-    # Restrict name to safe characters to avoid unexpected behavior (ASCII letters, digits, dash, underscore, dot)
-    import re as _re
-    if name and not _re.match(r"^[A-Za-z0-9._-]+$", name):
-        show_error_panel("Invalid Repository Name", "Repository name contains unsupported characters. Use letters, numbers, dashes, underscores, or dots.")
-        raise typer.Exit(1)
-    # Enforce URI presence & format (must look like a URI, not a bare name)
-    if uri is not None and not uri.strip():
-        show_error_panel("Invalid Repository URI", "Repository URI cannot be empty or whitespace")
-        raise typer.Exit(1)
-
-    # Strictly validate repository URI scheme and structure before normalization
-    def _is_valid_repo_uri(raw: str) -> bool:
-        try:
-            u = raw.strip()
-            if not u:
-                return False
-            # Allowed schemes with :// syntax
-            allowed_slash_schemes = {"file", "s3", "b2", "sftp", "swift", "azure", "gs"}
-            # Allowed restic-style prefixes without ://
-            allowed_prefixes = ("s3:", "b2:", "rclone:", "rest:", "local:")
-
-            if "://" in u:
-                scheme, rest = u.split("://", 1)
-                if scheme not in allowed_slash_schemes:
-                    return False
-                if not rest:
-                    return False
-                if scheme == "file":
-                    # file:// must be absolute path
-                    return rest.startswith("/")
-                return True  # Non-empty rest is enough for other allowed schemes
-            else:
-                # Must start with an allowed restic-style prefix
-                return u.startswith(allowed_prefixes)
-        except Exception:
-            return False
-
-    if not _is_valid_repo_uri(uri):
-        show_error_panel("Invalid Repository URI",
-                         f"Invalid repository URI format: '{uri}'. Must use a supported scheme (e.g., file://, s3://, b2://) or restic-style prefix (e.g., s3:bucket/path)")
-        raise typer.Exit(1)
-
-    # Normalize URI to restic format (e.g., s3://host/bucket -> s3:host/bucket)
-    from .utils.repository_resolver import normalize_repository_uri  # local import to avoid early load cost
-    normalized_uri = normalize_repository_uri(uri)
-
-    try:
-        from .config.configuration_module import ConfigurationModule
-        from .interfaces.exceptions import RepositoryAlreadyExistsError
-        from .security.credential_manager import CredentialManager
-        from .backup_manager import BackupManager
-        logger = logging.getLogger(__name__)
-        config_manager = ConfigurationModule(config_dir=config_dir)
-        credential_manager = CredentialManager()
-
-        # Add repository configuration with normalized URI
-        repository_config = {
-                'name':        name,
-                'location':    normalized_uri,
-                'description': description or f"{name} repository"
-        }
-        config_manager.add_repository(repository_config)
-
-        # Handle password storage for the repository
-        password_stored = False
-        if not password:
-            # Check environment variables first
-            password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
-            if not password and interactive:
-                # Ask user if they want to store a password for this repository
-                if Confirm.ask(f"Would you like to store a password for repository '{name}'?"):
-                    password = Prompt.ask(f"Password for repository '{name}'", password=True)
-
-        # Store password if provided
-        if password:
-            try:
-                # Create repository instance to get proper repository ID (may fail if repo not yet initialized)
-                backup_manager = BackupManager()
-                repo = backup_manager.from_uri(normalized_uri, password=password)
-
-                # Store password using repository's store_password method
-                if repo.store_password(password, allow_prompt=False):
-                    password_stored = True
-                    logger.info(f"Password stored for repository '{name}' (ID: {repo.repository_id()})")
-                else:
-                    # Store temporarily in configuration
-                    repository_config['password'] = password
-                    config_manager.update_repository(name, repository_config)
-                    logger.debug(f"Password stored temporarily in configuration for repository '{name}'")
-            except Exception as e:
-                # Repository creation failed (e.g., doesn't exist yet) - store temporarily
-                repository_config['password'] = password
-                config_manager.update_repository(name, repository_config)
-                logger.debug(f"Password stored temporarily in configuration for repository '{name}': {e}")
-
-        # Handle backend credentials for S3/B2 repositories via helper
-        backend_credentials_stored = False
-        if normalized_uri.startswith(('s3://', 's3:')):
-            if interactive and Confirm.ask(f"Would you like to store AWS credentials for repository '{name}'?", default=True):
-                console.print("\n[bold]AWS Credentials:[/bold]")
-                console.print("[dim]Note: Include the endpoint in the repository URI (e.g., s3:https://s3.wasabisys.com/bucket)[/dim]")
-                access_key_id = Prompt.ask("AWS Access Key ID", password=True)
-                secret_access_key = Prompt.ask("AWS Secret Access Key", password=True)
-                region = Prompt.ask("AWS Region (optional, press Enter to skip)", default="") if interactive else ""
-                insecure_tls = Confirm.ask(
-                        "Skip TLS certificate verification? (for self-signed certificates)",
-                        default=False
-                ) if interactive else False
-                credentials_dict = {
-                        "access_key_id":     access_key_id,
-                        "secret_access_key": secret_access_key,
-                }
-                if region:
-                    credentials_dict["region"] = region
-                if insecure_tls:
-                    credentials_dict["insecure_tls"] = True
-
-                backend_credentials_stored = store_backend_credentials_helper(
-                        repository_name=name,
-                        backend_type="s3",
-                        backend_name="AWS",
-                        credentials_dict=credentials_dict,
-                        cred_mgr=credential_manager,
-                        config_manager=config_manager,
-                        repository_config=repository_config,
-                        console=console,
-                        logger=logger,
-                        allow_prompt=interactive,
-                )
-        elif normalized_uri.startswith(('b2://', 'b2:')):
-            if interactive and Confirm.ask(f"Would you like to store B2 credentials for repository '{name}'?", default=True):
-                console.print("\n[bold]B2 Credentials:[/bold]")
-                account_id = Prompt.ask("B2 Account ID", password=True)
-                account_key = Prompt.ask("B2 Account Key", password=True)
-                credentials_dict = {
-                        "account_id":  account_id,
-                        "account_key": account_key,
-                }
-                backend_credentials_stored = store_backend_credentials_helper(
-                        repository_name=name,
-                        backend_type="b2",
-                        backend_name="B2",
-                        credentials_dict=credentials_dict,
-                        cred_mgr=credential_manager,
-                        config_manager=config_manager,
-                        repository_config=repository_config,
-                        console=console,
-                        logger=logger,
-                        allow_prompt=interactive,
-                )
-
-        # Set as default if requested
-        if set_default:
-            config_manager.set_default_repository(name)
-
-        # Build success message
-        success_details = [
-                f"📍 URI: {normalized_uri}",
-                f"📝 Description: {description or f'{name} repository'}",
-                f"🎯 Default: {'Yes' if set_default else 'No'}",
-        ]
-
-        if password_stored:
-            success_details.append("🔐 Password: Stored securely")
-        elif password:
-            success_details.append("🔐 Password: Provided (will be stored during initialization)")
-        else:
-            success_details.append("🔐 Password: Not provided")
-
-        if backend_credentials_stored:
-            backend_type = "AWS" if normalized_uri.startswith(('s3://', 's3:')) else "B2"
-            success_details.append(f"🔑 {backend_type} Credentials: Stored securely")
-
-        console.print()
-        console.print(Panel(
-                f"✅ Repository '{name}' added successfully!\n\n" + "\n".join(success_details),
-                title="[bold green]Repository Added[/bold green]",
-                border_style="green"
-        ))
-
-        console.print()
-        console.print(f"💡 [bold]Usage example:[/bold] [cyan]tl repos list[/cyan]")
-
-        if password_stored:
-            console.print(f"🔒 [bold]Password stored:[/bold] Repository operations will work without prompts")
-        elif password:
-            console.print(f"💡 [bold]Next step:[/bold] Run [cyan]tl repos init {name}[/cyan] to initialize and store password")
-
-    except RepositoryAlreadyExistsError as e:
-        show_error_panel("Repository Exists", str(e))
-        raise typer.Exit(1)
-    except Exception as e:
-        show_error_panel("Configuration Error", f"Failed to add repository: {e}")
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
-
-
-# New single repository check command
-@repos_app.command("check")
-def repos_check(
-        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
-        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-) -> None:
-    """Check integrity of a single repository."""
-    setup_logging(verbose)
-    try:
-        service_manager = get_cli_service_manager()
-        repo_config = service_manager.get_repository_by_name(name)
-        repo_uri = repo_config.get('uri') if isinstance(repo_config, dict) else getattr(repo_config, 'uri', None) or repo_config.get('location')
-        repository_service = service_manager.get_repository_service()
-        repo = service_manager.repository_factory.create_repository(repo_uri)
-        result = repository_service.check_repository(repo)
-        status = result.get('status') if isinstance(result, dict) else getattr(result, 'status', 'unknown')
-        if status == 'success':
-            show_success_panel("Repository Check Passed", f"Repository '{name}' integrity verified")
-            raise typer.Exit(0)
-        else:
-            show_error_panel("Repository Check Failed", f"Repository '{name}' reported issues")
-            raise typer.Exit(1)
-    except KeyboardInterrupt:
-        show_error_panel("Operation Cancelled", "Repository check cancelled by user")
-        raise typer.Exit(130)
-    except Exception as e:
-        show_error_panel("Repository Check Error", f"Failed to check repository '{name}': {e}")
-        raise typer.Exit(1)
-
-
-# Rename existing all-repos check to check-all (leave original function body but adjust decorator)
-@repos_app.command("check-all")
-def repos_check_all(
-        all: Annotated[bool, typer.Option("--all", "-a", help="Check all configured repositories")] = True,
-        parallel: Annotated[bool, typer.Option("--parallel", "-p", help="Check repositories in parallel")] = True,
-        max_workers: Annotated[int, typer.Option("--max-workers", help="Maximum number of parallel workers")] = 4,
-        continue_on_error: Annotated[bool, typer.Option("--continue-on-error", help="Continue checking other repositories if one fails")] = True,
-        summary_only: Annotated[bool, typer.Option("--summary-only", help="Show only summary, not detailed results")] = False,
-        filter_status: Annotated[str, typer.Option("--filter", help="Filter by status: all, failed, passed")] = "all",
-        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-) -> None:
-    """Check integrity of all configured repositories."""
-    setup_logging(verbose)
-
-    try:
-        service_manager = get_cli_service_manager()
-
-        # Get all repositories
-        try:
-            repositories = service_manager.list_repositories()
-        except Exception as e:
-            show_error_panel("Repository List Error", f"Failed to list repositories: {e}")
-            raise typer.Exit(1)
-
-        if not repositories:
-            console.print("[yellow]No repositories configured to check[/yellow]")
-            return
-
-        console.print(f"[cyan]Checking integrity of {len(repositories)} repositories...[/cyan]")
-        console.print()
-
-        # Get repository service
-        repository_service = service_manager.get_repository_service()
-
-        # Track results
-        check_results = []
-        failed_repos = []
-        passed_repos = []
-
-        if parallel and len(repositories) > 1:
-            # Parallel checking
-            import concurrent.futures
-            import threading
-
-            console.print(f"[dim]Using parallel checking with {min(max_workers, len(repositories))} workers[/dim]")
-            console.print()
-
-            # Create a lock for console output
-            console_lock = threading.Lock()
-
-            def check_single_repository(repo_config):
-                """Check a single repository and return results"""
-                repo_name = repo_config['name']
-                repo_uri = repo_config.get('uri', repo_config.get('location', ''))
-
-                try:
-                    # Create repository instance
-                    repo = service_manager.repository_factory.create_repository(repo_uri)
-
-                    # Perform check
-                    with console_lock:
-                        console.print(f"[cyan]Checking repository '[bold]{repo_name}[/bold]'...[/cyan]")
-
-                    check_result = repository_service.check_repository(repo)
-                    check_result['repository_name'] = repo_name
-                    check_result['repository_uri'] = repo_uri
-
-                    with console_lock:
-                        if check_result['status'] == 'success':
-                            console.print(f"[green]✅ {repo_name}: Check passed[/green]")
-                        else:
-                            console.print(f"[red]❌ {repo_name}: Check failed[/red]")
-
-                    return check_result
-
-                except Exception as e:
-                    error_result = {
-                            'repository_name': repo_name,
-                            'repository_uri':  repo_uri,
-                            'status':          'error',
-                            'errors':          [str(e)],
-                            'warnings':        [],
-                            'statistics':      {}
-                    }
-
-                    with console_lock:
-                        console.print(f"[red]❌ {repo_name}: Error - {e}[/red]")
-
-                    return error_result
-
-            # Execute parallel checks
-            with concurrent.futures.ThreadPoolExecutor(max_workers=min(max_workers, len(repositories))) as executor:
-                future_to_repo = {executor.submit(check_single_repository, repo): repo for repo in repositories}
-
-                for future in concurrent.futures.as_completed(future_to_repo):
-                    repo = future_to_repo[future]
-                    try:
-                        result = future.result()
-                        check_results.append(result)
-
-                        if result['status'] == 'success':
-                            passed_repos.append(result)
-                        else:
-                            failed_repos.append(result)
-
-                    except Exception as e:
-                        if continue_on_error:
-                            console.print(f"[red]❌ {repo['name']}: Unexpected error - {e}[/red]")
-                            failed_repos.append({
-                                    'repository_name': repo['name'],
-                                    'status':          'error',
-                                    'errors':          [str(e)]
-                            })
-                        else:
-                            show_error_panel("Repository Check Failed", f"Failed to check repository {repo['name']}: {e}")
-                            raise typer.Exit(1)
-
-        else:
-            # Sequential checking
-            console.print("[dim]Using sequential checking[/dim]")
-            console.print()
-
-            for repo_config in repositories:
-                repo_name = repo_config['name']
-                repo_uri = repo_config.get('uri', repo_config.get('location', ''))
-
-                try:
-                    console.print(f"[cyan]Checking repository '[bold]{repo_name}[/bold]'...[/cyan]")
-
-                    # Create repository instance
-                    repo = service_manager.repository_factory.create_repository(repo_uri)
-
-                    # Perform check
-                    check_result = repository_service.check_repository(repo)
-                    check_result['repository_name'] = repo_name
-                    check_result['repository_uri'] = repo_uri
-
-                    check_results.append(check_result)
-
-                    if check_result['status'] == 'success':
-                        console.print(f"[green]✅ {repo_name}: Check passed[/green]")
-                        passed_repos.append(check_result)
-                    else:
-                        console.print(f"[red]❌ {repo_name}: Check failed[/red]")
-                        failed_repos.append(check_result)
-
-                        if not continue_on_error:
-                            show_error_panel("Repository Check Failed", f"Repository {repo_name} failed integrity check")
-                            raise typer.Exit(1)
-
-                    console.print()
-
-                except Exception as e:
-                    console.print(f"[red]❌ {repo_name}: Error - {e}[/red]")
-                    console.print()
-
-                    failed_repos.append({
-                            'repository_name': repo_name,
-                            'repository_uri':  repo_uri,
-                            'status':          'error',
-                            'errors':          [str(e)]
-                    })
-
-                    if not continue_on_error:
-                        show_error_panel("Repository Check Failed", f"Failed to check repository {repo_name}: {e}")
-                        raise typer.Exit(1)
-
-        # Display results summary
-        console.print()
-        console.print("[bold]Repository Check Summary[/bold]")
-        console.print()
-
-        # Create summary table
-        summary_table = Table(title="Check Results Summary")
-        summary_table.add_column("Repository", style="cyan", no_wrap=True)
-        summary_table.add_column("Status", style="white")
-        summary_table.add_column("Issues", style="yellow")
-        summary_table.add_column("Details", style="dim")
-
-        # Filter results based on filter_status
-        filtered_results = check_results
-        if filter_status == "failed":
-            filtered_results = failed_repos
-        elif filter_status == "passed":
-            filtered_results = passed_repos
-
-        for result in filtered_results:
-            repo_name = result['repository_name']
-            status = result['status']
-
-            # Status display
-            if status == 'success':
-                status_display = "[green]✅ Passed[/green]"
-            elif status == 'failed':
-                status_display = "[red]❌ Failed[/red]"
-            else:
-                status_display = "[yellow]⚠️  Error[/yellow]"
-
-            # Issues count
-            error_count = len(result.get('errors', []))
-            warning_count = len(result.get('warnings', []))
-            issues = f"{error_count} errors, {warning_count} warnings"
-
-            # Details
-            details = ""
-            if not summary_only and result.get('errors'):
-                details = result['errors'][0][:50] + "..." if len(result['errors'][0]) > 50 else result['errors'][0]
-
-            summary_table.add_row(repo_name, status_display, issues, details)
-
-        console.print(summary_table)
-
-        # Overall statistics
-        console.print()
-        total_repos = len(repositories)
-        passed_count = len(passed_repos)
-        failed_count = len(failed_repos)
-
-        stats_info = [
-                f"Total repositories: {total_repos}",
-                f"✅ Successful: {len(passed_repos)}",
-                f"❌ Failed: {len(failed_repos)}",
-                f"Success rate: {(passed_count / total_repos) * 100:.1f}%" if total_repos > 0 else "Success rate: 0%"
-        ]
-
-        if failed_count == 0:
-            stats_panel = Panel(
-                    "\n".join(stats_info),
-                    title="✅ All Repositories Healthy",
-                    border_style="green"
-            )
-        else:
-            stats_panel = Panel(
-                    "\n".join(stats_info),
-                    title="⚠️  Some Repositories Have Issues",
-                    border_style="yellow"
-            )
-
-        console.print(stats_panel)
-
-        # Detailed error information if not summary only
-        if not summary_only and failed_repos:
-            console.print()
-            console.print("[bold red]Failed Repository Details:[/bold red]")
-
-            for failed_repo in failed_repos:
-                console.print()
-
-                error_info = [
-                        f"Repository: {failed_repo['repository_name']}",
-                        f"URI: {failed_repo.get('repository_uri', 'N/A')}",
-                        f"Status: {failed_repo['status']}",
-                ]
-
-                if failed_repo.get('errors'):
-                    error_info.append("")
-                    error_info.append("Errors:")
-                    for error in failed_repo['errors']:
-                        error_info.append(f"  • {error}")
-
-                if failed_repo.get('warnings'):
-                    error_info.append("")
-                    error_info.append("Warnings:")
-                    for warning in failed_repo['warnings']:
-                        error_info.append(f"  • {warning}")
-
-                error_panel = Panel(
-                        "\n".join(error_info),
-                        title=f"❌ {failed_repo['repository_name']}",
-                        border_style="red"
-                )
-                console.print(error_panel)
-
-        # Verbose output
-        if verbose and not summary_only:
-            console.print()
-
-            verbose_info = [
-                    f"Check method: {'Parallel' if parallel and len(repositories) > 1 else 'Sequential'}",
-                    f"Max workers: {max_workers}" if parallel else "Workers: 1",
-                    f"Continue on error: {'Yes' if continue_on_error else 'No'}",
-                    f"Filter applied: {filter_status}",
-                    f"Total execution time: Available in performance logs"
-            ]
-
-            verbose_panel = Panel(
-                    "\n".join(verbose_info),
-                    title="Check Configuration",
-                    border_style="blue"
-            )
-            console.print(verbose_panel)
-
-        # Exit with appropriate code
-        if failed_count > 0:
-            raise typer.Exit(1)  # Some repositories failed
-        else:
-            raise typer.Exit(0)  # All repositories passed
-
-    except KeyboardInterrupt:
-        show_error_panel("Operation Cancelled", "Repository check operation was cancelled by user")
-        raise typer.Exit(130)
-    except Exception as e:
-        show_error_panel("Repository Check Error", f"An unexpected error occurred: {e}")
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
-
-
-@repos_app.command("stats")
-def repos_stats(
-        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
-        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-) -> None:
-    """Show statistics for a single repository."""
-    setup_logging(verbose)
-    try:
-        service_manager = get_cli_service_manager()
-        repo_config = service_manager.get_repository_by_name(name)
-        repo_uri = repo_config.get('uri') if isinstance(repo_config, dict) else getattr(repo_config, 'uri', None) or repo_config.get('location')
-        repository_service = service_manager.get_repository_service()
-        repo = service_manager.repository_factory.create_repository(repo_uri)
-        stats = repository_service.get_repository_stats(repo)
-        table = Table(title=f"Repository Statistics: {name}")
-        table.add_column("Metric", style="cyan")
-        table.add_column("Value", style="green")
-        for k, v in stats.items():
-            if isinstance(v, (list, dict)):
-                continue
-            table.add_row(k.replace('_', ' ').title(), str(v))
-        console.print(table)
-    except KeyboardInterrupt:
-        show_error_panel("Operation Cancelled", "Statistics operation cancelled by user")
-        raise typer.Exit(130)
-    except Exception as e:
-        show_error_panel("Repository Stats Error", f"Failed to get statistics for '{name}': {e}")
-        raise typer.Exit(1)
-
-
-# Change decorator of existing multi repo stats function (find and replace earlier definition decorator) - assume earlier function named repos_stats_all
-@repos_app.command("stats-all")
-def repos_stats_all(
-        all: Annotated[bool, typer.Option("--all", "-a", help="Gather statistics for all configured repositories")] = True,
-        parallel: Annotated[bool, typer.Option("--parallel", "-p", help="Gather statistics in parallel")] = True,
-        max_workers: Annotated[int, typer.Option("--max-workers", help="Maximum number of parallel workers")] = 4,
-        continue_on_error: Annotated[bool, typer.Option("--continue-on-error", help="Continue gathering stats from other repositories if one fails")] = True,
-        summary_only: Annotated[bool, typer.Option("--summary-only", help="Show only aggregated summary, not individual repository details")] = False,
-        sort_by: Annotated[str, typer.Option("--sort-by", help="Sort repositories by: name, size, snapshots, age")] = "name",
-        format_output: Annotated[str, typer.Option("--format", help="Output format: table, json, csv")] = "table",
-        include_totals: Annotated[bool, typer.Option("--totals/--no-totals", help="Include aggregate totals across all repositories")] = True,
-        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-) -> None:
-    """Show comprehensive statistics for all configured repositories."""
-    setup_logging(verbose)
-
-    try:
-        service_manager = get_cli_service_manager()
-
-        # Get all repositories
-        try:
-            repositories = service_manager.list_repositories()
-        except Exception as e:
-            show_error_panel("Repository List Error", f"Failed to list repositories: {e}")
-            raise typer.Exit(1)
-
-        if not repositories:
-            console.print("[yellow]No repositories configured to analyze[/yellow]")
-            return
-
-        console.print(f"[cyan]Gathering statistics from {len(repositories)} repositories...[/cyan]")
-        console.print()
-
-        # Get repository service
-        repository_service = service_manager.get_repository_service()
-
-        # Track results
-        stats_results = []
-        failed_repos = []
-        successful_repos = []
-
-        if parallel and len(repositories) > 1:
-            # Parallel statistics gathering
-            import concurrent.futures
-            import threading
-
-            console.print(f"[dim]Using parallel processing with {min(max_workers, len(repositories))} workers[/dim]")
-            console.print()
-
-            # Create a lock for console output
-            console_lock = threading.Lock()
-
-            def get_single_repository_stats(repo_config):
-                """Get statistics for a single repository and return results"""
-                repo_name = repo_config['name']
-                repo_uri = repo_config.get('uri', repo_config.get('location', ''))
-
-                try:
-                    # Create repository instance
-                    repo = service_manager.repository_factory.create_repository(repo_uri)
-
-                    # Gather statistics
-                    with console_lock:
-                        console.print(f"[cyan]Analyzing repository '[bold]{repo_name}[/bold]'...[/cyan]")
-
-                    stats = repository_service.get_repository_stats(repo)
-                    stats['repository_name'] = repo_name
-                    stats['repository_uri'] = repo_uri
-                    stats['status'] = 'success'
-
-                    with console_lock:
-                        console.print(f"[green]✅ {repo_name}: Statistics gathered[/green]")
-
-                    return stats
-
-                except Exception as e:
-                    error_result = {
-                            'repository_name': repo_name,
-                            'repository_uri':  repo_uri,
-                            'status':          'error',
-                            'error':           str(e),
-                            'total_size':      0,
-                            'snapshots_count': 0
-                    }
-
-                    with console_lock:
-                        console.print(f"[red]❌ {repo_name}: Error - {e}[/red]")
-
-                    return error_result
-
-            # Execute parallel statistics gathering
-            with concurrent.futures.ThreadPoolExecutor(max_workers=min(max_workers, len(repositories))) as executor:
-                future_to_repo = {executor.submit(get_single_repository_stats, repo): repo for repo in repositories}
-
-                for future in concurrent.futures.as_completed(future_to_repo):
-                    repo = future_to_repo[future]
-                    try:
-                        result = future.result()
-                        stats_results.append(result)
-
-                        if result['status'] == 'success':
-                            successful_repos.append(result)
-                        else:
-                            failed_repos.append(result)
-
-                    except Exception as e:
-                        if continue_on_error:
-                            console.print(f"[red]❌ {repo['name']}: Unexpected error - {e}[/red]")
-                            failed_repos.append({
-                                    'repository_name': repo['name'],
-                                    'status':          'error',
-                                    'error':           str(e),
-                                    'total_size':      0,
-                                    'snapshots_count': 0
-                            })
-                        else:
-                            show_error_panel("Repository Stats Failed", f"Failed to get statistics for repository {repo['name']}: {e}")
-                            raise typer.Exit(1)
-
-        else:
-            # Sequential statistics gathering
-            console.print("[dim]Using sequential processing[/dim]")
-            console.print()
-
-            for repo_config in repositories:
-                repo_name = repo_config['name']
-                repo_uri = repo_config.get('uri', repo_config.get('location', ''))
-
-                try:
-                    console.print(f"[cyan]Analyzing repository '[bold]{repo_name}[/bold]'...[/cyan]")
-
-                    # Create repository instance
-                    repo = service_manager.repository_factory.create_repository(repo_uri)
-
-                    # Gather statistics
-                    stats = repository_service.get_repository_stats(repo)
-                    stats['repository_name'] = repo_name
-                    stats['repository_uri'] = repo_uri
-                    stats['status'] = 'success'
-
-                    stats_results.append(stats)
-                    successful_repos.append(stats)
-
-                    console.print(f"[green]✅ {repo_name}: Statistics gathered[/green]")
-                    console.print()
-
-                except Exception as e:
-                    console.print(f"[red]❌ {repo_name}: Error - {e}[/red]")
-                    console.print()
-
-                    error_result = {
-                            'repository_name': repo_name,
-                            'repository_uri':  repo_uri,
-                            'status':          'error',
-                            'error':           str(e),
-                            'total_size':      0,
-                            'snapshots_count': 0
-                    }
-
-                    stats_results.append(error_result)
-                    failed_repos.append(error_result)
-
-                    if not continue_on_error:
-                        show_error_panel("Repository Stats Failed", f"Failed to get statistics for repository {repo_name}: {e}")
-                        raise typer.Exit(1)
-
-        # Sort results
-        if sort_by == "size":
-            stats_results.sort(key=lambda x: x.get('total_size', 0), reverse=True)
-        elif sort_by == "snapshots":
-            stats_results.sort(key=lambda x: x.get('snapshots_count', 0), reverse=True)
-        elif sort_by == "age":
-            stats_results.sort(key=lambda x: x.get('oldest_snapshot', 0))
-        else:  # sort by name (default)
-            stats_results.sort(key=lambda x: x.get('repository_name', ''))
-
-        # Display results
-        console.print()
-        console.print("[bold]Repository Statistics Summary[/bold]")
-        console.print()
-
-        if format_output == "json":
-            # JSON output
-            import json
-            output_data = {
-                    'repositories': stats_results,
-                    'summary':      {
-                            'total_repositories': len(repositories),
-                            'successful':         len(successful_repos),
-                            'failed':             len(failed_repos)
-                    }
-            }
-            console.print(json.dumps(output_data, indent=2, default=str))
-
-        elif format_output == "csv":
-            # CSV output
-            console.print("Repository,Status,Total Size (bytes),Snapshots,Files,Oldest Snapshot,Newest Snapshot,Error")
-            for result in stats_results:
-                repo_name = result.get('repository_name', 'Unknown')
-                status = result.get('status', 'unknown')
-                total_size = result.get('total_size', 0)
-                snapshots = result.get('snapshots_count', 0)
-                files = result.get('total_file_count', 0)
-                oldest = result.get('oldest_snapshot', '')
-                newest = result.get('newest_snapshot', '')
-                error = result.get('error', '')
-
-                console.print(f"{repo_name},{status},{total_size},{snapshots},{files},{oldest},{newest},{error}")
-
-        else:
-            # Table output (default)
-            if not summary_only:
-                # Individual repository details
-                stats_table = Table(title="Repository Statistics")
-                stats_table.add_column("Repository", style="cyan", no_wrap=True)
-                stats_table.add_column("Status", style="white")
-                stats_table.add_column("Size", style="green", justify="right")
-                stats_table.add_column("Snapshots", style="blue", justify="right")
-                stats_table.add_column("Files", style="yellow", justify="right")
-                stats_table.add_column("Age (days)", style="magenta", justify="right")
-                stats_table.add_column("Details", style="dim")
-
-                def format_bytes(bytes_value):
-                    """Format bytes in human readable format"""
-                    if bytes_value == 0:
-                        return "0 B"
-
-                    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-                        if bytes_value < 1024.0:
-                            return f"{bytes_value:.1f} {unit}"
-                        bytes_value /= 1024.0
-                    return f"{bytes_value:.1f} PB"
-
-                for result in stats_results:
-                    repo_name = result.get('repository_name', 'Unknown')
-                    status = result.get('status', 'unknown')
-
-                    # Status display
-                    if status == 'success':
-                        status_display = "[green]✅ Success[/green]"
-                    else:
-                        status_display = "[red]❌ Error[/red]"
-
-                    # Size formatting
-                    total_size = result.get('total_size', 0)
-                    size_display = format_bytes(total_size)
-
-                    # Snapshot count
-                    snapshots_count = result.get('snapshots_count', 0)
-
-                    # File count
-                    file_count = result.get('total_file_count', 0)
-
-                    # Age calculation
-                    age_display = "N/A"
-                    if result.get('time_span_days'):
-                        age_display = f"{result['time_span_days']:.1f}"
-
-                    # Details
-                    details = ""
-                    if status == 'error':
-                        error_msg = result.get('error', 'Unknown error')
-                        details = error_msg[:40] + "..." if len(error_msg) > 40 else error_msg
-                    elif result.get('compression_ratio'):
-                        details = f"Compression: {result['compression_ratio']:.1%}"
-
-                    stats_table.add_row(
-                            repo_name, status_display, size_display,
-                            str(snapshots_count), str(file_count), age_display, details
-                    )
-
-                console.print(stats_table)
-
-            # Aggregate totals
-            if include_totals and successful_repos:
-                console.print()
-
-                total_size = sum(repo.get('total_size', 0) for repo in successful_repos)
-                total_snapshots = sum(repo.get('snapshots_count', 0) for repo in successful_repos)
-                total_files = sum(repo.get('total_file_count', 0) for repo in successful_repos)
-
-                def format_bytes(bytes_value):
-                    """Format bytes in human readable format"""
-                    if bytes_value == 0:
-                        return "0 B"
-
-                    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-                        if bytes_value < 1024.0:
-                            return f"{bytes_value:.1f} {unit}"
-                        bytes_value /= 1024.0
-                    return f"{bytes_value:.1f} PB"
-
-                totals_info = [
-                        f"Total repositories analyzed: {len(repositories)}",
-                        f"✅ Successful: {len(successful_repos)}",
-                        f"❌ Failed: {len(failed_repos)}",
-                        "",
-                        f"Combined storage used: {format_bytes(total_size)}",
-                        f"Total snapshots: {total_snapshots:,}",
-                        f"Total files backed up: {total_files:,}",
-                ]
-
-                # Calculate average repository size
-                if successful_repos:
-                    avg_size = total_size / len(successful_repos)
-                    totals_info.append(f"Average repository size: {format_bytes(avg_size)}")
-
-                totals_panel = Panel(
-                        "\n".join(totals_info),
-                        title="📊 Aggregate Statistics",
-                        border_style="blue"
-                )
-                console.print(totals_panel)
-
-        # Error details if any failures occurred
-        if failed_repos and not summary_only and format_output == "table":
-            console.print()
-            console.print("[bold red]Failed Repository Details:[/bold red]")
-
-            for failed_repo in failed_repos:
-                console.print()
-
-                error_info = [
-                        f"Repository: {failed_repo['repository_name']}",
-                        f"URI: {failed_repo.get('repository_uri', 'N/A')}",
-                        f"Error: {failed_repo.get('error', 'Unknown error')}",
-                ]
-
-                error_panel = Panel(
-                        "\n".join(error_info),
-                        title=f"❌ {failed_repo['repository_name']}",
-                        border_style="red"
-                )
-                console.print(error_panel)
-
-        # Verbose output
-        if verbose and format_output == "table":
-            console.print()
-
-            verbose_info = [
-                    f"Processing method: {'Parallel' if parallel and len(repositories) > 1 else 'Sequential'}",
-                    f"Max workers: {max_workers}" if parallel else "Workers: 1",
-                    f"Continue on error: {'Yes' if continue_on_error else 'No'}",
-                    f"Sort order: {sort_by}",
-                    f"Output format: {format_output}",
-                    f"Include totals: {'Yes' if include_totals else 'No'}",
-                    f"Total execution time: Available in performance logs"
-            ]
-
-            verbose_panel = Panel(
-                    "\n".join(verbose_info),
-                    title="Statistics Configuration",
-                    border_style="blue"
-            )
-            console.print(verbose_panel)
-
-        # Exit with appropriate code
-        if failed_repos:
-            raise typer.Exit(1)  # Some repositories failed
-        else:
-            raise typer.Exit(0)  # All repositories processed successfully
-
-    except KeyboardInterrupt:
-        show_error_panel("Operation Cancelled", "Repository statistics operation was cancelled by user")
-        raise typer.Exit(130)
-    except Exception as e:
-        show_error_panel("Repository Stats Error", f"An unexpected error occurred: {e}")
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
-
-
-# --- Snapshot command stubs for validation coverage ---
 @snapshots_app.command("show")
 def snapshots_show(
         snapshot_id: Annotated[Optional[str], typer.Argument(help="Snapshot ID", autocompletion=snapshot_id_completer)] = None,
@@ -2803,15 +2474,58 @@ def snapshots_show(
         if repository:
             validate_repository_name_or_uri(repository)
         validate_snapshot_id_format(snapshot_id, allow_latest=True)
-        # Not implemented path (only used by tests for validation)
-        show_error_panel("Not Implemented", "Snapshot 'show' command is not implemented yet")
-        raise typer.Exit(1)
+
+        manager = get_cli_service_manager()
+        details_method = _get_service_method(manager, "get_snapshot_details")
+        if not details_method:
+            show_error_panel("Not Implemented", "Snapshot 'show' command is not implemented yet")
+            raise typer.Exit(1)
+
+        details = _call_service_method(
+                details_method,
+                snapshot_id=snapshot_id,
+                repository=repository
+        )
+
+        if details is None:
+            show_info_panel("Snapshot Details", "No details available for this snapshot.")
+            return
+
+        if isinstance(details, dict):
+            detail_map = dict(details)
+        else:
+            detail_map = {
+                    "ID":        getattr(details, "id", snapshot_id),
+                    "Timestamp": getattr(details, "time", getattr(details, "timestamp", "unknown")),
+                    "Hostname":  getattr(details, "hostname", "unknown"),
+                    "Username":  getattr(details, "username", "unknown"),
+                    "Paths":     getattr(details, "paths", []),
+                    "Tags":      getattr(details, "tags", []),
+            }
+
+        rendered_lines = []
+        for key, value in detail_map.items():
+            if isinstance(value, (list, tuple, set)):
+                try:
+                    display_value = ", ".join(str(item) for item in value)
+                except TypeError:
+                    display_value = str(value)
+            else:
+                display_value = str(value)
+            rendered_lines.append(f"[bold]{key}:[/bold] {display_value}")
+
+        console.print(Panel("\n".join(rendered_lines), title=f"Snapshot {snapshot_id}", border_style="blue"))
     except ValueError as ve:
         show_error_panel("Invalid Input", str(ve))
         raise typer.Exit(1)
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "Operation cancelled by user")
         raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Snapshot Error", f"Failed to retrieve snapshot details: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @snapshots_app.command("contents")
@@ -2825,14 +2539,52 @@ def snapshots_contents(
         if repository:
             validate_repository_name_or_uri(repository)
         validate_snapshot_id_format(snapshot_id, allow_latest=True)
-        show_error_panel("Not Implemented", "Snapshot 'contents' command is not implemented yet")
-        raise typer.Exit(1)
+
+        manager = get_cli_service_manager()
+        contents_method = _get_service_method(manager, "list_snapshot_contents")
+        if not contents_method:
+            show_error_panel("Not Implemented", "Snapshot 'contents' command is not implemented yet")
+            raise typer.Exit(1)
+
+        contents = _call_service_method(
+                contents_method,
+                snapshot_id=snapshot_id,
+                repository=repository
+        ) or []
+
+        if not contents:
+            show_info_panel("Snapshot Contents", "No files found in this snapshot.")
+            return
+
+        table = Table(title=f"Contents of {snapshot_id}")
+        table.add_column("Type", style="cyan")
+        table.add_column("Size", style="green")
+        table.add_column("Path", style="white")
+
+        for entry in contents:
+            if isinstance(entry, dict):
+                entry_type = entry.get("type", "file")
+                size = entry.get("size", entry.get("Size", 0))
+                path_value = entry.get("path", entry.get("Path", ""))
+            else:
+                entry_type = getattr(entry, "type", "file")
+                size = getattr(entry, "size", 0)
+                path_value = getattr(entry, "path", getattr(entry, "name", ""))
+
+            table.add_row(str(entry_type), str(size), str(path_value))
+
+        console.print(table)
     except ValueError as ve:
         show_error_panel("Invalid Input", str(ve))
         raise typer.Exit(1)
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "Operation cancelled by user")
         raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Snapshot Error", f"Failed to list snapshot contents: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @snapshots_app.command("mount")
@@ -2847,14 +2599,36 @@ def snapshots_mount(
         if repository:
             validate_repository_name_or_uri(repository)
         validate_snapshot_id_format(snapshot_id, allow_latest=True)
-        show_error_panel("Not Implemented", "Snapshot 'mount' command is not implemented yet")
-        raise typer.Exit(1)
+
+        manager = get_cli_service_manager()
+        mount_method = _get_service_method(manager, "mount_snapshot")
+        if not mount_method:
+            show_error_panel("Not Implemented", "Snapshot 'mount' command is not implemented yet")
+            raise typer.Exit(1)
+
+        result = _call_service_method(
+                mount_method,
+                snapshot_id=snapshot_id,
+                mount_path=mount_point,
+                repository=repository
+        )
+        success = getattr(result, "success", True)
+        if success:
+            show_success_panel("Snapshot Mounted", f"Snapshot '{snapshot_id}' mounted at {mount_point}.")
+        else:
+            show_error_panel("Mount Failed", f"Failed to mount snapshot '{snapshot_id}'.")
+            raise typer.Exit(1)
     except ValueError as ve:
         show_error_panel("Invalid Input", str(ve))
         raise typer.Exit(1)
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "Operation cancelled by user")
         raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Mount Error", f"Failed to mount snapshot: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @snapshots_app.command("umount")
@@ -2865,14 +2639,30 @@ def snapshots_umount(
     setup_logging(verbose)
     try:
         validate_snapshot_id_format(snapshot_id, allow_latest=True)
-        show_error_panel("Not Implemented", "Snapshot 'umount' command is not implemented yet")
-        raise typer.Exit(1)
+        manager = get_cli_service_manager()
+        umount_method = _get_service_method(manager, "unmount_snapshot")
+        if not umount_method:
+            show_error_panel("Not Implemented", "Snapshot 'umount' command is not implemented yet")
+            raise typer.Exit(1)
+
+        result = _call_service_method(umount_method, snapshot_id=snapshot_id)
+        success = getattr(result, "success", True)
+        if success:
+            show_success_panel("Snapshot Unmounted", f"Snapshot '{snapshot_id}' unmounted successfully.")
+        else:
+            show_error_panel("Unmount Failed", f"Failed to unmount snapshot '{snapshot_id}'.")
+            raise typer.Exit(1)
     except ValueError as ve:
         show_error_panel("Invalid Input", str(ve))
         raise typer.Exit(1)
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "Operation cancelled by user")
         raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Unmount Error", f"Failed to unmount snapshot: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @snapshots_app.command("forget")
@@ -2894,3 +2684,267 @@ def snapshots_forget(
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "Operation cancelled by user")
         raise typer.Exit(130)
+
+
+@snapshots_app.command("find")
+def snapshots_find(
+        query: Annotated[str, typer.Argument(help="Search query (glob or text)")],
+        repository: Annotated[Optional[str], typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
+        search_type: Annotated[Optional[str], typer.Option("--type", help="Search type: name, path, content")] = None,
+        host: Annotated[Optional[str], typer.Option("--host", help="Filter by host name")] = None,
+        tags: Annotated[Optional[List[str]], typer.Option("--tag", help="Filter by tag", autocompletion=target_name_completer)] = None,
+        limit: Annotated[Optional[int], typer.Option("--limit", help="Maximum results to return")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Search across snapshots for matching files or metadata."""
+    setup_logging(verbose)
+    try:
+        if not query or not query.strip():
+            raise ValueError("Search query cannot be empty")
+        if limit is not None and limit < 1:
+            raise ValueError("Limit must be greater than zero")
+        if repository:
+            validate_repository_name_or_uri(repository)
+
+        manager = get_cli_service_manager()
+        search_method = _get_service_method(manager, "find_in_snapshots")
+        if not search_method:
+            show_error_panel("Not Implemented", "Snapshot search is not available in this build.")
+            raise typer.Exit(1)
+
+        results = search_method(
+                query=query,
+                repository=repository,
+                search_type=search_type,
+                host=host,
+                tags=tags or [],
+                limit=limit,
+        )
+
+        try:
+            matches = list(results or [])
+        except TypeError:
+            matches = [results] if results else []
+
+        if matches:
+            table = Table(title="Snapshot Search Results")
+            table.add_column("Snapshot ID")
+            table.add_column("Path")
+            table.add_column("Match Type")
+            table.add_column("Context", overflow="fold")
+
+            for match in matches:
+                if isinstance(match, dict):
+                    snapshot_id = str(match.get("snapshot_id", "unknown"))
+                    path = str(match.get("file_path", match.get("path", "")))
+                    match_type = str(match.get("match_type", "unknown"))
+                    context = str(match.get("context", "")) if match.get("context") else ""
+                else:
+                    snapshot_id = str(getattr(match, "snapshot_id", getattr(match, "id", "unknown")))
+                    path = str(getattr(match, "file_path", getattr(match, "path", "")))
+                    match_type = str(getattr(match, "match_type", "unknown"))
+                    context = str(getattr(match, "context", "")) if getattr(match, "context", None) else ""
+                table.add_row(snapshot_id, path, match_type, context)
+
+            console.print(table)
+            show_success_panel("Search Completed", f"Found {len(matches)} matching entries.")
+        else:
+            show_info_panel("No Matches", "No snapshots matched the query.")
+    except ValueError as ve:
+        show_error_panel("Invalid Input", str(ve))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Search cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Search Error", f"Failed to search snapshots: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@snapshots_app.command("find-in")
+def snapshots_find_in(
+        snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID", autocompletion=snapshot_id_completer)],
+        query: Annotated[str, typer.Argument(help="Search query within the snapshot")],
+        repository: Annotated[Optional[str], typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
+        search_type: Annotated[Optional[str], typer.Option("--type", help="Search type: name, path, content")] = None,
+        host: Annotated[Optional[str], typer.Option("--host", help="Filter by host name")] = None,
+        tags: Annotated[Optional[List[str]], typer.Option("--tag", help="Filter by tag", autocompletion=target_name_completer)] = None,
+        limit: Annotated[Optional[int], typer.Option("--limit", help="Maximum results to return")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Search within a specific snapshot."""
+    setup_logging(verbose)
+    try:
+        if repository:
+            validate_repository_name_or_uri(repository)
+        validate_snapshot_id_format(snapshot_id, allow_latest=True)
+        if not query or not query.strip():
+            raise ValueError("Search query cannot be empty")
+        if limit is not None and limit < 1:
+            raise ValueError("Limit must be greater than zero")
+
+        manager = get_cli_service_manager()
+        search_method = _get_service_method(manager, "find_in_snapshots")
+        if not search_method:
+            show_error_panel("Not Implemented", "Snapshot search is not available in this build.")
+            raise typer.Exit(1)
+
+        results = search_method(
+                snapshot_id=snapshot_id,
+                query=query,
+                repository=repository,
+                search_type=search_type,
+                host=host,
+                tags=tags or [],
+                limit=limit,
+        )
+
+        try:
+            matches = list(results or [])
+        except TypeError:
+            matches = [results] if results else []
+
+        if matches:
+            table = Table(title=f"Results for snapshot {snapshot_id}")
+            table.add_column("Path")
+            table.add_column("Match Type")
+            table.add_column("Context", overflow="fold")
+
+            for match in matches:
+                if isinstance(match, dict):
+                    path = str(match.get("file_path", match.get("path", "")))
+                    match_type = str(match.get("match_type", "unknown"))
+                    context = str(match.get("context", "")) if match.get("context") else ""
+                else:
+                    path = str(getattr(match, "file_path", getattr(match, "path", "")))
+                    match_type = str(getattr(match, "match_type", "unknown"))
+                    context = str(getattr(match, "context", "")) if getattr(match, "context", None) else ""
+                table.add_row(path, match_type, context)
+
+            console.print(table)
+            show_success_panel("Search Completed", f"Found {len(matches)} matching entries in snapshot {snapshot_id}.")
+        else:
+            show_info_panel("No Matches", "No entries matched your query in the snapshot.")
+    except ValueError as ve:
+        show_error_panel("Invalid Input", str(ve))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Search cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Search Error", f"Failed to search snapshot: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@snapshots_app.command("prune")
+def snapshots_prune(
+        repository: Annotated[Optional[str], typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
+        dry_run: Annotated[bool, typer.Option("--dry-run", help="Show actions without executing")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Prune unused data from repository snapshots."""
+    setup_logging(verbose)
+    try:
+        if repository:
+            validate_repository_name_or_uri(repository)
+
+        manager = get_cli_service_manager()
+        prune_method = _get_service_method(manager, "prune_snapshots")
+        if not prune_method:
+            show_error_panel("Not Implemented", "Snapshot pruning is not available in this build.")
+            raise typer.Exit(1)
+
+        result = prune_method(repository=repository, dry_run=dry_run)
+        success = getattr(result, "success", True)
+
+        if success:
+            message = "Prune operation completed successfully."
+            if dry_run:
+                message = "Dry-run completed. No data was modified."
+            show_success_panel("Prune Completed", message)
+        else:
+            errors = getattr(result, "errors", None)
+            error_details = errors if isinstance(errors, list) else None
+            show_error_panel("Prune Failed", "Snapshot prune operation failed.", error_details)
+            raise typer.Exit(1)
+    except ValueError as ve:
+        show_error_panel("Invalid Input", str(ve))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Prune operation cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Prune Error", f"Failed to prune snapshots: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@snapshots_app.command("diff")
+def snapshots_diff(
+        snapshot_a: Annotated[str, typer.Argument(help="First snapshot ID", autocompletion=snapshot_id_completer)],
+        snapshot_b: Annotated[str, typer.Argument(help="Second snapshot ID", autocompletion=snapshot_id_completer)],
+        repository: Annotated[Optional[str], typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Show differences between two snapshots."""
+    setup_logging(verbose)
+    try:
+        if repository:
+            validate_repository_name_or_uri(repository)
+        validate_snapshot_id_format(snapshot_a, allow_latest=True)
+        validate_snapshot_id_format(snapshot_b, allow_latest=True)
+
+        manager = get_cli_service_manager()
+        diff_method = _get_service_method(manager, "diff_snapshots")
+        if not diff_method:
+            show_error_panel("Not Implemented", "Snapshot diff is not available in this build.")
+            raise typer.Exit(1)
+
+        result = diff_method(
+                snapshot_a=snapshot_a,
+                snapshot_b=snapshot_b,
+                repository=repository,
+        )
+
+        try:
+            diff_entries = list(result or [])
+        except TypeError:
+            diff_entries = [result] if result else []
+
+        if diff_entries:
+            table = Table(title=f"Diff: {snapshot_a} → {snapshot_b}")
+            table.add_column("Path")
+            table.add_column("Change")
+            table.add_column("Details", overflow="fold")
+
+            for entry in diff_entries:
+                if isinstance(entry, dict):
+                    path = str(entry.get("path", ""))
+                    change = str(entry.get("change", entry.get("status", "modified")))
+                    details = str(entry.get("details", ""))
+                else:
+                    path = str(getattr(entry, "path", ""))
+                    change = str(getattr(entry, "change", getattr(entry, "status", "modified")))
+                    details = str(getattr(entry, "details", ""))
+                table.add_row(path, change, details)
+
+            console.print(table)
+            show_success_panel("Diff Completed", f"Displayed {len(diff_entries)} differences.")
+        else:
+            show_info_panel("No Differences", "No differences detected between the snapshots.")
+    except ValueError as ve:
+        show_error_panel("Invalid Input", str(ve))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Diff operation cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Diff Error", f"Failed to compare snapshots: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)

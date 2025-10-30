@@ -84,16 +84,17 @@ class CLIServiceManager:
     migrating from legacy components to the new service-oriented architecture.
     """
 
-    def __init__(self):
+    def __init__(self, config_dir: Optional[Path] = None):
         """Initialize CLI service manager with dependency injection"""
         import sys
+        self._config_dir = Path(config_dir) if config_dir is not None else None
         # Initialize modern services
-        self._repository_factory = RepositoryFactory()
         self._validation_service = ValidationService()
+        self._repository_factory = RepositoryFactory(validation_service=self._validation_service)
         self._performance_module = PerformanceModule()
 
         # Initialize configuration (new system only)
-        self._config_module = ConfigurationModule()
+        self._config_module = ConfigurationModule(config_dir=self._config_dir)
 
         # Initialize modern config service
         try:
@@ -116,6 +117,7 @@ class CLIServiceManager:
                 validation_service=self._validation_service,
                 performance_module=self._performance_module
         )
+        self._configure_repository_factory_credentials()
 
         # Initialize backup orchestrator
         self._backup_orchestrator = BackupOrchestrator(
@@ -124,6 +126,19 @@ class CLIServiceManager:
         )
 
         logger.debug("CLIServiceManager initialized")
+
+    def _configure_repository_factory_credentials(self) -> None:
+        """Ensure repository factory uses credential storage aligned with config directory."""
+        if self._config_dir is None:
+            return
+        try:
+            from .security.credential_manager import CredentialManager  # lazy import to avoid cycles
+
+            credentials_dir = self._config_dir / "credentials"
+            credentials_dir.mkdir(parents=True, exist_ok=True)
+            self._repository_factory._credential_manager = CredentialManager(config_dir=credentials_dir)
+        except Exception as exc:  # pragma: no cover - defensive fallback
+            logger.debug("Falling back to default credential manager: %s", exc)
 
     @property
     def repository_factory(self) -> IRepositoryFactory:
@@ -154,6 +169,11 @@ class CLIServiceManager:
     def config_module(self) -> ConfigurationModule:
         """Get configuration module"""
         return self._config_module
+
+    @property
+    def config_dir(self) -> Optional[Path]:
+        """Return configuration directory used by this manager."""
+        return self._config_dir
 
     def resolve_repository_uri(self, repository_input: str) -> str:
         """
@@ -225,6 +245,247 @@ class CLIServiceManager:
         # If no name found, return the URI itself as fallback
         logger.debug(f"No matching repository found, returning URI as fallback: {repository_uri}")
         return repository_uri
+
+    @staticmethod
+    def _looks_like_uri(candidate: str) -> bool:
+        """Heuristically determine if candidate string represents a repository URI."""
+        if not candidate:
+            return False
+        if "://" in candidate:
+            return True
+        prefixes = ("s3:", "b2:", "gs:", "azure:", "rest:", "rclone:", "local:", "minio:", "swift:", "/")
+        return candidate.startswith(prefixes)
+
+    def _create_repository_instance(self,
+                                    name: Optional[str] = None,
+                                    repository: Optional[str] = None,
+                                    repository_uri: Optional[str] = None,
+                                    password: Optional[str] = None) -> tuple:
+        """
+        Create repository instance for operations, resolving configuration as needed.
+
+        Returns:
+            Tuple of (repository_object, resolved_name, resolved_uri)
+        """
+        resolved_name = name
+        resolved_uri = repository_uri
+
+        candidate = repository
+        if resolved_uri is None and candidate:
+            if self._looks_like_uri(candidate):
+                resolved_uri = candidate
+            else:
+                resolved_name = candidate
+
+        if resolved_uri is None:
+            if not resolved_name:
+                raise ConfigurationError("Repository name or URI must be provided")
+            repo_info = self.get_repository_by_name(resolved_name)
+            if isinstance(repo_info, dict):
+                resolved_uri = repo_info.get('uri') or repo_info.get('location')
+                if password is None:
+                    password = repo_info.get('password')
+            else:
+                resolved_uri = getattr(repo_info, 'uri', None) or getattr(repo_info, 'location', None)
+
+        if not resolved_uri:
+            raise ConfigurationError("Repository URI could not be resolved from configuration")
+
+        if not resolved_name:
+            resolved_name = self._find_repository_name_by_uri(resolved_uri)
+
+        repository_instance = self._repository_factory.create_repository(
+                resolved_uri,
+                password=password,
+                repository_name=resolved_name
+        )
+        return repository_instance, resolved_name, resolved_uri
+
+    def initialize_repository(self,
+                              name: str,
+                              repository: Optional[str] = None,
+                              repository_uri: Optional[str] = None,
+                              repository_name: Optional[str] = None,
+                              password: Optional[str] = None,
+                              **_) -> Dict[str, Any]:
+        """Initialize repository (idempotent) and persist password if provided."""
+        repo, resolved_name, resolved_uri = self._create_repository_instance(
+                repository_name or name,
+                repository=repository,
+                repository_uri=repository_uri,
+                password=password
+        )
+        already_initialized = False
+        if hasattr(repo, "is_repository_initialized"):
+            try:
+                already_initialized = bool(repo.is_repository_initialized())
+            except Exception:
+                already_initialized = False
+
+        if already_initialized:
+            return {"success": True, "already_initialized": True, "uri": resolved_uri}
+
+        if hasattr(repo, "initialize_repository"):
+            success = bool(repo.initialize_repository(password))
+        else:
+            success = bool(repo.initialize())
+
+        if success and password and hasattr(repo, "store_password"):
+            try:
+                repo.store_password(password)
+            except Exception as exc:  # pragma: no cover - best effort storage
+                logger.debug("Credential storage after init failed for %s: %s", resolved_name, exc)
+
+        return {"success": success, "already_initialized": already_initialized, "uri": resolved_uri}
+
+    def check_repository(self,
+                         name: str,
+                         repository: Optional[str] = None,
+                         repository_uri: Optional[str] = None,
+                         repository_name: Optional[str] = None,
+                         password: Optional[str] = None,
+                         **_) -> Dict[str, Any]:
+        """Run repository integrity check."""
+        repo, _, _ = self._create_repository_instance(
+                repository_name or name,
+                repository=repository,
+                repository_uri=repository_uri,
+                password=password
+        )
+        return self._repository_service.check_repository(repo)
+
+    def get_repository_stats(self,
+                             name: str,
+                             repository: Optional[str] = None,
+                             repository_uri: Optional[str] = None,
+                             repository_name: Optional[str] = None,
+                             password: Optional[str] = None,
+                             **_) -> Dict[str, Any]:
+        """Collect repository statistics."""
+        repo, _, _ = self._create_repository_instance(
+                repository_name or name,
+                repository=repository,
+                repository_uri=repository_uri,
+                password=password
+        )
+        return self._repository_service.get_repository_stats(repo)
+
+    def unlock_repository(self,
+                          name: str,
+                          repository: Optional[str] = None,
+                          repository_uri: Optional[str] = None,
+                          repository_name: Optional[str] = None,
+                          password: Optional[str] = None,
+                          **_) -> bool:
+        """Remove repository locks."""
+        repo, _, _ = self._create_repository_instance(
+                repository_name or name,
+                repository=repository,
+                repository_uri=repository_uri,
+                password=password
+        )
+        return self._repository_service.unlock_repository(repo)
+
+    def migrate_repository(self,
+                           name: str,
+                           repository: Optional[str] = None,
+                           repository_uri: Optional[str] = None,
+                           repository_name: Optional[str] = None,
+                           migration: Optional[str] = None,
+                           password: Optional[str] = None,
+                           **_) -> bool:
+        """Execute repository migration."""
+        repo, _, _ = self._create_repository_instance(
+                repository_name or name,
+                repository=repository,
+                repository_uri=repository_uri,
+                password=password
+        )
+        migration_name = migration or "upgrade_repo_v2"
+        return self._repository_service.migrate_repository(repo, migration_name=migration_name)
+
+    def apply_retention_policy(self,
+                               name: str,
+                               repository: Optional[str] = None,
+                               repository_uri: Optional[str] = None,
+                               repository_name: Optional[str] = None,
+                               keep_daily: int = 7,
+                               keep_weekly: int = 4,
+                               keep_monthly: int = 12,
+                               keep_yearly: int = 3,
+                               dry_run: bool = False,
+                               password: Optional[str] = None,
+                               **_) -> Dict[str, Any]:
+        """Apply forget/retention policy to repository."""
+        repo, _, _ = self._create_repository_instance(
+                repository_name or name,
+                repository=repository,
+                repository_uri=repository_uri,
+                password=password
+        )
+        return self._repository_service.apply_retention_policy(
+                repo,
+                keep_daily=keep_daily,
+                keep_weekly=keep_weekly,
+                keep_monthly=keep_monthly,
+                keep_yearly=keep_yearly,
+                dry_run=dry_run
+        )
+
+    def prune_repository(self,
+                         name: str,
+                         repository: Optional[str] = None,
+                         repository_uri: Optional[str] = None,
+                         repository_name: Optional[str] = None,
+                         password: Optional[str] = None,
+                         **_) -> Dict[str, Any]:
+        """Prune unreferenced data from repository."""
+        repo, _, _ = self._create_repository_instance(
+                repository_name or name,
+                repository=repository,
+                repository_uri=repository_uri,
+                password=password
+        )
+        return self._repository_service.prune_repository(repo)
+
+    def check_all_repositories(self, **_) -> Dict[str, Any]:
+        """Run integrity checks for all configured repositories."""
+        results: Dict[str, Any] = {}
+        overall_success = True
+        for repo in self.list_repositories() or []:
+            repo_name = repo.get('name') if isinstance(repo, dict) else getattr(repo, 'name', None)
+            repo_uri = repo.get('uri') if isinstance(repo, dict) else getattr(repo, 'uri', None)
+            if not repo_name:
+                repo_name = self._find_repository_name_by_uri(repo_uri or "")
+            try:
+                check_result = self.check_repository(repo_name, repository=repo_uri, repository_name=repo_name)
+                results[repo_name] = check_result
+                status = None
+                if isinstance(check_result, dict):
+                    status = check_result.get('status')
+                elif hasattr(check_result, 'success'):
+                    status = 'success' if getattr(check_result, 'success', False) else 'failed'
+                if status not in (None, 'success', 'ok', True):
+                    overall_success = False
+            except Exception as exc:
+                results[repo_name] = {'status': 'failed', 'errors': [str(exc)]}
+                overall_success = False
+        return {'success': overall_success, 'results': results}
+
+    def get_all_repository_stats(self, **_) -> List[Dict[str, Any]]:
+        """Collect statistics for all configured repositories."""
+        stats: List[Dict[str, Any]] = []
+        for repo in self.list_repositories() or []:
+            repo_name = repo.get('name') if isinstance(repo, dict) else getattr(repo, 'name', None)
+            repo_uri = repo.get('uri') if isinstance(repo, dict) else getattr(repo, 'uri', None)
+            try:
+                repo_stats = self.get_repository_stats(repo_name, repository=repo_uri, repository_name=repo_name)
+                if isinstance(repo_stats, dict):
+                    repo_stats = {**repo_stats, 'name': repo_name}
+                stats.append(repo_stats)
+            except Exception as exc:
+                stats.append({'name': repo_name, 'error': str(exc)})
+        return stats
 
     def execute_backup_from_cli(self, request: CLIBackupRequest) -> BackupResult:
         """
@@ -562,7 +823,7 @@ class CLIServiceManager:
 _cli_service_manager: Optional[CLIServiceManager] = None
 
 
-def get_cli_service_manager() -> CLIServiceManager:
+def get_cli_service_manager(config_dir: Optional[Path] = None) -> CLIServiceManager:
     """
     Get global CLI service manager instance (singleton pattern).
     
@@ -571,5 +832,11 @@ def get_cli_service_manager() -> CLIServiceManager:
     """
     global _cli_service_manager
     if _cli_service_manager is None:
-        _cli_service_manager = CLIServiceManager()
+        _cli_service_manager = CLIServiceManager(config_dir=config_dir)
+    else:
+        if config_dir is not None:
+            desired_dir = Path(config_dir)
+            current_dir = _cli_service_manager.config_dir
+            if current_dir is None or Path(current_dir) != desired_dir:
+                _cli_service_manager = CLIServiceManager(config_dir=desired_dir)
     return _cli_service_manager

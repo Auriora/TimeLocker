@@ -75,7 +75,7 @@ class ResticRepository(BackupRepository):
                 raise ResticError(f"restic version {restic_version} is below the required minimum version {min_version}.")
 
             return restic_version
-        except (json.JSONDecodeError, FileNotFoundError) as e:
+        except (json.JSONDecodeError, FileNotFoundError, subprocess.CalledProcessError) as e:
             # If JSON parsing fails, try without JSON flag for basic version check
             logger.warning(f"JSON version check failed: {e}, trying basic version check")
             try:
@@ -89,11 +89,17 @@ class ResticRepository(BackupRepository):
                         if len(parts) >= 2:
                             restic_version = parts[1]
                             if version.parse(restic_version) < version.parse(min_version):
-                                raise ResticError(f"restic version {restic_version} is below the required minimum version {min_version}.")
+                                logger.warning(
+                                        "restic version %s is below the required minimum %s; continuing without strict enforcement due to legacy binary.",
+                                        restic_version,
+                                        min_version,
+                                )
                             return restic_version
                 raise ResticError("Could not parse restic version from output")
             except FileNotFoundError:
                 raise ResticError("restic executable not found. Please ensure it is installed and in the PATH.")
+            except subprocess.CalledProcessError as e2:
+                raise ResticError(f"restic executable failed to run for version check: {e2}") from e2
             except Exception as e2:
                 raise ResticError(f"Failed to verify restic executable: {e2}")
 
