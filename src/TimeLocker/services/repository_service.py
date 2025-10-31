@@ -167,15 +167,17 @@ class RepositoryService(IRepositoryService):
         """
         with self.performance_module.track_operation("get_repository_stats"):
             try:
-                # Run restic stats command
-                cmd = ['restic', '-r', repository.location(), 'stats', '--json']
+                # Run restic stats command using repository environment
+                cmd = [
+                        'restic',
+                        'stats',
+                        '--repo',
+                        repository.uri(),
+                        '--json'
+                ]
 
-                # Set environment for repository access
                 env = os.environ.copy()
-                if hasattr(repository, 'password'):
-                    password = repository.password()
-                    if password:
-                        env['RESTIC_PASSWORD'] = password
+                env.update(repository.to_env())
 
                 result = subprocess.run(cmd, capture_output=True, text=True, env=env)
 

@@ -51,6 +51,8 @@ from .completion import (
     file_path_completer,
 )
 from .importers.timeshift_importer import TimeshiftConfigParser, TimeshiftToTimeLockerMapper
+from . import monitoring as _timelocker_monitoring
+from .config import configuration_manager as _timelocker_config_manager_module
 
 from .utils.repository_resolver import validate_repository_name_or_uri
 from .utils.snapshot_validation import validate_snapshot_id_format
@@ -114,6 +116,8 @@ def _console_print(*args, **kwargs):
 console.print = _console_print  # type: ignore[attr-defined]
 
 sys.modules["TimeLocker.cli"] = sys.modules[__name__]
+sys.modules.setdefault("TimeLocker.config.configuration_manager", _timelocker_config_manager_module)
+sys.modules.setdefault("TimeLocker.monitoring", _timelocker_monitoring)
 
 
 def _combined_output_for_tests(result: Any) -> str:
@@ -760,10 +764,7 @@ def _create_credential_manager(config_dir: Optional[Path] = None):
     """Instantiate credential manager respecting configuration directory."""
     from .security.credential_manager import CredentialManager
 
-    resolved_dir = None
-    if config_dir is not None:
-        resolved_dir = _resolve_config_dir(config_dir) / "credentials"
-    return CredentialManager(config_dir=resolved_dir)
+    return CredentialManager()
 
 
 def _create_configuration_module(config_dir: Optional[Path] = None):
@@ -1221,6 +1222,8 @@ def repos_add(
                 "uri":         uri,
                 "description": description or f"{name} repository",
         }
+        if password:
+            payload["password"] = password
         if add_method:
             _call_service_method(add_method, **payload)
         else:
@@ -1234,6 +1237,26 @@ def repos_add(
                 config_manager = ConfigurationManager(config_dir=config_dir)
                 config_manager.set_default_repository(name)
 
+        config_module_for_credentials = None
+        try:
+            config_module_for_credentials = _create_configuration_module(config_dir)
+            try:
+                config_module_for_credentials.get_repository(name)
+            except Exception:
+                try:
+                    repo_payload = {
+                            "name":        name,
+                            "location":    uri,
+                            "description": description or f"{name} repository",
+                    }
+                    if password:
+                        repo_payload["password"] = password
+                    config_module_for_credentials.add_repository(repo_payload)
+                except Exception as repo_exc:
+                    logging.getLogger(__name__).debug("Failed to persist repository via configuration module: %s", repo_exc)
+        except Exception as module_exc:
+            logging.getLogger(__name__).debug("Configuration module unavailable for repository persistence: %s", module_exc)
+
         if backend_type == "s3":
             try:
                 store_credentials = Confirm.ask(
@@ -1244,7 +1267,6 @@ def repos_add(
                 store_credentials = False
             if store_credentials:
                 try:
-                    config_module_for_credentials = _create_configuration_module(config_dir)
                     repository_obj = None
                     if config_module_for_credentials and hasattr(config_module_for_credentials, "get_repository"):
                         try:
@@ -1718,7 +1740,7 @@ def repos_check(
             success = getattr(result, "success", True)
             errors = getattr(result, "errors", None)
         if success:
-            show_success_panel("Repository Check", "Repository integrity verified successfully.")
+            show_success_panel("Repository Check", "Repository integrity check passed successfully.")
         else:
             detail_list = errors if isinstance(errors, list) else [errors] if errors else None
             show_error_panel("Check Failed", "Repository integrity verification failed.", detail_list)
@@ -1913,9 +1935,27 @@ def repos_credentials_set(
             show_error_panel("Unsupported Backend", "Backend credentials management is currently supported for S3 repositories only.")
             raise typer.Exit(1)
 
-        credential_manager = _create_credential_manager(config_dir)
+        service_manager = None
+        credential_manager = None
+        try:
+            service_manager = _get_service_manager_for_command(config_dir)
+            repository_factory = getattr(service_manager, "repository_factory", None)
+            credential_manager = getattr(repository_factory, "_credential_manager", None)
+        except Exception:
+            service_manager = None
+
+        if credential_manager is None:
+            credential_manager = _create_credential_manager(config_dir)
+
         if master_password is not None:
             _ensure_manager_unlocked(credential_manager, master_password, interactive)
+        else:
+            try:
+                credential_manager.ensure_unlocked(allow_prompt=interactive)
+            except Exception:
+                if interactive:
+                    raise
+                # Non-interactive paths rely on auto unlock or environment variables
 
         access_key = Prompt.ask("AWS Access Key ID")
         secret_key = Prompt.ask("AWS Secret Access Key", password=True)
@@ -2830,9 +2870,10 @@ def snapshots_list(
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
         password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
 ) -> None:
     """List snapshots in repository with a beautiful table."""
-    setup_logging(verbose)
+    setup_logging(verbose, config_dir)
     interactive = sys.stdin.isatty()
 
     repository_input = repository or ""
@@ -2840,7 +2881,7 @@ def snapshots_list(
     using_service_manager = False
 
     try:
-        manager = get_cli_service_manager()
+        manager = _get_service_manager_for_command(config_dir)
         list_method = _get_service_method(manager, "list_snapshots")
         if list_method:
             try:

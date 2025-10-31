@@ -42,3 +42,4 @@ test-config.*.json
 
 # MinIO data
 minio-data/
+repo_initialized.flag

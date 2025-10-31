@@ -16,7 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 import os
-from typing import Dict, Optional
+import subprocess
+from typing import Dict, Optional, List
 from urllib.parse import parse_qs
 
 from boto3 import client
@@ -287,3 +288,15 @@ class S3ResticRepository(ResticRepository):
         except Exception as e:
             logger.error(f"Failed to initialize repository: {e}")
             raise
+
+    def _run_restic_command(self, args: List[str], capture_output: bool = False):
+        """Utility to execute restic commands respecting repository parameters."""
+        command_list = ["restic", *args, "--repo", self.uri()]
+        env = os.environ.copy()
+        env.update(self.to_env())
+        return subprocess.run(
+                command_list,
+                env=env,
+                capture_output=capture_output,
+                text=True
+        )

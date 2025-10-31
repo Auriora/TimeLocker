@@ -129,14 +129,15 @@ class CLIServiceManager:
 
     def _configure_repository_factory_credentials(self) -> None:
         """Ensure repository factory uses credential storage aligned with config directory."""
-        if self._config_dir is None:
-            return
         try:
             from .security.credential_manager import CredentialManager  # lazy import to avoid cycles
 
-            credentials_dir = self._config_dir / "credentials"
-            credentials_dir.mkdir(parents=True, exist_ok=True)
-            self._repository_factory._credential_manager = CredentialManager(config_dir=credentials_dir)
+            credential_manager = CredentialManager()
+            try:
+                credential_manager.ensure_unlocked(allow_prompt=False)
+            except Exception as exc:  # pragma: no cover - best effort
+                logger.debug("Credential manager pre-unlock failed: %s", exc)
+            self._repository_factory._credential_manager = credential_manager
         except Exception as exc:  # pragma: no cover - defensive fallback
             logger.debug("Falling back to default credential manager: %s", exc)
 
@@ -717,7 +718,7 @@ class CLIServiceManager:
         except Exception as e:
             raise ConfigurationError(f"Backup target '{name}' not found: {e}")
 
-    def add_repository(self, name: str, uri: str, description: str = "") -> None:
+    def add_repository(self, name: str, uri: str, description: str = "", password: Optional[str] = None) -> None:
         """
         Add a new repository configuration.
         
@@ -732,6 +733,8 @@ class CLIServiceManager:
                 'description': description,
                 'type':        'auto'  # Auto-detect type from URI
         }
+        if password:
+            repo_config['password'] = password
 
         if self._config_service is not None:
             try:
@@ -840,3 +843,9 @@ def get_cli_service_manager(config_dir: Optional[Path] = None) -> CLIServiceMana
             if current_dir is None or Path(current_dir) != desired_dir:
                 _cli_service_manager = CLIServiceManager(config_dir=desired_dir)
     return _cli_service_manager
+
+
+def reset_cli_service_manager() -> None:
+    """Reset global CLI service manager (used after configuration changes)."""
+    global _cli_service_manager
+    _cli_service_manager = None

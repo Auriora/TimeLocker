@@ -241,6 +241,20 @@ class ConfigurationManager:
     def get_default_repository(self) -> Optional[str]:
         return self._module.get_default_repository()
 
+    def update_section(self, section_name, section_data: Dict[str, Any]) -> None:
+        """
+        Update configuration section while preserving compatibility with legacy APIs.
+
+        Args:
+            section_name: Section identifier (string or ConfigSection)
+            section_data: Mapping of values to merge into the section
+        """
+        self._module.update_section(section_name, section_data)
+
+    def save_config(self) -> None:
+        """Persist current configuration to disk."""
+        self._module.save_config()
+
     # -------------------------------
     # Resolution helpers
     # -------------------------------

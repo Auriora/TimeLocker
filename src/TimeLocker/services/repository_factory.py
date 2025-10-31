@@ -56,7 +56,18 @@ class RepositoryFactory(IRepositoryFactory):
             self._credential_manager = CredentialManager()
             # Try auto-unlock for non-interactive operations
             if self._credential_manager.is_locked():
-                self._credential_manager.auto_unlock()
+                try:
+                    if not self._credential_manager.ensure_unlocked(allow_prompt=False):
+                        logger.debug("Credential manager remains locked after non-interactive unlock attempts.")
+                except Exception as exc:
+                    logger.debug("Credential manager unlock attempt failed: %s", exc)
+        else:
+            if self._credential_manager.is_locked():
+                try:
+                    if not self._credential_manager.ensure_unlocked(allow_prompt=False):
+                        logger.debug("Credential manager remains locked after non-interactive unlock attempts.")
+                except Exception as exc:
+                    logger.debug("Credential manager unlock attempt failed: %s", exc)
         return self._credential_manager
 
     def _register_default_types(self) -> None:
