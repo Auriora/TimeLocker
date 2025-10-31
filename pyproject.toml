@@ -53,30 +53,27 @@ classifiers = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "packaging~=24.2",
-    "b2sdk~=2.8.0",
-    "boto3~=1.37.29",
-    "plantuml~=0.3.0",
-    "cryptography~=44.0.1",
-    "typing_extensions>=4.9.0",
-    "typer>=0.12.0",
-    "rich>=13.7.0",
+    "packaging~=25.0",
+    "b2sdk~=2.10.1",
+    "boto3~=1.40.63",
+    "cryptography~=46.0.3",
+    "typing_extensions>=4.15.0",
+    "typer>=0.20.0",
+    "rich>=14.2.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest~=8.3.5",
-    "pytest-cov~=6.0.0",
-    "pytest-mock~=3.14.0",
-    "pytest-xdist~=3.6.0",
-    "pytest-benchmark~=4.0.0",
+    "pytest~=8.4.2",
+    "pytest-cov~=7.0.0",
+    "pytest-mock~=3.15.1",
+    "pytest-xdist~=3.8.0",
+    "pytest-benchmark~=5.2.0",
     "pytest-timeout>=2.4.0",
-    "psutil>=6.1.0",
+    "psutil>=7.1.2",
+    "plantuml~=0.3.0",
     "bump2version>=1.0.1",
 ]
-aws = ["boto3~=1.37.29"]
-b2 = ["b2sdk~=2.8.0"]
-diagrams = ["plantuml~=0.3.0"]
 
 [project.scripts]
 timelocker = "TimeLocker.cli:main"
