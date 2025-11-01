@@ -1,10 +1,33 @@
-# Data Model
+---
+title: "Architecture Document: Data Model"
+id: "arch-data-model"
+type: [ architecture ]
+status: [ approved ]
+owner: "Architecture Team"
+last_reviewed: "01-11-2025"
+tags: [architecture, data-model, schema]
+links:
+    tooling: []
+---
 
-This document describes the data structures and relationships used in the TimeLocker application.
+# Architecture Document: Data Model
 
-## Entity Relationship Diagram
+- **Owner**: Architecture Team
+- **Status**: Approved
+- **Created Date**: 19-12-2024
+- **Last Updated**: 01-11-2025
+- **Audience**: Backend Engineers, Database Administrators, QA
 
-The following diagram shows the relationships between the main entities in the TimeLocker application:
+## 1. Context
+
+TimeLocker tracks repositories, snapshots, backup jobs, policies, and audit logs. This document captures the canonical entity relationships and data dictionary
+used across services and integrations.
+
+## 2. Decision
+
+### 2.1 Entity Relationship Diagram
+
+The diagram illustrates the relationships between core entities.
 
 ```plantuml
 @startuml
@@ -161,9 +184,9 @@ Repository ||--o{ RepositoryCheck : validates
 @enduml
 ```
 
-## Data Dictionary
+### 2.2 Data Dictionary
 
-### User
+#### User
 
 Represents a user of the TimeLocker application.
 
@@ -176,7 +199,7 @@ Represents a user of the TimeLocker application.
 | created_at    | datetime | When the user account was created  |
 | last_login    | datetime | When the user last logged in       |
 
-### Repository
+#### Repository
 
 Represents a backup repository managed by TimeLocker.
 
@@ -193,7 +216,7 @@ Represents a backup repository managed by TimeLocker.
 | initialized   | boolean  | Whether the repository has been initialized          |
 | owner_id      | string   | Foreign key to the User who owns this repository     |
 
-### Snapshot
+#### Snapshot
 
 Represents a point-in-time backup in a repository.
 
@@ -209,7 +232,7 @@ Represents a point-in-time backup in a repository.
 | file_count    | int      | Number of files in the snapshot        |
 | metadata      | json     | Additional metadata about the snapshot |
 
-### BackupJob
+#### BackupJob
 
 Represents a backup operation.
 
@@ -227,7 +250,7 @@ Represents a backup operation.
 | files_processed | int      | Number of files processed                            |
 | error_message   | string   | Error message if the job failed                      |
 
-### BackupTarget
+#### BackupTarget
 
 Represents a target to be backed up.
 
@@ -239,7 +262,7 @@ Represents a target to be backed up.
 | tags              | string[] | Tags associated with the target         |
 | file_selection_id | string   | Foreign key to the FileSelection        |
 
-### FileSelection
+#### FileSelection
 
 Represents a set of file selection criteria.
 
@@ -250,7 +273,7 @@ Represents a set of file selection criteria.
 | base_paths     | string[] | Base paths to include in the selection     |
 | case_sensitive | boolean  | Whether pattern matching is case-sensitive |
 
-### Pattern
+#### Pattern
 
 Represents an include or exclude pattern for file selection.
 
@@ -262,7 +285,7 @@ Represents an include or exclude pattern for file selection.
 | file_selection_id | string | Foreign key to the FileSelection           |
 | pattern_group_id  | string | Foreign key to the PatternGroup (optional) |
 
-### PatternGroup
+#### PatternGroup
 
 Represents a reusable group of patterns.
 
@@ -272,7 +295,7 @@ Represents a reusable group of patterns.
 | name        | string | User-friendly name for the group        |
 | description | string | Description of the pattern group        |
 
-### File
+#### File
 
 Represents a file in a snapshot.
 
@@ -287,7 +310,7 @@ Represents a file in a snapshot.
 | permissions   | string   | File permissions                |
 | owner         | string   | Owner of the file               |
 
-### RetentionPolicy
+#### RetentionPolicy
 
 Represents a policy for retaining snapshots.
 
@@ -303,7 +326,7 @@ Represents a policy for retaining snapshots.
 | yearly        | int    | Number of yearly snapshots to keep         |
 | last          | int    | Number of most recent snapshots to keep    |
 
-### BackupLog
+#### BackupLog
 
 Represents a log entry for a backup job.
 
@@ -316,7 +339,7 @@ Represents a log entry for a backup job.
 | message       | string   | Log message                            |
 | details       | json     | Additional details about the log entry |
 
-### RepositoryCheck
+#### RepositoryCheck
 
 Represents a repository integrity check.
 
@@ -328,3 +351,25 @@ Represents a repository integrity check.
 | success       | boolean  | Whether the check was successful   |
 | error_message | string   | Error message if the check failed  |
 | details       | json     | Additional details about the check |
+
+## 3. Consequences
+
+- ✅ Provides a shared schema definition for API, CLI, and persistence layers.
+- ✅ Enables traceability to requirements via entity responsibilities.
+- ⚠️ PlantUML diagrams and tables must be regenerated when models change.
+- ⚠️ Additional entities (e.g., notification channels) require updates here to guarantee consistency.
+
+## 4. Alternatives Considered
+
+1. **Rely solely on ORM models**
+    - Pros: Generated directly from code.
+    - Cons: Harder for non-engineers to review; lacks cross-component context. Not adopted.
+
+2. **Maintain diagrams in separate tooling (e.g., draw.io)**
+    - Pros: Visual editing experience.
+    - Cons: Difficult to version control and keep in sync. PlantUML retained for text-first workflows.
+
+# References
+
+- API payload examples: `docs/reference/api-reference.md`
+- Requirement mapping: `docs/2-architecture/component-breakdown.md`

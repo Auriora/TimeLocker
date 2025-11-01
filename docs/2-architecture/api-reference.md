@@ -1,76 +1,54 @@
-# API Reference
+---
+title: "Architecture Document: API Reference"
+id: "arch-api-reference"
+type: [ architecture ]
+status: [ approved ]
+owner: "Platform Team"
+last_reviewed: "01-11-2025"
+tags: [architecture, api]
+links:
+    tooling: []
+---
 
-This document provides the API reference for the TimeLocker backup management system.
+# Architecture Document: API Reference
 
-## API Specification Files
+- **Owner**: Platform Team
+- **Status**: Approved
+- **Created Date**: 19-12-2024
+- **Last Updated**: 01-11-2025
+- **Audience**: API Consumers, SDK Authors, Integration Engineers
 
-The complete API specification is available in OpenAPI/Swagger format:
+## 1. Context
 
-- **[TimeLocker API Specification](TimeLocker-API-Specification.yaml)** - Complete OpenAPI 3.0 specification
-- **[TimeLocker API Components](TimeLocker-API-Components.yaml)** - Reusable API components and schemas
+TimeLocker exposes a REST API for repository management, backup orchestration, monitoring, and security workflows. This document summarises the interface
+structure and points to the authoritative OpenAPI specifications.
 
-## API Overview
+## 2. Decision
 
-The TimeLocker API provides a RESTful interface for managing backup operations, repositories, and system configuration. The API is designed to support both
-programmatic access and integration with the TimeLocker user interface.
+### 2.1 Specification Assets
 
-### Base URL
+- [`TimeLocker-API-Specification.yaml`](TimeLocker-API-Specification.yaml) – Complete OpenAPI 3.0 specification.
+- [`TimeLocker-API-Components.yaml`](TimeLocker-API-Components.yaml) – Shared schemas and components.
 
-```
-https://api.timelocker.local/v1
-```
+### 2.2 API Overview
 
-### Authentication
+- **Base URL**: `https://api.timelocker.local/v1`
+- **Authentication**: Bearer tokens in the `Authorization` header (`Authorization: Bearer <token>`).
 
-The API uses token-based authentication. Include the authentication token in the `Authorization` header:
+### 2.3 Core Endpoints
 
-```
-Authorization: Bearer <your-token>
-```
+| Domain                | Endpoints                                                               | Purpose                               |
+|-----------------------|-------------------------------------------------------------------------|---------------------------------------|
+| Repository Management | `GET/POST /repositories`, `GET/PUT/DELETE /repositories/{id}`           | CRUD repository configurations        |
+| Backup Operations     | `GET/POST /backups`, `GET/DELETE /backups/{id}`                         | Manage backup jobs                    |
+| Snapshots             | `GET /snapshots`, `GET /snapshots/{id}`, `POST /snapshots/{id}/restore` | Snapshot inspection and restore       |
+| Recovery Operations   | `POST /restore`, `GET /restore/{id}`                                    | Track restore workflows               |
+| Security              | `POST /auth/login`, `POST /auth/logout`, `GET /auth/profile`            | Authentication and profile management |
+| Monitoring            | `GET /status`, `GET /health`, `GET /metrics`                            | Operational status and metrics        |
 
-## Core API Endpoints
+### 2.4 Data Models
 
-### Repository Management
-
-- `GET /repositories` - List all repositories
-- `POST /repositories` - Create a new repository
-- `GET /repositories/{id}` - Get repository details
-- `PUT /repositories/{id}` - Update repository configuration
-- `DELETE /repositories/{id}` - Delete a repository
-
-### Backup Operations
-
-- `GET /backups` - List all backups
-- `POST /backups` - Create a new backup
-- `GET /backups/{id}` - Get backup details
-- `DELETE /backups/{id}` - Delete a backup
-
-### Snapshots
-
-- `GET /snapshots` - List all snapshots
-- `GET /snapshots/{id}` - Get snapshot details
-- `POST /snapshots/{id}/restore` - Restore from snapshot
-
-### Recovery Operations
-
-- `POST /restore` - Initiate a restore operation
-- `GET /restore/{id}` - Get restore operation status
-
-### Security
-
-- `POST /auth/login` - Authenticate user
-- `POST /auth/logout` - Logout user
-- `GET /auth/profile` - Get user profile
-
-### Monitoring
-
-- `GET /status` - Get system status
-- `GET /health` - Health check endpoint
-- `GET /metrics` - System metrics
-
-## Data Models
-
-### Repository
+Representative payloads:
 
 ```json
 {
@@ -83,8 +61,6 @@ Authorization: Bearer <your-token>
     "updated_at": "2023-01-01T00:00:00Z"
 }
 ```
-
-### Backup
 
 ```json
 {
@@ -99,8 +75,6 @@ Authorization: Bearer <your-token>
 }
 ```
 
-### Snapshot
-
 ```json
 {
     "id": "string",
@@ -109,71 +83,55 @@ Authorization: Bearer <your-token>
     "created_at": "2023-01-01T00:00:00Z",
     "size": 1024,
     "files_count": 100,
-    "tags": [
-        "tag1",
-        "tag2"
-    ]
+    "tags": ["tag1", "tag2"]
 }
 ```
 
-## Error Handling
+### 2.5 Error Handling & Rate Limiting
 
-The API uses standard HTTP status codes and returns error details in JSON format:
+- Standard HTTP status codes with JSON error envelopes:
+  ```json
+  {
+      "error": {
+          "code": "VALIDATION_ERROR",
+          "message": "Invalid input parameters",
+          "details": {
+              "field": "name",
+              "issue": "Name is required"
+          }
+      }
+  }
+  ```
+- Rate limits:
+    - Standard endpoints: 100 req/min
+    - Backup operations: 10 req/min
+    - Authentication: 5 req/min
+    - Headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`
 
-```json
-{
-    "error": {
-        "code": "VALIDATION_ERROR",
-        "message": "Invalid input parameters",
-        "details": {
-            "field": "name",
-            "issue": "Name is required"
-        }
-    }
-}
-```
+### 2.6 Versioning & SDKs
 
-### Common Error Codes
+- URL versioning (`/v1`).
+- Planned official client libraries: Python, JavaScript/Node.js, Go, Java.
 
-- `400` - Bad Request
-- `401` - Unauthorized
-- `403` - Forbidden
-- `404` - Not Found
-- `409` - Conflict
-- `422` - Unprocessable Entity
-- `500` - Internal Server Error
+## 3. Consequences
 
-## Rate Limiting
+- ✅ OpenAPI source enables SDK generation, documentation portals, and contract testing.
+- ✅ Consistent error and rate-limit semantics simplify client implementation.
+- ⚠️ Specification files must be updated with code changes to avoid drift.
+- ⚠️ Authentication tokens should integrate with enterprise identity providers; see future enhancements.
 
-The API implements rate limiting to ensure fair usage:
+## 4. Alternatives Considered
 
-- **Standard endpoints**: 100 requests per minute
-- **Backup operations**: 10 requests per minute
-- **Authentication**: 5 requests per minute
+1. **Ad-hoc documentation without OpenAPI**
+    - Pros: Lower upfront effort.
+    - Cons: Harder to automate SDKs and lint contracts; rejected.
 
-Rate limit headers are included in responses:
+2. **GraphQL interface**
+    - Pros: Flexible querying.
+    - Cons: Increases complexity for command-style operations; REST retained for v1.
 
-```
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
-X-RateLimit-Reset: 1640995200
-```
-
-## Versioning
-
-The API uses URL versioning. The current version is `v1`. Future versions will be introduced as needed while maintaining backward compatibility.
-
-## SDK and Client Libraries
-
-Official client libraries will be available for:
-
-- Python
-- JavaScript/Node.js
-- Go
-- Java
-
-## Related Documentation
+# References
 
 - [Technical Architecture](technical-architecture.md)
-- [Data Model](data-model.md)
 - [Security Considerations](security-considerations.md)
+- OpenAPI tooling: <https://swagger.io>

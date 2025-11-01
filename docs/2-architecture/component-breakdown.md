@@ -1,177 +1,173 @@
-# Component Breakdown
+---
+title: "Architecture Document: Component Breakdown"
+id: "arch-component-breakdown"
+type: [ architecture ]
+status: [ approved ]
+owner: "Architecture Team"
+last_reviewed: "01-11-2025"
+tags: [architecture, components, requirements]
+links:
+    tooling: []
+---
 
-## User Interfaces
+# Architecture Document: Component Breakdown
 
-### Desktop GUI
+- **Owner**: Architecture Team
+- **Status**: Approved
+- **Created Date**: 19-12-2024
+- **Last Updated**: 01-11-2025
+- **Audience**: Engineering Teams, QA, Product Management
 
-- **Purpose**: Provide a user-friendly interface for all backup operations
+## 1. Context
+
+This document maps TimeLocker subsystems to their purposes, responsibilities, and linked requirements. It supports planning, ownership assignment, and
+compliance tracking across user interfaces, core services, infrastructure utilities, and storage backends.
+
+## 2. Decision
+
+### 2.1 User Interfaces
+
+#### Desktop GUI
+
+- **Purpose**: Rich, user-friendly orchestration client.
 - **Responsibilities**:
-    - Repository configuration and management
-    - Backup and restore operations
-    - Policy configuration
-    - Monitoring and reporting
-    - User notifications
-- **Requirements**: FR-RM-003, FR-MON-002, FR-MON-004
+    - Repository configuration and management.
+    - Backup and restore execution.
+    - Policy configuration.
+    - Monitoring, reporting, and notifications.
+- **Requirements**: FR-RM-003, FR-MON-002, FR-MON-004.
 
-### CLI
+#### CLI
 
-- **Purpose**: Enable scripting and automation of backup operations
+- **Purpose**: Scriptable automation surface.
 - **Responsibilities**:
-    - Mirror all GUI operations
-    - Support batch processing
-    - Integration with system schedulers
-- **Requirements**: FR-INT-001, FR-MON-007
+    - Mirrors GUI operations.
+    - Enables batch workflows and scheduler integration.
+- **Requirements**: FR-INT-001, FR-MON-007.
 
-### REST API
+#### REST API
 
-- **Purpose**: Enable integration with external tools and systems
+- **Purpose**: Integration interface for external tooling.
 - **Responsibilities**:
-    - Remote orchestration
-    - Status monitoring
-    - Configuration management
-- **Requirements**: FR-INT-002
+    - Remote orchestration.
+    - Status monitoring.
+    - Configuration management endpoints.
+- **Requirements**: FR-INT-002.
 
-## Core Services Layer
+### 2.2 Core Services Layer
 
-### Repository Management
+#### Repository Management
 
-- **Purpose**: Manage backup repositories across different storage backends
-- **Responsibilities**:
-    - Repository creation, configuration, and validation
-    - Credential management
-    - Plugin registration for different repository types
-    - GDPR compliance for repository regions
-- **Requirements**: FR-RM-001, FR-RM-002, FR-RM-003, FR-RM-004, FR-RM-005
+- **Purpose**: Manage repositories across storage backends.
+- **Responsibilities**: Creation, configuration, validation, credential management, plugin registration, GDPR compliance.
+- **Requirements**: FR-RM-001 … FR-RM-005.
 
-### Backup Operations
+#### Backup Operations
 
-- **Purpose**: Perform backup operations on specified data sources
-- **Responsibilities**:
-    - Full and incremental backups
-    - Scheduled backups
-    - Backup integrity validation
-    - Parallel backup operations
-- **Requirements**: FR-BK-001, FR-BK-002, FR-BK-003, FR-BK-004, FR-BK-005
+- **Purpose**: Execute full and incremental backups.
+- **Responsibilities**: Scheduling, integrity validation, parallel execution, policy alignment.
+- **Requirements**: FR-BK-001 … FR-BK-005.
 
-### Recovery Operations
+#### Recovery Operations
 
-- **Purpose**: Restore data from backups
-- **Responsibilities**:
-    - Full snapshot restoration
-    - Partial file/folder restoration
-    - Restoration verification
-    - Disaster recovery workflows
-- **Requirements**: FR-RC-001, FR-RC-002, FR-RC-003, FR-RC-004
+- **Purpose**: Restore data from snapshots.
+- **Responsibilities**: Full/partial restoration, verification, disaster recovery workflows.
+- **Requirements**: FR-RC-001 … FR-RC-004.
 
-### Policy Management
+#### Policy Management
 
-- **Purpose**: Define and enforce backup policies
-- **Responsibilities**:
-    - Retention policy configuration
-    - Backup frequency configuration
-    - Tag-based policy application
-    - Data lifecycle management
-- **Requirements**: FR-PM-001, FR-PM-002, FR-PM-003, FR-PM-004
+- **Purpose**: Configure retention and backup cadence.
+- **Responsibilities**: Retention policies, frequency, tag-based rules, lifecycle management.
+- **Requirements**: FR-PM-001 … FR-PM-004.
 
-### Monitoring & Reporting
+#### Monitoring & Reporting
 
-- **Purpose**: Track backup operations and generate reports
-- **Responsibilities**:
-    - Operation logging
-    - Notification management
-    - Audit report generation
-    - Storage utilization monitoring
-    - Integrity breach detection
-- **Requirements**: FR-MON-001, FR-MON-002, FR-MON-003, FR-MON-004, FR-MON-005, FR-MON-006, FR-MON-007
+- **Purpose**: Operational visibility and audits.
+- **Responsibilities**: Logging, notifications, audit reports, storage utilisation monitoring, integrity breach detection.
+- **Requirements**: FR-MON-001 … FR-MON-007.
 
-### Security Services
+#### Security Services
 
-- **Purpose**: Ensure data security and privacy
-- **Responsibilities**:
-    - Data encryption
-    - Credential security
-    - Vault locking
-    - Role-based access control
-    - GDPR compliance features
-- **Requirements**: FR-SEC-001, FR-SEC-002, FR-SEC-003, FR-SEC-004, FR-SEC-005, FR-SEC-006, FR-SEC-007, FR-SEC-008
+- **Purpose**: Safeguard data and credentials.
+- **Responsibilities**: Encryption, credential storage, vault locking, RBAC, GDPR compliance features.
+- **Requirements**: FR-SEC-001 … FR-SEC-008.
 
-## Infrastructure Layer
+### 2.3 Infrastructure Layer
 
-### Restic Engine
+#### Restic Engine
 
-- **Purpose**: Provide core backup functionality
-- **Responsibilities**:
-    - Execute backup and restore operations
-    - Manage snapshots
-    - Handle encryption
-- **Requirements**: FR-BK-001, FR-BK-002, FR-BK-004, FR-RC-001, FR-RC-002
+- **Purpose**: Core backup engine integration.
+- **Responsibilities**: Execute backup/restore, snapshot management, encryption operations.
+- **Requirements**: FR-BK-001, FR-BK-002, FR-BK-004, FR-RC-001, FR-RC-002.
 
-### Plugin System
+#### Plugin System
 
-- **Purpose**: Enable extensibility for different repository types
-- **Responsibilities**:
-    - Dynamic registration of repository implementations
-    - Plugin lifecycle management
-- **Requirements**: FR-RM-002
+- **Purpose**: Extensibility for backends.
+- **Responsibilities**: Dynamic repository implementation registration and lifecycle management.
+- **Requirements**: FR-RM-002.
 
-### Error Handling
+#### Error Handling
 
-- **Purpose**: Ensure resilience and data integrity
-- **Responsibilities**:
-    - Retry mechanisms
-    - Consistency maintenance
-    - Error reporting
-- **Requirements**: FR-ERR-001, FR-ERR-002
+- **Purpose**: Resilience and consistency.
+- **Responsibilities**: Retry strategies, consistency maintenance, error reporting.
+- **Requirements**: FR-ERR-001, FR-ERR-002.
 
-### Resource Management
+#### Resource Management
 
-- **Purpose**: Optimize resource usage
-- **Responsibilities**:
-    - Bandwidth throttling
-    - Backup window management
-    - Automated pruning and cleanup
-- **Requirements**: FR-RES-001, FR-RES-002
+- **Purpose**: Operational efficiency.
+- **Responsibilities**: Bandwidth throttling, backup windows, pruning and cleanup automation.
+- **Requirements**: FR-RES-001, FR-RES-002.
 
-### Audit Logging
+#### Audit Logging
 
-- **Purpose**: Maintain tamper-proof audit trail
-- **Responsibilities**:
-    - Hash-chained, append-only logging
-    - Tamper detection
-    - Log verification
-- **Requirements**: FR-MON-006, FR-MON-007
+- **Purpose**: Tamper-proof activity trail.
+- **Responsibilities**: Hash-chained logs, tamper detection, verification workflows.
+- **Requirements**: FR-MON-006, FR-MON-007.
 
-### Cross-Platform Support
+#### Cross-Platform Support
 
-- **Purpose**: Enable operation across different operating systems
-- **Responsibilities**:
-    - Platform-specific adaptations
-    - Consistent behavior across platforms
-- **Requirements**: FR-INT-003
+- **Purpose**: Consistent multi-OS behaviour.
+- **Responsibilities**: Platform abstraction layers and environment parity.
+- **Requirements**: FR-INT-003.
 
-## Storage Backends
+### 2.4 Storage Backends
 
-### Local Files
+#### Local Files
 
-- **Purpose**: Store backups on local file systems
-- **Responsibilities**:
-    - Local file system operations
-    - Path management
-- **Requirements**: FR-RM-001
+- **Purpose**: Local filesystem storage.
+- **Responsibilities**: Path management, local IO.
+- **Requirements**: FR-RM-001.
 
-### Cloud Storage
+#### Cloud Storage
 
-- **Purpose**: Store backups in cloud services
-- **Responsibilities**:
-    - S3, B2, and other cloud protocol support
-    - Region validation
-    - Authentication
-- **Requirements**: FR-RM-001, FR-RM-004, FR-RM-005
+- **Purpose**: S3/B2 and similar endpoints.
+- **Responsibilities**: Protocol support, region validation, authentication.
+- **Requirements**: FR-RM-001, FR-RM-004, FR-RM-005.
 
-### Network Storage
+#### Network Storage
 
-- **Purpose**: Store backups on network file systems
-- **Responsibilities**:
-    - SFTP, SMB, NFS protocol support
-    - Network authentication
-- **Requirements**: FR-RM-001
+- **Purpose**: Network protocols (SFTP, SMB, NFS).
+- **Responsibilities**: Network authentication and secure connectivity.
+- **Requirements**: FR-RM-001.
+
+## 3. Consequences
+
+- ✅ Explicit requirement mapping aids traceability and testing focus.
+- ✅ Responsibility delineation supports team assignment and modular development.
+- ⚠️ Requirement identifiers must stay in sync with the SRS; stale mappings reduce audit value.
+- ⚠️ Over-segmentation may introduce coordination overhead if teams are small.
+
+## 4. Alternatives Considered
+
+1. **Ad-hoc documentation embedded in code**
+    - Pros: Close to implementation.
+    - Cons: Hard for stakeholders to consume; lacks requirement traceability. Rejected.
+
+2. **High-level summary without requirement links**
+    - Pros: Faster to maintain.
+    - Cons: Insufficient for compliance and planning. Rejected in favor of explicit mappings.
+
+# References
+
+- Requirements catalogue: `docs/1-requirements/`
+- Monitoring strategy: `docs/4-testing/`
