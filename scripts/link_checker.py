@@ -405,7 +405,11 @@ def main():
                     resolved_display = b['resolved_absolute_path'].relative_to(ROOT)
                 except ValueError:
                     resolved_display = b['resolved_absolute_path']
-            print(f"- {rel_file}:{b['line_number']} → '{b['target_url']}' (resolved: {resolved_display}, status: {b['issue_type']})", file=sys.stderr)
+            # print(f"  {rel_file}:{b['line_number']} → '{b['target_url']}' (resolved: {resolved_display}, status: {b['issue_type']})", file=sys.stderr)
+            # print(f"  file://./{rel_file}:{b['line_number']} → '{b['target_url']}' (resolved: {resolved_display}, status: {b['issue_type']})", file=sys.stderr)
+            print(f"  file://{b['file']}:{b['line_number']} → '{b['target_url']}' (resolved: {resolved_display}, status: {b['issue_type']})", file=sys.stderr)
+            # print(f"  {b['file']}:{b['line_number']} → '{b['target_url']}' (resolved: {resolved_display}, status: {b['issue_type']})",
+            #       file=sys.stderr)
 
     if not canonical_issues and not broken_links:
         print(f"No broken local links found under {rel_docs}/. Scanned {len(md_files_to_check_links_from)} files and {link_count} links.")
