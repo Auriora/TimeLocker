@@ -2,7 +2,7 @@
   "repositories": [
     {
       "name": "minio-test",
-      "uri": "s3:https://minio.lan/timelocker-test/test-repo",
+      "uri": "s3:https://minio.lan/timelocker-integration-tests//test-repo",
       "description": "MinIO test repository at minio.lan (proxied via Traefik with TLS)",
       "default": true,
       "credentials": {
