@@ -74,13 +74,13 @@ Authorization: Bearer <your-token>
 
 ```json
 {
-  "id": "string",
-  "name": "string",
-  "type": "local|s3|b2|azure",
-  "location": "string",
-  "encrypted": true,
-  "created_at": "2023-01-01T00:00:00Z",
-  "updated_at": "2023-01-01T00:00:00Z"
+    "id": "string",
+    "name": "string",
+    "type": "local|s3|b2|azure",
+    "location": "string",
+    "encrypted": true,
+    "created_at": "2023-01-01T00:00:00Z",
+    "updated_at": "2023-01-01T00:00:00Z"
 }
 ```
 
@@ -88,14 +88,14 @@ Authorization: Bearer <your-token>
 
 ```json
 {
-  "id": "string",
-  "repository_id": "string",
-  "name": "string",
-  "status": "pending|running|completed|failed",
-  "created_at": "2023-01-01T00:00:00Z",
-  "completed_at": "2023-01-01T00:00:00Z",
-  "size": 1024,
-  "files_count": 100
+    "id": "string",
+    "repository_id": "string",
+    "name": "string",
+    "status": "pending|running|completed|failed",
+    "created_at": "2023-01-01T00:00:00Z",
+    "completed_at": "2023-01-01T00:00:00Z",
+    "size": 1024,
+    "files_count": 100
 }
 ```
 
@@ -103,13 +103,16 @@ Authorization: Bearer <your-token>
 
 ```json
 {
-  "id": "string",
-  "backup_id": "string",
-  "repository_id": "string",
-  "created_at": "2023-01-01T00:00:00Z",
-  "size": 1024,
-  "files_count": 100,
-  "tags": ["tag1", "tag2"]
+    "id": "string",
+    "backup_id": "string",
+    "repository_id": "string",
+    "created_at": "2023-01-01T00:00:00Z",
+    "size": 1024,
+    "files_count": 100,
+    "tags": [
+        "tag1",
+        "tag2"
+    ]
 }
 ```
 
@@ -119,14 +122,14 @@ The API uses standard HTTP status codes and returns error details in JSON format
 
 ```json
 {
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Invalid input parameters",
-    "details": {
-      "field": "name",
-      "issue": "Name is required"
+    "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "Invalid input parameters",
+        "details": {
+            "field": "name",
+            "issue": "Name is required"
+        }
     }
-  }
 }
 ```
 

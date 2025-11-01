@@ -116,5 +116,5 @@ Detailed user interface mockups and design specifications for all major applicat
 ## Related Documentation
 
 - [Requirements](../1-requirements/README.md) - System requirements and specifications
-- [Implementation](../3-implementation/README.md) - Implementation guides and code documentation
-- [Testing](../4-testing/README.md) - Testing strategies and test cases
+- [Implementation](../3-implementation/README.implementation.md) - Implementation guides and code documentation
+- [Testing](../4-testing/README.testing.md) - Testing strategies and test cases
