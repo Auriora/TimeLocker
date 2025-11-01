@@ -1,5 +1,6 @@
 # Update Index
 
+- [2025-11-01-docs-reports-standardization](2025-11-01-docs-reports-standardization.md)
 - [2025-11-01-docs-root-reorganization](2025-11-01-docs-root-reorganization.md)
 - [2025-11-01-minio-host-refresh](2025-11-01-minio-host-refresh.md)
 - [2025-11-01-cli-timeshift-and-credential-show](2025-11-01-cli-timeshift-and-credential-show.md)
