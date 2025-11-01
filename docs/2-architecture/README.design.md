@@ -20,21 +20,21 @@ Complete API specification and reference documentation for the TimeLocker REST A
 
 ### System Architecture
 
-- **[Overview](architecture/overview.md)** - High-level system architecture overview
-- **[System Architecture](architecture/system-architecture.md)** - Detailed system architecture and components
-- **[Component Breakdown](architecture/component-breakdown.md)** - Individual component specifications
-- **[Data Flow](architecture/data-flow.md)** - Data flow diagrams and processes
-- **[Design Patterns](architecture/design-patterns.md)** - Architectural patterns and principles
+- **[Overview](overview.md)** - High-level system architecture overview
+- **[System Architecture](system-architecture.md)** - Detailed system architecture and components
+- **[Component Breakdown](component-breakdown.md)** - Individual component specifications
+- **[Data Flow](data-flow.md)** - Data flow diagrams and processes
+- **[Design Patterns](design-patterns.md)** - Architectural patterns and principles
 
 ### Data and Performance
 
-- **[Data Model](architecture/data-model.md)** - Database schema and data relationships
-- **[Scalability & Performance](architecture/scalability-performance.md)** - Performance considerations and scalability planning
+- **[Data Model](data-model.md)** - Database schema and data relationships
+- **[Scalability & Performance](scalability-performance.md)** - Performance considerations and scalability planning
 
 ### Security and Future Planning
 
-- **[Security Considerations](architecture/security-considerations.md)** - Security architecture and implementation
-- **[Future Enhancements](architecture/future-enhancements.md)** - Planned architectural improvements
+- **[Security Considerations](security-considerations.md)** - Security architecture and implementation
+- **[Future Enhancements](future-enhancements.md)** - Planned architectural improvements
 
 ## User Experience Design
 
@@ -99,7 +99,7 @@ Detailed user interface mockups and design specifications for all major applicat
 
 - Start with [Technical Architecture](technical-architecture.md)
 - Review [API Reference](api-reference.md) for implementation details
-- Check [Component Breakdown](architecture/component-breakdown.md) for specific components
+- Check [Component Breakdown](component-breakdown.md) for specific components
 
 ### For UI/UX Designers
 
@@ -111,7 +111,7 @@ Detailed user interface mockups and design specifications for all major applicat
 
 - Review [Design Overview](overview.md) for high-level approach
 - Check [Core Flows](uxflow/core-flows.md) for user journeys
-- Review [Future Enhancements](architecture/future-enhancements.md) for roadmap planning
+- Review [Future Enhancements](future-enhancements.md) for roadmap planning
 
 ## Related Documentation
 

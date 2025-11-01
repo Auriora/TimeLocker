@@ -175,5 +175,5 @@ Official client libraries will be available for:
 ## Related Documentation
 
 - [Technical Architecture](technical-architecture.md)
-- [Data Model](architecture/data-model.md)
-- [Security Considerations](architecture/security-considerations.md)
+- [Data Model](data-model.md)
+- [Security Considerations](security-considerations.md)
