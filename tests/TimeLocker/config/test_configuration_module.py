@@ -37,8 +37,22 @@ class TestConfigurationModule:
     @pytest.mark.unit
     def test_default_configuration(self):
         """Test default configuration values"""
-        # Get complete configuration
-        config = self.config_module.get_config()
+        import os
+
+        # Ensure environment overrides do not influence defaults
+        for key in (
+                    "TIMELOCKER_LOG_LEVEL",
+                    "TIMELOCKER_MAX_CONCURRENT_OPERATIONS",
+                    "TIMELOCKER_CONFIG_OVERLAY",
+        ):
+            os.environ.pop(key, None)
+
+        # Remove any previously generated config file that may contain overrides
+        config_file = self.temp_dir / "config.json"
+        if config_file.exists():
+            config_file.unlink()
+
+        config = ConfigurationModule(self.temp_dir).get_config()
 
         # Test general section
         assert config.general.app_name == "TimeLocker"

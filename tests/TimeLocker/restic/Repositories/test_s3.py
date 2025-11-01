@@ -25,6 +25,23 @@ from TimeLocker.restic.Repositories.s3 import S3ResticRepository
 from TimeLocker.restic.restic_repository import RepositoryError
 
 
+@pytest.fixture(autouse=True)
+def _clear_s3_env(monkeypatch):
+    """Remove AWS/MinIO env vars so unit tests run in isolation."""
+    for key in (
+                "AWS_ACCESS_KEY_ID",
+                "AWS_SECRET_ACCESS_KEY",
+                "AWS_DEFAULT_REGION",
+                "AWS_S3_ENDPOINT",
+                "MINIO_ENDPOINT_URL",
+                "MINIO_ENDPOINT",
+                "MINIO_ACCESS_KEY",
+                "MINIO_SECRET_KEY",
+                "MINIO_REGION",
+    ):
+        monkeypatch.delenv(key, raising=False)
+
+
 @pytest.mark.unit
 def test_init_missing_credentials(monkeypatch, mock_s3_client):
     """
