@@ -19,6 +19,7 @@ from typing import Optional, List, Annotated, Dict, Any, TextIO
 from datetime import datetime
 import inspect
 import re
+from urllib.parse import urlparse
 
 import typer
 import click
@@ -1272,6 +1273,29 @@ def repos_add(
         if "::" in uri or ("://" not in uri and not uri.startswith(("s3:", "b2:", "rclone:", "rest:", "/"))):
             show_error_panel("Invalid Repository URI", f"Invalid repository URI format: '{uri}'.")
             raise typer.Exit(1)
+        if "://" in uri:
+            parsed = urlparse(uri)
+            scheme = (parsed.scheme or "").lower()
+            allowed_schemes = {"file", "s3", "b2", "azure", "gs", "swift", "rest", "rclone", "sftp"}
+            if scheme not in allowed_schemes:
+                show_error_panel("Invalid Repository URI", f"Unsupported repository URI scheme: '{scheme or 'unknown'}'.")
+                raise typer.Exit(1)
+            if scheme == "file":
+                if parsed.netloc not in ("", None, "localhost"):
+                    show_error_panel("Invalid Repository URI", f"Invalid file URI host component in '{uri}'. Use file:///absolute/path.")
+                    raise typer.Exit(1)
+                if parsed.path:
+                    try:
+                        if not Path(parsed.path).is_absolute():
+                            show_error_panel("Invalid Repository URI", f"File URI must use an absolute path: '{uri}'.")
+                            raise typer.Exit(1)
+                    except Exception:
+                        show_error_panel("Invalid Repository URI", f"Invalid file path in URI: '{uri}'.")
+                        raise typer.Exit(1)
+            else:
+                if not parsed.netloc:
+                    show_error_panel("Invalid Repository URI", f"Repository URI '{uri}' is missing required host or bucket component.")
+                    raise typer.Exit(1)
 
         manager = _get_service_manager_for_command(config_dir)
         backend_type = _determine_backend_from_uri(uri)
@@ -2021,16 +2045,19 @@ def repos_credentials_set(
             raise typer.Exit(1)
 
         service_manager = None
-        credential_manager = None
+        repository_factory = None
         try:
             service_manager = _get_service_manager_for_command(config_dir)
             repository_factory = getattr(service_manager, "repository_factory", None)
-            credential_manager = getattr(repository_factory, "_credential_manager", None)
         except Exception:
             service_manager = None
 
-        if credential_manager is None:
-            credential_manager = _create_credential_manager(config_dir)
+        credential_manager = _create_credential_manager(config_dir)
+        if repository_factory is not None:
+            try:
+                setattr(repository_factory, "_credential_manager", credential_manager)
+            except Exception as attach_exc:
+                logging.getLogger(__name__).debug("Unable to attach credential manager to repository factory: %s", attach_exc)
 
         if master_password is not None:
             _ensure_manager_unlocked(credential_manager, master_password, interactive)
