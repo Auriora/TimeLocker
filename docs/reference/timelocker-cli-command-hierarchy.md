@@ -1,290 +1,135 @@
-# TimeLocker CLI Command Hierarchy Specification (Updated)
+---
+title: "Reference: TimeLocker CLI Command Hierarchy"
+id: "ref-cli-hierarchy"
+type: [ reference ]
+status: [ approved ]
+owner: "CLI Team"
+last_reviewed: "01-11-2025"
+tags: [reference, cli, command-structure]
+links:
+  tooling: []
+---
 
-## Overview
+# Reference: TimeLocker CLI Command Hierarchy
 
-This document defines the updated TimeLocker CLI command hierarchy after merging repository and target commands for better organization.
+- **Owner**: CLI Team
+- **Status**: Approved
+- **Created Date**: 15-12-2024
+- **Last Updated**: 01-11-2025
+- **Audience**: Developers, Technical Writers, Support Engineers
 
-## Design Philosophy
+## 1. Purpose
 
-TimeLocker now uses a **simplified command organization**:
+Document the authoritative command hierarchy for the `timelocker` (`tl`) CLI, including namespace organization, aliases, and migration notes for legacy
+commands. Use this reference to maintain CLI documentation, implement shell completions, and verify command routing.
 
-- **Repository operations**: All under `repos` - both configuration and operational commands
-- **Target operations**: All under `targets` - both configuration and operational commands
-- **Cleaner hierarchy**: Eliminated artificial singular/plural separation
+## 2. Specification
 
-## Root Command: `timelocker` (alias: `tl`)
+### 2.1 Design Philosophy
 
-**Description**: TimeLocker - Beautiful backup operations with Rich terminal output  
-**Framework**: Built with Typer and Rich for beautiful terminal output
+- Repository operations consolidated under `repos` (configuration + actions).
+- Target operations unified under `targets`.
+- Snapshot commands standardized under `snapshots`.
+- Configuration, credentials, and version info exposed via dedicated namespaces.
 
-## Complete Command Tree Structure
+### 2.2 Root Command Summary
+
+- **Root**: `timelocker` (alias `tl`)
+- **Description**: TimeLocker – backup orchestration with Rich terminal output
+- **Framework**: Typer + Rich
+
+### 2.3 Command Tree
 
 ```
 timelocker/ (alias: tl)
 ├── backup/
 │   ├── create [paths...]           # Create backup (default action)
 │   └── verify [--snapshot]         # Verify backup integrity (defaults to latest)
-├── snapshots/                      # All snapshot operations
-│   ├── list|ls                     # List snapshots from all configured repos
+├── snapshots/
+│   ├── list|ls                     # List snapshots from configured repos
 │   ├── show <id>                   # Show snapshot details
-│   ├── contents <id>               # List contents of specific snapshot
-│   ├── restore <id> <target>       # Restore from snapshot
-│   ├── mount <id> <path>           # Mount snapshot as filesystem
+│   ├── contents <id>               # List contents of snapshot
+│   ├── restore <id> <target>       # Restore snapshot
+│   ├── mount <id> <path>           # Mount snapshot
 │   ├── umount <id>                 # Unmount snapshot
-│   ├── find-in <id> <pattern>      # Search within specific snapshot
-│   ├── forget <id>                 # Remove specific snapshot
-│   ├── prune                       # Remove old snapshots across repos
-│   ├── diff <id1> <id2>            # Compare two snapshots
-│   └── find <pattern>              # Search across all snapshots
-├── repos/                          # Repository operations
-│   ├── list|ls                     # List all repositories
-│   ├── add <n> <uri>            # Add repository to config
-│   ├── remove|rm <n>            # Remove repository from config
-│   ├── show <n>                 # Show repository config details
-│   ├── default <n>              # Set default repository
-│   ├── init <n>                 # Initialize repository
-│   ├── check <n>                # Check repository integrity
-│   ├── stats <n>                # Show repository statistics
-│   ├── unlock <n>               # Remove locks from repository
-│   ├── migrate <n>              # Migrate repository format
-│   ├── forget <n>               # Apply retention policy to repo
+│   ├── find-in <id> <pattern>      # Search within a snapshot
+│   ├── forget <id>                 # Remove snapshot
+│   ├── prune                       # Retention across repositories
+│   ├── diff <id1> <id2>            # Compare snapshots
+│   └── find <pattern>              # Search across repositories
+├── repos/
+│   ├── list|ls                     # List repositories
+│   ├── add <name> <uri>            # Add repository configuration
+│   ├── remove|rm <name>            # Remove repository configuration
+│   ├── show <name>                 # Show repository details
+│   ├── default <name>              # Set default repository
+│   ├── init <name>                 # Initialize repository
+│   ├── check <name>                # Check repository integrity
+│   ├── stats <name>                # Repository statistics
+│   ├── unlock <name>               # Clear repository locks
+│   ├── migrate <name>              # Migrate repository format
+│   ├── forget <name>               # Apply retention policy
 │   ├── check-all                   # Check all repositories
-│   └── stats-all                   # Show stats for all repositories
-├── targets/                        # Backup target operations
-│   ├── list|ls                     # List all backup targets
-│   ├── add <n> <paths...>       # Add new backup target
-│   ├── show <n>                 # Show target details
-│   ├── edit <n>                 # Edit target configuration
-│   └── remove|rm <n>            # Remove backup target
-├── config/                         # Configuration management
-│   ├── show                        # Show configuration info and validation status
+│   └── stats-all                   # Stats across repositories
+├── targets/
+│   ├── list|ls                     # List backup targets
+│   ├── add <name> <paths...>       # Add target
+│   ├── show <name>                 # Show target details
+│   ├── edit <name>                 # Edit target configuration
+│   └── remove|rm <name>            # Remove target
+├── config/
+│   ├── show                        # Configuration info and validation
 │   ├── setup                       # Interactive setup wizard
 │   └── import/
-│       └── restic                  # Import from restic environment
-├── credentials/                    # Credential management
+│       └── restic                  # Import restic environment
+├── credentials/
 │   ├── unlock                      # Unlock credential manager
-│   ├── set <repo>               # Set repository password
-│   └── remove <repo>            # Remove repository password
-└── version                         # Show version info
+│   ├── set <repo>                  # Store repository password
+│   └── remove <repo>               # Remove repository password
+└── version                         # Show CLI version information
 ```
 
-## Command Aliases
+### 2.4 Command Aliases
 
-### Global Alias
+- Global alias: `tl` → `timelocker`
+- Namespace aliases: `repos` ↔ `repositories`, `targets` ↔ `target(s)` (legacy), `ls` ↔ `list`, `rm` ↔ `remove`.
 
-- `tl` → `timelocker`
+### 2.5 Migration Guide
 
-### Command Aliases
+| Legacy Command                          | Current Command                     |
+|-----------------------------------------|-------------------------------------|
+| `tl repo myrepo init`                   | `tl repos init myrepo`              |
+| `tl repo myrepo check`                  | `tl repos check myrepo`             |
+| `tl config repositories add`            | `tl repos add`                      |
+| `tl config target mytarget show`        | `tl targets show mytarget`          |
+| `tl snapshot abc123 show`               | `tl snapshots show abc123`          |
+| `tl snapshot abc123 list`               | `tl snapshots contents abc123`      |
+| `tl snapshot abc123 restore /path`      | `tl snapshots restore abc123 /path` |
+| `tl snapshot abc123 mount /mnt`         | `tl snapshots mount abc123 /mnt`    |
+| `tl snapshot abc123 forget`             | `tl snapshots forget abc123`        |
+| `tl snapshots find "*.pdf"` (unchanged) | `tl snapshots find "*.pdf"`         |
 
-- `repos` → `repositories`
-- `ls` → `list`
-- `rm` → `remove`
+### 2.6 Examples
 
-## Key Changes from Previous Hierarchy
+- Repository list: `tl repos list`
+- Initialize repository: `tl repos init myrepo`
+- Backup create: `tl backup create documents --repository myrepo`
+- Snapshot search: `tl snapshots find "*.pdf" --repository archive`
+- Credential storage: `tl credentials set myrepo`
 
-### Repository Commands Merged
+## 3. Usage Notes
 
-**Before:**
+- Snapshot commands default to **all** repositories; specify `--repository` to scope to one repository.
+- Retention (`prune`, `forget`) respects repository-level retention policies; use `tl repos forget` for repo-specific policies.
+- Shell completion generators consume this hierarchy; update completion scripts when modifying command namespaces.
+- When migrating documentation or support scripts, map legacy `config repositories|targets` commands to the consolidated `repos` and `targets` namespaces.
 
-- `tl repo <name> <command>` - Single repository operations
-- `tl repos <command>` - Multiple repository operations
-- `tl config repositories <command>` - Repository configuration
+## 4. Change Log
 
-**After:**
+- 01-11-2025: Applied reference template; reorganized sections and clarified aliases.
+- 15-12-2024: Documented merged `repos`/`targets` namespaces and default behaviors.
 
-- `tl repos <command>` - All repository operations (both single and multiple)
+# References
 
-### Target Commands Moved
-
-**Before:**
-
-- `tl config target <name> <command>` - Single target operations
-- `tl config targets <command>` - Multiple target operations
-
-**After:**
-
-- `tl targets <command>` - All target operations
-
-### Benefits
-
-1. **Simpler Discovery**: Related commands grouped under logical namespaces
-2. **Consistent Organization**: No artificial singular/plural separation
-3. **Fewer Command Levels**: Reduced nesting for common operations
-4. **Intuitive Grouping**: Repository and target operations clearly separated
-
-## Migration Guide
-
-### Repository Commands
-
-| Old Command                   | New Command                 |
-|-------------------------------|-----------------------------|
-| `tl repo myrepo init`         | `tl repos init myrepo`      |
-| `tl repo myrepo check`        | `tl repos check myrepo`     |
-| `tl repos list`               | `tl repos list` (unchanged) |
-| `tl config repositories add`  | `tl repos add`              |
-| `tl config repositories show` | `tl repos show`             |
-
-### Target Commands
-
-| Old Command                      | New Command                |
-|----------------------------------|----------------------------|
-| `tl config target mytarget show` | `tl targets show mytarget` |
-| `tl config target mytarget edit` | `tl targets edit mytarget` |
-| `tl config targets add`          | `tl targets add`           |
-| `tl config targets list`         | `tl targets list`          |
-
-### Snapshot Commands
-
-| Old Command                        | New Command                             |
-|------------------------------------|-----------------------------------------|
-| `tl snapshot abc123 show`          | `tl snapshots show abc123`              |
-| `tl snapshot abc123 list`          | `tl snapshots contents abc123`          |
-| `tl snapshot abc123 restore /path` | `tl snapshots restore abc123 /path`     |
-| `tl snapshot abc123 mount /mnt`    | `tl snapshots mount abc123 /mnt`        |
-| `tl snapshot abc123 umount`        | `tl snapshots umount abc123`            |
-| `tl snapshot abc123 find "*.pdf"`  | `tl snapshots find-in abc123 "*.pdf"`   |
-| `tl snapshot abc123 forget`        | `tl snapshots forget abc123`            |
-| `tl snapshots list`                | `tl snapshots list` (unchanged)         |
-| `tl snapshots find "*.pdf"`        | `tl snapshots find "*.pdf"` (unchanged) |
-
-## Default Behavior
-
-### Snapshot Operations Default to All Repositories
-
-By default, snapshot operations work across **all configured repositories**:
-
-```bash
-# Shows snapshots from ALL configured repositories
-tl snapshots list
-
-# Searches across ALL configured repositories  
-tl snapshots find "*.pdf"
-
-# Prunes old snapshots in ALL configured repositories
-tl snapshots prune --keep-daily 7
-```
-
-### Single Repository Operations
-
-Use repository name to target a specific repository:
-
-```bash
-# List snapshots from specific repository only
-tl snapshots list --repository myrepo
-
-# Search in specific repository only
-tl snapshots find "*.pdf" --repository local-backup
-```
-
-## Key Command Examples
-
-### Repository Operations
-
-```bash
-# List all repositories
-tl repos list
-
-# Add repository to configuration
-tl repos add myrepo file:///backup/repo --set-default
-
-# Initialize repository
-tl repos init myrepo
-
-# Check repository integrity
-tl repos check myrepo
-
-# Show repository statistics
-tl repos stats myrepo
-
-# Apply retention policy to repository
-tl repos forget myrepo --keep-daily 7
-
-# Check all repositories
-tl repos check-all
-```
-
-### Target Operations
-
-```bash
-# List all backup targets
-tl targets list
-
-# Add backup target
-tl targets add documents /home/user/Documents
-
-# Show target details
-tl targets show documents
-
-# Edit target configuration
-tl targets edit documents
-
-# Remove backup target
-tl targets remove documents
-```
-
-### Snapshot Operations
-
-```bash
-# List all snapshots
-tl snapshots list
-
-# Show snapshot details
-tl snapshots show abc123def
-
-# List contents of specific snapshot
-tl snapshots contents abc123def
-
-# Restore from snapshot
-tl snapshots restore abc123def /restore/path
-
-# Mount snapshot as filesystem
-tl snapshots mount abc123def /mnt/snapshot
-
-# Unmount snapshot
-tl snapshots umount abc123def
-
-# Search within specific snapshot
-tl snapshots find-in abc123def "*.pdf"
-
-# Search across all snapshots
-tl snapshots find "*.pdf"
-
-# Remove specific snapshot
-tl snapshots forget abc123def
-
-# Prune old snapshots
-tl snapshots prune --keep-daily 7
-
-# Compare two snapshots
-tl snapshots diff abc123 def456
-```
-
-### Configuration Management
-
-```bash
-# Show configuration info and validation status
-tl config show
-
-# Interactive setup wizard
-tl config setup
-
-# Import from restic environment
-tl config import restic
-```
-
-## URI Standardization
-
-- **File repositories**: Must use `file://` prefix (e.g., `file:///backup/repo`)
-- **S3 repositories**: Must use `s3://` prefix (e.g., `s3://bucket/path`)
-- **Repository names**: Can be used via repository name for configured repos
-- **Legacy support**: Non-URI formats supported via `--repository-path` option
-
-## Environment Variables
-
-- `TIMELOCKER_PASSWORD`: Repository password (preferred)
-- `RESTIC_PASSWORD`: Fallback repository password
-- Standard restic environment variables for repository configuration
-
----
-
-*This specification defines the updated TimeLocker CLI with merged repository and target commands for improved usability.*
+- TimeLocker user documentation (`docs/guides/user/repository-management-guide.md`)
+- Shell completion reference (`docs/guides/user/auto-completion-guide.md`)

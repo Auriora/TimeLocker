@@ -1,20 +1,34 @@
-# Repository URI Guide for TimeLocker
+---
+title: "Reference: Repository URI Guide"
+id: "ref-uri-guide"
+type: [ reference ]
+status: [ approved ]
+owner: "Documentation Team"
+last_reviewed: "01-11-2025"
+tags: [ reference, storage, restic ]
+links:
+    tooling: [ ]
+---
 
-This guide explains how to construct repository URIs for different storage backends supported by restic/TimeLocker.
+# Reference: Repository URI Guide
 
-## 📍 Repository URI Formats
+- **Owner**: Documentation Team
+- **Status**: Approved
+- **Created Date**: 19-12-2024
+- **Last Updated**: 01-11-2025
+- **Audience**: Developers, Operators integrating storage backends
 
-### 1. **Local Filesystem**
+## 1. Purpose
 
-Store backups on local disk or mounted drives.
+Define the canonical URI formats and credential requirements for storage backends supported by TimeLocker/Restic. Use this document when configuring
+repositories, troubleshooting connectivity, or onboarding new storage targets.
 
-**Format:**
+## 2. Specification
 
-```
-file:///path/to/repository
-```
+### 2.1 Local Filesystem
 
-**Examples:**
+- **Format**: `file:///path/to/repository`
+- **Use cases**: Local disk, mounted drives, NFS shares.
 
 ```bash
 # Local directory
@@ -23,23 +37,19 @@ file:///home/user/backups/restic-repo
 # External drive
 file:///mnt/backup-drive/restic-repo
 
-# Network mounted drive
+# Network-mounted drive
 file:///mnt/nas/backups/restic-repo
 ```
 
-### 2. **AWS S3**
+### 2.2 AWS S3
 
-Store backups in Amazon S3 buckets.
-
-**Format:**
-
-```
-s3:s3.amazonaws.com/bucket-name
-s3:s3.amazonaws.com/bucket-name/path/to/repo
-s3:s3.region.amazonaws.com/bucket-name
-```
-
-**Examples:**
+- **Format**: `s3:s3.amazonaws.com/bucket-name[/path]` or region-specific hostnames (`s3:s3.<region>.amazonaws.com/bucket`)
+- **Environment variables**:
+  ```bash
+  export AWS_ACCESS_KEY_ID="your-access-key"
+  export AWS_SECRET_ACCESS_KEY="your-secret-key"
+  export AWS_DEFAULT_REGION="your-region"
+  ```
 
 ```bash
 # Default region (us-east-1)
@@ -51,29 +61,14 @@ s3:s3.eu-west-1.amazonaws.com/my-backup-bucket
 # With path prefix
 s3:s3.us-west-2.amazonaws.com/my-bucket/backups/server1
 
-# Your current repository
+# Example in-use repository
 s3:s3.af-south-1.amazonaws.com/5560-restic
 ```
 
-**Required Environment Variables:**
+### 2.3 Google Cloud Storage
 
-```bash
-export AWS_ACCESS_KEY_ID="your-access-key"
-export AWS_SECRET_ACCESS_KEY="your-secret-key"
-export AWS_DEFAULT_REGION="your-region"
-```
-
-### 3. **Google Cloud Storage**
-
-Store backups in Google Cloud Storage buckets.
-
-**Format:**
-
-```
-gs:bucket-name:/path/to/repo
-```
-
-**Examples:**
+- **Format**: `gs:bucket-name:/path/to/repo`
+- **Authentication**: `gcloud auth application-default login` or `GOOGLE_APPLICATION_CREDENTIALS`.
 
 ```bash
 # Root of bucket
@@ -83,22 +78,14 @@ gs:my-backup-bucket:/
 gs:my-backup-bucket:/backups/server1
 ```
 
-**Authentication:**
+### 2.4 Microsoft Azure Blob Storage
 
-- Use `gcloud auth application-default login`
-- Or set `GOOGLE_APPLICATION_CREDENTIALS` environment variable
-
-### 4. **Microsoft Azure Blob Storage**
-
-Store backups in Azure Blob Storage.
-
-**Format:**
-
-```
-azure:container-name:/path/to/repo
-```
-
-**Examples:**
+- **Format**: `azure:container-name:/path/to/repo`
+- **Environment variables**:
+  ```bash
+  export AZURE_ACCOUNT_NAME="your-storage-account"
+  export AZURE_ACCOUNT_KEY="your-account-key"
+  ```
 
 ```bash
 # Root of container
@@ -108,24 +95,14 @@ azure:backup-container:/
 azure:backup-container:/backups/server1
 ```
 
-**Required Environment Variables:**
+### 2.5 Backblaze B2
 
-```bash
-export AZURE_ACCOUNT_NAME="your-storage-account"
-export AZURE_ACCOUNT_KEY="your-account-key"
-```
-
-### 5. **Backblaze B2**
-
-Store backups in Backblaze B2 cloud storage.
-
-**Format:**
-
-```
-b2:bucket-name:/path/to/repo
-```
-
-**Examples:**
+- **Format**: `b2:bucket-name:/path/to/repo`
+- **Environment variables**:
+  ```bash
+  export B2_ACCOUNT_ID="your-account-id"
+  export B2_ACCOUNT_KEY="your-account-key"
+  ```
 
 ```bash
 # Root of bucket
@@ -135,25 +112,10 @@ b2:my-backup-bucket:/
 b2:my-backup-bucket:/backups/server1
 ```
 
-**Required Environment Variables:**
+### 2.6 SFTP / SSH
 
-```bash
-export B2_ACCOUNT_ID="your-account-id"
-export B2_ACCOUNT_KEY="your-account-key"
-```
-
-### 6. **SFTP/SSH**
-
-Store backups on remote servers via SFTP.
-
-**Format:**
-
-```
-sftp:user@host:/path/to/repo
-sftp:user@host:port:/path/to/repo
-```
-
-**Examples:**
+- **Format**: `sftp:user@host:/path` (optional port: `sftp:user@host:port:/path`)
+- **Authentication**: SSH keys recommended; password auth supported but less secure.
 
 ```bash
 # Default SSH port (22)
@@ -162,30 +124,17 @@ sftp:backup@backup-server.com:/home/backup/restic-repo
 # Custom port
 sftp:backup@backup-server.com:2222:/home/backup/restic-repo
 
-# With SSH key authentication
+# SSH key authentication
 sftp:backup@192.168.1.100:/var/backups/restic-repo
 ```
 
-**Authentication:**
+### 2.7 REST Server
 
-- SSH key authentication (recommended)
-- Password authentication (less secure)
-
-### 7. **REST Server**
-
-Store backups on a restic REST server.
-
-**Format:**
-
-```
-rest:http://host:port/path
-rest:https://host:port/path
-```
-
-**Examples:**
+- **Format**: `rest:http://host:port/path` or `rest:https://host:port/path`
+- **Notes**: Prefer HTTPS; embed credentials using `rest:https://user:password@host:port/`.
 
 ```bash
-# HTTP (not recommended for production)
+# HTTP (development only)
 rest:http://backup-server:8000/
 
 # HTTPS (recommended)
@@ -195,116 +144,24 @@ rest:https://backup-server:8000/repo1
 rest:https://user:password@backup-server:8000/
 ```
 
-### 8. **Rclone**
+### 2.8 Rclone-Based Backends
 
-Use rclone for various cloud storage providers.
+- **Format**: `rclone:remote:path` (configure remote separately via `rclone config`)
+- **Usage**: Suitable for providers exposed via Rclone; follow provider-specific guidance.
 
-**Format:**
+## 3. Usage Notes
 
-```
-rclone:remote:path/to/repo
-```
+- Include URI protocols (`https://`, `http://`) for S3-compatible services to avoid defaulting to AWS endpoints.
+- When integrating self-hosted services (e.g., MinIO), configure TLS overrides (`insecure_tls`) via repository settings as required.
+- Repository names in TimeLocker can reference these URIs, allowing credential management to resolve secrets per repository.
+- Test connectivity with the provider’s native CLI (e.g., `aws`, `gsutil`, `az`, `rclone`) before configuring TimeLocker.
 
-**Examples:**
+## 4. Change Log
 
-```bash
-# Dropbox via rclone
-rclone:dropbox:backups/restic-repo
+- 01-11-2025: Reformatted to reference template; added Rclone guidance.
+- 19-12-2024: Initial draft created.
 
-# OneDrive via rclone
-rclone:onedrive:backups/restic-repo
+# References
 
-# Any rclone-supported backend
-rclone:myremote:path/to/repo
-```
-
-## 🔍 **How to Find Your Repository URI**
-
-### Method 1: Check Environment Variables
-
-```bash
-echo $RESTIC_REPOSITORY
-```
-
-### Method 2: Check TimeLocker Configuration
-
-```bash
-tl repos list
-```
-
-### Method 3: Check Original Configuration Files
-
-```bash
-# From your extracted config
-cat extracted_configs/restic_config.json | jq '.repositories'
-
-# From original restic config
-sudo cat /var/restic/.resticrc | grep RESTIC_REPOSITORY
-```
-
-## 🛠️ **Creating New Repository URIs**
-
-### For AWS S3:
-
-1. **Create S3 bucket** in AWS Console
-2. **Get credentials** (Access Key ID + Secret Access Key)
-3. **Construct URI:** `s3:s3.region.amazonaws.com/bucket-name`
-
-### For Local Storage:
-
-1. **Create directory:** `mkdir -p /path/to/backup/repo`
-2. **Set permissions:** `chmod 700 /path/to/backup/repo`
-3. **Use URI:** `file:///path/to/backup/repo`
-
-### For SFTP:
-
-1. **Set up SSH access** to remote server
-2. **Create directory** on remote server
-3. **Construct URI:** `sftp:user@host:/path/to/repo`
-
-## 📋 **Using Repository URIs with TimeLocker**
-
-### List Snapshots:
-
-```bash
-tl snapshots list --repository "s3:s3.af-south-1.amazonaws.com/5560-restic"
-```
-
-### Create Backup:
-
-```bash
-tl backup create --repository "s3:s3.af-south-1.amazonaws.com/5560-restic" /path/to/backup
-```
-
-### Import from Environment:
-
-```bash
-# Set environment variables first
-export RESTIC_REPOSITORY="s3:s3.region.amazonaws.com/bucket"
-export RESTIC_PASSWORD="your-password"
-
-# Then import
-tl config import restic
-```
-> Note: `tl config import restic` is not yet implemented in the current CLI. Please add repositories manually with `tl repos add` and set a default with `tl repos default`.
-
-
-## 🔐 **Security Notes**
-
-1. **Always use encryption** (restic encrypts by default)
-2. **Secure your repository password** - store it safely
-3. **Use HTTPS/TLS** for remote repositories when possible
-4. **Limit access permissions** on local repositories
-5. **Use IAM roles** instead of access keys when possible (AWS)
-
-## 🎯 **Your Current Setup**
-
-Based on your extracted configuration:
-
-- **Repository URI:** `s3:s3.af-south-1.amazonaws.com/5560-restic`
-- **Type:** AWS S3
-- **Region:** af-south-1 (Africa - Cape Town)
-- **Encryption:** ✅ Enabled
-- **Status:** ✅ Working and accessible
-
-You can use this URI directly with TimeLocker commands!
+- Restic documentation: <https://restic.readthedocs.io/en/latest/020_backends.html>
+- TimeLocker user guides: `docs/guides/user/s3-compatible-services.md`
