@@ -15,7 +15,7 @@ import builtins
 import importlib
 from enum import Enum
 from pathlib import Path
-from typing import Optional, List, Annotated, Dict, Any
+from typing import Optional, List, Annotated, Dict, Any, TextIO
 from datetime import datetime
 import inspect
 import re
@@ -108,12 +108,72 @@ console = Console(width=100)
 _rich_print = console.print
 
 
+def _stream_is_interactive(stream: Optional[TextIO]) -> bool:
+    """
+    Determine whether a given text stream supports interactive prompting.
+
+    Args:
+        stream: Target text stream or ``None``.
+
+    Returns:
+        True when the stream exposes ``isatty`` and reports an interactive terminal.
+    """
+    if stream is None:
+        return False
+    isatty = getattr(stream, "isatty", None)
+    if callable(isatty):
+        try:
+            return bool(isatty())
+        except Exception:
+            return False
+    return False
+
+
+_original_rich_console_input = Console.input
+
+
+def _patched_rich_console_input(
+        self,
+        prompt: Any = "",
+        *,
+        markup: bool = True,
+        emoji: bool = True,
+        password: bool = False,
+        stream: Optional[TextIO] = None,
+) -> str:
+    """
+    Override Rich console input to avoid getpass blocking on non-interactive streams.
+
+    Falls back to basic line reads whenever password prompts occur without a TTY, ensuring
+    Typer's CliRunner and other automated harnesses can supply input programmatically.
+    """
+    target_stream: Optional[TextIO] = stream or typer.get_text_stream("stdin")
+    if password and target_stream is not None and not _stream_is_interactive(target_stream):
+        if prompt:
+            # Match Rich behaviour by rendering the prompt prior to reading input
+            self.print(prompt, markup=markup, emoji=emoji, end="")
+        line = target_stream.readline()
+        if line == "":
+            raise EOFError("No input available for prompt.")
+        return line.rstrip("\r\n")
+
+    return _original_rich_console_input(
+            self,
+            prompt,
+            markup=markup,
+            emoji=emoji,
+            password=password,
+            stream=stream,
+    )
+
+
 def _console_print(*args, **kwargs):
     console.file = typer.get_text_stream("stdout")
     return _rich_print(*args, **kwargs)
 
 
 console.print = _console_print  # type: ignore[attr-defined]
+Console.input = _patched_rich_console_input  # type: ignore[attr-defined]
 
 sys.modules["TimeLocker.cli"] = sys.modules[__name__]
 sys.modules.setdefault("TimeLocker.config.configuration_manager", _timelocker_config_manager_module)
