@@ -499,18 +499,86 @@ def config_import_restic(
 def config_import_timeshift(
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         config_file: Annotated[Optional[Path], typer.Option("--config-file", help="Path to Timeshift configuration file")] = None,
+        repo_name: Annotated[str, typer.Option("--repo-name", help="Name to assign the imported repository")] = "timeshift_imported",
+        target_name: Annotated[str, typer.Option("--target-name", help="Name to assign the imported backup target")] = "timeshift_system",
+        repo_path: Annotated[Optional[str], typer.Option("--repo-path", help="Override repository path if device resolution fails")] = None,
+        paths: Annotated[Optional[List[str]], typer.Option("--paths", help="Override backup paths (multiple allowed)")] = None,
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Apply changes without confirmation")] = False,
         dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview changes without modifying configuration")] = False,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
-    """Import configuration from Timeshift backups."""
+    """Import configuration from Timeshift backup tool."""
     setup_logging(verbose, config_dir)
     try:
         manager = _get_service_manager_for_command(config_dir)
         import_method = _get_service_method(manager, "import_timeshift_config")
         if not import_method:
-            show_info_panel(
+            from .importers.timeshift_importer import TimeshiftConfigParser, TimeshiftToTimeLockerMapper
+
+            parser = TimeshiftConfigParser()
+            try:
+                parsed_config = parser.parse_config(config_file)
+            except FileNotFoundError:
+                show_error_panel("Timeshift Configuration Not Found", "Timeshift configuration file could not be located.")
+                raise typer.Exit(1)
+            except PermissionError as exc:
+                show_error_panel("Timeshift Configuration Error", f"Permission denied reading Timeshift configuration: {exc}")
+                raise typer.Exit(1)
+            except json.JSONDecodeError as exc:
+                show_error_panel("Invalid Timeshift Configuration", f"Invalid Timeshift configuration: {exc}")
+                raise typer.Exit(1)
+            except Exception as exc:
+                show_error_panel("Timeshift Import Error", f"Failed to parse Timeshift configuration: {exc}")
+                if verbose:
+                    console.print_exception()
+                raise typer.Exit(1)
+
+            mapper = TimeshiftToTimeLockerMapper()
+            backup_paths = list(paths) if paths else None
+            result = mapper.import_configuration(
+                    parsed_config,
+                    repository_name=repo_name,
+                    target_name=target_name,
+                    manual_repository_path=repo_path,
+                    backup_paths=backup_paths,
+            )
+
+            console.rule("Import from Timeshift")
+            summary = parser.get_summary()
+            config_path_display = summary.get("config_file") or (str(config_file) if config_file else "default locations")
+            console.print(f"[bold]Timeshift Configuration Found:[/bold] {config_path_display}")
+
+            repo_config = result.repository_config or {}
+            target_config = result.backup_target_config or {}
+
+            console.print("\n[bold]Repository Configuration[/bold]")
+            console.print(f"- Name: {repo_config.get('name', repo_name)}")
+            console.print(f"- Location: {repo_config.get('location', repo_path or '/timeshift')}")
+            console.print(f"- Description: {repo_config.get('description', 'Imported from Timeshift')}")
+
+            console.print("\n[bold]Backup Target Configuration[/bold]")
+            console.print(f"- Name: {target_config.get('name', target_name)}")
+            console.print(f"- Paths: {', '.join(target_config.get('paths', backup_paths or ['/']))}")
+            console.print(f"- Repository: {target_config.get('_display_repository', repo_name)}")
+
+            if result.warnings:
+                console.print("\n[yellow]Warnings:[/yellow]")
+                for warning in result.warnings:
+                    console.print(f"- {warning}")
+                if str(parsed_config.get("btrfs_mode", "false")).lower() == "true":
+                    console.print("- BTRFS Mode: Yes (Timeshift configuration indicates BTRFS snapshots were enabled.)")
+
+            if result.errors:
+                console.print("\n[red]Errors:[/red]")
+                for error in result.errors:
+                    console.print(f"- {error}")
+
+            if dry_run or not yes:
+                console.print("\n[cyan]Dry run mode - no changes made[/cyan]")
+
+            show_success_panel(
                     "Timeshift Import",
-                    "Timeshift configuration import is on the roadmap. Configure repositories and targets manually for now."
+                    "Timeshift configuration import dry-run completed." if dry_run or not yes else "Timeshift configuration imported successfully."
             )
             return
 
@@ -518,6 +586,11 @@ def config_import_timeshift(
                 import_method,
                 config_dir=config_dir,
                 config_file=str(config_file) if config_file else None,
+                repository_name=repo_name,
+                target_name=target_name,
+                manual_repository_path=repo_path,
+                backup_paths=list(paths) if paths else None,
+                assume_yes=yes,
                 dry_run=dry_run,
         )
 
@@ -2200,6 +2273,13 @@ def repos_credentials_show(
         credential_manager = _create_credential_manager(config_dir)
         if master_password is not None:
             _ensure_manager_unlocked(credential_manager, master_password, interactive)
+        else:
+            try:
+                credential_manager.ensure_unlocked(allow_prompt=interactive)
+            except Exception:
+                if interactive:
+                    raise
+                logging.getLogger(__name__).debug("Unable to unlock credential manager automatically for show command.")
 
         has_credentials = False
         if hasattr(credential_manager, "has_repository_backend_credentials"):

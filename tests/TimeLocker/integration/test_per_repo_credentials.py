@@ -28,30 +28,30 @@ from TimeLocker.restic.Repositories.s3 import S3ResticRepository
 def test_repository_config_schema():
     """Test that RepositoryConfig has the has_backend_credentials field."""
     print("Testing RepositoryConfig schema...")
-    
+
     repo = RepositoryConfig(
-        name="test-repo",
-        location="s3:minio.local/test-bucket",
-        has_backend_credentials=True
+            name="test-repo",
+            location="s3:s3-test.local/test-bucket",
+            has_backend_credentials=True
     )
-    
+
     assert hasattr(repo, 'has_backend_credentials'), "RepositoryConfig missing has_backend_credentials field"
     assert repo.has_backend_credentials == True, "has_backend_credentials not set correctly"
-    
+
     # Test default value
     repo2 = RepositoryConfig(
-        name="test-repo2",
-        location="s3:minio.local/test-bucket2"
+            name="test-repo2",
+            location="s3:s3-test.local/test-bucket2"
     )
     assert repo2.has_backend_credentials == False, "has_backend_credentials default should be False"
-    
+
     print("✅ RepositoryConfig schema test passed")
 
 
 def test_credential_manager_per_repo_methods():
     """Test CredentialManager per-repository backend credential methods."""
     print("\nTesting CredentialManager per-repository methods...")
-    
+
     # Create temporary credential directory
     temp_dir = tempfile.mkdtemp()
     try:
@@ -65,62 +65,62 @@ def test_credential_manager_per_repo_methods():
         # Verify the credential manager is actually unlocked
         if cred_manager.is_locked():
             raise RuntimeError(
-                "Failed to unlock credential manager for testing. "
-                "Check if auto-unlock is properly configured or if the test password is correct."
+                    "Failed to unlock credential manager for testing. "
+                    "Check if auto-unlock is properly configured or if the test password is correct."
             )
-        
+
         # Test storing S3 credentials
         s3_creds = {
-            "access_key_id": "test-access-key",
-            "secret_access_key": "test-secret-key",
-            "region": "us-east-1"
+                "access_key_id":     "test-access-key",
+                "secret_access_key": "test-secret-key",
+                "region":            "us-east-1"
         }
-        
-        cred_manager.store_repository_backend_credentials("minio1", "s3", s3_creds)
-        print("  ✓ Stored S3 credentials for minio1")
-        
+
+        cred_manager.store_repository_backend_credentials("s3test1", "s3", s3_creds)
+        print("  ✓ Stored S3 credentials for s3test1")
+
         # Test retrieving credentials
-        retrieved_creds = cred_manager.get_repository_backend_credentials("minio1", "s3")
+        retrieved_creds = cred_manager.get_repository_backend_credentials("s3test1", "s3")
         assert retrieved_creds == s3_creds, "Retrieved credentials don't match stored credentials"
-        print("  ✓ Retrieved S3 credentials for minio1")
-        
+        print("  ✓ Retrieved S3 credentials for s3test1")
+
         # Test has_repository_backend_credentials
-        assert cred_manager.has_repository_backend_credentials("minio1", "s3"), "Should have credentials"
-        assert not cred_manager.has_repository_backend_credentials("minio2", "s3"), "Should not have credentials"
+        assert cred_manager.has_repository_backend_credentials("s3test1", "s3"), "Should have credentials"
+        assert not cred_manager.has_repository_backend_credentials("s3test2", "s3"), "Should not have credentials"
         print("  ✓ has_repository_backend_credentials works correctly")
-        
+
         # Test storing credentials for another repository
         s3_creds2 = {
-            "access_key_id": "test-access-key-2",
-            "secret_access_key": "test-secret-key-2",
-            "region": "eu-west-1"
+                "access_key_id":     "test-access-key-2",
+                "secret_access_key": "test-secret-key-2",
+                "region":            "eu-west-1"
         }
-        cred_manager.store_repository_backend_credentials("minio2", "s3", s3_creds2)
-        print("  ✓ Stored S3 credentials for minio2")
-        
-        # Verify isolation - minio1 credentials should be unchanged
-        retrieved_creds1 = cred_manager.get_repository_backend_credentials("minio1", "s3")
-        assert retrieved_creds1 == s3_creds, "minio1 credentials were affected by minio2"
+        cred_manager.store_repository_backend_credentials("s3test2", "s3", s3_creds2)
+        print("  ✓ Stored S3 credentials for s3test2")
+
+        # Verify isolation - s3test1 credentials should be unchanged
+        retrieved_creds1 = cred_manager.get_repository_backend_credentials("s3test1", "s3")
+        assert retrieved_creds1 == s3_creds, "s3test1 credentials were affected by s3test2"
         print("  ✓ Credential isolation verified")
-        
+
         # Test B2 credentials
         b2_creds = {
-            "account_id": "test-account-id",
-            "account_key": "test-account-key"
+                "account_id":  "test-account-id",
+                "account_key": "test-account-key"
         }
         cred_manager.store_repository_backend_credentials("b2-repo", "b2", b2_creds)
         retrieved_b2 = cred_manager.get_repository_backend_credentials("b2-repo", "b2")
         assert retrieved_b2 == b2_creds, "B2 credentials don't match"
         print("  ✓ B2 credentials work correctly")
-        
+
         # Test removing credentials
-        removed = cred_manager.remove_repository_backend_credentials("minio1", "s3")
+        removed = cred_manager.remove_repository_backend_credentials("s3test1", "s3")
         assert removed, "Should have removed credentials"
-        assert not cred_manager.has_repository_backend_credentials("minio1", "s3"), "Credentials should be removed"
+        assert not cred_manager.has_repository_backend_credentials("s3test1", "s3"), "Credentials should be removed"
         print("  ✓ Credential removal works correctly")
-        
+
         print("✅ CredentialManager per-repository methods test passed")
-        
+
     finally:
         # Cleanup
         shutil.rmtree(temp_dir)
@@ -145,9 +145,9 @@ def test_s3_repository_credential_resolution():
 
         # Store credentials for a repository
         s3_creds = {
-            "access_key_id": "per-repo-access-key",
-            "secret_access_key": "per-repo-secret-key",
-            "region": "us-west-2"
+                "access_key_id":     "per-repo-access-key",
+                "secret_access_key": "per-repo-secret-key",
+                "region":            "us-west-2"
         }
         cred_manager.store_repository_backend_credentials("test-s3-repo", "s3", s3_creds)
 
@@ -155,9 +155,9 @@ def test_s3_repository_credential_resolution():
         with patch.object(S3ResticRepository, 'validate', lambda self: None):
             # Create S3 repository with repository_name
             repo = S3ResticRepository(
-                location="s3:minio.local/test-bucket",
-                credential_manager=cred_manager,
-                repository_name="test-s3-repo"
+                    location="s3:s3-test.local/test-bucket",
+                    credential_manager=cred_manager,
+                    repository_name="test-s3-repo"
             )
 
             # Verify credentials were loaded
@@ -171,9 +171,9 @@ def test_s3_repository_credential_resolution():
             os.environ["AWS_SECRET_ACCESS_KEY"] = "env-secret-key"
 
             repo2 = S3ResticRepository(
-                location="s3:minio.local/test-bucket2",
-                credential_manager=cred_manager,
-                repository_name="non-existent-repo"
+                    location="s3:s3-test.local/test-bucket2",
+                    credential_manager=cred_manager,
+                    repository_name="non-existent-repo"
             )
 
             assert repo2.aws_access_key_id == "env-access-key", "Should fall back to environment variable"
@@ -215,16 +215,16 @@ def test_repository_factory_integration():
 
             # Store credentials
             s3_creds = {
-                "access_key_id": "factory-test-key",
-                "secret_access_key": "factory-test-secret",
-                "region": "ap-southeast-1"
+                    "access_key_id":     "factory-test-key",
+                    "secret_access_key": "factory-test-secret",
+                    "region":            "ap-southeast-1"
             }
             cred_manager.store_repository_backend_credentials("factory-test-repo", "s3", s3_creds)
 
             # Create repository through factory with repository_name
             repo = factory.create_repository(
-                uri="s3://minio.local/test-bucket",
-                repository_name="factory-test-repo"
+                    uri="s3://s3-test.local/test-bucket",
+                    repository_name="factory-test-repo"
             )
 
             # Verify credentials were loaded
@@ -244,18 +244,18 @@ def main():
     print("=" * 70)
     print("Testing Per-Repository Backend Credentials Implementation")
     print("=" * 70)
-    
+
     try:
         test_repository_config_schema()
         test_credential_manager_per_repo_methods()
         test_s3_repository_credential_resolution()
         test_repository_factory_integration()
-        
+
         print("\n" + "=" * 70)
         print("✅ ALL TESTS PASSED!")
         print("=" * 70)
         return 0
-        
+
     except AssertionError as e:
         print(f"\n❌ TEST FAILED: {e}")
         import traceback
@@ -270,4 +270,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main())
-

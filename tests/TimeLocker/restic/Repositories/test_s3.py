@@ -329,17 +329,17 @@ def test_validate_bucket_extraction(caplog):
 def test_endpoint_from_parameter(mock_s3_client):
     """Test that endpoint is set from constructor parameter."""
     repo = S3ResticRepository(
-            location="s3:minio.local/bucket",
+            location="s3:s3-test.local/bucket",
             aws_access_key_id="test_key",
             aws_secret_access_key="test_secret",
-            aws_s3_endpoint="http://minio.local:9000"
+            aws_s3_endpoint="http://s3-test.local:9000"
     )
 
-    assert repo.aws_s3_endpoint == "http://minio.local:9000"
+    assert repo.aws_s3_endpoint == "http://s3-test.local:9000"
 
     # Verify it's included in backend_env
     env = repo.backend_env()
-    assert env["AWS_S3_ENDPOINT"] == "http://minio.local:9000"
+    assert env["AWS_S3_ENDPOINT"] == "http://s3-test.local:9000"
 
 
 @pytest.mark.unit
@@ -380,16 +380,16 @@ def test_endpoint_from_credential_manager(mock_s3_client):
             location="s3:bucket/path",
             credential_manager=mock_cred_manager,
             repository_name="test-repo",
-            aws_s3_endpoint="http://minio.local"  # Endpoint must be provided explicitly
+            aws_s3_endpoint="http://s3-test.local"  # Endpoint must be provided explicitly
     )
 
-    assert repo.aws_s3_endpoint == "http://minio.local"
+    assert repo.aws_s3_endpoint == "http://s3-test.local"
     assert repo.aws_access_key_id == "cred_key"
     assert repo.aws_secret_access_key == "cred_secret"
 
     # Verify it's included in backend_env
     env = repo.backend_env()
-    assert env["AWS_S3_ENDPOINT"] == "http://minio.local"
+    assert env["AWS_S3_ENDPOINT"] == "http://s3-test.local"
 
 
 @pytest.mark.unit
@@ -580,15 +580,15 @@ def test_backend_env_logs_endpoint(monkeypatch, clear_aws_env, caplog):
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "k")
     monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "s")
     repo = S3ResticRepository(
-            location="s3:minio.local/bucket",
+            location="s3:s3-test.local/bucket",
             aws_access_key_id="k",
             aws_secret_access_key="s",
-            aws_s3_endpoint="http://minio.local:9000",
+            aws_s3_endpoint="http://s3-test.local:9000",
     )
     with caplog.at_level("INFO"):
         env = repo.backend_env()
-    assert env["AWS_S3_ENDPOINT"] == "http://minio.local:9000"
-    assert "Setting AWS_S3_ENDPOINT to http://minio.local:9000" in caplog.text
+    assert env["AWS_S3_ENDPOINT"] == "http://s3-test.local:9000"
+    assert "Setting AWS_S3_ENDPOINT to http://s3-test.local:9000" in caplog.text
 
 
 # Added backend_env matrix test
