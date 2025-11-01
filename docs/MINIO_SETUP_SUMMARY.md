@@ -5,7 +5,8 @@
 TimeLocker is now configured to use your existing MinIO deployment (proxied via Traefik) for S3 integration testing.
 
 **MinIO Endpoints:**
-- **API**: `minio.local` (port 80, proxied via Traefik)
+
+- **API**: `minio.lan` (port 80, proxied via Traefik)
 - **Console**: `minio-console.local` (port 80, proxied via Traefik)
 
 ## Quick Start
@@ -23,30 +24,34 @@ pytest tests/TimeLocker/integration/test_s3_minio.py -v
 
 ## Configuration Files
 
-All configuration files have been updated to use `minio.local`:
+All configuration files have been updated to use `minio.lan`:
 
 ### Updated Files
-- ✅ `test-config.json` - Uses `minio.local` (no port, proxied via Traefik)
-- ✅ `test-config.example.json` - Uses `minio.local` (no port, proxied via Traefik)
-- ✅ `.env.test.example` - Uses `minio.local` (no port, proxied via Traefik)
-- ✅ `tests/TimeLocker/integration/test_s3_minio.py` - Defaults to `minio.local` (no port, proxied via Traefik)
-- ✅ `scripts/setup_minio_test.sh` - Verifies access to `minio.local`
+
+- ✅ `test-config.json` - Uses `minio.lan` (no port, proxied via Traefik)
+- ✅ `test-config.example.json` - Uses `minio.lan` (no port, proxied via Traefik)
+- ✅ `.env.test.example` - Uses `minio.lan` (no port, proxied via Traefik)
+- ✅ `tests/TimeLocker/integration/test_s3_minio.py` - Defaults to `minio.lan` (no port, proxied via Traefik)
+- ✅ `scripts/setup_minio_test.sh` - Verifies access to `minio.lan`
 - ✅ `docs/MINIO_TESTING.md` - Updated for existing deployment
 - ✅ `TESTING_QUICKSTART.md` - Updated for existing deployment
 
 ### New Files
+
 - ✅ `docker-compose.local.yml` - Optional local MinIO (renamed from docker-compose.yml)
 - ✅ `docker-compose.local.yml.README.md` - Instructions for local MinIO
 
 ## What Changed
 
 ### Before
+
 - Configuration used `localhost:9000`
 - Required starting local MinIO with docker-compose
 - Setup script started MinIO containers
 
 ### After
-- Configuration uses `minio.local` (port 80, proxied via Traefik)
+
+- Configuration uses `minio.lan` (port 80, proxied via Traefik)
 - Uses existing MinIO deployment
 - Setup script verifies access to existing MinIO
 - Optional local MinIO available via `docker-compose.local.yml`
@@ -54,8 +59,9 @@ All configuration files have been updated to use `minio.local`:
 ## Prerequisites
 
 Ensure your `/etc/hosts` file contains:
+
 ```
-<minio-ip> minio.local minio-console.local
+<minio-ip> minio.lan minio-console.local
 ```
 
 If not, contact your system administrator or add them if you have access.
@@ -63,18 +69,20 @@ If not, contact your system administrator or add them if you have access.
 ## Testing Workflow
 
 ### 1. First Time Setup
+
 ```bash
 # Run setup script
 ./scripts/setup_minio_test.sh
 
 # This will:
-# - Check /etc/hosts for minio.local
+# - Check /etc/hosts for minio.lan
 # - Verify MinIO API is accessible
 # - Create .env.test configuration
 # - Install boto3 if needed
 ```
 
 ### 2. Run Tests
+
 ```bash
 # Activate virtual environment
 source .venv/bin/activate
@@ -87,16 +95,17 @@ pytest tests/TimeLocker/integration/test_s3_minio.py -v
 ```
 
 ### 3. Manual Testing
+
 ```bash
 # Add repository (endpoint is now stored in configuration)
-tl repos add minio-test "s3:minio.local/timelocker-test/my-repo"
+tl repos add minio-test "s3:minio.lan/timelocker-test/my-repo"
 # When prompted:
 # - Store password: yes
 # - Store AWS credentials: yes
 # - AWS Access Key ID: minioadmin
 # - AWS Secret Access Key: minioadmin
 # - AWS Region: us-east-1
-# - AWS S3 Endpoint: http://minio.local
+# - AWS S3 Endpoint: https://minio.lan
 
 # Initialize
 tl repos init minio-test
@@ -118,6 +127,7 @@ tl snapshots list --repository minio-test
 ## Access MinIO Console
 
 Open your browser:
+
 ```
 http://minio-console.local
 ```
@@ -125,25 +135,28 @@ http://minio-console.local
 Note: Proxied through Traefik on port 80.
 
 Default credentials (may be different in your deployment):
+
 - Username: `minioadmin`
 - Password: `minioadmin`
 
 ## Troubleshooting
 
-### Cannot Access minio.local
+### Cannot Access minio.lan
 
-**Problem**: `curl: (6) Could not resolve host: minio.local`
+**Problem**: `curl: (6) Could not resolve host: minio.lan`
 
 **Solution**: Add to `/etc/hosts`:
+
 ```bash
-<minio-server-ip> minio.local minio-console.local
+<minio-server-ip> minio.lan minio-console.local
 ```
 
 ### Connection Refused
 
-**Problem**: `curl: (7) Failed to connect to minio.local port 9000`
+**Problem**: `curl: (7) Failed to connect to minio.lan port 9000`
 
 **Solutions**:
+
 1. Verify MinIO is running on the server
 2. Check firewall allows port 9000
 3. Verify network connectivity to MinIO server
@@ -153,9 +166,10 @@ Default credentials (may be different in your deployment):
 **Problem**: Tests show "MinIO not available"
 
 **Solutions**:
+
 1. Install boto3: `pip install boto3`
 2. Load environment: `source .env.test`
-3. Verify MinIO access: `curl http://minio.local:9000/minio/health/live`
+3. Verify MinIO access: `curl https://minio.lan:9000/minio/health/live`
 
 ## Optional: Local MinIO
 
@@ -181,7 +195,7 @@ The `.env.test` file contains:
 
 ```bash
 # MinIO Configuration (proxied via Traefik on port 80)
-MINIO_ENDPOINT=minio.local
+MINIO_ENDPOINT=minio.lan
 MINIO_ACCESS_KEY=minioadmin
 MINIO_SECRET_KEY=minioadmin
 MINIO_BUCKET=timelocker-test
@@ -191,7 +205,7 @@ MINIO_REGION=us-east-1
 AWS_ACCESS_KEY_ID=minioadmin
 AWS_SECRET_ACCESS_KEY=minioadmin
 AWS_DEFAULT_REGION=us-east-1
-AWS_S3_ENDPOINT=http://minio.local
+AWS_S3_ENDPOINT=https://minio.lan
 
 # TimeLocker Configuration
 TIMELOCKER_CONFIG_FILE=./test-config.json
@@ -217,6 +231,7 @@ The test suite includes:
 - ✅ Error handling
 
 Run specific tests:
+
 ```bash
 # All S3 tests
 pytest tests/TimeLocker/integration/test_s3_minio.py -v
@@ -245,6 +260,7 @@ pytest -m "integration and network" -v
 ## Support
 
 If you encounter issues:
+
 1. Check troubleshooting section above
 2. Review `docs/MINIO_TESTING.md`
 3. Verify `/etc/hosts` configuration

@@ -1,15 +1,16 @@
 # Using S3-Compatible Services with TimeLocker
 
-TimeLocker supports S3-compatible storage services like MinIO, Wasabi, Backblaze B2 (via S3 API), and others through comprehensive AWS S3 endpoint configuration.
+TimeLocker supports S3-compatible storage services like MinIO, Wasabi, Backblaze B2 (via S3 API), and others through comprehensive AWS S3 endpoint
+configuration.
 
 ## Important: URI Format
 
 **For S3-compatible services, always include the protocol (`http://` or `https://`) in the repository URI:**
 
 ✅ **Correct:** `s3:https://s3.wasabisys.com/my-bucket`
-✅ **Correct:** `s3:http://minio.local:9000/my-bucket`
+✅ **Correct:** `s3:https://minio.lan:9000/my-bucket`
 ❌ **Incorrect:** `s3:s3.wasabisys.com/my-bucket`
-❌ **Incorrect:** `s3:minio.local/my-bucket`
+❌ **Incorrect:** `s3:minio.lan/my-bucket`
 
 The protocol in the URI tells restic which endpoint to use. Without it, restic may default to AWS S3 endpoints.
 
@@ -26,11 +27,13 @@ As of the latest version, TimeLocker stores AWS credentials per-repository in th
 ## Supported Services
 
 ### MinIO
+
 Self-hosted S3-compatible object storage.
 
 **Example Configuration:**
+
 ```bash
-tl repos add my-minio-repo s3:http://minio.local:9000/my-bucket
+tl repos add my-minio-repo s3:https://minio.lan:9000/my-bucket
 # When prompted:
 Store password: yes
 Store AWS credentials: yes
@@ -41,14 +44,17 @@ Skip TLS certificate verification: y (for self-signed certificates)
 ```
 
 **Important Notes:**
+
 - Include the protocol (`http://` or `https://`) and endpoint in the URI itself
 - For self-hosted MinIO with self-signed certificates, answer "y" to skip TLS verification
 - The endpoint is part of the URI, not stored separately in credentials
 
 ### Wasabi
+
 Cloud storage service with S3-compatible API.
 
 **Example Configuration:**
+
 ```bash
 tl repos add my-wasabi-repo s3:https://s3.wasabisys.com/my-bucket
 # When prompted:
@@ -60,9 +66,11 @@ AWS Region: us-east-1
 ```
 
 ### Backblaze B2 (S3 API)
+
 Backblaze B2 with S3-compatible API.
 
 **Example Configuration:**
+
 ```bash
 tl repos add my-b2-s3-repo s3:https://s3.us-west-002.backblazeb2.com/my-bucket
 # When prompted:
@@ -74,9 +82,11 @@ AWS Region: us-west-002
 ```
 
 ### DigitalOcean Spaces
+
 DigitalOcean's S3-compatible object storage.
 
 **Example Configuration:**
+
 ```bash
 tl repos add my-do-spaces-repo s3:https://nyc3.digitaloceanspaces.com/my-space
 # When prompted:
@@ -96,11 +106,12 @@ tl repos add <repository-name>
 ```
 
 You'll be prompted for:
+
 - **Repository URI**: Format is `s3:hostname/bucket/path`
 - **Password**: Repository encryption password
 - **AWS Credentials**: Access key ID and secret access key
 - **AWS Region**: Region for the service (optional but recommended)
-- **AWS S3 Endpoint**: Full endpoint URL (e.g., `http://minio.local:9000`)
+- **AWS S3 Endpoint**: Full endpoint URL (e.g., `https://minio.lan:9000`)
 
 ### 2. Initialize Repository
 
@@ -145,9 +156,9 @@ If you're having trouble connecting to your S3-compatible service:
    ```
 
 2. **Check credentials are correct:**
-   - Access Key ID
-   - Secret Access Key
-   - Endpoint URL (including protocol: http:// or https://)
+    - Access Key ID
+    - Secret Access Key
+    - Endpoint URL (including protocol: http:// or https://)
 
 3. **Verify bucket exists:**
    Use the service's web console or CLI to confirm the bucket is created
@@ -180,10 +191,10 @@ While TimeLocker now stores credentials per-repository, you can still use enviro
 ```bash
 export AWS_ACCESS_KEY_ID=your-key
 export AWS_SECRET_ACCESS_KEY=your-secret
-export AWS_S3_ENDPOINT=http://minio.local:9000
+export AWS_S3_ENDPOINT=https://minio.lan:9000
 export AWS_DEFAULT_REGION=us-east-1
 
-tl repos add test-repo s3:minio.local/bucket
+tl repos add test-repo s3:minio.lan/bucket
 ```
 
 **Note:** Per-repository credentials stored via `tl repos add` take precedence over environment variables.
@@ -194,7 +205,7 @@ You can configure multiple repositories with different S3-compatible services:
 
 ```bash
 # MinIO repository
-tl repos add minio-backup s3:minio.local/backups
+tl repos add minio-backup s3:minio.lan/backups
 
 # Wasabi repository
 tl repos add wasabi-backup s3:s3.wasabisys.com/backups
@@ -220,20 +231,21 @@ python test_minio_connection.py
 ```
 
 This will test:
+
 1. Direct boto3 connection to your endpoint
 2. TimeLocker credential storage
 3. S3ResticRepository initialization
 
 ## Common Endpoint URLs
 
-| Service | Endpoint Format | Example |
-|---------|----------------|---------|
-| MinIO (local) | `http://hostname:port` | `http://minio.local:9000` |
-| MinIO (TLS) | `https://hostname:port` | `https://minio.example.com:9000` |
-| Wasabi | `https://s3.region.wasabisys.com` | `https://s3.us-east-1.wasabisys.com` |
-| Backblaze B2 | `https://s3.region.backblazeb2.com` | `https://s3.us-west-002.backblazeb2.com` |
-| DigitalOcean Spaces | `https://region.digitaloceanspaces.com` | `https://nyc3.digitaloceanspaces.com` |
-| Linode Object Storage | `https://region.linodeobjects.com` | `https://us-east-1.linodeobjects.com` |
+| Service               | Endpoint Format                         | Example                                  |
+|-----------------------|-----------------------------------------|------------------------------------------|
+| MinIO (local)         | `http://hostname:port`                  | `https://minio.lan:9000`                 |
+| MinIO (TLS)           | `https://hostname:port`                 | `https://minio.example.com:9000`         |
+| Wasabi                | `https://s3.region.wasabisys.com`       | `https://s3.us-east-1.wasabisys.com`     |
+| Backblaze B2          | `https://s3.region.backblazeb2.com`     | `https://s3.us-west-002.backblazeb2.com` |
+| DigitalOcean Spaces   | `https://region.digitaloceanspaces.com` | `https://nyc3.digitaloceanspaces.com`    |
+| Linode Object Storage | `https://region.linodeobjects.com`      | `https://us-east-1.linodeobjects.com`    |
 
 ## Migration from Environment Variables
 

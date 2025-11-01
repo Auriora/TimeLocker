@@ -16,10 +16,10 @@ TimeLocker now supports storing different credentials for each S3 or B2 reposito
 When you add an S3 or B2 repository, TimeLocker will prompt you to store credentials:
 
 ```bash
-$ tl repos add my-minio "s3://minio.local/my-bucket"
+$ tl repos add my-minio "s3://minio.lan/my-bucket"
 
 Repository name: my-minio
-Repository URI: s3://minio.local/my-bucket
+Repository URI: s3://minio.lan/my-bucket
 
 Would you like to store a password for repository 'my-minio'? [y/N]: y
 Password for repository 'my-minio': ********
@@ -33,7 +33,7 @@ AWS Region (optional, press Enter to skip): us-east-1
 
 ✅ Repository 'my-minio' added successfully!
 
-📍 URI: s3://minio.local/my-bucket
+📍 URI: s3://minio.lan/my-bucket
 📝 Description: my-minio repository
 🎯 Default: No
 🔐 Password: Stored securely
@@ -119,7 +119,7 @@ $ tl repos add aws-backup "s3://s3.us-east-1.amazonaws.com/my-backups"
 # Enter AWS credentials
 
 # Add MinIO repository
-$ tl repos add local-minio "s3://minio.local/backups"
+$ tl repos add local-minio "s3://minio.lan/backups"
 # Enter MinIO credentials
 
 # Each uses different credentials
@@ -271,11 +271,11 @@ tl repos add aws-staging "s3://s3.us-west-2.amazonaws.com/staging-backups"
 
 ```bash
 # Tenant A
-tl repos add tenant-a "s3://minio.local/tenant-a-backups"
+tl repos add tenant-a "s3://minio.lan/tenant-a-backups"
 # Enter tenant A credentials
 
 # Tenant B
-tl repos add tenant-b "s3://minio.local/tenant-b-backups"
+tl repos add tenant-b "s3://minio.lan/tenant-b-backups"
 # Enter tenant B credentials
 ```
 

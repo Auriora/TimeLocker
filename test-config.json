@@ -2,8 +2,8 @@
   "repositories": [
     {
       "name": "minio-test",
-      "uri": "s3:http://minio.lan/timelocker-test/test-repo",
-      "description": "MinIO test repository at minio.lan (proxied via Traefik)",
+      "uri": "s3:https://minio.lan/timelocker-test/test-repo",
+      "description": "MinIO test repository at minio.lan (proxied via Traefik with TLS)",
       "default": true,
       "credentials": {
         "aws_access_key_id": "minioadmin",
@@ -57,4 +57,3 @@
     "download_limit_kb": 0
   }
 }
-

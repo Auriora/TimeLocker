@@ -201,7 +201,7 @@ class S3ResticRepository(ResticRepository):
                     self.aws_s3_endpoint is not None or  # Endpoint configured = host/bucket format
                     host.endswith('.amazonaws.com') or
                     host.endswith('.backblazeb2.com') or
-                    ('.' in host and len(host.split('.')) >= 2)  # Any domain name (e.g., minio.local)
+                    ('.' in host and len(host.split('.')) >= 2)  # Any domain name (e.g., minio.lan)
             )
             if len(path_parts) >= 2 and is_hostname:
                 bucket_name = path_parts[1]

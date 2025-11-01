@@ -15,135 +15,38 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
-import json
 import os
 import shutil
 import tempfile
 from pathlib import Path
 from typing import Generator
-from urllib.parse import urlparse
 
 import pytest
 
+from TimeLocker.backup_target import BackupTarget
+from TimeLocker.file_selections import FileSelection, SelectionType
 from TimeLocker.restic.Repositories.s3 import S3ResticRepository
 from TimeLocker.restic.restic_repository import RepositoryError
+from .minio_test_utils import load_minio_settings, ensure_minio_reachable
 
-
-def _extract_host_bucket_from_s3_uri(uri: str) -> tuple[str | None, str | None, str]:
-    """Extract host, bucket, and scheme from an s3: URI."""
-    if not uri or not uri.startswith("s3:"):
-        return None, None, "http"
-    remainder = uri[3:]
-    if remainder.startswith("//"):
-        remainder = remainder[2:]
-    scheme = "http"
-    host = None
-    path_part = ""
-    if remainder.startswith(("http://", "https://")):
-        parsed = urlparse(remainder)
-        host = parsed.netloc or parsed.path
-        path_part = parsed.path.lstrip("/")
-        scheme = parsed.scheme or scheme
-    else:
-        segment = remainder.split("/", 1)
-        host = segment[0]
-        path_part = segment[1] if len(segment) > 1 else ""
-    bucket = path_part.split("/", 1)[0] if path_part else None
-    return host, bucket, scheme
-
-
-def _load_minio_settings() -> dict[str, str]:
-    """Load MinIO settings from environment or configuration files."""
-    settings: dict[str, str] = {}
-
-    env_keys = [
-            "MINIO_ENDPOINT",
-            "MINIO_ACCESS_KEY",
-            "MINIO_SECRET_KEY",
-            "MINIO_BUCKET",
-            "MINIO_REGION",
-            "AWS_S3_ENDPOINT",
-    ]
-    for key in env_keys:
-        value = os.getenv(key)
-        if value:
-            settings[key] = value
-
-    config_candidates = []
-    env_config_path = os.getenv("TIMELOCKER_CONFIG_FILE")
-    if env_config_path:
-        config_candidates.append(Path(env_config_path))
-    config_candidates.append(Path("test-config.json"))
-    config_candidates.append(Path("test-config.example.json"))
-
-    for config_path in config_candidates:
-        if not config_path or not config_path.is_file():
-            continue
-        try:
-            config_data = json.loads(config_path.read_text())
-        except Exception:
-            continue
-
-        for repo in config_data.get("repositories", []):
-            uri = repo.get("uri") or repo.get("location")
-            if not uri or not str(uri).startswith("s3"):
-                continue
-            host, bucket, scheme = _extract_host_bucket_from_s3_uri(str(uri))
-            if host and "MINIO_ENDPOINT" not in settings:
-                settings["MINIO_ENDPOINT"] = host
-                settings.setdefault("AWS_S3_ENDPOINT", f"{scheme}://{host}")
-                settings.setdefault("MINIO_URI_PREFIX", f"s3:{scheme}://{host}")
-            if bucket and "MINIO_BUCKET" not in settings:
-                settings["MINIO_BUCKET"] = bucket
-
-            credentials = repo.get("credentials", {})
-            if isinstance(credentials, dict):
-                settings.setdefault("MINIO_ACCESS_KEY", credentials.get("aws_access_key_id", ""))
-                settings.setdefault("MINIO_SECRET_KEY", credentials.get("aws_secret_access_key", ""))
-                settings.setdefault("MINIO_REGION", credentials.get("aws_default_region", ""))
-            break
-
-        missing = [key for key in ("MINIO_ENDPOINT", "MINIO_ACCESS_KEY", "MINIO_SECRET_KEY", "MINIO_BUCKET", "MINIO_REGION") if not settings.get(key)]
-        if not missing:
-            break
-
-    # Normalize endpoint host and URL values
-    endpoint = settings.get("MINIO_ENDPOINT")
-    if endpoint:
-        parsed = urlparse(endpoint)
-        if parsed.scheme:
-            settings["MINIO_ENDPOINT"] = parsed.netloc or parsed.path
-    endpoint_url = settings.get("AWS_S3_ENDPOINT")
-    if endpoint_url:
-        if not urlparse(endpoint_url).scheme:
-            settings["AWS_S3_ENDPOINT"] = f"http://{endpoint_url}"
-    elif settings.get("MINIO_ENDPOINT"):
-        settings["AWS_S3_ENDPOINT"] = f"http://{settings['MINIO_ENDPOINT']}"
-    if "MINIO_URI_PREFIX" not in settings and settings.get("AWS_S3_ENDPOINT"):
-        settings["MINIO_URI_PREFIX"] = f"s3:{settings['AWS_S3_ENDPOINT']}"
-
-    return {k: v for k, v in settings.items() if v}
-
-
-_MINIO_SETTINGS = _load_minio_settings()
-_REQUIRED_KEYS = ["MINIO_ENDPOINT", "MINIO_ACCESS_KEY", "MINIO_SECRET_KEY", "MINIO_BUCKET", "MINIO_REGION"]
-_MISSING_KEYS = [key for key in _REQUIRED_KEYS if key not in _MINIO_SETTINGS]
+_MINIO_SETTINGS, _MISSING_KEYS = load_minio_settings(require_credentials=True)
 
 if _MISSING_KEYS:
     missing_list = ", ".join(_MISSING_KEYS)
-    pytest.skip(
-            f"MinIO integration tests skipped: missing configuration for {missing_list}. "
-            f"Set environment variables or update your test configuration file.",
-            allow_module_level=True
+    raise RuntimeError(
+            f"MinIO integration tests cannot run: missing configuration for {missing_list}. "
+            f"Set environment variables or update your test-config.json."
     )
 
-MINIO_ENDPOINT = _MINIO_SETTINGS["MINIO_ENDPOINT"]
+MINIO_ENDPOINT_HOST = _MINIO_SETTINGS["MINIO_ENDPOINT_HOST"]
+MINIO_ENDPOINT_URL = _MINIO_SETTINGS["MINIO_ENDPOINT_URL"]
 MINIO_ACCESS_KEY = _MINIO_SETTINGS["MINIO_ACCESS_KEY"]
 MINIO_SECRET_KEY = _MINIO_SETTINGS["MINIO_SECRET_KEY"]
 MINIO_BUCKET = _MINIO_SETTINGS["MINIO_BUCKET"]
 MINIO_REGION = _MINIO_SETTINGS["MINIO_REGION"]
-MINIO_ENDPOINT_URL = _MINIO_SETTINGS.get("AWS_S3_ENDPOINT", f"http://{MINIO_ENDPOINT}")
-MINIO_URI_PREFIX = _MINIO_SETTINGS.get("MINIO_URI_PREFIX", f"s3:{MINIO_ENDPOINT_URL}")
+MINIO_URI_PREFIX = _MINIO_SETTINGS["MINIO_URI_PREFIX"]
+MINIO_VERIFY_SSL_VALUE = str(_MINIO_SETTINGS.get("MINIO_VERIFY_SSL", "true")).lower()
+MINIO_VERIFY_SSL = MINIO_VERIFY_SSL_VALUE not in {"0", "false", "no"}
 
 
 @pytest.fixture(scope="session")
@@ -155,22 +58,10 @@ def minio_available() -> bool:
     Returns True if MinIO is available, otherwise skips all tests that depend on it.
     """
     try:
-        import boto3
-        from botocore.exceptions import ClientError
-
-        s3_client = boto3.client(
-                's3',
-                endpoint_url=MINIO_ENDPOINT_URL,
-                aws_access_key_id=MINIO_ACCESS_KEY,
-                aws_secret_access_key=MINIO_SECRET_KEY,
-                region_name=MINIO_REGION
-        )
-
-        # Try to list buckets to verify connection
-        s3_client.list_buckets()
+        ensure_minio_reachable(MINIO_ENDPOINT_URL, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_REGION, MINIO_VERIFY_SSL)
         return True
     except Exception as e:
-        pytest.skip(f"MinIO not available: {e}")
+        raise RuntimeError(f"MinIO not available: {e}")
 
 
 @pytest.fixture
@@ -245,6 +136,12 @@ def s3_repository(test_repo_path: str, minio_available: bool) -> S3ResticReposit
     return repo
 
 
+def _make_backup_target(path: Path, *tags: str) -> BackupTarget:
+    selection = FileSelection()
+    selection.add_path(str(path), SelectionType.INCLUDE)
+    return BackupTarget(selection=selection, tags=list(tags))
+
+
 @pytest.mark.integration
 @pytest.mark.network
 def test_s3_repository_initialization(s3_repository: S3ResticRepository):
@@ -273,15 +170,9 @@ def test_s3_backend_env(s3_repository: S3ResticRepository):
 @pytest.mark.network
 def test_s3_repository_init_and_check(s3_repository: S3ResticRepository):
     """Test initializing a repository in MinIO and checking it."""
-    # Initialize the repository
-    s3_repository.init()
-
-    # Verify repository is initialized
+    assert s3_repository.initialize() is True
     assert s3_repository.is_repository_initialized()
-
-    # Check repository integrity
-    check_result = s3_repository.check()
-    assert check_result is not None
+    assert s3_repository.check() is True
 
 
 @pytest.mark.integration
@@ -291,36 +182,19 @@ def test_s3_backup_and_restore(
         temp_backup_source: Path
 ):
     """Test complete backup and restore workflow with MinIO."""
-    # Initialize repository
-    s3_repository.init()
-
-    # Perform backup
-    backup_result = s3_repository.backup(
-            paths=[str(temp_backup_source)],
-            tags=["test", "integration"]
-    )
-
+    s3_repository.initialize()
+    target = _make_backup_target(temp_backup_source, "test", "integration")
+    backup_result = s3_repository.backup_target([target])
     assert backup_result is not None
-    assert "snapshot_id" in backup_result or backup_result.get("files_new", 0) >= 0
 
-    # List snapshots
-    snapshots = s3_repository.list_snapshots()
-    assert len(snapshots) > 0
-
-    # Get the latest snapshot
+    snapshots = s3_repository.snapshots()
+    assert snapshots, "Expected at least one snapshot after backup"
     latest_snapshot = snapshots[0]
 
-    # Create restore directory
     restore_dir = Path(tempfile.mkdtemp(prefix="timelocker_restore_"))
-
     try:
-        # Restore from snapshot
-        s3_repository.restore(
-                snapshot_id=latest_snapshot.get("id", latest_snapshot.get("short_id")),
-                target_path=str(restore_dir)
-        )
+        s3_repository.restore(latest_snapshot.id, restore_dir)
 
-        # Verify restored files
         restored_file1 = restore_dir / temp_backup_source.name / "file1.txt"
         assert restored_file1.exists()
         assert restored_file1.read_text() == "Test content 1"
@@ -332,9 +206,7 @@ def test_s3_backup_and_restore(
         restored_file3 = restore_dir / temp_backup_source.name / "subdir" / "file3.txt"
         assert restored_file3.exists()
         assert restored_file3.read_text() == "Test content 3"
-
     finally:
-        # Cleanup restore directory
         shutil.rmtree(restore_dir, ignore_errors=True)
 
 
@@ -345,51 +217,38 @@ def test_s3_multiple_backups(
         temp_backup_source: Path
 ):
     """Test multiple backups to track incremental changes."""
-    # Initialize repository
-    s3_repository.init()
+    s3_repository.initialize()
+    s3_repository.backup_target([_make_backup_target(temp_backup_source, "backup1")])
 
-    # First backup
-    s3_repository.backup(paths=[str(temp_backup_source)], tags=["backup1"])
-
-    # Modify files
     (temp_backup_source / "file1.txt").write_text("Modified content 1")
     (temp_backup_source / "new_file.txt").write_text("New file content")
 
-    # Second backup
-    s3_repository.backup(paths=[str(temp_backup_source)], tags=["backup2"])
+    s3_repository.backup_target([_make_backup_target(temp_backup_source, "backup2")])
 
-    # List snapshots
-    snapshots = s3_repository.list_snapshots()
+    snapshots = s3_repository.snapshots()
     assert len(snapshots) >= 2
 
-    # Verify tags
-    tags_found = set()
-    for snapshot in snapshots:
-        if "tags" in snapshot:
-            tags_found.update(snapshot["tags"])
-
-    assert "backup1" in tags_found or "backup2" in tags_found
+    tags_found = {tag for snapshot in snapshots for tag in getattr(snapshot, "tags", []) or []}
+    assert {"backup1", "backup2"} & tags_found
 
 
 @pytest.mark.integration
 @pytest.mark.network
 def test_s3_repository_stats(s3_repository: S3ResticRepository, temp_backup_source: Path):
     """Test retrieving repository statistics."""
-    # Initialize and backup
-    s3_repository.init()
-    s3_repository.backup(paths=[str(temp_backup_source)])
-
-    # Get repository stats
+    s3_repository.initialize()
+    s3_repository.backup_target([_make_backup_target(temp_backup_source)])
     stats = s3_repository.stats()
-
-    assert stats is not None
-    # Stats should contain information about the repository
+    assert isinstance(stats, dict) and stats
 
 
 @pytest.mark.integration
 @pytest.mark.network
-def test_s3_missing_credentials_error():
+def test_s3_missing_credentials_error(monkeypatch):
     """Test that missing credentials raise appropriate errors."""
+    for key in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "MINIO_ACCESS_KEY", "MINIO_SECRET_KEY"):
+        monkeypatch.delenv(key, raising=False)
+
     location = f"{MINIO_URI_PREFIX}/{MINIO_BUCKET}/test"
 
     repo = S3ResticRepository(

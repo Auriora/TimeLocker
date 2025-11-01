@@ -22,17 +22,17 @@ from __future__ import annotations
 import os
 from pathlib import Path
 from typing import Dict, Tuple
-from urllib.parse import urlparse
 
 import boto3
 import pytest
-from botocore.client import Config
 from botocore.exceptions import ClientError
+
+from urllib.parse import urlparse
 
 from TimeLocker.restic.Repositories.s3 import S3ResticRepository
 from TimeLocker.security.credential_manager import CredentialManager
+from .minio_test_utils import load_minio_settings, ensure_minio_reachable
 
-REQUIRED_ENV_VARS = ["MINIO_ENDPOINT_URL", "MINIO_ACCESS_KEY", "MINIO_SECRET_KEY"]
 DEFAULT_BUCKET = "timelocker-test"
 DEFAULT_REGION = "us-east-1"
 
@@ -42,44 +42,42 @@ def _sanitize_endpoint(endpoint: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}{parsed.path}" if parsed.scheme else endpoint
 
 
-def _get_minio_settings() -> Tuple[str, str, str, str, str]:
-    missing = [key for key in REQUIRED_ENV_VARS if not os.getenv(key)]
+def _get_minio_settings() -> Tuple[str, str, str, str, str, bool]:
+    settings, missing = load_minio_settings(require_credentials=True)
     if missing:
-        pytest.skip(
-                "MinIO connectivity tests skipped: missing environment variables "
-                + ", ".join(missing)
+        pytest.fail(
+                "MinIO connectivity tests missing configuration for " + ", ".join(missing)
         )
 
-    endpoint = os.environ["MINIO_ENDPOINT_URL"]
-    access_key = os.environ["MINIO_ACCESS_KEY"]
-    secret_key = os.environ["MINIO_SECRET_KEY"]
-    bucket = os.getenv("MINIO_BUCKET", DEFAULT_BUCKET)
-    region = os.getenv("MINIO_REGION", DEFAULT_REGION)
+    endpoint = settings["MINIO_ENDPOINT_URL"]
+    access_key = settings["MINIO_ACCESS_KEY"]
+    secret_key = settings["MINIO_SECRET_KEY"]
+    bucket = settings.get("MINIO_BUCKET", DEFAULT_BUCKET)
+    region = settings.get("MINIO_REGION", os.getenv("AWS_DEFAULT_REGION", DEFAULT_REGION))
+    verify_value = str(settings.get("MINIO_VERIFY_SSL", "true")).lower()
+    verify_ssl = verify_value not in {"0", "false", "no"}
 
-    return endpoint, access_key, secret_key, bucket, region
+    return endpoint, access_key, secret_key, bucket, region, verify_ssl
 
 
 @pytest.fixture(scope="session")
-def minio_settings() -> Tuple[str, str, str, str, str]:
+def minio_settings() -> Tuple[str, str, str, str, str, bool]:
     return _get_minio_settings()
 
 
-@pytest.fixture(scope="session")
-def boto3_client(minio_settings) -> boto3.client:
-    endpoint, access_key, secret_key, _, region = minio_settings
+def _assert_endpoint_reachable(endpoint: str) -> None:
+    import urllib.request
+    from urllib.error import HTTPError
+
     try:
-        client = boto3.client(
-                "s3",
-                endpoint_url=endpoint,
-                aws_access_key_id=access_key,
-                aws_secret_access_key=secret_key,
-                region_name=region,
-                config=Config(signature_version="s3v4"),
-        )
-        client.list_buckets()
-        return client
-    except Exception as exc:
-        pytest.skip(f"MinIO not reachable: {exc}")
+        with urllib.request.urlopen(endpoint, timeout=5) as response:
+            if response.status >= 500:
+                pytest.fail(f"MinIO endpoint responded with status {response.status}")
+    except HTTPError as exc:  # pragma: no cover - expected for authenticated endpoints
+        if exc.code >= 500:
+            pytest.fail(f"MinIO endpoint responded with status {exc.code}")
+    except Exception as exc:  # pragma: no cover - network failures should surface
+        pytest.fail(f"MinIO not reachable: {exc}")
 
 
 @pytest.fixture()
@@ -96,7 +94,7 @@ def temp_credential_manager(tmp_path: Path) -> CredentialManager:
 
 @pytest.fixture()
 def repository(minio_settings) -> S3ResticRepository:
-    endpoint, access_key, secret_key, bucket, _ = minio_settings
+    endpoint, access_key, secret_key, bucket, _, _ = minio_settings
     host = urlparse(endpoint).netloc or endpoint
     location = f"s3:{host}/{bucket}"
     os.environ["AWS_S3_ENDPOINT"] = endpoint
@@ -108,13 +106,15 @@ def repository(minio_settings) -> S3ResticRepository:
     )
 
 
-def test_boto3_lists_buckets(boto3_client):
-    buckets = boto3_client.list_buckets().get("Buckets", [])
-    assert isinstance(buckets, list)
+def test_boto3_lists_buckets(minio_settings):
+    endpoint, access_key, secret_key, _, region, verify_ssl = minio_settings
+    client = ensure_minio_reachable(endpoint, access_key, secret_key, region, verify_ssl)
+    response = client.list_buckets()
+    assert isinstance(response.get("Buckets", []), list)
 
 
 def test_credential_manager_roundtrip(minio_settings, temp_credential_manager):
-    _, access_key, secret_key, _, _ = minio_settings
+    _, access_key, secret_key, _, _, _ = minio_settings
     repo_name = "minio-test"
     payload: Dict[str, str] = {
             "access_key_id":     access_key,
@@ -126,7 +126,7 @@ def test_credential_manager_roundtrip(minio_settings, temp_credential_manager):
 
 
 def test_s3_repository_backend_env(repository, minio_settings):
-    endpoint, _, _, _, _ = minio_settings
+    endpoint, _, _, _, _, _ = minio_settings
     env = repository.backend_env()
     assert env["AWS_S3_ENDPOINT"] == endpoint
     assert env["AWS_ACCESS_KEY_ID"]

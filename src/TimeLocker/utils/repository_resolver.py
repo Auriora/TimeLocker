@@ -82,8 +82,8 @@ def normalize_repository_uri(uri: str) -> str:
         Normalized URI in restic format
 
     Examples:
-        normalize_repository_uri("s3://minio.local/bucket") -> "s3:minio.local/bucket"
-        normalize_repository_uri("s3:minio.local/bucket") -> "s3:minio.local/bucket"
+        normalize_repository_uri("s3://minio.lan/bucket") -> "s3:minio.lan/bucket"
+        normalize_repository_uri("s3:minio.lan/bucket") -> "s3:minio.lan/bucket"
         normalize_repository_uri("b2://bucket/path") -> "b2:bucket/path"
         normalize_repository_uri("file:///path/to/repo") -> "file:///path/to/repo"
     """

@@ -1,6 +1,6 @@
 # TimeLocker Testing Quick Start
 
-Quick reference for setting up and running TimeLocker tests with the existing MinIO deployment at `minio.local` (proxied via Traefik).
+Quick reference for setting up and running TimeLocker tests with the existing MinIO deployment at `minio.lan` (proxied via Traefik).
 
 ## 🚀 Quick Setup (2 minutes)
 
@@ -13,7 +13,7 @@ Quick reference for setting up and running TimeLocker tests with the existing Mi
 
 This will:
 
-- ✅ Verify MinIO at `minio.local` (port 80, proxied via Traefik) is accessible
+- ✅ Verify MinIO at `minio.lan` (port 80, proxied via Traefik) is accessible
 - ✅ Check `/etc/hosts` configuration
 - ✅ Install boto3 if needed
 - ✅ Create `.env.test` configuration
@@ -117,10 +117,10 @@ Note: Proxied through Traefik on port 80, no port number needed.
 
 ```bash
 # Test API connection (proxied via Traefik on port 80)
-curl http://minio.local/minio/health/live
+curl https://minio.lan/minio/health/live
 
 # Test DNS resolution
-ping minio.local
+ping minio.lan
 
 # Check /etc/hosts
 grep minio /etc/hosts
@@ -130,7 +130,7 @@ grep minio /etc/hosts
 
 The project is configured to use the existing MinIO deployment (proxied via Traefik) at:
 
-- **API**: `minio.local` (port 80)
+- **API**: `minio.lan` (port 80)
 - **Console**: `minio-console.local` (port 80)
 
 ### Optional: Local MinIO Instance
@@ -155,7 +155,7 @@ export AWS_S3_ENDPOINT="http://localhost:9000"
 source .env.test
 
 # Add repository
-tl repos add minio-test "s3:http://minio.local/timelocker-test/my-repo" \
+tl repos add minio-test "s3:https://minio.lan/timelocker-test/my-repo" \
   --description "MinIO test repository"
 
 # Initialize repository
@@ -193,20 +193,20 @@ ls -la /tmp/test-restore
 
 ## 🐛 Troubleshooting
 
-### Cannot Access minio.local
+### Cannot Access minio.lan
 
 ```bash
 # Check /etc/hosts
 grep minio /etc/hosts
 
 # Test DNS resolution
-ping minio.local
+ping minio.lan
 
 # Test connection (proxied via Traefik)
-curl http://minio.local/minio/health/live
+curl https://minio.lan/minio/health/live
 ```
 
-**Solution**: Ensure `/etc/hosts` has the correct entry for minio.local
+**Solution**: Ensure `/etc/hosts` has the correct entry for minio.lan
 
 ### Tests Skipped
 
@@ -215,7 +215,7 @@ curl http://minio.local/minio/health/live
 pip install boto3
 
 # Verify MinIO is accessible
-curl http://minio.local/minio/health/live
+curl https://minio.lan/minio/health/live
 
 # Check environment
 env | grep -E "(MINIO|AWS)"
@@ -228,7 +228,7 @@ source .env.test
 
 ```bash
 # Check MinIO is accessible
-curl -v http://minio.local
+curl -v https://minio.lan
 
 # Check firewall (on MinIO server)
 sudo ufw status
@@ -244,7 +244,7 @@ cat /etc/hosts | grep minio
 # Open http://minio-console.local
 
 # Or use MinIO client (mc)
-mc alias set myminio http://minio.local minioadmin minioadmin
+mc alias set myminio https://minio.lan minioadmin minioadmin
 mc ls myminio
 
 # Create bucket if needed
@@ -329,8 +329,8 @@ MinIO is started as a service in GitHub Actions.
 
 ## ✅ Verification Checklist
 
-- [ ] MinIO is accessible (`curl http://minio.local/minio/health/live`)
-- [ ] `/etc/hosts` has minio.local entry (`grep minio /etc/hosts`)
+- [ ] MinIO is accessible (`curl https://minio.lan/minio/health/live`)
+- [ ] `/etc/hosts` has minio.lan entry (`grep minio /etc/hosts`)
 - [ ] boto3 is installed (`python -c "import boto3"`)
 - [ ] Virtual environment is activated (`which python`)
 - [ ] Environment variables are set (`source .env.test && env | grep AWS`)

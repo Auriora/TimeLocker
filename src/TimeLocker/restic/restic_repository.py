@@ -561,7 +561,8 @@ class ResticRepository(BackupRepository):
         return snapshots
 
     def restore(self, snapshot_id: str, target_path: Optional[Path] = None) -> str:
-        return self._command.command("restore").param(snapshot_id).param("target", target_path).run(self.to_env())
+        restore_command = self._command.command("restore").param("target", target_path)
+        return restore_command.run(self.to_env(), synopsis_values={"snapshotID": snapshot_id})
 
     def stats(self) -> dict:
         """Get snapshot stats"""

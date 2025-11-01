@@ -25,9 +25,20 @@ class TestLocalResticRepositoryIntegration:
         self.credential_manager = CredentialManager(config_dir=self.credential_dir)
         self.master_password = "test_master_123"
         self.repo_password = "repo_password_456"
+        self._env_snapshot = {}
+        for key in (
+                    "RESTIC_PASSWORD",
+                    "TIMELOCKER_PASSWORD",
+                    "TIMELOCKER_MASTER_PASSWORD",
+                    "TIMELOCKER_MASTER_PASSWORD_FILE",
+        ):
+            if key in os.environ:
+                self._env_snapshot[key] = os.environ.pop(key)
 
     def teardown_method(self):
         """Clean up test environment"""
+        for key, value in self._env_snapshot.items():
+            os.environ[key] = value
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 

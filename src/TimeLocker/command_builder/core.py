@@ -15,6 +15,7 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
+import copy
 import subprocess
 from enum import Enum
 from typing import Dict, List, Optional, Union
@@ -120,13 +121,21 @@ class CommandBuilder:
             self.params[name] = value
         return self
 
+    def _clone(self) -> "CommandBuilder":
+        clone = CommandBuilder(self.definition)
+        clone.current_command = self.current_command
+        clone.params = copy.deepcopy(self.params)
+        clone.command_chain = list(self.command_chain)
+        return clone
+
     def command(self, name: str) -> "CommandBuilder":
         if name not in self.definition.subcommands:
             raise ValueError(f"Unknown subcommand: {name}")
 
-        self.command_chain.append(name)
-        self.current_command = self.definition.subcommands[name]
-        return self
+        new_builder = self._clone()
+        new_builder.command_chain.append(name)
+        new_builder.current_command = self.definition.subcommands[name]
+        return new_builder
 
     def clear(self) -> "CommandBuilder":
         self.params.clear()
