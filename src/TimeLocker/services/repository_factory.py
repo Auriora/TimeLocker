@@ -70,6 +70,15 @@ class RepositoryFactory(IRepositoryFactory):
                     logger.debug("Credential manager unlock attempt failed: %s", exc)
         return self._credential_manager
 
+    def get_credential_manager(self):
+        """
+        Expose credential manager instance for downstream consumers.
+
+        Returns:
+            Configured CredentialManager for repository operations.
+        """
+        return self._get_credential_manager()
+
     def _register_default_types(self) -> None:
         """Register default repository types"""
         try:

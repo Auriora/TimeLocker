@@ -50,6 +50,7 @@ from .config.configuration_module import ConfigurationModule
 from .config.configuration_path_resolver import ConfigurationPathResolver
 from .backup_target import BackupTarget
 from .file_selections import FileSelection, SelectionType
+from .security.credential_manager import CredentialManagerError
 
 logger = logging.getLogger(__name__)
 
@@ -746,7 +747,81 @@ class CLIServiceManager:
                 pass
 
         # Use configuration module
-        self._config_module.add_repository(name, uri, description)
+        self._config_module.add_repository({
+                "name":        name,
+                "location":    uri,
+                "description": description
+        })
+
+    def set_repository_password(self,
+                                repository: str,
+                                password: str,
+                                master_password: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Persist repository password into the credential manager.
+
+        Args:
+            repository: Repository name or URI.
+            password: Repository password to store.
+            master_password: Optional master password for unlocking credentials.
+
+        Returns:
+            Dictionary describing operation outcome.
+        """
+        if not password:
+            raise ConfigurationError("Repository password cannot be empty")
+
+        credential_manager = self._repository_factory.get_credential_manager()
+        if credential_manager is None:
+            raise ConfigurationError("Credential manager is not available")
+
+        # Ensure credential store is unlocked for non-interactive flows.
+        if credential_manager.is_locked():
+            unlock_error: Optional[Exception] = None
+            try:
+                if not credential_manager.ensure_unlocked(allow_prompt=False):
+                    unlock_error = CredentialManagerError("Credential manager remains locked")
+            except Exception as exc:  # pragma: no cover - defensive
+                unlock_error = exc
+
+            if unlock_error:
+                if master_password:
+                    if not credential_manager.unlock(master_password):
+                        raise ConfigurationError("Failed to unlock credential manager with provided master password")
+                else:
+                    raise ConfigurationError(f"Credential manager locked: {unlock_error}")
+
+        repo_instance, resolved_name, resolved_uri = self._create_repository_instance(
+                name=repository,
+                repository=repository,
+                password=password
+        )
+
+        if not hasattr(repo_instance, "store_password"):
+            raise ConfigurationError("Repository backend does not support password storage")
+
+        try:
+            store_result = repo_instance.store_password(password)
+        except CredentialManagerError as exc:
+            raise ConfigurationError(f"Failed to store repository password: {exc}") from exc
+
+        if store_result is False:
+            raise ConfigurationError("Credential manager declined storing the repository password")
+
+        # Remove plaintext password from configuration to avoid duplication.
+        try:
+            repo_config = self._config_module.get_repository(resolved_name)
+            if hasattr(repo_config, "password"):
+                repo_config.password = None
+                self._config_module.update_repository(resolved_name, repo_config)
+        except Exception:
+            logger.debug("Failed to clear plaintext password from configuration for '%s'", resolved_name)
+
+        return {
+                "success":    True,
+                "repository": resolved_name,
+                "uri":        resolved_uri
+        }
 
     def add_backup_target(self,
                           name: str,

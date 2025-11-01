@@ -1320,6 +1320,31 @@ def repos_add(
                         logging.getLogger(__name__).debug("Credential storage during repos add failed: %s", credential_exc)
                         raise
 
+        # Attempt to persist repository password automatically for future operations.
+        def _normalized_password(value: Optional[str]) -> Optional[str]:
+            if isinstance(value, str):
+                trimmed = value.strip()
+                return trimmed or None
+            return value
+
+        password_sources = [
+                _normalized_password(password),
+                _normalized_password(os.getenv("TIMELOCKER_PASSWORD")),
+                _normalized_password(os.getenv("RESTIC_PASSWORD")),
+        ]
+        auto_password = next((p for p in password_sources if p), None)
+        if auto_password and manager:
+            try:
+                result = manager.set_repository_password(name, auto_password)
+                stored = getattr(result, "success", None)
+                if stored is None:
+                    stored = bool(result)
+                if stored:
+                    console.print("🔐 [green]Repository password stored in credential manager.[/green]")
+            except Exception as exc:
+                logging.getLogger(__name__).debug("Automatic repository password storage failed: %s", exc)
+                console.print("⚠️  [yellow]Unable to store repository password automatically; use 'tl credentials store' if needed.[/yellow]")
+
         show_success_panel("Repository Added", f"Repository '{name}' added successfully.")
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "Repository add cancelled by user")
