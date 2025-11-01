@@ -1,283 +1,128 @@
-# Using S3-Compatible Services with TimeLocker
+---
+title: "User Guide: S3-Compatible Services"
+id: "user-guide-s3-compatible"
+type: [ guide ]
+status: [ approved ]
+owner: "Documentation Team"
+last_reviewed: "01-11-2025"
+tags: [guide, user, s3]
+links:
+  tooling: []
+---
 
-TimeLocker supports S3-compatible storage services like MinIO, Wasabi, Backblaze B2 (via S3 API), and others through comprehensive AWS S3 endpoint
-configuration.
+# User Guide: S3-Compatible Services
 
-## Important: URI Format
+- **Owner**: Documentation Team
+- **Status**: Approved
+- **Created Date**: 19-12-2024
+- **Last Updated**: 01-11-2025
+- **Audience**: End Users integrating S3-compatible storage
 
-**For S3-compatible services, always include the protocol (`http://` or `https://`) in the repository URI:**
+## 1. Purpose
 
-✅ **Correct:** `s3:https://s3.wasabisys.com/my-bucket`
-✅ **Correct:** `s3:https://minio.lan:9000/my-bucket`
-❌ **Incorrect:** `s3:s3.wasabisys.com/my-bucket`
-❌ **Incorrect:** `s3:minio.lan/my-bucket`
+Show how to configure TimeLocker with S3-compatible services such as MinIO, Wasabi, Backblaze B2 (S3 API), and DigitalOcean Spaces using per-repository
+credentials.
 
-The protocol in the URI tells restic which endpoint to use. Without it, restic may default to AWS S3 endpoints.
+## 2. Goal
 
-## Overview
+After following this guide you can add repositories pointing to non-AWS S3 endpoints, store credentials securely, and troubleshoot connectivity issues.
 
-As of the latest version, TimeLocker stores AWS credentials per-repository in the credential manager. This means:
+## 3. Prerequisites
 
-- ✅ No manual environment variable setup required
-- ✅ Credentials stored securely per-repository
-- ✅ Automatic environment configuration for restic operations
-- ✅ Easy switching between different S3-compatible services
-- ✅ Endpoint and protocol (HTTP/HTTPS) specified directly in repository URI
+- TimeLocker CLI installed.
+- Credential manager ready (or environment variables for legacy flows).
+- Endpoint, bucket, and credential information for your S3-compatible provider.
 
-## Supported Services
+## 4. Step-by-Step Instructions
 
-### MinIO
+### 4.1 Use Correct URI Formats
 
-Self-hosted S3-compatible object storage.
+Always include protocol in URIs:
 
-**Example Configuration:**
+- ✅ `s3:https://s3.wasabisys.com/my-bucket`
+- ✅ `s3:https://minio.lan:9000/my-bucket`
+- ❌ `s3:s3.wasabisys.com/my-bucket`
+- ❌ `s3:minio.lan/my-bucket`
+
+### 4.2 Configure MinIO
 
 ```bash
 tl repos add my-minio-repo s3:https://minio.lan:9000/my-bucket
-# When prompted:
-Store password: yes
-Store AWS credentials: yes
-AWS Access Key ID: minioadmin
-AWS Secret Access Key: minioadmin
-AWS Region: (press Enter to skip)
-Skip TLS certificate verification: y (for self-signed certificates)
 ```
 
-**Important Notes:**
+When prompted, store password and AWS credentials (key `minioadmin`, secret `minioadmin`, optional region). For self-signed certificates answer `y` to skip TLS
+verification.
 
-- Include the protocol (`http://` or `https://`) and endpoint in the URI itself
-- For self-hosted MinIO with self-signed certificates, answer "y" to skip TLS verification
-- The endpoint is part of the URI, not stored separately in credentials
-
-### Wasabi
-
-Cloud storage service with S3-compatible API.
-
-**Example Configuration:**
+### 4.3 Configure Wasabi
 
 ```bash
 tl repos add my-wasabi-repo s3:https://s3.wasabisys.com/my-bucket
-# When prompted:
-Store password: yes
-Store AWS credentials: yes
-AWS Access Key ID: <your-wasabi-access-key>
-AWS Secret Access Key: <your-wasabi-secret-key>
-AWS Region: us-east-1
 ```
 
-### Backblaze B2 (S3 API)
+Provide Wasabi access key, secret, and region (e.g., `us-east-1`).
 
-Backblaze B2 with S3-compatible API.
-
-**Example Configuration:**
+### 4.4 Configure Backblaze B2 (S3 API)
 
 ```bash
 tl repos add my-b2-s3-repo s3:https://s3.us-west-002.backblazeb2.com/my-bucket
-# When prompted:
-Store password: yes
-Store AWS credentials: yes
-AWS Access Key ID: <your-b2-keyID>
-AWS Secret Access Key: <your-b2-applicationKey>
-AWS Region: us-west-002
 ```
 
-### DigitalOcean Spaces
+Enter B2 key ID, application key, and region `us-west-002`.
 
-DigitalOcean's S3-compatible object storage.
-
-**Example Configuration:**
+### 4.5 Configure DigitalOcean Spaces
 
 ```bash
 tl repos add my-do-spaces-repo s3:https://nyc3.digitaloceanspaces.com/my-space
-# When prompted:
-Store password: yes
-Store AWS credentials: yes
-AWS Access Key ID: <your-spaces-access-key>
-AWS Secret Access Key: <your-spaces-secret-key>
-AWS Region: nyc3
 ```
 
-## Quick Start Guide
+Provide Spaces access key, secret key, and region (e.g., `nyc3`).
 
-### 1. Add Repository
+### 4.6 Quick Start (Generic)
 
-```bash
-tl repos add <repository-name>
-```
-
-You'll be prompted for:
-
-- **Repository URI**: Format is `s3:hostname/bucket/path`
-- **Password**: Repository encryption password
-- **AWS Credentials**: Access key ID and secret access key
-- **AWS Region**: Region for the service (optional but recommended)
-- **AWS S3 Endpoint**: Full endpoint URL (e.g., `https://minio.lan:9000`)
-
-### 2. Initialize Repository
-
-```bash
-tl repos init <repository-name>
-```
-
-This creates the restic repository structure in your S3-compatible storage.
-
-### 3. Use Repository
-
-```bash
-# Add backup target
-tl targets add my-docs ~/Documents
-
-# Run backup
-tl backup my-docs -r <repository-name>
-
-# List snapshots
-tl snapshots list -r <repository-name>
-```
-
-## Updating Credentials
-
-If you need to update the S3 endpoint or credentials for an existing repository:
-
-```bash
-tl repos credentials set <repository-name>
-```
-
-This will prompt you for new credentials and endpoint configuration.
-
-## Troubleshooting
-
-### Connection Issues
-
-If you're having trouble connecting to your S3-compatible service:
-
-1. **Verify endpoint is accessible:**
+1. Add repository: `tl repos add <name> s3:https://endpoint/bucket`
+2. Initialise repository: `tl repos init <name>`
+3. Use repository:
    ```bash
-   curl -I http://your-endpoint:9000
+   tl targets add my-docs ~/Documents
+   tl backup my-docs -r <name>
+   tl snapshots list -r <name>
    ```
 
-2. **Check credentials are correct:**
-    - Access Key ID
-    - Secret Access Key
-    - Endpoint URL (including protocol: http:// or https://)
-
-3. **Verify bucket exists:**
-   Use the service's web console or CLI to confirm the bucket is created
-
-### SSL/TLS Issues
-
-For self-signed certificates or local development:
-
-- Use `http://` instead of `https://` for the endpoint
-- For production, ensure proper SSL certificates are configured
-
-### AWS SSO Interference
-
-If you have AWS SSO configured in `~/.aws/config`, it might interfere with S3-compatible services:
-
-**Solution:** TimeLocker's per-repository credentials take precedence, so this should not be an issue. However, if you encounter problems:
+### 4.7 Update Credentials
 
 ```bash
-# Temporarily disable AWS profile
-unset AWS_PROFILE
-tl repos init <repository-name>
+tl repos credentials-set <name>
 ```
 
-## Advanced Configuration
+Follow prompts to update access key, secret, region, or endpoint.
 
-### Using Environment Variables (Legacy)
-
-While TimeLocker now stores credentials per-repository, you can still use environment variables for testing or automation:
+### 4.8 Legacy Environment Variables (Optional)
 
 ```bash
 export AWS_ACCESS_KEY_ID=your-key
 export AWS_SECRET_ACCESS_KEY=your-secret
 export AWS_S3_ENDPOINT=https://minio.lan:9000
 export AWS_DEFAULT_REGION=us-east-1
-
-tl repos add test-repo s3:minio.lan/bucket
 ```
 
-**Note:** Per-repository credentials stored via `tl repos add` take precedence over environment variables.
+Per-repository credentials still take precedence.
 
-### Multiple Repositories
+## 5. Troubleshooting
 
-You can configure multiple repositories with different S3-compatible services:
+- **Connection issues**: `curl -I https://your-endpoint:port` to verify endpoint availability.
+- **Invalid credentials**: Re-run `tl repos credentials-set` and confirm access key/secret pairs.
+- **Bucket missing**: Create the bucket via provider console or CLI before running `tl repos init`.
+- **TLS errors**: Use `https://` with valid certificates; for labs use `http://` or skip verification when prompted.
+- **AWS SSO interference**: Temporarily `unset AWS_PROFILE`; TimeLocker’s stored credentials take precedence.
 
-```bash
-# MinIO repository
-tl repos add minio-backup s3:minio.lan/backups
+## 6. Frequently Asked Questions (FAQ)
 
-# Wasabi repository
-tl repos add wasabi-backup s3:s3.wasabisys.com/backups
+- **Do I need to specify an endpoint separately?** No. Include the protocol and host directly in the repository URI.
+- **Can I mix AWS S3 and MinIO repositories?** Yes; store unique credentials for each repository to switch seamlessly.
+- **How do I rotate credentials?** Run `tl repos credentials-set <name>`; old credentials are overwritten, and audit logs record the change.
 
-# Each repository stores its own credentials and endpoint
-```
+# References
 
-## Security Best Practices
-
-1. **Use strong passwords** for repository encryption
-2. **Rotate credentials** regularly
-3. **Use HTTPS endpoints** in production
-4. **Limit access key permissions** to only what's needed
-5. **Enable MFA** on your S3-compatible service if supported
-6. **Use credential manager** instead of environment variables
-
-## Testing Your Setup
-
-Use the provided test script to verify your S3-compatible service configuration:
-
-```bash
-python test_minio_connection.py
-```
-
-This will test:
-
-1. Direct boto3 connection to your endpoint
-2. TimeLocker credential storage
-3. S3ResticRepository initialization
-
-## Common Endpoint URLs
-
-| Service               | Endpoint Format                         | Example                                  |
-|-----------------------|-----------------------------------------|------------------------------------------|
-| MinIO (local)         | `http://hostname:port`                  | `https://minio.lan:9000`                 |
-| MinIO (TLS)           | `https://hostname:port`                 | `https://minio.example.com:9000`         |
-| Wasabi                | `https://s3.region.wasabisys.com`       | `https://s3.us-east-1.wasabisys.com`     |
-| Backblaze B2          | `https://s3.region.backblazeb2.com`     | `https://s3.us-west-002.backblazeb2.com` |
-| DigitalOcean Spaces   | `https://region.digitaloceanspaces.com` | `https://nyc3.digitaloceanspaces.com`    |
-| Linode Object Storage | `https://region.linodeobjects.com`      | `https://us-east-1.linodeobjects.com`    |
-
-## Migration from Environment Variables
-
-If you were previously using environment variables for S3 configuration:
-
-1. **Add repository with credentials:**
-   ```bash
-   tl repos add <repo-name>
-   # Provide credentials and endpoint when prompted
-   ```
-
-2. **Remove environment variables:**
-   ```bash
-   # Remove from ~/.bashrc or ~/.zshrc:
-   # export AWS_S3_ENDPOINT=...
-   # export AWS_ACCESS_KEY_ID=...
-   # export AWS_SECRET_ACCESS_KEY=...
-   ```
-
-3. **Verify it works:**
-   ```bash
-   tl repos list
-   tl snapshots list -r <repo-name>
-   ```
-
-## Support
-
-For issues specific to S3-compatible services:
-
-1. Check service documentation for correct endpoint format
-2. Verify credentials have appropriate permissions
-3. Test connection with service's native CLI tools
-4. Review TimeLocker logs for detailed error messages
-
-For MinIO-specific setup, see [summary-minio-setup.md](../../4-testing/summary-minio-setup.md).
+- Credential guide: `docs/guides/user/per-repo-credentials.md`
+- Repository management: `docs/guides/user/repository-management-guide.md`
+- Provider documentation (MinIO, Wasabi, Backblaze B2, DigitalOcean Spaces)

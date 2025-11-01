@@ -44,9 +44,16 @@ be non-technical and focus on how to use the features of the product.
 
 - **Naming Convention**: N/A for this file.
 
-## 5. Available Templates
+## 5. Available Templates & Guides
 
-- `_template.md`: A generic template for any user-facing guide.
+- `_template.md`: Template for new user guides.
+- `installation.md`: Installing and verifying TimeLocker.
+- `repository-management-guide.md`: Working with named repositories.
+- `per-repo-credentials.md`: Managing credentials per repository.
+- `repository-password-workflow.md`: Password storage workflow.
+- `s3-compatible-services.md`: Configuring S3-compatible endpoints.
+- `auto-completion-guide.md`: Enabling CLI auto-completion.
+- `timeshift-import.md`: Importing Timeshift configurations.
 
 # References
 

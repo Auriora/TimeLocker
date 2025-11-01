@@ -1,251 +1,127 @@
-# TimeLocker Auto-Completion Guide
+---
+title: "User Guide: Auto-Completion"
+id: "user-guide-auto-completion"
+type: [ guide ]
+status: [ approved ]
+owner: "Documentation Team"
+last_reviewed: "01-11-2025"
+tags: [guide, user, cli]
+links:
+  tooling: []
+---
 
-TimeLocker provides intelligent auto-completion for shell environments, making it easier to work with repositories, snapshots, targets, and file paths.
+# User Guide: Auto-Completion
 
-## Features
+- **Owner**: Documentation Team
+- **Status**: Approved
+- **Created Date**: 19-12-2024
+- **Last Updated**: 01-11-2025
+- **Audience**: End Users
 
-### Smart Completion Types
+## 1. Purpose
 
-1. **Repository Names**: Auto-completes configured repository names from your TimeLocker configuration
-2. **Repository URIs**: Suggests common URI patterns (file://, s3:, sftp:, rest:) and completes file paths
-3. **Snapshot IDs**: Completes snapshot IDs from repositories (requires password in environment)
-4. **Target Names**: Auto-completes configured backup target names
-5. **File Paths**: Standard file and directory path completion
+Enable command-line auto-completion for TimeLocker so users can quickly access repositories, snapshots, targets, and file paths without memorising names.
 
-### Supported Commands
+## 2. Goal
 
-#### Backup Operations
+After completing this guide you will have shell completions installed for `timelocker`/`tl`, including repository URIs, snapshot IDs, and target names.
 
-- `timelocker backup create <paths>` - File path completion for source paths
-- `timelocker backup create --repository <uri>` - Repository URI completion
-- `timelocker backup create --target <name>` - Target name completion
+## 3. Prerequisites
 
-#### Snapshot Operations
+- TimeLocker CLI installed.
+- Access to your shell configuration (`~/.bashrc`, `~/.zshrc`, `~/.config/fish/`, etc.).
+- Repository credentials available if you want snapshot ID completion (`TIMELOCKER_PASSWORD` or `RESTIC_PASSWORD`).
 
-- `timelocker snapshot <id>` - Snapshot ID completion
-- `timelocker snapshot <id> restore <path>` - File path completion for restore target
-- `timelocker snapshots list --repository <name>` - Repository name/URI completion
+## 4. Step-by-Step Instructions
 
-#### Repository Operations
-
-- `timelocker repo <name> init` - Repository name completion
-- `timelocker repo <name> init --repository <uri>` - Repository URI completion
-
-#### Configuration Operations
-
-- `timelocker config repositories add <name> <uri>` - Repository URI completion
-- `timelocker config repositories remove <name>` - Repository name completion
-- `timelocker repos default <name>` - Repository name completion
-- `timelocker config targets add <name> <paths>` - File path completion
-
-## Installation
-
-### Generate Completion Scripts
-
-TimeLocker includes a built-in command to generate completion scripts for different shells:
+### 4.1 Generate Completion Scripts
 
 ```bash
-# Generate bash completion script
+# Bash
 timelocker completion bash
 
-# Generate zsh completion script  
+# Zsh
 timelocker completion zsh
 
-# Generate fish completion script
+# Fish
 timelocker completion fish
 ```
 
-### Install Completion Scripts
-
-Use the `--install` flag to automatically install completion scripts:
+### 4.2 Install Completion Scripts Automatically
 
 ```bash
-# Install bash completion
+# Bash
 timelocker completion bash --install
 
-# Install zsh completion
+# Zsh
 timelocker completion zsh --install
 
-# Install fish completion
+# Fish
 timelocker completion fish --install
 ```
 
-### Manual Installation
+### 4.3 Manual Installation Per Shell
 
 #### Bash
 
-1. Generate the completion script:
-   ```bash
-   timelocker completion bash > ~/.bash_completion.d/timelocker-completion.bash
-   ```
-
-2. Add to your `~/.bashrc`:
-   ```bash
-   source ~/.bash_completion.d/timelocker-completion.bash
-   ```
-
-3. Reload your shell:
-   ```bash
-   source ~/.bashrc
-   ```
+1. Generate the script: `timelocker completion bash > ~/.bash_completion.d/timelocker-completion.bash`
+2. Source it in `~/.bashrc`: `source ~/.bash_completion.d/timelocker-completion.bash`
+3. Reload: `source ~/.bashrc`
 
 #### Zsh
 
-1. Create completion directory (if it doesn't exist):
-   ```bash
-   mkdir -p ~/.zsh/completions
-   ```
-
-2. Generate the completion script:
-   ```bash
-   timelocker completion zsh > ~/.zsh/completions/_timelocker
-   ```
-
-3. Add to your `~/.zshrc`:
+1. Ensure directory exists: `mkdir -p ~/.zsh/completions`
+2. Generate script: `timelocker completion zsh > ~/.zsh/completions/_timelocker`
+3. Update `~/.zshrc`:
    ```bash
    fpath=(~/.zsh/completions $fpath)
    autoload -U compinit && compinit
    ```
-
-4. Reload your shell:
-   ```bash
-   source ~/.zshrc
-   ```
+4. Reload: `source ~/.zshrc`
 
 #### Fish
 
-1. Create completion directory (if it doesn't exist):
-   ```bash
-   mkdir -p ~/.config/fish/completions
-   ```
+1. `mkdir -p ~/.config/fish/completions`
+2. `timelocker completion fish > ~/.config/fish/completions/timelocker.fish`
+3. Fish automatically loads the script on next session.
 
-2. Generate the completion script:
-   ```bash
-   timelocker completion fish > ~/.config/fish/completions/timelocker.fish
-   ```
+### 4.4 Use Completion
 
-3. Fish will automatically load the completion script.
+- Repository names and URIs:
+  ```bash
+  timelocker backup create /home/user --repository <TAB>
+  timelocker config repositories add myrepo file://<TAB>
+  ```
+- Snapshot IDs and targets:
+  ```bash
+  timelocker snapshot <TAB>
+  timelocker backup create --target <TAB>
+  ```
+- Works with the alias `tl` (`tl backup create <TAB>`).
 
-## Usage Examples
-
-### Repository Completion
-
-```bash
-# Type and press TAB to see available repositories
-timelocker backup create /home/user --repository <TAB>
-# Shows: myrepo, backup-server, local-backup, file://, s3:, sftp:, rest:
-
-# Complete repository URIs
-timelocker config repositories add myrepo file://<TAB>
-# Shows: file:///home/, file:///backup/, file:///mnt/
-```
-
-### Snapshot Completion
+### 4.5 Set Environment Variables for Snapshot Completion
 
 ```bash
-# Complete snapshot IDs (requires TIMELOCKER_PASSWORD or RESTIC_PASSWORD)
-timelocker snapshot <TAB>
-# Shows: abc123def456, xyz789abc123, def456ghi789
-
-# Complete with partial ID
-timelocker snapshot abc<TAB>
-# Shows: abc123def456
-```
-
-### Target Completion
-
-```bash
-# Complete target names
-timelocker backup create --target <TAB>
-# Shows: documents, photos, system-backup, home-folder
-```
-
-### File Path Completion
-
-```bash
-# Complete source paths for backup
-timelocker backup create /home/<TAB>
-# Shows: /home/user/, /home/backup/, /home/shared/
-
-# Complete restore target paths
-timelocker snapshot abc123 restore /tmp/<TAB>
-# Shows: /tmp/restore/, /tmp/backup/, /tmp/
-```
-
-## Environment Variables
-
-For snapshot ID completion to work, you need to set one of these environment variables:
-
-```bash
-# TimeLocker-specific (recommended)
 export TIMELOCKER_PASSWORD="your-repository-password"
-
-# Or standard restic environment variable
+# or
 export RESTIC_PASSWORD="your-repository-password"
 ```
 
-## Aliases
+## 5. Troubleshooting
 
-Completion works with the `tl` alias as well:
+- **Completions do not load**: Ensure your shell sources the generated file and restart the terminal.
+- **Snapshot IDs missing**: Confirm `TIMELOCKER_PASSWORD` or `RESTIC_PASSWORD` is exported before running `timelocker snapshot <TAB>`.
+- **Fish completion not updating**: Delete the existing file in `~/.config/fish/completions/` and regenerate it.
 
-```bash
-# All these work the same
-timelocker backup create <TAB>
-tl backup create <TAB>
+## 6. Frequently Asked Questions (FAQ)
 
-timelocker snapshot <TAB>
-tl snapshot <TAB>
-```
+- **Do completions work with `tl` instead of `timelocker`?**
+  Yes, the alias is covered by the generated scripts.
 
-## Troubleshooting
+- **Can I regenerate scripts after upgrading TimeLocker?**
+  Re-run the commands in section 4.2 to update completions for the new version.
 
-### Completion Not Working
+# References
 
-1. **Check installation**: Verify the completion script is installed and sourced
-2. **Restart shell**: Close and reopen your terminal
-3. **Check permissions**: Ensure completion files are readable
-4. **Test manually**: Try `timelocker completion bash` to verify script generation
-
-### Snapshot Completion Not Working
-
-1. **Check password**: Ensure `TIMELOCKER_PASSWORD` or `RESTIC_PASSWORD` is set
-2. **Check repository**: Verify repository is accessible and contains snapshots
-3. **Check network**: For remote repositories, ensure network connectivity
-
-### Repository Completion Not Working
-
-1. **Check configuration**: Verify `~/.timelocker/config.json` exists and contains repositories
-2. **Check permissions**: Ensure configuration file is readable
-
-## Advanced Configuration
-
-### Custom Completion Functions
-
-The completion system is extensible. You can create custom completion functions by importing from `TimeLocker.completion`:
-
-```python
-from TimeLocker.completion import (
-    complete_repository_names,
-    complete_snapshot_ids,
-    complete_target_names,
-    complete_repository_uris,
-    complete_file_paths
-)
-
-# Use in your own scripts
-repos = complete_repository_names("my")  # Returns repositories starting with "my"
-snapshots = complete_snapshot_ids("abc")  # Returns snapshot IDs starting with "abc"
-```
-
-### Performance Optimization
-
-- Snapshot completion caches results for better performance
-- Repository and target completion reads from local configuration files
-- File path completion uses standard shell mechanisms
-
-## Security Considerations
-
-- Completion functions may access repository passwords from environment variables
-- Snapshot IDs are cached temporarily for performance
-- No sensitive data is written to completion scripts
-- Repository URIs in completion may be visible in shell history
+- `timelocker completion --help`
+- Repository management guide: `docs/guides/user/repository-management-guide.md`
