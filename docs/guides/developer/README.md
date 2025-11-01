@@ -45,10 +45,11 @@ aimed at developers working on the project.
 
 - **Naming Convention**: N/A for this file.
 
-## 5. Available Templates
+## 5. Available Templates & Guides
 
-- `_template.md`: A generic template for any developer guide.
-- [How to Obtain Microsoft 365 Client ID and Secret for a Personal Account](M365_app_registration_personal_account.md)
+- `_template.md`: Generic developer guide template.
+- `automation-examples.md`: Scheduling automation patterns (env vars, systemd, cron, containers).
+- `scheduling-guide.md`: Step-by-step jobs scheduling playbook.
 
 # References
 
