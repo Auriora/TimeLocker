@@ -11,6 +11,7 @@ RUN apt-get update \
         graphviz \
         plantuml \
         openjdk-17-jre-headless \
+        iputils-ping \
         curl \
         bzip2 \
     && curl -L "https://github.com/restic/restic/releases/download/v${RESTIC_VERSION}/restic_${RESTIC_VERSION}_linux_amd64.bz2" -o /usr/local/bin/restic.bz2 \
