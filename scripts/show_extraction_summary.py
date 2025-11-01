@@ -61,7 +61,7 @@ def main():
     # Project paths
     project_dir = Path(__file__).parent.parent
     extracted_config = project_dir / "extracted_configs" / "restic_config.json"
-    readme_file = project_dir / "extracted_configs" / "README.md"
+    readme_file = project_dir / "extracted_configs" / "README.testing.md"
 
     print(f"📁 Project Directory: {project_dir}")
     print(f"📄 Configuration File: {extracted_config}")

@@ -73,7 +73,7 @@ class TestCompleteWorkflowValidation:
 
         (code_dir / "main.py").write_text("print('Hello World')\n" * 50)
         (code_dir / "config.json").write_text('{"setting": "value"}\n' * 20)
-        (code_dir / "README.md").write_text("# My Project\n" * 30)
+        (code_dir / "README.testing.md").write_text("# My Project\n" * 30)
 
         # Create .git directory (should be excluded)
         git_dir = code_dir / ".git"
@@ -471,14 +471,14 @@ class TestCompleteWorkflowValidation:
 
                 # Manually log the error since we're mocking the backup manager
                 security_service.audit_backup_operation(
-                    repository=mock_repository,
-                    operation_type="full",
-                    success=False,
-                    metadata={
-                        "error_type": scenario["name"],
-                        "error_message": str(scenario["error"]),
-                        "tags": ["error_recovery_test"]
-                    }
+                        repository=mock_repository,
+                        operation_type="full",
+                        success=False,
+                        metadata={
+                                "error_type":    scenario["name"],
+                                "error_message": str(scenario["error"]),
+                                "tags":          ["error_recovery_test"]
+                        }
                 )
 
                 # Verify error was logged
