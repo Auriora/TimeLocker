@@ -9,11 +9,11 @@ commands:
   - id: install
     exec:
       component: dev
-      commandLine: "pip install -r requirements.txt"
+      commandLine: "pip install ."
   - id: build
     exec:
       component: dev
-      commandLine: "pip install ."
+      commandLine: "pip install -e .[dev]"
   - id: test
     exec:
       component: dev
