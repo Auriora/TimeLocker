@@ -9,6 +9,7 @@ from collections import defaultdict
 ROOT = Path(os.getcwd())  # This will be the project root
 DOCS_DIR = ROOT / 'docs'
 EXCLUDE_DIRS = {'.venv', 'venv', 'env', '.git', '.pytest_cache', '__pycache__', 'node_modules'}
+EXCLUDE_AMBIGUOUS_FILENAMES = {'README.md', '_template.md'}
 
 # Global debug flag
 DEBUG_MODE = False
@@ -239,8 +240,9 @@ def main():
     stem_to_paths_map = defaultdict(list)  # e.g., 'README': [path1, path2]
 
     for f in all_project_md_files:
-        filename_to_paths_map[f.name].append(f)
-        stem_to_paths_map[f.stem].append(f)
+        if f.name not in EXCLUDE_AMBIGUOUS_FILENAMES:
+            filename_to_paths_map[f.name].append(f)
+            stem_to_paths_map[f.stem].append(f)
 
     # Identify ambiguous files (those with same filename or stem in multiple locations)
     ambiguous_filenames = {name: paths for name, paths in filename_to_paths_map.items() if len(paths) > 1}
