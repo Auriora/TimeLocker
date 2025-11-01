@@ -1,72 +1,83 @@
-# Command Builder Usage Guide
+---
+title: "Implementation Guide: Command Builder"
+id: "impl-command-builder"
+type: [ implementation ]
+status: [ approved ]
+owner: "CLI Team"
+last_reviewed: "01-11-2025"
+tags: [implementation, cli]
+links:
+    tooling: []
+---
 
-The `CommandBuilder` class provides a flexible way to construct command line arguments for any executable based on a configuration-driven approach. This guide explains how to use the command builder effectively.
+# Implementation Guide: Command Builder
 
-## Basic Concepts
+- **Owner**: CLI Team
+- **Status**: Approved
+- **Created Date**: 19-12-2024
+- **Last Updated**: 01-11-2025
+- **Audience**: Developers extending CLI command construction utilities
 
-The command builder is based on three main concepts:
+## 1. Purpose
 
-1. `CommandParameter` - Defines a single parameter or flag that can be passed to a command
-2. `CommandDefinition` - Defines the structure of a command, including its parameters and sub-commands
-3. `CommandBuilder` - The builder itself that constructs command lines based on the definition
+Document the `CommandBuilder` utility that assembles CLI invocations from declarative command definitions. This guide explains the abstractions, usage patterns,
+and error handling expectations for contributors adding or modifying commands.
 
-## Parameter Styles
+## 2. Implementation Details
 
-Parameters can be formatted in three different styles:
+### 2.1 Core Concepts
 
-- `SEPARATE`: Parameters and values are separate arguments (e.g. `--param value`)
-- `JOINED`: Parameters and values are joined with = (e.g. `--param=value`)
-- `POSITIONAL`: Only the value is included (e.g. `value`)
+The builder relies on three primary classes:
 
-## Example Usage
+1. `CommandParameter` – Describes a single parameter/flag, including prefix, requirement, style, and positional index.
+2. `CommandDefinition` – Captures the structure of a command, its parameters, and nested subcommands.
+3. `CommandBuilder` – Consumes definitions to produce argument lists (`List[str]`).
 
-Here's an example of how to define and use a command builder for a git-like command:
+### 2.2 Parameter Styles
+
+- `SEPARATE`: Parameter and value split into distinct arguments (e.g., `--param value`).
+- `JOINED`: Parameter and value combined with `=` (e.g., `--param=value`).
+- `POSITIONAL`: Value only, used for ordered arguments.
+
+### 2.3 Usage Example
 
 ```python
 from utils.command_builder import CommandBuilder, CommandDefinition, CommandParameter, ParameterStyle
 
 # Define the command structure
-git_command = CommandDefinition(
-    name="git",
+install_cmd = CommandDefinition(
+    name="pkg",
     parameters=[
         CommandParameter("verbose", prefix="-", required=False, value_required=False),
         CommandParameter("config", required=False),
     ],
     subcommands={
-        "commit": CommandDefinition(
-            name="commit",
+        "install": CommandDefinition(
+            name="install",
             parameters=[
-                CommandParameter("message", prefix="-", required=True),
-                CommandParameter("amend", prefix="--", value_required=False),
+                CommandParameter("package", position=0, style=ParameterStyle.POSITIONAL, required=True),
+                CommandParameter("target", prefix="--", required=False),
             ]
         )
     }
 )
 
-# Create a builder
-builder = CommandBuilder(git_command)
-
-# Build a command
+builder = CommandBuilder(install_cmd)
 cmd = (builder
+       .command("install")
        .param("verbose")
-       .param("config", "user.name=John")
-       .command("commit")
-       .param("message", "Initial commit")
+       .param("package", "timelocker")
+       .param("target", "prod")
        .build())
-
-# Result: ['git', '-v', '--config', 'user.name=John', 'commit', '-m', 'Initial commit']
+# Result: ['pkg', 'install', '-v', 'timelocker', '--target', 'prod']
 ```
 
-## Restic Example
-
-Here's how you might define the command structure for Restic:
+### 2.4 Restic Example
 
 ```python
 restic_command = CommandDefinition(
     name="restic",
-    parameters=[
-        CommandParameter("repo", prefix="-", required=True),
-    ],
+    parameters=[CommandParameter("repo", prefix="-", required=True)],
     subcommands={
         "backup": CommandDefinition(
             name="backup",
@@ -74,7 +85,6 @@ restic_command = CommandDefinition(
                 CommandParameter("exclude", required=False),
                 CommandParameter("iexclude", required=False),
                 CommandParameter("tag", required=False),
-                # Add other backup parameters
             ]
         ),
         "restore": CommandDefinition(
@@ -82,67 +92,39 @@ restic_command = CommandDefinition(
             parameters=[
                 CommandParameter("target", required=True),
                 CommandParameter("snapshot-id", required=True),
-                # Add other restore parameters
             ]
-        )
-        # Add other subcommands
+        ),
     }
 )
 ```
 
-## Best Practices
+### 2.5 Best Practices
 
-1. **Define Required Parameters**: Mark parameters as required when they must be provided:
-```python
-CommandParameter("repo", required=True)
-```
+- **Required Parameters**: Mark mandatory inputs (`required=True`) to surface `ValueError` when omitted.
+- **Parameter Styles**: Choose the correct style for CLI conventions (`JOINED`, `SEPARATE`, `POSITIONAL`).
+- **Reset Between Builds**: Use `builder.clear()` when reusing instances across commands.
+- **Type Hints**: Encourage static analysis by annotating builder usage.
 
-2. **Use Parameter Styles**: Choose the appropriate style for each parameter:
-```python
-CommandParameter("output", style=ParameterStyle.JOINED)  # --output=json
-```
+### 2.6 Error Handling
 
-3. **Position Parameters**: Use position for ordered arguments:
-```python
-CommandParameter("source", position=0, style=ParameterStyle.POSITIONAL)
-```
+`CommandBuilder` raises `ValueError` when:
 
-4. **Reset Between Commands**: Call reset() when reusing a builder:
+- Required parameters are missing.
+- Parameters/subcommands are undefined.
+- Values are omitted for parameters requiring them.
 
-```python
-builder.clear().param("verbose").build()
-```
+## 3. Usage Notes
 
-## Error Handling
+- Integrate new `CommandDefinition` instances with CLI entry points (`typer` commands) to maintain separation between definition and execution.
+- When building commands dynamically, ensure options that imply specific flags are handled via helper methods rather than mutating definitions at runtime.
+- Maintain unit tests for `CommandBuilder` behaviours (see `tests/TimeLocker/cli/test_cli_helpers.py`).
 
-The command builder will raise `ValueError` in these cases:
-- When a required parameter is missing
-- When trying to use an undefined parameter
-- When trying to use an undefined subcommand
-- When a parameter requires a value but none is provided
+## 4. Change Log
 
-## Type Hints
+- 01-11-2025: Converted to implementation template; clarified examples and best practices.
+- 19-12-2024: Initial guide authored.
 
-The command builder supports type hints and chain-able methods:
+# References
 
-```python
-builder: CommandBuilder
-result: List[str] = builder.param("verbose").build()
-```
-
----
-
-> Copyright ©  Bruce Cherrington
->
-> This program is free software: you can redistribute it and/or modify
-> it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-> 
-> This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-GNU General Public License for more details.
-> 
-> You should have received a copy of the GNU General Public License
-along with this program. If not, see <https://www.gnu.org/licenses/>.
+- CLI hierarchy reference: `docs/reference/timelocker-cli-command-hierarchy.md`
+- Credential workflows: `docs/guides/user/repository-management-guide.md`

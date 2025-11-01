@@ -1,54 +1,59 @@
 ---
-title: "Implementation Documentation"
-id: "RM-005"
-type: [ readme ]
+title: "Implementation Documentation Index"
+id: "impl-index"
+type: [ implementation ]
 status: [ approved ]
 owner: "Auriora Team"
-last_reviewed: "27-10-2023"
-tags: [ readme, implementation ]
+last_reviewed: "01-11-2025"
+tags: [implementation, index]
 links:
-    tooling: [ ]
+    tooling: []
 ---
 
-# Implementation Documentation
+# Implementation Documentation Index
 
 - **Owner**: Auriora Team
 - **Status**: Approved
 - **Created Date**: 27-10-2023
-- **Last Updated**: 27-10-2023
+- **Last Updated**: 01-11-2025
+- **Audience**: Developers, QA, Release Engineering
 
-## 1. Purpose
+## 1. Context
 
-**When to use this template**: This folder is for deep technical walkthroughs, module breakdowns, API guides, or detailed behaviors tied directly to the
-codebase.
-**Location**: `docs/3-implementation/`
+`docs/3-implementation/` houses implementation guides, code walkthroughs, and development resources. This index replaces legacy references to non-existent
+documents and highlights the active materials available to contributors.
 
-## 2. What Belongs Here?
+## 2. Decision
 
-- Module-level design documents and code tours.
-- API/interface documentation and examples.
-- Internal conventions (e.g., logging, error handling specifics).
+### 2.1 Development Guides
 
-## 3. What Does NOT Belong Here?
+- `command-builder.md` – CLI command construction utility reference.
+- `_template.md` – Generic implementation document template.
+- `_template.code-structure.md` – Template for documenting code structure.
 
-- Architecture-level rationale (see `../2-architecture/`).
-- Test execution notes (see `../4-testing/`).
-- Operational playbooks (see `../guides/`).
+### 2.2 Supporting References
 
-## 4. Usage Notes
+- Root README: `../README.md`
+- Architecture documentation: `../2-architecture/`
+- Testing documentation: `../4-testing/`
+- Guides: `../guides/`
 
-- **Checklist for Authors**:
-    - [ ] Fill in all placeholder values (e.g., `[Name or Team]`).
-    - [ ] Delete this `Usage Notes` section before publishing.
-    - [ ] Ensure the document is linked from the relevant `README.md` file.
+## 3. Consequences
 
-- **Naming Convention**: `<type>-<description>.md` (e.g., `GUIDE-Local-Development.md`, `STANDARD-Coding-Style.md`).
+- ✅ Provides accurate navigation for implementation-focused contributors.
+- ✅ Removes stale links to missing files.
+- ⚠️ Requires updates when new implementation guides are added.
 
-## 5. Available Templates
+## 4. Alternatives Considered
 
-- `_template.md`: A generic template for implementation-related documents.
-- `_template.code-structure.md`: A template for documenting the overall code structure of a project or component.
+1. **Keep outdated README content**
+    - Pros: None.
+    - Cons: Links to missing documents; confuses readers. Rejected.
+
+2. **Rely solely on root README**
+    - Pros: Single entry point.
+    - Cons: Implementation-specific materials become harder to find. Dedicated index retained.
 
 # References
 
-- Link to additional resources, specs, or tickets
+- Templates: `_template.md`, `_template.code-structure.md`
