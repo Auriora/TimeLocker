@@ -407,7 +407,8 @@ def main():
                     resolved_display = b['resolved_absolute_path']
             # print(f"  {rel_file}:{b['line_number']} → '{b['target_url']}' (resolved: {resolved_display}, status: {b['issue_type']})", file=sys.stderr)
             # print(f"  file://./{rel_file}:{b['line_number']} → '{b['target_url']}' (resolved: {resolved_display}, status: {b['issue_type']})", file=sys.stderr)
-            print(f"  file://{b['file']}:{b['line_number']} → '{b['target_url']}' (resolved: {resolved_display}, status: {b['issue_type']})", file=sys.stderr)
+            print(f"  file://{b['file']}:{b['line_number']}:{b['end_col']} → '{b['target_url']}' (resolved: {resolved_display}, status: {b['issue_type']})",
+                  file=sys.stderr)
             # print(f"  {b['file']}:{b['line_number']} → '{b['target_url']}' (resolved: {resolved_display}, status: {b['issue_type']})",
             #       file=sys.stderr)
 
