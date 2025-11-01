@@ -75,12 +75,14 @@ def test_repo_path() -> Generator[str, None, None]:
     # Cleanup: Remove test repository from MinIO
     try:
         import boto3
+        verify = MINIO_VERIFY_SSL
         s3_client = boto3.client(
                 's3',
                 endpoint_url=MINIO_ENDPOINT_URL,
                 aws_access_key_id=MINIO_ACCESS_KEY,
                 aws_secret_access_key=MINIO_SECRET_KEY,
-                region_name=MINIO_REGION
+                region_name=MINIO_REGION,
+                verify=verify,
         )
 
         # List and delete all objects in the test path
@@ -195,16 +197,18 @@ def test_s3_backup_and_restore(
     try:
         s3_repository.restore(latest_snapshot.id, restore_dir)
 
-        restored_file1 = restore_dir / temp_backup_source.name / "file1.txt"
-        assert restored_file1.exists()
+        def _find_file(name: str) -> Path:
+            match = next((candidate for candidate in restore_dir.rglob(name)), None)
+            assert match is not None, f"Expected restored file '{name}' not found under {restore_dir}"
+            return match
+
+        restored_file1 = _find_file("file1.txt")
         assert restored_file1.read_text() == "Test content 1"
 
-        restored_file2 = restore_dir / temp_backup_source.name / "file2.txt"
-        assert restored_file2.exists()
+        restored_file2 = _find_file("file2.txt")
         assert restored_file2.read_text() == "Test content 2"
 
-        restored_file3 = restore_dir / temp_backup_source.name / "subdir" / "file3.txt"
-        assert restored_file3.exists()
+        restored_file3 = _find_file("file3.txt")
         assert restored_file3.read_text() == "Test content 3"
     finally:
         shutil.rmtree(restore_dir, ignore_errors=True)

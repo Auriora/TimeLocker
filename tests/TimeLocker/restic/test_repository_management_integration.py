@@ -31,11 +31,23 @@ class TestRepositoryManagementIntegration:
         self.repo_password = "secure_backup_password_123"
         self.master_password = "master_password_456"
 
+        self._env_snapshot = {}
+        for key in (
+                    "RESTIC_PASSWORD",
+                    "TIMELOCKER_PASSWORD",
+                    "TIMELOCKER_MASTER_PASSWORD",
+                    "TIMELOCKER_MASTER_PASSWORD_FILE",
+        ):
+            if key in os.environ:
+                self._env_snapshot[key] = os.environ.pop(key)
+
         # Create credential manager
         self.credential_manager = CredentialManager(config_dir=self.credential_path)
 
     def teardown_method(self):
         """Clean up test environment"""
+        for key, value in self._env_snapshot.items():
+            os.environ[key] = value
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 

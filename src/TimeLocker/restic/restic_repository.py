@@ -55,7 +55,7 @@ class ResticRepository(BackupRepository):
         self._explicit_password = password
         logger.debug(f"ResticRepository initialized with explicit password: {'***' if password else 'None'}")
         self._credential_manager = credential_manager
-        self._cached_env = None
+        self._cached_env: Optional[Dict[str, str]] = None
         self._repository_id = self._generate_repository_id()
         self.validate()
         self._command = self._command.param("repo", self.uri)
@@ -63,7 +63,6 @@ class ResticRepository(BackupRepository):
     def _verify_restic_executable(self, min_version: str) -> Optional[str]:
         try:
             logger.info("Verifying restic executable...")
-            # Build version command - json is a global parameter, so add it first
             version_command = CommandBuilder(restic_command_def)
             version_command.param("json")
             version_command.command("version")
@@ -75,13 +74,11 @@ class ResticRepository(BackupRepository):
                 raise ResticError(f"restic version {restic_version} is below the required minimum version {min_version}.")
 
             return restic_version
-        except (json.JSONDecodeError, FileNotFoundError, subprocess.CalledProcessError) as e:
-            # If JSON parsing fails, try without JSON flag for basic version check
-            logger.warning(f"JSON version check failed: {e}, trying basic version check")
+        except (json.JSONDecodeError, subprocess.CalledProcessError) as e:
+            logger.debug("JSON version check failed (%s), trying text output", e)
             try:
                 basic_command = CommandBuilder(restic_command_def).command("version")
                 subprocess_result = basic_command.run()
-                # Parse version from text output (format: "restic 0.18.0 compiled with go1.21.5 on linux/amd64")
                 lines = subprocess_result.strip().split('\n')
                 for line in lines:
                     if line.startswith('restic '):
@@ -89,10 +86,8 @@ class ResticRepository(BackupRepository):
                         if len(parts) >= 2:
                             restic_version = parts[1]
                             if version.parse(restic_version) < version.parse(min_version):
-                                logger.warning(
-                                        "restic version %s is below the required minimum %s; continuing without strict enforcement due to legacy binary.",
-                                        restic_version,
-                                        min_version,
+                                raise ResticError(
+                                        f"restic version {restic_version} is below the required minimum version {min_version}."
                                 )
                             return restic_version
                 raise ResticError("Could not parse restic version from output")
@@ -102,6 +97,10 @@ class ResticRepository(BackupRepository):
                 raise ResticError(f"restic executable failed to run for version check: {e2}") from e2
             except Exception as e2:
                 raise ResticError(f"Failed to verify restic executable: {e2}")
+        except FileNotFoundError:
+            raise ResticError("restic executable not found. Please ensure it is installed and in the PATH.")
+        except Exception as e2:
+            raise ResticError(f"Failed to verify restic executable: {e2}")
 
     def _generate_repository_id(self) -> str:
         """Generate a unique ID for this repository based on its location"""
@@ -168,20 +167,17 @@ class ResticRepository(BackupRepository):
         return False
 
     def to_env(self) -> Dict[str, str]:
-        if self._cached_env:
-            return self._cached_env
-
         # Start with current environment to preserve PATH and other system variables
         import os
         env = os.environ.copy()
 
         pwd = self.password()
-        if not pwd:
+        if pwd:
+            env["RESTIC_PASSWORD"] = pwd
+        elif "RESTIC_PASSWORD" not in env:
             raise RepositoryError("RESTIC_PASSWORD must be set explicitly or in the environment.")
-        env["RESTIC_PASSWORD"] = pwd
         env.update(self.backend_env())
         logger.debug("Constructed environment for restic")
-        self._cached_env = env
         return env
 
     def uri(self) -> str:

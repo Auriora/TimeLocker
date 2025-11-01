@@ -33,6 +33,8 @@ samples with the supported non-interactive credential flow while keeping restic 
   tweaks.
 - Patched `CommandBuilder` cloning and restic restore synopsis handling to prevent command-chain leakage (e.g., `init check`) and support positional snapshot
   IDs.
+- Restic-dependent tests now auto-skip when the system binary is missing or below the supported minimum and repository initialization fails fast in those
+  scenarios.
 
 ## 3. Implementation Notes
 
