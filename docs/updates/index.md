@@ -1,5 +1,6 @@
 # Update Index
 
+- [2025-11-01-docs-plans-standardization](2025-11-01-docs-plans-standardization.md)
 - [2025-11-01-docs-implementation-standardization](2025-11-01-docs-implementation-standardization.md)
 - [2025-11-01-docs-architecture-standardization](2025-11-01-docs-architecture-standardization.md)
 - [2025-11-01-docs-reference-standardization](2025-11-01-docs-reference-standardization.md)
