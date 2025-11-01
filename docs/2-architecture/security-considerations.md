@@ -55,5 +55,5 @@ These controls complement operational guidance detailed in `docs/3-implementatio
 
 # References
 
-- [Component Breakdown – Security Services](component-breakdown.md#security-services)
-- [Future Enhancements](future-enhancements.md)
+- [Component Breakdown – Security Services](./component-breakdown.md#security-services)
+- [Future Enhancements](./future-enhancements.md)

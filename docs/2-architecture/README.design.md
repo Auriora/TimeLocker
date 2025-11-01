@@ -27,20 +27,20 @@ complements the main `README.md` by providing quick navigation for design-centri
 
 ### 2.1 Core Architecture Set
 
-- [Design Overview](overview.md)
-- [Technical Architecture](technical-architecture.md)
-- [System Architecture](system-architecture.md)
-- [Component Breakdown](component-breakdown.md)
-- [Data Model](data-model.md)
-- [Data Flow](data-flow.md)
-- [Design Patterns](design-patterns.md)
-- [Security Considerations](security-considerations.md)
-- [Scalability & Performance](scalability-performance.md)
-- [Future Enhancements](future-enhancements.md)
+- [Design Overview](./overview.md)
+- [Technical Architecture](./technical-architecture.md)
+- [System Architecture](./system-architecture.md)
+- [Component Breakdown](./component-breakdown.md)
+- [Data Model](./data-model.md)
+- [Data Flow](./data-flow.md)
+- [Design Patterns](./design-patterns.md)
+- [Security Considerations](./security-considerations.md)
+- [Scalability & Performance](./scalability-performance.md)
+- [Future Enhancements](./future-enhancements.md)
 
 ### 2.2 API Assets
 
-- [API Reference](api-reference.md)
+- [API Reference](./api-reference.md)
 - `TimeLocker-API-Specification.yaml`
 - `TimeLocker-API-Components.yaml`
 

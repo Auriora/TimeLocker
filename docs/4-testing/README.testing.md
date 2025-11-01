@@ -4,15 +4,15 @@ This section contains test plans, test cases, test results, and testing methodol
 
 ## Core Testing Documents
 
-### [Testing Overview](testing-overview.md)
+### [Testing Overview](./testing-overview.md)
 
 Comprehensive overview of the testing approach, strategies, and methodologies for the TimeLocker project.
 
-### [Test Plan](test-plan.md)
+### [Test Plan](./test-plan.md)
 
 Detailed test plan outlining testing objectives, strategy, resources, and schedule for all phases of testing.
 
-### [Test Results](test-results.md)
+### [Test Results](./test-results.md)
 
 Documentation of test execution results, including pass/fail status, defects found, and resolution tracking.
 
@@ -168,17 +168,17 @@ Detailed test cases covering all functional areas:
 
 ### For Developers
 
-- [Testing Overview](testing-overview.md) for testing approach
+- [Testing Overview](./testing-overview.md) for testing approach
 - [Test Cases](test-cases/) for specific test scenarios
 - Unit testing guidelines in [Guidelines](../guidelines/simplified-testing-approach.md)
 
 ### For QA Engineers
 
-- [Test Plan](test-plan.md) for comprehensive testing strategy
+- [Test Plan](./test-plan.md) for comprehensive testing strategy
 - [Acceptance Tests](acceptance-tests/) for automated testing
-- [Test Results](test-results.md) for execution tracking
+- [Test Results](./test-results.md) for execution tracking
 
 ### For Project Managers
 
-- [Test Plan](test-plan.md) for resource and schedule planning
-- [Test Results](test-results.md) for quality metrics and progress tracking
+- [Test Plan](./test-plan.md) for resource and schedule planning
+- [Test Results](./test-results.md) for quality metrics and progress tracking

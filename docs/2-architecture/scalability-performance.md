@@ -55,5 +55,5 @@ workflows.
 
 # References
 
-- [Policy Management](component-breakdown.md#policy-management)
-- [Data Flow](data-flow.md)
+- [Policy Management](./component-breakdown.md#policy-management)
+- [Data Flow](./data-flow.md)

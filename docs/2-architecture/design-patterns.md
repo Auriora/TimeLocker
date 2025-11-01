@@ -91,5 +91,5 @@ primary patterns in use and ties them to the subsystems they support.
 
 # References
 
-- [Component Breakdown](component-breakdown.md)
-- [Scalability & Performance](scalability-performance.md)
+- [Component Breakdown](./component-breakdown.md)
+- [Scalability & Performance](./scalability-performance.md)

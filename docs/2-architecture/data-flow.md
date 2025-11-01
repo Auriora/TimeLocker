@@ -54,5 +54,5 @@ This flow applies to backup creation, snapshot restoration, repository maintenan
 
 # References
 
-- [System Architecture](system-architecture.md)
-- [Monitoring & Reporting requirements](component-breakdown.md#monitoring--reporting)
+- [System Architecture](./system-architecture.md)
+- [Monitoring & Reporting requirements](./component-breakdown.md#monitoring--reporting)

@@ -54,5 +54,5 @@ Each item will spawn dedicated ADRs or architecture updates before development b
 
 # References
 
-- [Scalability & Performance](scalability-performance.md)
-- [Security Considerations](security-considerations.md)
+- [Scalability & Performance](./scalability-performance.md)
+- [Security Considerations](./security-considerations.md)

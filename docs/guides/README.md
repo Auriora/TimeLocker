@@ -23,6 +23,6 @@ This directory contains guides for different aspects of the project.
 
 ## 2. Available Guides
 
-- [AI Agent Guide](ai-agent/)
-- [Developer Guide](developer/)
-- [User Guide](user/)
+- [AI Agent Guide](./ai-agent/README.md)
+- [Developer Guide](./developer/README.md)
+- [User Guide](./user/README.md)

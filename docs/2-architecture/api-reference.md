@@ -27,8 +27,8 @@ structure and points to the authoritative OpenAPI specifications.
 
 ### 2.1 Specification Assets
 
-- [`TimeLocker-API-Specification.yaml`](TimeLocker-API-Specification.yaml) – Complete OpenAPI 3.0 specification.
-- [`TimeLocker-API-Components.yaml`](TimeLocker-API-Components.yaml) – Shared schemas and components.
+- [`TimeLocker-API-Specification.yaml`](./TimeLocker-API-Specification.yaml) – Complete OpenAPI 3.0 specification.
+- [`TimeLocker-API-Components.yaml`](./TimeLocker-API-Components.yaml) – Shared schemas and components.
 
 ### 2.2 API Overview
 
@@ -132,6 +132,6 @@ Representative payloads:
 
 # References
 
-- [Technical Architecture](technical-architecture.md)
-- [Security Considerations](security-considerations.md)
+- [Technical Architecture](./technical-architecture.md)
+- [Security Considerations](./security-considerations.md)
 - OpenAPI tooling: <https://swagger.io>

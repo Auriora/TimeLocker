@@ -104,6 +104,6 @@ TimeLocker adopts a four-layer architecture shown below.
 
 # References
 
-- [Component Breakdown](component-breakdown.md)
-- [Data Flow](data-flow.md)
-- [Scalability & Performance](scalability-performance.md)
+- [Component Breakdown](./component-breakdown.md)
+- [Data Flow](./data-flow.md)
+- [Scalability & Performance](./scalability-performance.md)

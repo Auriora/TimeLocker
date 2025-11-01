@@ -28,7 +28,7 @@ contributors and operators can navigate the knowledge base quickly.
 - **Processes** – [./processes/README.md](./processes/README.md) and [version-management.md](./processes/version-management.md) for release governance.
 - **Reference** – [./reference/README.md](./reference/README.md) and supporting specs such
   as [timelocker-cli-command-hierarchy.md](./reference/timelocker-cli-command-hierarchy.md) and [repository-uri-guide.md](./reference/repository-uri-guide.md).
-- **Reports & Updates** – Generated analyses and change logs under [./reports/](./reports) and [./updates/](./updates).
+- **Reports & Updates** – Generated analyses and change logs under [./reports/](./reports/READM[./updates/](./updates/index.md)./updates).
 
 ## 🚀 Quick Start
 
@@ -44,7 +44,7 @@ contributors and operators can navigate the knowledge base quickly.
 
 1. Review current initiatives in [Tasks-to-Issues Map](./0-project-management/tasks-to-issues-map.md) and the latest [updates entry](./updates/index.md).
 2. Consult [cli_helpers_extraction.md](./plans/cli_helpers_extraction.md) and other plans for active refactors or feature work.
-3. Follow house style from [guides/ai-agent/](./guides/ai-agent/) when authoring new documentation or automation.
+3. Follow house style from [guides/ai-agent/](./guides/ai-agent/README.md) when authoring new documentation or automation.
 4. Capture changes in `docs/updates/` using the [update template](./updates/_template.md).
 
 ## 📊 Project Status Summary
@@ -52,7 +52,7 @@ contributors and operators can navigate the knowledge base quickly.
 - **Implementation Notes**: See [updates index](./updates/index.md) for the most recent change logs, including credential workflow, MinIO host refresh, and CLI
   improvements.
 - **Open Work Queue**: [Tasks-to-Issues Map](./0-project-management/tasks-to-issues-map.md) is the authoritative crosswalk between docs and GitHub issues.
-- **Active Plans**: The [plans directory](./plans/) tracks approved execution plans; update or add entries before large initiatives.
+- **Active Plans**: The [plans directory](./plans/README.md) tracks approved execution plans; update or add entries before large initiatives.
 
 ## 🎯 Next Implementation Focus
 
@@ -99,14 +99,14 @@ traceability intact.
 
 ## 🔮 Roadmap
 
-- Planned refactors and feature work are curated in [plans/](./plans/) and synchronized with the GitHub issue backlog
+- Planned refactors and feature work are curated in [plans/](./plans/README.md) and synchronized with the GitHub issue backlog
   via [tasks-to-issues-map.md](./0-project-management/tasks-to-issues-map.md).
 - Historical context and completed milestones live in archived updates and reports; review the updates index before starting new initiatives.
 
 ## 📞 Support
 
 - **Documentation Gaps**: File new entries in [updates](./updates/index.md) and cross-link to `docs/updates/_template.md`.
-- **Agent & Automation Guidance**: Follow the protocols in [guides/ai-agent/](./guides/ai-agent/).
+- **Agent & Automation Guidance**: Follow the protocols in [guides/ai-agent/](./guides/ai-agent/README.md).
 - **Technical Questions**: Use the appropriate guide (user vs developer) and reference materials under `./reference/`.
 
 ---

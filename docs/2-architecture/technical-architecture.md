@@ -39,8 +39,8 @@ The system architecture is organized into the following artifacts:
 
 Related references:
 
-- [Overview](overview.md) – navigation aid for design documentation.
-- [API Reference](api-reference.md) – REST interface specification backed by OpenAPI files.
+- [Overview](./overview.md) – navigation aid for design documentation.
+- [API Reference](./api-reference.md) – REST interface specification backed by OpenAPI files.
 - SRS & Traceability: see `docs/1-requirements/` and `docs/traceability/`.
 
 ## 3. Consequences
