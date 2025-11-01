@@ -280,5 +280,4 @@ For issues specific to S3-compatible services:
 3. Test connection with service's native CLI tools
 4. Review TimeLocker logs for detailed error messages
 
-For MinIO-specific setup, see [MINIO_SETUP_SUMMARY.md](MINIO_SETUP_SUMMARY.md).
-
+For MinIO-specific setup, see [summary-minio-setup.md](../../4-testing/summary-minio-setup.md).

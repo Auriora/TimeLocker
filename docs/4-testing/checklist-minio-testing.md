@@ -293,9 +293,9 @@ echo "✅ All checks passed! Ready to test."
 
 Once all checks pass:
 
-1. Read `MINIO_SETUP_SUMMARY.md` for overview
-2. Review `docs/MINIO_TESTING.md` for detailed guide
-3. Check `TESTING_QUICKSTART.md` for common commands
+1. Read `summary-minio-setup.md` for overview
+2. Review `guide-minio-testing.md` for detailed guide
+3. Check `quickstart-testing.md` for common commands
 4. Run full test suite: `pytest tests/TimeLocker/integration/test_s3_minio.py -v`
 
 ## 🆘 Getting Help
@@ -303,8 +303,7 @@ Once all checks pass:
 If you're stuck:
 
 1. Review this checklist
-2. Check `MINIO_SETUP_SUMMARY.md`
-3. Read troubleshooting in `docs/MINIO_TESTING.md`
+2. Check `summary-minio-setup.md`
+3. Read troubleshooting in `guide-minio-testing.md`
 4. Verify MinIO server is running (contact admin if needed)
 5. Check network connectivity to MinIO server
-

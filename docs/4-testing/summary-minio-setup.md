@@ -33,8 +33,8 @@ All configuration files have been updated to use `minio.lan`:
 - ✅ `.env.test.example` - Uses `minio.lan` (no port, proxied via Traefik)
 - ✅ `tests/TimeLocker/integration/test_s3_minio.py` - Defaults to `minio.lan` (no port, proxied via Traefik)
 - ✅ `scripts/setup_minio_test.sh` - Verifies access to `minio.lan`
-- ✅ `docs/MINIO_TESTING.md` - Updated for existing deployment
-- ✅ `TESTING_QUICKSTART.md` - Updated for existing deployment
+- ✅ `guide-minio-testing.md` - Updated for existing deployment
+- ✅ `quickstart-testing.md` - Updated for existing deployment
 
 ### New Files
 
@@ -245,8 +245,8 @@ pytest -m "integration and network" -v
 
 ## Documentation
 
-- **Quick Start**: `TESTING_QUICKSTART.md`
-- **Full Guide**: `docs/MINIO_TESTING.md`
+- **Quick Start**: `quickstart-testing.md`
+- **Full Guide**: `guide-minio-testing.md`
 - **Test Suite**: `tests/README.md`
 - **Local MinIO**: `docker-compose.local.yml.README.md`
 
@@ -255,14 +255,13 @@ pytest -m "integration and network" -v
 1. ✅ Run setup script: `./scripts/setup_minio_test.sh`
 2. ✅ Verify access to MinIO console: http://minio-console.local
 3. ✅ Run integration tests: `pytest tests/TimeLocker/integration/test_s3_minio.py -v`
-4. ✅ Read full documentation: `docs/MINIO_TESTING.md`
+4. ✅ Read full documentation: `guide-minio-testing.md`
 
 ## Support
 
 If you encounter issues:
 
 1. Check troubleshooting section above
-2. Review `docs/MINIO_TESTING.md`
+2. Review `guide-minio-testing.md`
 3. Verify `/etc/hosts` configuration
 4. Contact your system administrator for MinIO access issues
-

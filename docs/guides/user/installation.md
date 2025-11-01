@@ -266,7 +266,7 @@ For more information, refer to the [Quick Start Guide](../README.md#quick-start)
 ## Related Resources
 
 - [README](../README.md) - Project overview and quick start guide
-- [Command Builder Documentation](command_builder.md) - Details on using the command builder
+- [Command Builder Documentation](../../3-implementation/command-builder.md) - Details on using the command builder
 - [Support Guide](../SUPPORT.md) - How to get help with TimeLocker
 - [Contributing Guide](../CONTRIBUTING.md) - How to contribute to TimeLocker
 

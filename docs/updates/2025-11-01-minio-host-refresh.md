@@ -51,4 +51,4 @@ samples with the supported non-interactive credential flow while keeping restic 
 
 # References
 
-- Existing MinIO maintenance notes within `docs/MINIO_CHECKLIST.md`
+- Existing MinIO maintenance notes within `../4-testing/checklist-minio-testing.md`

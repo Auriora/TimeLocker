@@ -253,9 +253,9 @@ mc mb myminio/timelocker-test
 
 ## 📚 Documentation
 
-- **Full MinIO Guide**: [docs/MINIO_TESTING.md](docs/MINIO_TESTING.md)
+- **Full MinIO Guide**: [guide-minio-testing.md](guide-minio-testing.md)
 - **Test Suite Overview**: [tests/README.md](tests/README.md)
-- **Repository Guide**: [docs/repository_management_guide.md](docs/repository_management_guide.md)
+- **Repository Guide**: [../guides/user/repository-management-guide.md](../guides/user/repository-management-guide.md)
 
 ## 🎯 Common Test Scenarios
 
@@ -339,12 +339,11 @@ MinIO is started as a service in GitHub Actions.
 
 ## 🎓 Next Steps
 
-1. Read [docs/MINIO_TESTING.md](docs/MINIO_TESTING.md) for detailed setup
+1. Read [guide-minio-testing.md](guide-minio-testing.md) for detailed setup
 2. Explore [tests/README.md](tests/README.md) for test organization
-3. Check [docs/repository_management_guide.md](docs/repository_management_guide.md) for CLI usage
+3. Check [../guides/user/repository-management-guide.md](../guides/user/repository-management-guide.md) for CLI usage
 4. Review test examples in `tests/TimeLocker/integration/`
 
 ---
 
 **Need Help?** Check the troubleshooting section or open an issue on GitHub.
-
