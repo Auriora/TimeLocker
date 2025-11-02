@@ -30,10 +30,10 @@ The CLI Interface feature provides a comprehensive command-line interface for Ti
 #### Acceptance Criteria
 
 1. THE TimeLocker System SHALL provide CLI commands for all repository management operations including create, configure, validate, and delete
-2. WHEN executing backup operations, THE TimeLocker System SHALL support CLI commands for job creation, scheduling, execution, and monitoring
+2. WHEN executing backup operations, THE TimeLocker System SHALL support CLI commands for backup policy creation, execution, and monitoring
 3. THE TimeLocker System SHALL provide CLI commands for recovery operations including snapshot browsing, file selection, and restoration
-4. THE TimeLocker System SHALL support CLI commands for policy management including creation, assignment, and enforcement
-5. WHERE GUI functionality exists, THE TimeLocker System SHALL provide equivalent CLI commands with the same capabilities
+4. THE TimeLocker System SHALL support CLI commands for retention policy management including creation, assignment, and enforcement
+5. WHERE GUI functionality exists, THE TimeLocker System SHALL provide equivalent CLI commands with the same capabilities and response times within 10% variance
 
 ### Requirement 2
 

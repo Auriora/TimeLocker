@@ -6,7 +6,7 @@ The Scheduling/Automation feature provides comprehensive automated backup schedu
 
 ## Glossary
 
-- **Scheduled Backup**: A backup operation configured to run automatically at specified times or intervals
+- **Scheduled Backup Policy**: A backup policy configured to run automatically at specified times or intervals
 - **systemd Timer**: Linux system service that triggers backup operations based on calendar or monotonic schedules
 - **Cron Job**: Unix-based time-driven job scheduler for executing backup operations
 - **Wrapper Script**: Generated shell script that handles environment setup, execution, and error handling for automated backups
@@ -21,27 +21,27 @@ The Scheduling/Automation feature provides comprehensive automated backup schedu
 
 ### Requirement 1
 
-**User Story:** As a system administrator, I want to schedule backups using systemd timers, so that I can leverage native Linux scheduling with proper service management and logging.
+**User Story:** As a system administrator, I want to schedule backup policies using systemd timers, so that I can leverage native Linux scheduling with proper service management and logging.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL generate systemd service units for backup operations with proper user, working directory, and environment configuration
-2. WHEN creating systemd timers, THE TimeLocker System SHALL support calendar-based scheduling with randomized delays and persistence options
-3. THE TimeLocker System SHALL provide systemd timer management commands for enabling, disabling, and monitoring scheduled backups
-4. THE TimeLocker System SHALL integrate with systemd logging through journald for centralized log management
-5. WHERE systemd timers fail, THE TimeLocker System SHALL provide detailed error reporting through systemd status and journal logs
+1. THE TimeLocker System SHALL generate systemd service units for backup policy execution with proper user, working directory, and environment configuration
+2. WHEN creating systemd timers, THE TimeLocker System SHALL support calendar-based scheduling with randomized delays up to 30 minutes and persistence options
+3. THE TimeLocker System SHALL provide systemd timer management commands for enabling, disabling, and monitoring scheduled backup policies
+4. THE TimeLocker System SHALL integrate with systemd logging through journald for centralized log management with structured metadata
+5. WHERE systemd timers fail, THE TimeLocker System SHALL provide detailed error reporting through systemd status and journal logs within 2 minutes of failure
 
 ### Requirement 2
 
-**User Story:** As a system administrator, I want to schedule backups using cron jobs, so that I can use traditional Unix scheduling with custom wrapper scripts and logging.
+**User Story:** As a system administrator, I want to schedule backup policies using cron jobs, so that I can use traditional Unix scheduling with custom wrapper scripts and logging.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL generate cron-compatible wrapper scripts with environment variable loading and error handling
-2. WHEN configuring cron schedules, THE TimeLocker System SHALL support standard cron syntax with validation and examples
-3. THE TimeLocker System SHALL provide cron job installation and management utilities
-4. THE TimeLocker System SHALL implement custom logging for cron-based backups with rotation and retention policies
-5. WHERE cron jobs encounter errors, THE TimeLocker System SHALL capture and log detailed error information with exit codes
+1. THE TimeLocker System SHALL generate cron-compatible wrapper scripts with environment variable loading and comprehensive error handling including timeout management
+2. WHEN configuring cron schedules, THE TimeLocker System SHALL support standard cron syntax with validation and provide common schedule examples (daily, weekly, monthly)
+3. THE TimeLocker System SHALL provide cron job installation and management utilities with automatic crontab backup and restoration
+4. THE TimeLocker System SHALL implement custom logging for cron-based backup policies with rotation every 7 days and retention for at least 30 days
+5. WHERE cron jobs encounter errors, THE TimeLocker System SHALL capture and log detailed error information with specific exit codes (0=success, 1=failure, 2=partial success) within 1 minute of completion
 
 ### Requirement 3
 

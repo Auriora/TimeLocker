@@ -27,11 +27,11 @@ The Monitoring & Reporting feature provides comprehensive operational visibility
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL log all backup job starts, progress updates, and completion events with timestamps and details
-2. WHEN operations encounter errors, THE TimeLocker System SHALL log detailed error information including context and suggested remediation
-3. THE TimeLocker System SHALL support configurable log levels (debug, info, warning, error, critical) for different operational needs
-4. THE TimeLocker System SHALL provide structured logging with consistent formats for automated processing
-5. WHERE log retention is configured, THE TimeLocker System SHALL automatically rotate and archive logs according to policy settings
+1. THE TimeLocker System SHALL log all backup policy starts, progress updates every 30 seconds, and completion events with ISO 8601 timestamps and execution details
+2. WHEN operations encounter errors, THE TimeLocker System SHALL log detailed error information including error codes, context, affected files, and specific remediation suggestions
+3. THE TimeLocker System SHALL support configurable log levels (debug, info, warning, error, critical) with runtime level changes without service restart
+4. THE TimeLocker System SHALL provide structured logging in JSON format with consistent schema including correlation IDs for automated processing
+5. WHERE log retention is configured, THE TimeLocker System SHALL automatically rotate logs daily and archive according to policy settings with compression ratios of at least 70%
 
 ### Requirement 2
 
@@ -75,11 +75,11 @@ The Monitoring & Reporting feature provides comprehensive operational visibility
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL continuously monitor backup integrity through periodic repository checks
-2. WHEN integrity issues are detected, THE TimeLocker System SHALL immediately alert administrators and provide detailed diagnostics
-3. THE TimeLocker System SHALL track integrity check results over time to identify degradation patterns
-4. THE TimeLocker System SHALL support on-demand integrity verification for specific repositories or snapshots
-5. WHERE integrity breaches occur, THE TimeLocker System SHALL provide remediation guidance and recovery options
+1. THE TimeLocker System SHALL continuously monitor backup integrity through periodic repository checks at least every 24 hours with configurable intervals from 1 hour to 7 days
+2. WHEN integrity issues are detected, THE TimeLocker System SHALL alert administrators within 5 minutes and provide detailed diagnostics including affected snapshots, corruption type, and estimated impact
+3. THE TimeLocker System SHALL track integrity check results over time with at least 90 days of history to identify degradation patterns and trends
+4. THE TimeLocker System SHALL support on-demand integrity verification for specific repositories or snapshots completing within 10 minutes for repositories under 1TB
+5. WHERE integrity breaches occur, THE TimeLocker System SHALL provide specific remediation guidance including recovery options, affected data identification, and step-by-step repair procedures
 
 ### Requirement 6
 

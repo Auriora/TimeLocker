@@ -116,3 +116,15 @@ The Repository Management feature enables users to create, configure, validate, 
 3. THE TimeLocker System SHALL implement credential resolution order: stored credentials, environment variables, then interactive prompts
 4. THE TimeLocker System SHALL support credential rotation for repository access without requiring re-initialization
 5. WHERE repository credentials are accessed, THE TimeLocker System SHALL use secure credential management provided by the Security Services component
+
+### Requirement 9
+
+**User Story:** As a backup administrator, I want repository operations to perform efficiently at scale, so that I can manage large numbers of repositories without performance degradation.
+
+#### Acceptance Criteria
+
+1. THE TimeLocker System SHALL support at least 1000 configured repositories per instance with linear performance scaling
+2. THE TimeLocker System SHALL complete repository validation within 30 seconds for network repositories and 5 seconds for local repositories
+3. THE TimeLocker System SHALL support concurrent repository operations with at least 10 parallel validations and configurable limits up to 50
+4. THE TimeLocker System SHALL cache repository metadata for at least 5 minutes to improve listing performance and reduce backend load
+5. WHERE repository operations exceed performance thresholds (>60 seconds for validation, >10 seconds for listing), THE TimeLocker System SHALL provide performance warnings and optimization suggestions including connection pooling and caching adjustments

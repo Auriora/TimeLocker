@@ -113,8 +113,20 @@ The Security Services feature provides comprehensive security controls for the T
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL monitor and alert on suspicious access patterns and failed authentication attempts
-2. WHEN security thresholds are exceeded, THE TimeLocker System SHALL generate real-time security alerts
-3. THE TimeLocker System SHALL provide security dashboards showing authentication trends and access patterns
-4. THE TimeLocker System SHALL support integration with security information and event management (SIEM) systems
-5. WHERE security incidents are detected, THE TimeLocker System SHALL provide incident response workflows and evidence collection capabilities
+1. THE TimeLocker System SHALL monitor and alert on suspicious access patterns and failed authentication attempts with detection within 30 seconds
+2. WHEN security thresholds are exceeded (>5 failed attempts in 5 minutes), THE TimeLocker System SHALL generate real-time security alerts within 10 seconds
+3. THE TimeLocker System SHALL provide security dashboards showing authentication trends and access patterns with data updated every 60 seconds
+4. THE TimeLocker System SHALL support integration with security information and event management (SIEM) systems using standard protocols (syslog, SNMP, REST)
+5. WHERE security incidents are detected, THE TimeLocker System SHALL provide incident response workflows and evidence collection capabilities with forensic data retention for at least 90 days
+
+### Requirement 9
+
+**User Story:** As a security administrator, I want security services to maintain high availability and reliability, so that backup operations remain protected even during system stress or partial failures.
+
+#### Acceptance Criteria
+
+1. THE TimeLocker System SHALL maintain security service availability of at least 99.9% uptime with graceful degradation during maintenance
+2. THE TimeLocker System SHALL complete authentication operations within 2 seconds under normal load and 5 seconds under high load
+3. THE TimeLocker System SHALL support credential store redundancy with automatic failover within 30 seconds of primary store failure
+4. THE TimeLocker System SHALL maintain audit log integrity with checksums and detect tampering within 5 minutes of occurrence
+5. WHERE security services experience partial failure, THE TimeLocker System SHALL continue backup operations with cached credentials for up to 4 hours while alerting administrators

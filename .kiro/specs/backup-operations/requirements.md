@@ -6,7 +6,7 @@ The Backup Operations feature provides the core functionality for executing full
 
 ## Glossary
 
-- **Backup Job**: A configured backup operation that defines what data to backup, where to store it, and when to run
+- **Backup Policy**: A configured backup operation that defines what data to backup, where to store it, and execution parameters
 - **Full Backup**: A complete backup of all selected files and directories
 - **Incremental Backup**: A backup that only includes files changed since the last backup
 - **File Selection**: The set of rules defining which files and directories to include or exclude from backup
@@ -21,27 +21,27 @@ The Backup Operations feature provides the core functionality for executing full
 
 ### Requirement 1
 
-**User Story:** As a backup administrator, I want to create and configure backup jobs, so that I can define what data should be backed up and how often.
+**User Story:** As a backup administrator, I want to create and configure backup policies, so that I can define what data should be backed up and execution parameters.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL allow creation of backup jobs with user-defined names and descriptions
-2. WHEN configuring a backup job, THE TimeLocker System SHALL require selection of a target repository
+1. THE TimeLocker System SHALL allow creation of backup policies with user-defined names and descriptions
+2. WHEN configuring a backup policy, THE TimeLocker System SHALL require selection of a target repository
 3. THE TimeLocker System SHALL support configuration of file selection rules including include and exclude patterns
-4. THE TimeLocker System SHALL allow assignment of tags to backup jobs for organization and policy application
-5. WHERE backup job configuration is invalid, THE TimeLocker System SHALL provide specific validation errors before saving
+4. THE TimeLocker System SHALL allow assignment of tags to backup policies for organization and retention policy application
+5. WHERE backup policy configuration is invalid, THE TimeLocker System SHALL provide specific validation errors before saving
 
 ### Requirement 2
 
-**User Story:** As a backup administrator, I want to execute backup jobs on-demand and with retry logic, so that I can perform immediate backups and handle transient failures gracefully.
+**User Story:** As a backup administrator, I want to execute backup policies on-demand and with retry logic, so that I can perform immediate backups and handle transient failures gracefully.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL support immediate execution of backup jobs without scheduling requirements
-2. WHEN backup execution is requested, THE TimeLocker System SHALL validate job configuration before starting
+1. THE TimeLocker System SHALL support immediate execution of backup policies without scheduling requirements
+2. WHEN backup execution is requested, THE TimeLocker System SHALL validate policy configuration before starting
 3. THE TimeLocker System SHALL support one-time backup execution with manual triggering
-4. IF a backup fails, THEN THE TimeLocker System SHALL implement retry logic with configurable intervals and limits
-5. WHERE backup jobs are executed, THE TimeLocker System SHALL provide execution status and progress feedback
+4. IF a backup fails, THEN THE TimeLocker System SHALL implement retry logic with configurable intervals and limits of at least 3 attempts with exponential backoff
+5. WHERE backup policies are executed, THE TimeLocker System SHALL provide execution status and progress feedback updated at least every 5 seconds
 
 ### Requirement 3
 
@@ -114,3 +114,15 @@ The Backup Operations feature provides the core functionality for executing full
 3. THE TimeLocker System SHALL evaluate exclude patterns after include patterns to provide precise control
 4. THE TimeLocker System SHALL support case-sensitive and case-insensitive pattern matching based on configuration
 5. WHERE file selection rules conflict, THE TimeLocker System SHALL apply the most restrictive rule and log the decision
+
+### Requirement 9
+
+**User Story:** As a backup administrator, I want backup operations to meet performance targets, so that backup policies complete within acceptable timeframes and resource constraints.
+
+#### Acceptance Criteria
+
+1. THE TimeLocker System SHALL achieve backup throughput of at least 100 MB/s on local storage and 50 MB/s on network storage under normal conditions
+2. THE TimeLocker System SHALL support at least 50 concurrent file operations during backup execution with configurable limits up to 200
+3. THE TimeLocker System SHALL complete incremental backups within 110% of the time of the previous backup for similar data sets
+4. THE TimeLocker System SHALL provide backup performance metrics including throughput (MB/s), IOPS, CPU utilization, and memory usage
+5. WHERE backup performance degrades below 50% of target throughput, THE TimeLocker System SHALL alert administrators and suggest optimizations including parallelization adjustments and resource allocation
