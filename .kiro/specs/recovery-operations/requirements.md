@@ -14,7 +14,9 @@ The Recovery Operations feature enables users to restore data from backup snapsh
 - **Snapshot Browsing**: The ability to explore snapshot contents before restoration
 - **Recovery Verification**: Validation that restored files match the original backup data
 - **TimeLocker System**: The backup orchestration platform built on Restic
-- **Disaster Recovery**: Large-scale restoration operations for system recovery scenarios
+- **Repository**: A storage location where backup data and snapshots are maintained, managed by the Repository Management system
+- **Selection Template**: A reusable data selection configuration from the Data Selection system that can be applied during recovery operations
+- **Backup Tool**: The underlying backup engine (e.g., Restic, Borg, Duplicity) used to create and restore snapshots
 
 ## Requirements
 
@@ -80,17 +82,41 @@ The Recovery Operations feature enables users to restore data from backup snapsh
 
 ### Requirement 6
 
-**User Story:** As a disaster recovery coordinator, I want to perform large-scale recovery operations, so that I can restore entire systems efficiently during disaster scenarios.
+**User Story:** As a backup administrator, I want recovery operations to integrate with repository management and policy compliance, so that restoration respects system constraints and governance rules.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL support disaster recovery workflows for complete system restoration
-2. WHEN performing disaster recovery, THE TimeLocker System SHALL allow restoration from multiple snapshots in coordinated operations
-3. THE TimeLocker System SHALL provide recovery prioritization to restore critical systems first
-4. THE TimeLocker System SHALL handle recovery operations across multiple repositories and storage backends
-5. WHERE disaster recovery involves multiple systems, THE TimeLocker System SHALL coordinate parallel recovery operations while managing resource constraints
+1. THE TimeLocker System SHALL validate repository accessibility and permissions before initiating recovery operations
+2. WHEN performing recovery operations, THE TimeLocker System SHALL respect retention policy compliance rules and prevent restoration of snapshots marked for compliance preservation
+3. THE TimeLocker System SHALL integrate with repository management to ensure recovery operations do not conflict with ongoing backup or maintenance activities
+4. THE TimeLocker System SHALL support recovery operations across different backup tools while maintaining tool-specific compatibility requirements
+5. WHERE recovery operations access multiple repositories, THE TimeLocker System SHALL coordinate access and ensure consistent authentication and authorization
 
 ### Requirement 7
+
+**User Story:** As a backup administrator, I want to reuse data selection templates during recovery operations, so that I can apply consistent selection criteria for both backup and restore operations.
+
+#### Acceptance Criteria
+
+1. THE TimeLocker System SHALL integrate with the Data Selection system to retrieve and apply selection templates during recovery operations
+2. WHEN performing selective restoration, THE TimeLocker System SHALL allow selection of files using existing selection templates and pattern groups
+3. THE TimeLocker System SHALL support modification of selection templates specifically for recovery operations without affecting the original template
+4. THE TimeLocker System SHALL validate that selection templates are compatible with the snapshot contents and backup tool capabilities
+5. WHERE selection templates reference patterns not present in snapshots, THE TimeLocker System SHALL provide warnings and continue with available matches
+
+### Requirement 8
+
+**User Story:** As a backup administrator, I want recovery operations to work with snapshots from different backup tools, so that I can restore data using the same backup engine that created each snapshot.
+
+#### Acceptance Criteria
+
+1. THE TimeLocker System SHALL support recovery operations for snapshots created by different backup tools including Restic, Borg, and other supported engines
+2. WHEN performing recovery operations, THE TimeLocker System SHALL automatically detect the backup tool used to create snapshots and use the same tool for restoration
+3. THE TimeLocker System SHALL provide consistent recovery interfaces regardless of the underlying backup tool while using tool-specific restoration capabilities
+4. THE TimeLocker System SHALL validate that the required backup tool is available and accessible before initiating recovery operations for snapshots created by that tool
+5. WHERE the backup tool used to create a snapshot is not available, THE TimeLocker System SHALL prevent recovery operations and provide clear error messages indicating the required tool
+
+### Requirement 9
 
 **User Story:** As a backup administrator, I want recovery operations to handle errors gracefully, so that temporary issues don't prevent successful data recovery.
 
