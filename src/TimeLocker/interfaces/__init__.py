@@ -13,6 +13,9 @@ from .configuration_store import IConfigurationStore
 from .configuration_watcher import IConfigurationWatcher, ConfigurationChangeEvent
 from .configuration_lock import IConfigurationLock, ConfigurationLock
 
+# Integration Architecture Interfaces
+from .service_interface import ServiceInterface
+
 # Exception classes
 from .exceptions import (
     TimeLockerInterfaceError,
@@ -48,6 +51,22 @@ from .exceptions import (
     BackupCancellationError
 )
 
+# Integration Architecture Exceptions
+from .integration_exceptions import (
+    ServiceIntegrationError,
+    ServiceInitializationError,
+    ServiceShutdownError,
+    ServiceContextError,
+    ServiceContextValidationError,
+    ServiceContextInheritanceError,
+    EventSystemError,
+    EventValidationError,
+    EventCorrelationError,
+    ServiceDiscoveryError,
+    ServiceRegistrationError,
+    DependencyResolutionError
+)
+
 # Data models
 from .data_models import (
     BackupStatus,
@@ -60,6 +79,12 @@ from .data_models import (
     BackupTargetInfo
 )
 
+# Integration Architecture Data Models
+from .integration_data_models import (
+    ServiceContext,
+    Event
+)
+
 __all__ = [
         # Interfaces
         'IRepositoryFactory',
@@ -69,6 +94,9 @@ __all__ = [
         'IConfigurationStore',
         'IConfigurationWatcher',
         'IConfigurationLock',
+        
+        # Integration Architecture Interfaces
+        'ServiceInterface',
 
         # Configuration Data Models
         'ConfigurationChangeEvent',
@@ -106,6 +134,20 @@ __all__ = [
         'InvalidBackupConfigurationError',
         'BackupExecutionError',
         'BackupCancellationError',
+        
+        # Integration Architecture Exceptions
+        'ServiceIntegrationError',
+        'ServiceInitializationError',
+        'ServiceShutdownError',
+        'ServiceContextError',
+        'ServiceContextValidationError',
+        'ServiceContextInheritanceError',
+        'EventSystemError',
+        'EventValidationError',
+        'EventCorrelationError',
+        'ServiceDiscoveryError',
+        'ServiceRegistrationError',
+        'DependencyResolutionError',
 
         # Data models
         'BackupStatus',
@@ -115,5 +157,9 @@ __all__ = [
         'RestoreResult',
         'SnapshotInfo',
         'RepositoryInfo',
-        'BackupTargetInfo'
+        'BackupTargetInfo',
+        
+        # Integration Architecture Data Models
+        'ServiceContext',
+        'Event'
 ]
