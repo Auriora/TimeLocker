@@ -2,127 +2,126 @@
 
 ## Introduction
 
-The Scheduling/Automation feature provides comprehensive automated backup scheduling capabilities for TimeLocker, enabling unattended operations through system schedulers, containerized environments, and external monitoring integration. This system handles systemd timer integration, cron job management, container-based automation, environment variable security, and health check integration to ensure reliable automated backup operations. This specification works with Backup Operations for job execution, CLI Interface for script generation, and Monitoring & Reporting for health check integration.
+The Scheduling/Automation feature provides comprehensive automated backup scheduling capabilities for TimeLocker, enabling unattended operations through platform-appropriate system schedulers and external monitoring integration. This system handles cross-platform scheduler integration (systemd timers, cron, Windows Task Scheduler), secure credential management, and health check integration to ensure reliable automated backup operations. This specification integrates with Policy Management for backup policy execution, Backup Operations for job orchestration, Data Selection for automated file selection, Repository Management for credential handling, and Monitoring & Reporting for status tracking and notifications.
 
 ## Glossary
 
-- **Scheduled Backup Policy**: A backup policy configured to run automatically at specified times or intervals
-- **systemd Timer**: Linux system service that triggers backup operations based on calendar or monotonic schedules
-- **Cron Job**: Unix-based time-driven job scheduler for executing backup operations
-- **Wrapper Script**: Generated shell script that handles environment setup, execution, and error handling for automated backups
-- **Container Automation**: Backup scheduling within containerized environments using Docker or similar platforms
-- **Health Check Integration**: Connection to external monitoring services to report backup operation status
-- **Unattended Operation**: Backup execution without user interaction, using stored credentials and configurations
-- **Environment Variable Security**: Secure management of credentials and configuration through environment variables
-- **TimeLocker System**: The backup orchestration platform built on Restic
-- **Service Unit**: systemd configuration file that defines how a backup service should be executed
+- **Scheduled Backup Policy**: A backup policy from Policy Management configured to run automatically at specified times or intervals
+- **Platform Scheduler**: The native scheduling system for the operating system (systemd timers, cron, Windows Task Scheduler, launchd)
+- **Scheduler Adapter**: Platform-specific component that translates TimeLocker scheduling configurations to native scheduler formats
+- **Wrapper Script**: Generated platform-specific script that handles environment setup, execution, and error handling for automated backups
+- **Unattended Operation**: Backup execution without user interaction, using stored credentials and configurations from Repository Management
+- **Environment Variable Security**: Secure management of credentials and configuration through environment variables and platform credential stores
+- **TimeLocker System**: The backup orchestration platform supporting multiple backup tools
+- **Automation Context**: Runtime environment and configuration for scheduled backup execution
+- **Schedule Template**: Reusable scheduling configuration that can be applied to multiple backup policies
 
 ## Requirements
 
 ### Requirement 1
 
-**User Story:** As a system administrator, I want to schedule backup policies using systemd timers, so that I can leverage native Linux scheduling with proper service management and logging.
+**User Story:** As a system administrator, I want to schedule backup policies using the native platform scheduler, so that I can leverage the operating system's built-in scheduling capabilities with proper service management and logging.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL generate systemd service units for backup policy execution with proper user, working directory, and environment configuration
-2. WHEN creating systemd timers, THE TimeLocker System SHALL support calendar-based scheduling with randomized delays up to 30 minutes and persistence options
-3. THE TimeLocker System SHALL provide systemd timer management commands for enabling, disabling, and monitoring scheduled backup policies
-4. THE TimeLocker System SHALL integrate with systemd logging through journald for centralized log management with structured metadata
-5. WHERE systemd timers fail, THE TimeLocker System SHALL provide detailed error reporting through systemd status and journal logs within 2 minutes of failure
+1. THE TimeLocker System SHALL automatically detect and use the appropriate platform scheduler (systemd timers on Linux, cron on Unix systems, Windows Task Scheduler on Windows, launchd on macOS)
+2. WHEN creating scheduled backups, THE TimeLocker System SHALL generate platform-appropriate configuration files and wrapper scripts with proper user context, working directory, and environment setup
+3. THE TimeLocker System SHALL support standard scheduling patterns including calendar-based scheduling, interval-based scheduling, and randomized delays up to 30 minutes for load distribution
+4. THE TimeLocker System SHALL integrate with platform logging systems (journald, syslog, Windows Event Log) for centralized log management with structured metadata
+5. WHERE platform schedulers fail, THE TimeLocker System SHALL provide detailed error reporting through platform-specific status mechanisms within 2 minutes of failure
 
 ### Requirement 2
 
-**User Story:** As a system administrator, I want to schedule backup policies using cron jobs, so that I can use traditional Unix scheduling with custom wrapper scripts and logging.
+**User Story:** As a backup administrator, I want to integrate scheduled backups with Policy Management, so that backup policies can be automatically executed according to their configured schedules.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL generate cron-compatible wrapper scripts with environment variable loading and comprehensive error handling including timeout management
-2. WHEN configuring cron schedules, THE TimeLocker System SHALL support standard cron syntax with validation and provide common schedule examples (daily, weekly, monthly)
-3. THE TimeLocker System SHALL provide cron job installation and management utilities with automatic crontab backup and restoration
-4. THE TimeLocker System SHALL implement custom logging for cron-based backup policies with rotation every 7 days and retention for at least 30 days
-5. WHERE cron jobs encounter errors, THE TimeLocker System SHALL capture and log detailed error information with specific exit codes (0=success, 1=failure, 2=partial success) within 1 minute of completion
+1. THE TimeLocker System SHALL retrieve backup policies from Policy Management and translate their schedule configurations to platform scheduler formats
+2. WHEN backup policies are updated, THE TimeLocker System SHALL automatically update corresponding scheduled tasks and notify administrators of scheduling changes
+3. THE TimeLocker System SHALL validate that backup policies are compatible with automated execution before creating scheduled tasks
+4. THE TimeLocker System SHALL coordinate with Policy Management to ensure retention policies are applied during scheduled backup operations
+5. WHERE backup policy scheduling conflicts occur, THE TimeLocker System SHALL provide conflict detection and resolution options with administrator notification
 
 ### Requirement 3
 
-**User Story:** As a DevOps engineer, I want container-based backup automation, so that I can run scheduled backups in containerized environments with proper orchestration.
+**User Story:** As a security administrator, I want secure credential management for automated operations, so that repository credentials are protected during unattended backup execution.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL provide Docker Compose configurations for scheduled backup operations
-2. WHEN running in containers, THE TimeLocker System SHALL support volume mounting for backup sources and credential management
-3. THE TimeLocker System SHALL provide container health checks and restart policies for reliable operation
-4. THE TimeLocker System SHALL support secrets management through Docker secrets or environment files
-5. WHERE container automation is configured, THE TimeLocker System SHALL provide monitoring and logging integration with container orchestration platforms
+1. THE TimeLocker System SHALL integrate with Repository Management to securely retrieve and manage credentials for automated backup operations
+2. WHEN executing scheduled backups, THE TimeLocker System SHALL never expose credentials in process lists, command history, or log files
+3. THE TimeLocker System SHALL support platform-specific credential stores (Windows Credential Manager, macOS Keychain, Linux Secret Service) for secure credential storage
+4. THE TimeLocker System SHALL validate credential accessibility and repository connectivity before scheduling automated backups
+5. WHERE credential access fails during scheduled execution, THE TimeLocker System SHALL implement secure retry mechanisms and alert administrators without exposing credential details
 
 ### Requirement 4
 
-**User Story:** As a security administrator, I want secure environment variable management for automated operations, so that credentials are protected during unattended backup execution.
+**User Story:** As a backup administrator, I want automated data selection integration, so that scheduled backups use current data selection configurations without manual intervention.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL support secure environment file creation with appropriate file permissions (600)
-2. WHEN managing automation credentials, THE TimeLocker System SHALL never expose credentials in process lists or command history
-3. THE TimeLocker System SHALL provide environment variable validation and testing utilities
-4. THE TimeLocker System SHALL support multiple credential sources with precedence rules for automated operations
-5. WHERE environment variables are used, THE TimeLocker System SHALL implement secure loading and cleanup procedures
+1. THE TimeLocker System SHALL integrate with Data Selection to retrieve and apply current selection templates during scheduled backup execution
+2. WHEN data selection templates are updated, THE TimeLocker System SHALL automatically use the updated configurations in subsequent scheduled backups
+3. THE TimeLocker System SHALL validate that data selection configurations are accessible and valid before executing scheduled backups
+4. THE TimeLocker System SHALL handle data selection errors gracefully during automated execution and provide detailed error reporting
+5. WHERE data selection validation fails, THE TimeLocker System SHALL skip the affected backup operation and notify administrators with specific error details
 
 ### Requirement 5
 
-**User Story:** As a monitoring engineer, I want health check integration for scheduled backups, so that I can monitor backup success and failure through external monitoring systems.
+**User Story:** As a monitoring engineer, I want scheduling integration with monitoring and reporting, so that scheduled backup status is tracked and reported through the existing monitoring system.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL integrate with external health check services like healthchecks.io through HTTP ping endpoints
-2. WHEN backup operations complete, THE TimeLocker System SHALL send success or failure notifications to configured health check URLs
-3. THE TimeLocker System SHALL support custom webhook notifications with configurable payloads and retry logic
-4. THE TimeLocker System SHALL provide health check configuration management with URL validation and testing
-5. WHERE health check notifications fail, THE TimeLocker System SHALL log notification failures and implement retry mechanisms
+1. THE TimeLocker System SHALL integrate with Monitoring & Reporting to track scheduled backup execution status, duration, and outcomes
+2. WHEN scheduled backups complete, THE TimeLocker System SHALL send status updates to the monitoring system for notification processing and history tracking
+3. THE TimeLocker System SHALL support optional external health check integration through the monitoring system's webhook capabilities
+4. THE TimeLocker System SHALL provide scheduling-specific monitoring data including next scheduled run times, missed executions, and scheduling conflicts
+5. WHERE monitoring integration is configured, THE TimeLocker System SHALL ensure scheduled backup events are properly logged and reported through existing monitoring channels
 
 ### Requirement 6
 
-**User Story:** As a system administrator, I want automated script generation for scheduling setup, so that I can quickly deploy scheduled backups with proper configuration and error handling.
+**User Story:** As a system administrator, I want automated script generation and deployment, so that I can quickly set up scheduled backups with proper platform integration and error handling.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL generate complete automation scripts including environment setup, execution, and cleanup
-2. WHEN generating scripts, THE TimeLocker System SHALL include error handling, logging, and health check integration
-3. THE TimeLocker System SHALL provide script templates for different scheduling systems (systemd, cron, container)
-4. THE TimeLocker System SHALL validate generated scripts for syntax, permissions, and executability
-5. WHERE script generation occurs, THE TimeLocker System SHALL provide installation guidance and verification steps
+1. THE TimeLocker System SHALL generate platform-appropriate automation scripts and configuration files including environment setup, execution, and cleanup procedures
+2. WHEN generating automation configurations, THE TimeLocker System SHALL include comprehensive error handling, timeout management, and integration with the monitoring system
+3. THE TimeLocker System SHALL provide automated deployment of generated configurations to the platform scheduler with proper permissions and validation
+4. THE TimeLocker System SHALL validate generated configurations for syntax correctness, permission requirements, and platform compatibility before deployment
+5. WHERE automation deployment occurs, THE TimeLocker System SHALL provide verification steps and rollback capabilities for failed deployments
 
 ### Requirement 7
 
-**User Story:** As a system administrator, I want flexible scheduling configuration, so that I can customize backup timing, frequency, and execution parameters for different environments.
+**User Story:** As a system administrator, I want flexible scheduling configuration with backup tool integration, so that I can customize backup timing and execution parameters while supporting multiple backup tools.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL support multiple scheduling patterns including daily, weekly, monthly, and custom intervals
-2. WHEN configuring schedules, THE TimeLocker System SHALL provide schedule validation and next-run calculation
-3. THE TimeLocker System SHALL support backup window configuration with start/end times and exclusion periods
-4. THE TimeLocker System SHALL allow per-target scheduling with different frequencies and retention policies
-5. WHERE scheduling conflicts occur, THE TimeLocker System SHALL provide conflict detection and resolution options
+1. THE TimeLocker System SHALL support multiple scheduling patterns including daily, weekly, monthly, and custom intervals with validation and next-run calculation
+2. WHEN configuring schedules, THE TimeLocker System SHALL coordinate with Backup Operations to ensure backup tool availability and compatibility for scheduled execution
+3. THE TimeLocker System SHALL support backup window configuration with start/end times, exclusion periods, and resource usage limits
+4. THE TimeLocker System SHALL handle backup tool selection and configuration automatically based on repository requirements and policy specifications
+5. WHERE scheduling conflicts or resource constraints occur, THE TimeLocker System SHALL provide conflict detection, resolution options, and automatic rescheduling capabilities
 
 ### Requirement 8
 
-**User Story:** As a DevOps engineer, I want comprehensive logging and monitoring for automated backups, so that I can troubleshoot issues and track backup performance over time.
+**User Story:** As a compliance administrator, I want comprehensive audit trails for scheduled operations, so that automated backup activities are properly documented for compliance and troubleshooting purposes.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL provide structured logging for all automated backup operations with timestamps and context
-2. WHEN automated backups run, THE TimeLocker System SHALL log start times, duration, data processed, and completion status
-3. THE TimeLocker System SHALL support log rotation and retention policies to manage disk usage
-4. THE TimeLocker System SHALL provide log aggregation and analysis tools for identifying patterns and issues
-5. WHERE logging systems are configured, THE TimeLocker System SHALL integrate with external log management platforms through standard protocols
+1. THE TimeLocker System SHALL maintain detailed audit logs of all scheduling operations including policy assignments, schedule changes, and execution outcomes with timestamps and user context
+2. WHEN scheduled backups execute, THE TimeLocker System SHALL log comprehensive execution details including policy applied, data selection used, repository accessed, and backup tool utilized
+3. THE TimeLocker System SHALL integrate with Policy Management audit capabilities to ensure scheduled operations comply with retention policies and compliance requirements
+4. THE TimeLocker System SHALL provide audit log retention and protection mechanisms to prevent unauthorized modification of scheduling history
+5. WHERE audit requirements are configured, THE TimeLocker System SHALL generate compliance reports showing scheduled backup adherence to policies and regulatory requirements
 
 ### Requirement 9
 
-**User Story:** As a system administrator, I want backup automation testing and validation, so that I can verify scheduled backups work correctly before deploying to production.
+**User Story:** As a system administrator, I want scheduling validation and testing capabilities, so that I can verify automated backup configurations work correctly before deployment and troubleshoot issues effectively.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL provide dry-run capabilities for testing scheduled backup configurations
-2. WHEN validating automation setup, THE TimeLocker System SHALL verify credentials, permissions, and connectivity
-3. THE TimeLocker System SHALL support test execution of generated scripts and configurations
-4. THE TimeLocker System SHALL provide automation health checks that validate all components of the scheduling system
-5. WHERE validation fails, THE TimeLocker System SHALL provide specific guidance for resolving configuration issues
+1. THE TimeLocker System SHALL provide comprehensive dry-run capabilities for testing scheduled backup configurations including policy validation, data selection testing, and repository connectivity verification
+2. WHEN validating scheduling setup, THE TimeLocker System SHALL verify all integration points including Policy Management, Data Selection, Repository Management, and Backup Operations compatibility
+3. THE TimeLocker System SHALL support test execution of generated platform scheduler configurations with simulation of actual backup operations
+4. THE TimeLocker System SHALL provide scheduling health checks that validate platform scheduler status, credential accessibility, and system resource availability
+5. WHERE validation fails, THE TimeLocker System SHALL provide specific diagnostic information and remediation guidance including integration point failures and configuration conflicts
