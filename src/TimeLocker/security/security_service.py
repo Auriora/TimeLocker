@@ -29,6 +29,8 @@ from enum import Enum
 from .credential_manager import CredentialManager
 from .repository_protection import RepositoryProtectionManager, RepositoryInfo, RepositoryMode
 from .confirmation_dialogs import ConfirmationDialogs
+from ..interfaces.service_interface import ServiceInterface
+from ..interfaces.integration_data_models import ServiceContext
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +70,7 @@ class EncryptionStatus:
     verification_hash: Optional[str] = None
 
 
-class SecurityService:
+class SecurityService(ServiceInterface):
     """
     Enhanced security service for TimeLocker that leverages Restic's encryption capabilities
     and provides additional security features including audit logging and monitoring.
@@ -120,11 +122,111 @@ class SecurityService:
             security_logger=self.security_logger
         )
 
+        # ServiceInterface implementation
+        self._context: Optional[ServiceContext] = None
+        self._initialized = False
+
         # Initialize audit log
         self._initialize_audit_log()
         
         # Integrate with existing logs
         self.security_logger.integrate_with_existing_logs()
+
+    # ServiceInterface implementation
+    def initialize(self, context: ServiceContext) -> bool:
+        """
+        Initialize the security service with the provided context.
+        
+        Args:
+            context: ServiceContext containing configuration and runtime information
+            
+        Returns:
+            bool: True if initialization was successful, False otherwise
+        """
+        try:
+            if not self.validate_context(context):
+                logger.error("Invalid service context provided to SecurityService")
+                return False
+            
+            self._context = context
+            
+            # Initialize any context-dependent components
+            logger.info("SecurityService initialized successfully")
+            self._initialized = True
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize SecurityService: {e}")
+            return False
+
+    def shutdown(self) -> None:
+        """
+        Shutdown the security service and clean up resources.
+        """
+        try:
+            # Clean up security resources
+            if self.credential_manager:
+                try:
+                    self.credential_manager.lock()
+                except Exception as e:
+                    logger.warning(f"Failed to lock credential manager during shutdown: {e}")
+            
+            # Clean up resources
+            self._context = None
+            self._initialized = False
+            logger.info("SecurityService shutdown completed")
+            
+        except Exception as e:
+            logger.error(f"Error during SecurityService shutdown: {e}")
+
+    def health_check(self) -> bool:
+        """
+        Check the health status of the security service.
+        
+        Returns:
+            bool: True if the service is healthy and operational, False otherwise
+        """
+        try:
+            # Check if service is initialized
+            if not self._initialized:
+                return False
+            
+            # Check if credential manager is available
+            if not self.credential_manager:
+                return False
+            
+            # Check if security logger is available
+            if not self.security_logger:
+                return False
+            
+            # Check if audit log file is accessible
+            if not self.audit_log_file.parent.exists():
+                return False
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"SecurityService health check failed: {e}")
+            return False
+
+    def get_capabilities(self) -> List[str]:
+        """
+        Get the list of capabilities provided by this service.
+        
+        Returns:
+            List[str]: List of capability identifiers
+        """
+        return [
+            'encryption_verification',
+            'integrity_validation',
+            'credential_audit',
+            'security_events',
+            'backup_audit',
+            'restore_audit',
+            'emergency_lockdown',
+            'repository_protection',
+            'data_privacy'
+        ]
 
     def _initialize_audit_log(self):
         """Initialize the audit log with proper headers"""

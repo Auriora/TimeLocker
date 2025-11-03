@@ -143,6 +143,71 @@ class EventCorrelationError(EventSystemError):
     pass
 
 
+class EventBusError(EventSystemError):
+    """Base exception for EventBus operations"""
+    pass
+
+
+class EventPublishError(EventBusError):
+    """Raised when event publishing fails"""
+    
+    def __init__(self, message: str, cause: Exception = None):
+        """
+        Initialize event publish error.
+        
+        Args:
+            message: Error message describing the failure
+            cause: Optional underlying exception that caused the failure
+        """
+        self.cause = cause
+        
+        full_message = f"Event publishing failed: {message}"
+        if cause:
+            full_message += f" (caused by: {cause})"
+        
+        super().__init__(full_message)
+
+
+class EventSubscriptionError(EventBusError):
+    """Raised when event subscription operations fail"""
+    
+    def __init__(self, message: str, cause: Exception = None):
+        """
+        Initialize event subscription error.
+        
+        Args:
+            message: Error message describing the failure
+            cause: Optional underlying exception that caused the failure
+        """
+        self.cause = cause
+        
+        full_message = f"Event subscription failed: {message}"
+        if cause:
+            full_message += f" (caused by: {cause})"
+        
+        super().__init__(full_message)
+
+
+class EventPersistenceError(EventBusError):
+    """Raised when event persistence operations fail"""
+    
+    def __init__(self, message: str, cause: Exception = None):
+        """
+        Initialize event persistence error.
+        
+        Args:
+            message: Error message describing the failure
+            cause: Optional underlying exception that caused the failure
+        """
+        self.cause = cause
+        
+        full_message = f"Event persistence failed: {message}"
+        if cause:
+            full_message += f" (caused by: {cause})"
+        
+        super().__init__(full_message)
+
+
 class ServiceDiscoveryError(ServiceIntegrationError):
     """Raised when service discovery operations fail"""
     
@@ -217,3 +282,231 @@ class DependencyResolutionError(ServiceIntegrationError):
             message += f": {'; '.join(message_parts)}"
         
         super().__init__(message)
+
+
+# Service Optimization Exceptions
+
+class ServiceOptimizationError(ServiceIntegrationError):
+    """Base exception for service optimization errors"""
+    
+    def __init__(self, message: str, cause: Exception = None):
+        """
+        Initialize service optimization error.
+        
+        Args:
+            message: Error message describing the failure
+            cause: Optional underlying exception that caused the failure
+        """
+        self.cause = cause
+        
+        full_message = f"Service optimization failed: {message}"
+        if cause:
+            full_message += f" (caused by: {cause})"
+        
+        super().__init__(full_message)
+
+
+class ServiceConnectionError(ServiceOptimizationError):
+    """Raised when service connection operations fail"""
+    
+    def __init__(self, service_name: str, message: str, cause: Exception = None):
+        """
+        Initialize service connection error.
+        
+        Args:
+            service_name: Name of the service with connection issues
+            message: Error message describing the failure
+            cause: Optional underlying exception that caused the failure
+        """
+        self.service_name = service_name
+        self.cause = cause
+        
+        full_message = f"Service connection failed for '{service_name}': {message}"
+        if cause:
+            full_message += f" (caused by: {cause})"
+        
+        super().__init__(full_message)
+
+
+class PerformanceThresholdError(ServiceOptimizationError):
+    """Raised when performance thresholds are exceeded"""
+    
+    def __init__(self, service_name: str, operation_type: str, 
+                 actual_value: float, threshold_value: float, 
+                 metric_type: str = "duration"):
+        """
+        Initialize performance threshold error.
+        
+        Args:
+            service_name: Name of the service
+            operation_type: Type of operation that exceeded threshold
+            actual_value: Actual measured value
+            threshold_value: Threshold that was exceeded
+            metric_type: Type of metric (duration, error_rate, throughput)
+        """
+        self.service_name = service_name
+        self.operation_type = operation_type
+        self.actual_value = actual_value
+        self.threshold_value = threshold_value
+        self.metric_type = metric_type
+        
+        message = (f"Performance threshold exceeded for {service_name}.{operation_type}: "
+                  f"{metric_type} {actual_value} > {threshold_value}")
+        
+        super().__init__(message)
+
+
+# Integration Testing and Validation Exceptions
+
+class ServiceMockingError(ServiceIntegrationError):
+    """Raised when service mocking operations fail"""
+    
+    def __init__(self, service_name: str = None, message: str = None, cause: Exception = None):
+        """
+        Initialize service mocking error.
+        
+        Args:
+            service_name: Name of service being mocked
+            message: Error message
+            cause: Optional underlying exception
+        """
+        self.service_name = service_name
+        self.cause = cause
+        
+        if not message:
+            if service_name:
+                message = f"Service mocking failed for: {service_name}"
+            else:
+                message = "Service mocking failed"
+        
+        if cause:
+            message += f" (caused by: {cause})"
+        
+        super().__init__(message)
+
+
+class IntegrationTestError(ServiceIntegrationError):
+    """Raised when integration test operations fail"""
+    
+    def __init__(self, message: str, cause: Exception = None):
+        """
+        Initialize integration test error.
+        
+        Args:
+            message: Error message
+            cause: Optional underlying exception
+        """
+        self.cause = cause
+        
+        full_message = f"Integration test failed: {message}"
+        if cause:
+            full_message += f" (caused by: {cause})"
+        
+        super().__init__(full_message)
+
+
+class ServiceHealthCheckError(ServiceIntegrationError):
+    """Raised when service health check operations fail"""
+    
+    def __init__(self, service_name: str = None, message: str = None, cause: Exception = None):
+        """
+        Initialize service health check error.
+        
+        Args:
+            service_name: Name of service being checked
+            message: Error message
+            cause: Optional underlying exception
+        """
+        self.service_name = service_name
+        self.cause = cause
+        
+        if not message:
+            if service_name:
+                message = f"Health check failed for service: {service_name}"
+            else:
+                message = "Service health check failed"
+        
+        if cause:
+            message += f" (caused by: {cause})"
+        
+        super().__init__(message)
+
+
+class IntegrationPointValidationError(ServiceIntegrationError):
+    """Raised when integration point validation fails"""
+    
+    def __init__(self, message: str, cause: Exception = None):
+        """
+        Initialize integration point validation error.
+        
+        Args:
+            message: Error message
+            cause: Optional underlying exception
+        """
+        self.cause = cause
+        
+        full_message = f"Integration point validation failed: {message}"
+        if cause:
+            full_message += f" (caused by: {cause})"
+        
+        super().__init__(full_message)
+
+
+class IntegrationMonitoringError(ServiceIntegrationError):
+    """Raised when integration monitoring operations fail"""
+    
+    def __init__(self, message: str, cause: Exception = None):
+        """
+        Initialize integration monitoring error.
+        
+        Args:
+            message: Error message
+            cause: Optional underlying exception
+        """
+        self.cause = cause
+        
+        full_message = f"Integration monitoring failed: {message}"
+        if cause:
+            full_message += f" (caused by: {cause})"
+        
+        super().__init__(full_message)
+
+
+class ValidationToolError(ServiceIntegrationError):
+    """Raised when validation tool operations fail"""
+    
+    def __init__(self, message: str, cause: Exception = None):
+        """
+        Initialize validation tool error.
+        
+        Args:
+            message: Error message
+            cause: Optional underlying exception
+        """
+        self.cause = cause
+        
+        full_message = f"Validation tool failed: {message}"
+        if cause:
+            full_message += f" (caused by: {cause})"
+        
+        super().__init__(full_message)
+
+
+class DiagnosticError(ServiceIntegrationError):
+    """Raised when diagnostic operations fail"""
+    
+    def __init__(self, message: str, cause: Exception = None):
+        """
+        Initialize diagnostic error.
+        
+        Args:
+            message: Error message
+            cause: Optional underlying exception
+        """
+        self.cause = cause
+        
+        full_message = f"Diagnostic operation failed: {message}"
+        if cause:
+            full_message += f" (caused by: {cause})"
+        
+        super().__init__(full_message)

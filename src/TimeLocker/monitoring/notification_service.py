@@ -29,6 +29,8 @@ from dataclasses import dataclass
 from enum import Enum
 
 from .status_reporter import OperationStatus, StatusLevel
+from ..interfaces.service_interface import ServiceInterface
+from ..interfaces.integration_data_models import ServiceContext
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +70,7 @@ class NotificationConfig:
             self.email_to = []
 
 
-class NotificationService:
+class NotificationService(ServiceInterface):
     """
     Notification service for TimeLocker operations
     Supports desktop notifications and email alerts
@@ -89,6 +91,97 @@ class NotificationService:
 
         self.config_file = self.config_dir / "notification_config.json"
         self.config = self._load_config()
+        
+        # ServiceInterface implementation
+        self._context: Optional[ServiceContext] = None
+        self._initialized = False
+
+    # ServiceInterface implementation
+    def initialize(self, context: ServiceContext) -> bool:
+        """
+        Initialize the notification service with the provided context.
+        
+        Args:
+            context: ServiceContext containing configuration and runtime information
+            
+        Returns:
+            bool: True if initialization was successful, False otherwise
+        """
+        try:
+            if not self.validate_context(context):
+                logger.error("Invalid service context provided to NotificationService")
+                return False
+            
+            self._context = context
+            
+            # Initialize any context-dependent components
+            logger.info("NotificationService initialized successfully")
+            self._initialized = True
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize NotificationService: {e}")
+            return False
+
+    def shutdown(self) -> None:
+        """
+        Shutdown the notification service and clean up resources.
+        """
+        try:
+            # Save current configuration
+            try:
+                self.save_config()
+            except Exception as e:
+                logger.warning(f"Failed to save notification config during shutdown: {e}")
+            
+            # Clean up resources
+            self._context = None
+            self._initialized = False
+            logger.info("NotificationService shutdown completed")
+            
+        except Exception as e:
+            logger.error(f"Error during NotificationService shutdown: {e}")
+
+    def health_check(self) -> bool:
+        """
+        Check the health status of the notification service.
+        
+        Returns:
+            bool: True if the service is healthy and operational, False otherwise
+        """
+        try:
+            # Check if service is initialized
+            if not self._initialized:
+                return False
+            
+            # Check if config directory is accessible
+            if not self.config_dir.exists():
+                return False
+            
+            # Check if configuration is valid
+            if not self.config:
+                return False
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"NotificationService health check failed: {e}")
+            return False
+
+    def get_capabilities(self) -> List[str]:
+        """
+        Get the list of capabilities provided by this service.
+        
+        Returns:
+            List[str]: List of capability identifiers
+        """
+        return [
+            'desktop_notifications',
+            'email_notifications',
+            'log_notifications',
+            'notification_testing',
+            'notification_config'
+        ]
 
     def _load_config(self) -> NotificationConfig:
         """Load notification configuration from file"""

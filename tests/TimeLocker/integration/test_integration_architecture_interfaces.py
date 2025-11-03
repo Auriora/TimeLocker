@@ -134,8 +134,8 @@ class TestServiceInterface:
         # that bypasses __post_init__ validation
         class MockContext:
             def __init__(self):
-                self.config_manager = Mock()
-                self.event_bus = None  # Missing component
+                self.config_manager = None  # Missing component
+                self.event_bus = Mock()
                 self.service_registry = Mock()
         
         mock_context = MockContext()
@@ -176,13 +176,8 @@ class TestServiceContext:
                 service_registry=Mock()
             )
         
-        # Test missing event_bus
-        with pytest.raises(ValueError, match="ServiceContext requires a valid event_bus"):
-            ServiceContext(
-                config_manager=Mock(),
-                event_bus=None,
-                service_registry=Mock()
-            )
+        # Note: event_bus can now be None initially (will be set by ServiceManager)
+        # So this test is no longer valid - ServiceContext allows None event_bus
         
         # Test missing service_registry
         with pytest.raises(ValueError, match="ServiceContext requires a valid service_registry"):

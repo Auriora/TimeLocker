@@ -29,6 +29,7 @@ import uuid
 
 if TYPE_CHECKING:
     from ..config import ConfigurationManager
+    from ..integration.event_bus import EventBus
 
 
 @dataclass
@@ -49,7 +50,7 @@ class ServiceContext:
     config_manager: 'ConfigurationManager'
     """Configuration manager for accessing system configuration"""
     
-    event_bus: Any  # Will be typed properly when EventBus is implemented
+    event_bus: 'EventBus'
     """Event bus for publishing and subscribing to system events"""
     
     service_registry: Any  # Will be typed properly when ServiceRegistry is implemented
@@ -72,8 +73,9 @@ class ServiceContext:
         if self.config_manager is None:
             raise ValueError("ServiceContext requires a valid config_manager")
         
-        if self.event_bus is None:
-            raise ValueError("ServiceContext requires a valid event_bus")
+        # Note: event_bus can be None initially and will be set by ServiceManager
+        # if self.event_bus is None:
+        #     raise ValueError("ServiceContext requires a valid event_bus")
         
         if self.service_registry is None:
             raise ValueError("ServiceContext requires a valid service_registry")

@@ -20,13 +20,14 @@ CLI Service Integration Layer
 
 This module provides a service layer that integrates the new service-oriented
 architecture with the CLI, maintaining backward compatibility while leveraging
-modern SOLID principles.
+modern SOLID principles and the new integration architecture.
 """
 
 import logging
 import time
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Union
+from typing import Dict, List, Optional, Any, Union, Type
 from dataclasses import dataclass
 
 from .interfaces import (
@@ -36,6 +37,13 @@ from .interfaces import (
     BackupResult,
     BackupStatus,
     ConfigurationError
+)
+from .interfaces.service_interface import ServiceInterface
+from .interfaces.integration_data_models import ServiceContext, Event
+from .interfaces.integration_exceptions import (
+    ServiceInitializationError,
+    ServiceDiscoveryError,
+    DependencyResolutionError
 )
 from .services import (
     RepositoryFactory,
@@ -51,8 +59,116 @@ from .config.configuration_path_resolver import ConfigurationPathResolver
 from .backup_target import BackupTarget
 from .file_selections import FileSelection, SelectionType
 from .security.credential_manager import CredentialManagerError
+from .integration.service_manager import ServiceManager, ServiceRegistry
+from .integration.dependency_injector import DependencyInjector
+from .integration.event_bus import EventBus
 
 logger = logging.getLogger(__name__)
+
+
+class LegacyServiceWrapper(ServiceInterface):
+    """
+    Wrapper class to integrate legacy services with the new ServiceInterface.
+    
+    This wrapper allows existing services to participate in the new integration
+    architecture without requiring immediate refactoring of the legacy code.
+    """
+    
+    def __init__(self, legacy_service: Any, service_name: str, capabilities: List[str]):
+        """
+        Initialize the legacy service wrapper.
+        
+        Args:
+            legacy_service: The legacy service instance to wrap
+            service_name: Name for the service
+            capabilities: List of capabilities provided by the service
+        """
+        self._legacy_service = legacy_service
+        self._service_name = service_name
+        self._capabilities = capabilities
+        self._initialized = False
+    
+    def initialize(self, context: ServiceContext) -> bool:
+        """
+        Initialize the legacy service.
+        
+        Args:
+            context: Service context (may not be used by legacy services)
+            
+        Returns:
+            bool: True if initialization successful
+        """
+        try:
+            # Most legacy services don't have explicit initialization
+            # Just mark as initialized if the service exists
+            if self._legacy_service is not None:
+                self._initialized = True
+                logger.debug(f"Legacy service {self._service_name} initialized")
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Failed to initialize legacy service {self._service_name}: {e}")
+            return False
+    
+    def shutdown(self) -> None:
+        """Shutdown the legacy service."""
+        try:
+            # Most legacy services don't have explicit shutdown
+            # Just mark as not initialized
+            self._initialized = False
+            logger.debug(f"Legacy service {self._service_name} shut down")
+        except Exception as e:
+            logger.error(f"Error shutting down legacy service {self._service_name}: {e}")
+    
+    def health_check(self) -> bool:
+        """
+        Check health of the legacy service.
+        
+        Returns:
+            bool: True if service is healthy
+        """
+        try:
+            # Basic health check - service exists and is initialized
+            return self._legacy_service is not None and self._initialized
+        except Exception as e:
+            logger.error(f"Health check failed for legacy service {self._service_name}: {e}")
+            return False
+    
+    def get_capabilities(self) -> List[str]:
+        """
+        Get capabilities provided by the legacy service.
+        
+        Returns:
+            List[str]: List of capability identifiers
+        """
+        return self._capabilities.copy()
+    
+    def get_service_name(self) -> str:
+        """
+        Get the service name.
+        
+        Returns:
+            str: Service name
+        """
+        return self._service_name
+    
+    def get_service_version(self) -> str:
+        """
+        Get the service version.
+        
+        Returns:
+            str: Service version
+        """
+        return "legacy-1.0.0"
+    
+    def get_legacy_service(self) -> Any:
+        """
+        Get the wrapped legacy service instance.
+        
+        Returns:
+            Any: The original legacy service
+        """
+        return self._legacy_service
 
 
 @dataclass
@@ -79,24 +195,38 @@ class CLIBackupRequest:
 
 class CLIServiceManager:
     """
-    Service manager for CLI operations that bridges legacy and modern architectures.
+    Enhanced service manager for CLI operations that integrates with the new service architecture.
     
-    This class provides a unified interface for CLI operations while gradually
-    migrating from legacy components to the new service-oriented architecture.
+    This class provides a unified interface for CLI operations while leveraging the new
+    ServiceManager, DependencyInjector, and EventBus for service orchestration, dependency
+    management, and event-driven communication.
+    
+    Requirements addressed:
+    - 1.1: CLI Service Manager that orchestrates all backend services
+    - 1.2: Service discovery allowing CLI to locate and connect to services
+    - 1.3: Dependency injection for CLI components accessing backend services
+    - 6.1: Service context containing configuration and runtime state
+    - 6.2: Context inheritance for child operations
+    - 6.3: Context validation for required information
+    - 6.4: Context cleanup mechanisms
+    - 6.5: Fallback mechanisms and clear error reporting
     """
 
     def __init__(self, config_dir: Optional[Path] = None):
-        """Initialize CLI service manager with dependency injection"""
+        """Initialize CLI service manager with enhanced integration architecture"""
         import sys
         self._config_dir = Path(config_dir) if config_dir is not None else None
-        # Initialize modern services
+        self._is_initialized = False
+        self._service_context: Optional[ServiceContext] = None
+        
+        # Initialize configuration (legacy system for compatibility)
+        self._config_module = ConfigurationModule(config_dir=self._config_dir)
+        
+        # Initialize legacy services for backward compatibility
         self._validation_service = ValidationService()
         self._repository_factory = RepositoryFactory(validation_service=self._validation_service)
         self._performance_module = PerformanceModule()
-
-        # Initialize configuration (new system only)
-        self._config_module = ConfigurationModule(config_dir=self._config_dir)
-
+        
         # Initialize modern config service
         try:
             self._config_service = ConfigurationService(
@@ -107,26 +237,33 @@ class CLIServiceManager:
             logger.warning(f"Configuration service failed to initialize: {e}")
             self._config_service = None
 
-        # Initialize snapshot service
+        # Initialize legacy services
         self._snapshot_service = SnapshotService(
                 validation_service=self._validation_service,
                 performance_module=self._performance_module
         )
 
-        # Initialize repository service
         self._repository_service = RepositoryService(
                 validation_service=self._validation_service,
                 performance_module=self._performance_module
         )
         self._configure_repository_factory_credentials()
 
-        # Initialize backup orchestrator
         self._backup_orchestrator = BackupOrchestrator(
                 repository_factory=self._repository_factory,
                 configuration_provider=self._config_service
         )
+        
+        # Initialize new integration architecture components
+        self._service_registry = ServiceRegistry()
+        self._dependency_injector = DependencyInjector()
+        self._event_bus: Optional[EventBus] = None
+        self._service_manager: Optional[ServiceManager] = None
+        
+        # Initialize the integration architecture
+        self._initialize_integration_architecture()
 
-        logger.debug("CLIServiceManager initialized")
+        logger.debug("Enhanced CLIServiceManager initialized")
 
     def _configure_repository_factory_credentials(self) -> None:
         """Ensure repository factory uses credential storage aligned with config directory."""
@@ -141,6 +278,336 @@ class CLIServiceManager:
             self._repository_factory._credential_manager = credential_manager
         except Exception as exc:  # pragma: no cover - defensive fallback
             logger.debug("Falling back to default credential manager: %s", exc)
+    
+    def _initialize_integration_architecture(self) -> None:
+        """
+        Initialize the new integration architecture components.
+        
+        This method sets up the ServiceManager, DependencyInjector, and EventBus
+        for enhanced service orchestration and dependency management.
+        
+        Raises:
+            ServiceInitializationError: If integration architecture initialization fails
+        """
+        try:
+            # Create EventBus with persistence
+            persistence_path = None
+            if self._config_dir:
+                persistence_path = self._config_dir / "events"
+            
+            self._event_bus = EventBus(persistence_path=persistence_path)
+            
+            # Create service context
+            self._service_context = ServiceContext(
+                config_manager=self._config_module,
+                event_bus=self._event_bus,
+                service_registry=self._service_registry,
+                user_context=None
+            )
+            
+            # Create ServiceManager with context and event bus
+            self._service_manager = ServiceManager(
+                context=self._service_context,
+                event_bus=self._event_bus
+            )
+            
+            # Integrate DependencyInjector with ServiceManager
+            self._service_manager.set_dependency_injector(self._dependency_injector)
+            
+            # Register existing services with the new architecture
+            self._register_legacy_services()
+            
+            logger.info("Integration architecture initialized successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize integration architecture: {e}")
+            raise ServiceInitializationError("CLIServiceManager", str(e), e)
+    
+    def _register_legacy_services(self) -> None:
+        """
+        Register existing legacy services with the new integration architecture.
+        
+        This method creates service wrappers for existing services to integrate
+        them with the new ServiceManager and dependency injection system.
+        """
+        try:
+            # Register ValidationService (no dependencies)
+            if self._validation_service:
+                wrapper = LegacyServiceWrapper(
+                    self._validation_service,
+                    "ValidationService",
+                    ["validation", "schema_validation"]
+                )
+                self._dependency_injector.register_instance(ServiceInterface, wrapper)
+            
+            # Register ConfigurationService (depends on ValidationService)
+            if self._config_service:
+                wrapper = LegacyServiceWrapper(
+                    self._config_service,
+                    "ConfigurationService", 
+                    ["configuration", "config_management"]
+                )
+                self._dependency_injector.register_instance(ServiceInterface, wrapper)
+            
+            # Register RepositoryFactory (depends on ValidationService)
+            if self._repository_factory:
+                wrapper = LegacyServiceWrapper(
+                    self._repository_factory,
+                    "RepositoryFactory",
+                    ["repository_creation", "repository_management"]
+                )
+                self._dependency_injector.register_instance(ServiceInterface, wrapper)
+            
+            # Register BackupOrchestrator (depends on RepositoryFactory and ConfigurationService)
+            if self._backup_orchestrator:
+                wrapper = LegacyServiceWrapper(
+                    self._backup_orchestrator,
+                    "BackupOrchestrator",
+                    ["backup", "orchestration"]
+                )
+                self._dependency_injector.register_instance(ServiceInterface, wrapper)
+            
+            logger.debug("Legacy services registered with integration architecture")
+            
+        except Exception as e:
+            logger.warning(f"Failed to register some legacy services: {e}")
+    
+    def initialize_services(self) -> bool:
+        """
+        Initialize all services using the new integration architecture.
+        
+        This method initializes services through the ServiceManager with proper
+        dependency resolution and error handling.
+        
+        Returns:
+            bool: True if all services initialized successfully
+            
+        Raises:
+            ServiceInitializationError: If service initialization fails
+        """
+        if self._is_initialized:
+            return True
+        
+        try:
+            if self._service_manager is None:
+                raise ServiceInitializationError(
+                    "CLIServiceManager",
+                    "ServiceManager not initialized. Call _initialize_integration_architecture() first."
+                )
+            
+            # Initialize services through ServiceManager
+            success = self._service_manager.initialize_services_with_injector()
+            
+            if success:
+                self._is_initialized = True
+                logger.info("All CLI services initialized successfully")
+                
+                # Publish service initialization event
+                if self._event_bus:
+                    event = Event(
+                        event_type="cli.services.initialized",
+                        source="CLIServiceManager",
+                        timestamp=datetime.now(),
+                        data={
+                            "config_dir": str(self._config_dir) if self._config_dir else None,
+                            "service_count": len(self._service_manager.get_service_status())
+                        }
+                    )
+                    self._event_bus.publish_event(event)
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize CLI services: {e}")
+            raise ServiceInitializationError("CLIServiceManager", str(e), e)
+    
+    def shutdown_services(self) -> None:
+        """
+        Shutdown all services using the new integration architecture.
+        
+        This method performs clean shutdown of all services with proper
+        cleanup and resource management.
+        """
+        try:
+            if self._service_manager and self._is_initialized:
+                # Publish shutdown event before shutting down
+                if self._event_bus:
+                    event = Event(
+                        event_type="cli.services.shutting_down",
+                        source="CLIServiceManager",
+                        timestamp=datetime.now(),
+                        data={"config_dir": str(self._config_dir) if self._config_dir else None}
+                    )
+                    self._event_bus.publish_event(event)
+                
+                # Shutdown services through ServiceManager
+                self._service_manager.shutdown_services()
+                self._is_initialized = False
+                
+                logger.info("All CLI services shut down successfully")
+            
+            # Clean up service context
+            if self._service_context:
+                self._service_context.cleanup()
+                self._service_context = None
+            
+        except Exception as e:
+            logger.error(f"Error during service shutdown: {e}")
+            # Don't raise exception during shutdown to avoid masking other errors
+    
+    def get_service_health(self) -> Dict[str, bool]:
+        """
+        Get health status of all services.
+        
+        Returns:
+            Dict[str, bool]: Service name to health status mapping
+        """
+        if not self._service_manager or not self._is_initialized:
+            return {"CLIServiceManager": False}
+        
+        try:
+            return self._service_manager.health_check()
+        except Exception as e:
+            logger.error(f"Failed to get service health: {e}")
+            return {"CLIServiceManager": False}
+    
+    def get_service_status(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Get comprehensive status information for all services.
+        
+        Returns:
+            Dict[str, Dict[str, Any]]: Detailed service status information
+        """
+        if not self._service_manager:
+            return {
+                "CLIServiceManager": {
+                    "initialized": self._is_initialized,
+                    "error": "ServiceManager not available"
+                }
+            }
+        
+        try:
+            status = self._service_manager.get_service_status()
+            status["CLIServiceManager"] = {
+                "initialized": self._is_initialized,
+                "config_dir": str(self._config_dir) if self._config_dir else None,
+                "integration_architecture": True
+            }
+            return status
+        except Exception as e:
+            logger.error(f"Failed to get service status: {e}")
+            return {
+                "CLIServiceManager": {
+                    "initialized": self._is_initialized,
+                    "error": str(e)
+                }
+            }
+    
+    def create_operation_context(self, operation_name: str, **kwargs) -> ServiceContext:
+        """
+        Create a new service context for a CLI operation.
+        
+        This method creates a child context from the base service context,
+        supporting context inheritance and operation-specific configuration.
+        
+        Args:
+            operation_name: Name of the operation being performed
+            **kwargs: Additional context values
+            
+        Returns:
+            ServiceContext: New operation context
+            
+        Raises:
+            ServiceInitializationError: If base context is not available
+        """
+        if not self._service_context:
+            raise ServiceInitializationError(
+                "CLIServiceManager",
+                "Base service context not available. Initialize services first."
+            )
+        
+        # Create child context with operation-specific metadata
+        operation_context = self._service_context.create_child_context(
+            metadata={
+                "operation_name": operation_name,
+                "created_at": time.time(),
+                **kwargs
+            }
+        )
+        
+        logger.debug(f"Created operation context for: {operation_name}")
+        return operation_context
+    
+    def cleanup_operation_context(self, context: ServiceContext) -> None:
+        """
+        Clean up an operation context and its resources.
+        
+        Args:
+            context: ServiceContext to clean up
+        """
+        try:
+            context.cleanup()
+            logger.debug("Operation context cleaned up successfully")
+        except Exception as e:
+            logger.warning(f"Error cleaning up operation context: {e}")
+    
+    def publish_cli_event(self, event_type: str, data: Dict[str, Any], 
+                         correlation_id: Optional[str] = None) -> None:
+        """
+        Publish an event from CLI operations.
+        
+        Args:
+            event_type: Type of event to publish
+            data: Event data
+            correlation_id: Optional correlation ID for event linking
+        """
+        if not self._event_bus:
+            logger.warning("EventBus not available, cannot publish event")
+            return
+        
+        try:
+            event = Event(
+                event_type=event_type,
+                source="CLIServiceManager",
+                timestamp=datetime.now(),
+                data=data,
+                correlation_id=correlation_id
+            )
+            self._event_bus.publish_event(event)
+            logger.debug(f"Published CLI event: {event_type}")
+        except Exception as e:
+            logger.error(f"Failed to publish CLI event {event_type}: {e}")
+    
+    def subscribe_to_events(self, event_type_pattern: str, 
+                           handler: callable, subscriber_name: str = "CLI") -> str:
+        """
+        Subscribe to events from the event bus.
+        
+        Args:
+            event_type_pattern: Pattern for event types to subscribe to
+            handler: Function to handle matching events
+            subscriber_name: Name of the subscriber
+            
+        Returns:
+            str: Subscription ID for unsubscribing
+        """
+        if not self._event_bus:
+            raise ServiceInitializationError(
+                "CLIServiceManager",
+                "EventBus not available for event subscription"
+            )
+        
+        try:
+            subscription_id = self._event_bus.subscribe_event(
+                event_type_pattern=event_type_pattern,
+                handler=handler,
+                subscriber_name=subscriber_name
+            )
+            logger.debug(f"Subscribed to events: {event_type_pattern}")
+            return subscription_id
+        except Exception as e:
+            logger.error(f"Failed to subscribe to events: {e}")
+            raise
 
     @property
     def repository_factory(self) -> IRepositoryFactory:
@@ -895,6 +1362,35 @@ class CLIServiceManager:
     def get_repository_service(self) -> RepositoryService:
         """Backward-compatible accessor used by CLI commands expecting a method."""
         return self._repository_service
+    
+    def remove_repository(self, name: str, **kwargs) -> None:
+        """
+        Remove a repository configuration.
+        
+        This method provides backward compatibility for CLI commands that expect
+        a remove_repository method on the service manager.
+        
+        Args:
+            name: Repository name to remove
+            **kwargs: Additional parameters (for compatibility)
+        """
+        try:
+            # Use the configuration module to remove the repository
+            self._config_module.remove_repository(name)
+            
+            # Publish event about repository removal
+            if self._event_bus:
+                self.publish_cli_event(
+                    "repository.removed",
+                    {"repository_name": name},
+                    correlation_id=f"repo-remove-{name}"
+                )
+            
+            logger.info(f"Repository '{name}' removed successfully via CLI service manager")
+            
+        except Exception as e:
+            logger.error(f"Failed to remove repository '{name}': {e}")
+            raise
 
 
 # Global CLI service manager instance
@@ -905,22 +1401,57 @@ def get_cli_service_manager(config_dir: Optional[Path] = None) -> CLIServiceMana
     """
     Get global CLI service manager instance (singleton pattern).
     
+    This function ensures that the CLI service manager is properly initialized
+    with the integration architecture and returns the same instance for
+    consistent service access across the application.
+    
+    Args:
+        config_dir: Optional configuration directory path
+        
     Returns:
-        CLIServiceManager instance
+        CLIServiceManager: Enhanced CLI service manager instance
     """
     global _cli_service_manager
     if _cli_service_manager is None:
         _cli_service_manager = CLIServiceManager(config_dir=config_dir)
+        # Initialize services on first access
+        try:
+            _cli_service_manager.initialize_services()
+        except Exception as e:
+            logger.warning(f"Failed to initialize services on first access: {e}")
     else:
         if config_dir is not None:
             desired_dir = Path(config_dir)
             current_dir = _cli_service_manager.config_dir
             if current_dir is None or Path(current_dir) != desired_dir:
+                # Shutdown existing manager before creating new one
+                try:
+                    _cli_service_manager.shutdown_services()
+                except Exception as e:
+                    logger.warning(f"Error shutting down previous service manager: {e}")
+                
                 _cli_service_manager = CLIServiceManager(config_dir=desired_dir)
+                # Initialize services for new manager
+                try:
+                    _cli_service_manager.initialize_services()
+                except Exception as e:
+                    logger.warning(f"Failed to initialize services for new config dir: {e}")
+    
     return _cli_service_manager
 
 
 def reset_cli_service_manager() -> None:
-    """Reset global CLI service manager (used after configuration changes)."""
+    """
+    Reset global CLI service manager (used after configuration changes).
+    
+    This function properly shuts down the existing service manager and
+    clears the global reference, ensuring clean state for the next access.
+    """
     global _cli_service_manager
+    if _cli_service_manager is not None:
+        try:
+            _cli_service_manager.shutdown_services()
+        except Exception as e:
+            logger.warning(f"Error shutting down service manager during reset: {e}")
+    
     _cli_service_manager = None

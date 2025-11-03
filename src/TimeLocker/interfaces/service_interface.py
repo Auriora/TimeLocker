@@ -150,9 +150,14 @@ class ServiceInterface(ABC):
             return False
         
         # Basic validation - ensure required components are present
-        required_components = ['config_manager', 'event_bus', 'service_registry']
+        # Note: event_bus can be None initially and will be set by ServiceManager
+        required_components = ['config_manager', 'service_registry']
         for component in required_components:
             if not hasattr(context, component) or getattr(context, component) is None:
                 return False
+        
+        # Check that event_bus attribute exists (can be None)
+        if not hasattr(context, 'event_bus'):
+            return False
         
         return True

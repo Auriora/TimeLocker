@@ -13,6 +13,8 @@ from datetime import datetime, timedelta
 import logging
 
 from ..interfaces.repository_service_interface import IRepositoryService
+from ..interfaces.service_interface import ServiceInterface
+from ..interfaces.integration_data_models import ServiceContext
 from ..backup_repository import BackupRepository
 from ..interfaces.exceptions import TimeLockerInterfaceError, RepositoryFactoryError
 from .validation_service import ValidationService
@@ -21,12 +23,96 @@ from ..utils.performance_utils import PerformanceModule
 logger = logging.getLogger(__name__)
 
 
-class RepositoryService(IRepositoryService):
+class RepositoryService(IRepositoryService, ServiceInterface):
     """Advanced repository management service"""
 
     def __init__(self, validation_service: ValidationService, performance_module: PerformanceModule):
         self.validation_service = validation_service
         self.performance_module = performance_module
+        self._context: Optional[ServiceContext] = None
+        self._initialized = False
+
+    # ServiceInterface implementation
+    def initialize(self, context: ServiceContext) -> bool:
+        """
+        Initialize the repository service with the provided context.
+        
+        Args:
+            context: ServiceContext containing configuration and runtime information
+            
+        Returns:
+            bool: True if initialization was successful, False otherwise
+        """
+        try:
+            if not self.validate_context(context):
+                logger.error("Invalid service context provided to RepositoryService")
+                return False
+            
+            self._context = context
+            
+            # Initialize any context-dependent components
+            logger.info("RepositoryService initialized successfully")
+            self._initialized = True
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize RepositoryService: {e}")
+            return False
+
+    def shutdown(self) -> None:
+        """
+        Shutdown the repository service and clean up resources.
+        """
+        try:
+            # Clean up any resources
+            self._context = None
+            self._initialized = False
+            logger.info("RepositoryService shutdown completed")
+            
+        except Exception as e:
+            logger.error(f"Error during RepositoryService shutdown: {e}")
+
+    def health_check(self) -> bool:
+        """
+        Check the health status of the repository service.
+        
+        Returns:
+            bool: True if the service is healthy and operational, False otherwise
+        """
+        try:
+            # Check if service is initialized
+            if not self._initialized:
+                return False
+            
+            # Check if validation service is available
+            if not self.validation_service:
+                return False
+            
+            # Check if performance module is available
+            if not self.performance_module:
+                return False
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"RepositoryService health check failed: {e}")
+            return False
+
+    def get_capabilities(self) -> List[str]:
+        """
+        Get the list of capabilities provided by this service.
+        
+        Returns:
+            List[str]: List of capability identifiers
+        """
+        return [
+            'repository_check',
+            'repository_stats',
+            'repository_unlock',
+            'repository_migration',
+            'retention_policy',
+            'repository_prune'
+        ]
 
     def _parse_restic_error(self, error_output: str) -> str:
         """

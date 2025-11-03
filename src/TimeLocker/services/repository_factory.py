@@ -21,7 +21,7 @@ from urllib.parse import urlparse
 
 from ..interfaces import IRepositoryFactory, RepositoryFactoryError, UnsupportedSchemeError
 from ..backup_repository import BackupRepository
-from . import ValidationService
+from .validation_service import ValidationService
 from ..utils import with_error_handling, ErrorContext
 
 logger = logging.getLogger(__name__)

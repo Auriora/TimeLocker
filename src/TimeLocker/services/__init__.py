@@ -1,21 +1,22 @@
 """
-TimeLocker Services Package
+Services module for TimeLocker
 
-This package contains service classes that provide business logic
-and follow SOLID principles for better maintainability.
+This module provides service implementations for repository management,
+validation, and other core functionality.
 """
 
-from .validation_service import ValidationService, ValidationError, ValidationResult
-from .repository_factory import RepositoryFactory, repository_factory
-from .configuration_service import ConfigurationService
-from .backup_orchestrator import BackupOrchestrator
+from .repository_manager import RepositoryManager
+from .repository_factory import RepositoryFactory
+from .repository_service import RepositoryService
+from .repository_state_manager import RepositoryStateManager
+from .existing_repository_handler import ExistingRepositoryHandler
+from .validation_service import ValidationService
 
 __all__ = [
-        'ValidationService',
-        'ValidationError',
-        'ValidationResult',
-        'RepositoryFactory',
-        'repository_factory',
-        'ConfigurationService',
-        'BackupOrchestrator'
+    'RepositoryManager',
+    'RepositoryFactory', 
+    'RepositoryService',
+    'RepositoryStateManager',
+    'ExistingRepositoryHandler',
+    'ValidationService'
 ]
