@@ -16,6 +16,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .integration_service import IntegrationService, IntegrationError
+from .service_manager import ServiceManager, ServiceRegistry
+
 # Legacy global alias for tests referencing bare ConfigSection without imports
 try:
     import builtins  # type: ignore
@@ -26,4 +28,4 @@ except Exception:
     pass
 
 
-__all__ = ['IntegrationService', 'IntegrationError']
+__all__ = ['IntegrationService', 'IntegrationError', 'ServiceManager', 'ServiceRegistry']
