@@ -501,6 +501,1012 @@ def config_import_restic(
         raise typer.Exit(1)
 
 
+@config_app.command("backup-list")
+def config_backup_list(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        limit: Annotated[Optional[int], typer.Option("--limit", help="Maximum number of backups to show")] = None,
+        reason: Annotated[Optional[str], typer.Option("--reason", help="Filter by backup reason")] = None,
+        json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """List configuration backups."""
+    setup_logging(verbose, config_dir)
+    try:
+        from .config.configuration_backup_manager import ConfigurationBackupManager, BackupReason
+        from .config.configuration_path_resolver import ConfigurationPathResolver
+        
+        # Get backup directory
+        resolver = ConfigurationPathResolver(config_dir)
+        backup_dir = resolver.get_config_directory() / "backups"
+        
+        # Create backup manager
+        backup_manager = ConfigurationBackupManager(backup_dir)
+        
+        # Filter by reason if specified
+        reason_filter = None
+        if reason:
+            try:
+                reason_filter = BackupReason(reason.lower())
+            except ValueError:
+                show_error_panel("Invalid Reason", f"Invalid backup reason: {reason}. Valid reasons: {', '.join([r.value for r in BackupReason])}")
+                raise typer.Exit(1)
+        
+        # List backups
+        backups = backup_manager.list_backups(limit=limit, reason_filter=reason_filter)
+        
+        if json_output:
+            console.print_json(data=backups)
+            return
+        
+        if not backups:
+            show_info_panel("No Backups", "No configuration backups found.")
+            return
+        
+        # Display backups in table
+        table = Table(title="Configuration Backups")
+        table.add_column("Backup ID", style="cyan")
+        table.add_column("Created", style="green")
+        table.add_column("Reason", style="magenta")
+        table.add_column("Size", style="yellow")
+        table.add_column("Status", style="blue")
+        table.add_column("Sections", overflow="fold")
+        
+        for backup in backups:
+            created_at = datetime.fromisoformat(backup['created_at']).strftime("%Y-%m-%d %H:%M:%S")
+            size_mb = backup['size_bytes'] / (1024 * 1024)
+            size_str = f"{size_mb:.2f} MB" if size_mb >= 1 else f"{backup['size_bytes']} B"
+            status = "✅ Valid" if backup['file_exists'] and "valid" in backup['validation_status'] else "❌ Invalid"
+            sections = ", ".join(backup['sections'][:3])
+            if len(backup['sections']) > 3:
+                sections += f" (+{len(backup['sections']) - 3} more)"
+            
+            table.add_row(
+                backup['backup_id'],
+                created_at,
+                backup['reason'],
+                size_str,
+                status,
+                sections
+            )
+        
+        console.print(table)
+        show_success_panel("Backup List", f"Found {len(backups)} configuration backups.")
+        
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Backup list operation cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Backup List Error", f"Failed to list configuration backups: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@config_app.command("backup-create")
+def config_backup_create(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        reason: Annotated[str, typer.Option("--reason", help="Reason for creating backup")] = "manual",
+        tags: Annotated[Optional[List[str]], typer.Option("--tag", help="Tags for the backup (multiple allowed)")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Create a configuration backup."""
+    setup_logging(verbose, config_dir)
+    try:
+        from .config.configuration_backup_manager import ConfigurationBackupManager, BackupReason
+        from .config.configuration_path_resolver import ConfigurationPathResolver
+        
+        # Validate reason
+        try:
+            backup_reason = BackupReason(reason.lower())
+        except ValueError:
+            show_error_panel("Invalid Reason", f"Invalid backup reason: {reason}. Valid reasons: {', '.join([r.value for r in BackupReason])}")
+            raise typer.Exit(1)
+        
+        # Get configuration paths
+        resolver = ConfigurationPathResolver(config_dir)
+        config_file = resolver.get_config_file()
+        backup_dir = resolver.get_config_directory() / "backups"
+        
+        if not config_file.exists():
+            show_error_panel("Configuration Not Found", f"Configuration file not found: {config_file}")
+            raise typer.Exit(1)
+        
+        # Create backup manager
+        backup_manager = ConfigurationBackupManager(backup_dir)
+        
+        # Create backup
+        backup_id = backup_manager.create_backup(config_file, backup_reason, tags)
+        
+        show_success_panel(
+            "Backup Created",
+            f"Configuration backup created successfully.",
+            {
+                "Backup ID": backup_id,
+                "Reason": reason,
+                "Tags": ", ".join(tags or []) or "None",
+                "Location": str(backup_dir / f"{backup_id}.json")
+            }
+        )
+        
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Backup creation cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Backup Creation Error", f"Failed to create configuration backup: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@config_app.command("backup-restore")
+def config_backup_restore(
+        backup_id: Annotated[str, typer.Argument(help="Backup ID to restore")],
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Confirm restoration without prompt")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Restore configuration from a backup."""
+    setup_logging(verbose, config_dir)
+    try:
+        from .config.configuration_backup_manager import ConfigurationBackupManager
+        from .config.configuration_path_resolver import ConfigurationPathResolver
+        
+        # Get configuration paths
+        resolver = ConfigurationPathResolver(config_dir)
+        config_file = resolver.get_config_file()
+        backup_dir = resolver.get_config_directory() / "backups"
+        
+        # Create backup manager
+        backup_manager = ConfigurationBackupManager(backup_dir)
+        
+        # Check if backup exists
+        backups = backup_manager.list_backups()
+        backup_exists = any(b['backup_id'] == backup_id for b in backups)
+        
+        if not backup_exists:
+            show_error_panel("Backup Not Found", f"Backup '{backup_id}' not found.")
+            raise typer.Exit(1)
+        
+        # Confirm restoration
+        interactive = sys.stdin.isatty()
+        confirmed = yes
+        if not confirmed and interactive:
+            confirmed = Confirm.ask(f"Restore configuration from backup '{backup_id}'? This will overwrite the current configuration.", default=False)
+            if not confirmed:
+                show_info_panel("Operation Cancelled", "Configuration restoration cancelled.")
+                raise typer.Exit(0)
+        
+        # Restore backup
+        success = backup_manager.restore_backup(backup_id, config_file)
+        
+        if success:
+            show_success_panel(
+                "Backup Restored",
+                f"Configuration restored from backup '{backup_id}' successfully.",
+                {"Configuration File": str(config_file)}
+            )
+        else:
+            show_error_panel("Restoration Failed", f"Failed to restore configuration from backup '{backup_id}'.")
+            raise typer.Exit(1)
+        
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Backup restoration cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Backup Restoration Error", f"Failed to restore configuration backup: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@config_app.command("backup-compare")
+def config_backup_compare(
+        backup_id1: Annotated[str, typer.Argument(help="First backup ID to compare")],
+        backup_id2: Annotated[str, typer.Argument(help="Second backup ID to compare")],
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Compare two configuration backups."""
+    setup_logging(verbose, config_dir)
+    try:
+        from .config.configuration_backup_manager import ConfigurationBackupManager
+        from .config.configuration_path_resolver import ConfigurationPathResolver
+        
+        # Get backup directory
+        resolver = ConfigurationPathResolver(config_dir)
+        backup_dir = resolver.get_config_directory() / "backups"
+        
+        # Create backup manager
+        backup_manager = ConfigurationBackupManager(backup_dir)
+        
+        # Compare backups
+        comparison = backup_manager.compare_backups(backup_id1, backup_id2)
+        
+        if json_output:
+            console.print_json(data=comparison)
+            return
+        
+        # Display comparison results
+        console.rule("Backup Comparison")
+        
+        # Backup info
+        backup1_info = comparison['backup1']
+        backup2_info = comparison['backup2']
+        
+        console.print(f"[bold]Backup 1:[/bold] {backup1_info['id']}")
+        console.print(f"  Created: {backup1_info['created_at']}")
+        console.print(f"  Reason: {backup1_info['reason']}")
+        
+        console.print(f"\n[bold]Backup 2:[/bold] {backup2_info['id']}")
+        console.print(f"  Created: {backup2_info['created_at']}")
+        console.print(f"  Reason: {backup2_info['reason']}")
+        
+        # Differences
+        differences = comparison['differences']
+        if comparison['identical']:
+            show_success_panel("Comparison Result", "The backups are identical.")
+        else:
+            console.print(f"\n[bold red]Found {len(differences)} differences:[/bold red]")
+            
+            for diff in differences[:10]:  # Show first 10 differences
+                diff_type = diff['type']
+                path = diff['path']
+                
+                if diff_type == 'value_change':
+                    console.print(f"  • {path}: '{diff['old_value']}' → '{diff['new_value']}'")
+                elif diff_type == 'added':
+                    console.print(f"  • {path}: [green]Added[/green] '{diff['new_value']}'")
+                elif diff_type == 'removed':
+                    console.print(f"  • {path}: [red]Removed[/red] '{diff['old_value']}'")
+                elif diff_type == 'type_change':
+                    console.print(f"  • {path}: Type changed from {diff['old_type']} to {diff['new_type']}")
+            
+            if len(differences) > 10:
+                console.print(f"  ... and {len(differences) - 10} more differences")
+        
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Backup comparison cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Backup Comparison Error", f"Failed to compare configuration backups: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@config_app.command("lock-status")
+def config_lock_status(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Show configuration lock status."""
+    setup_logging(verbose, config_dir)
+    try:
+        from .config.configuration_lock_manager import ConfigurationLockManager
+        from .config.configuration_path_resolver import ConfigurationPathResolver
+        
+        # Get configuration paths
+        resolver = ConfigurationPathResolver(config_dir)
+        config_file = resolver.get_config_file()
+        
+        # Create lock manager
+        lock_manager = ConfigurationLockManager()
+        
+        # Check lock status
+        is_locked = lock_manager.is_locked(config_file)
+        lock_info = lock_manager.get_lock_info(config_file)
+        active_locks = lock_manager.list_active_locks()
+        
+        if json_output:
+            data = {
+                'configuration_file': str(config_file),
+                'is_locked': is_locked,
+                'lock_info': lock_info.__dict__ if lock_info else None,
+                'active_locks': [lock.__dict__ for lock in active_locks]
+            }
+            console.print_json(data=data)
+            return
+        
+        # Display lock status
+        console.rule("Configuration Lock Status")
+        
+        if is_locked and lock_info:
+            console.print(f"[red]Configuration is LOCKED[/red]")
+            console.print(f"  Lock ID: {lock_info.lock_id}")
+            console.print(f"  Process ID: {lock_info.process_id}")
+            console.print(f"  Acquired: {lock_info.acquired_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            console.print(f"  Expires: {lock_info.expires_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            console.print(f"  Operation: {lock_info.operation}")
+        else:
+            console.print(f"[green]Configuration is NOT LOCKED[/green]")
+        
+        # Show all active locks
+        if active_locks:
+            console.print(f"\n[bold]Active Locks ({len(active_locks)}):[/bold]")
+            
+            table = Table()
+            table.add_column("Lock ID", style="cyan")
+            table.add_column("Process ID", style="yellow")
+            table.add_column("Acquired", style="green")
+            table.add_column("Expires", style="red")
+            table.add_column("Operation", overflow="fold")
+            
+            for lock in active_locks:
+                table.add_row(
+                    lock.lock_id,
+                    str(lock.process_id),
+                    lock.acquired_at.strftime("%H:%M:%S"),
+                    lock.expires_at.strftime("%H:%M:%S"),
+                    lock.operation
+                )
+            
+            console.print(table)
+        else:
+            console.print(f"\n[dim]No active locks found.[/dim]")
+        
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Lock status check cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Lock Status Error", f"Failed to check configuration lock status: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@config_app.command("lock-cleanup")
+def config_lock_cleanup(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        max_age: Annotated[int, typer.Option("--max-age", help="Maximum age in seconds for locks to be considered stale")] = 300,
+        force: Annotated[bool, typer.Option("--force", help="Force cleanup without confirmation")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Clean up stale configuration locks."""
+    setup_logging(verbose, config_dir)
+    try:
+        from .config.configuration_lock_manager import ConfigurationLockManager
+        
+        # Create lock manager
+        lock_manager = ConfigurationLockManager()
+        
+        # Confirm cleanup
+        interactive = sys.stdin.isatty()
+        confirmed = force
+        if not confirmed and interactive:
+            confirmed = Confirm.ask(f"Clean up stale locks older than {max_age} seconds?", default=True)
+            if not confirmed:
+                show_info_panel("Operation Cancelled", "Lock cleanup cancelled.")
+                raise typer.Exit(0)
+        
+        # Cleanup stale locks
+        cleaned_count = lock_manager.cleanup_stale_locks(max_age)
+        
+        if cleaned_count > 0:
+            show_success_panel(
+                "Locks Cleaned",
+                f"Cleaned up {cleaned_count} stale configuration locks.",
+                {"Max Age": f"{max_age} seconds"}
+            )
+        else:
+            show_info_panel("No Stale Locks", "No stale configuration locks found to clean up.")
+        
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Lock cleanup cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Lock Cleanup Error", f"Failed to clean up configuration locks: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@config_app.command("performance")
+def config_performance(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format")] = False,
+        recommendations: Annotated[bool, typer.Option("--recommendations", help="Show optimization recommendations")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Show configuration system performance metrics."""
+    setup_logging(verbose, config_dir)
+    try:
+        from .config.configuration_performance_monitor import ConfigurationPerformanceMonitor
+        
+        # Create performance monitor (this would normally be a singleton in the actual system)
+        monitor = ConfigurationPerformanceMonitor()
+        
+        # Get performance metrics
+        metrics = monitor.get_performance_metrics()
+        cache_stats = monitor.get_cache_statistics()
+        
+        if json_output:
+            data = {
+                'performance_metrics': metrics,
+                'cache_statistics': cache_stats,
+                'recommendations': monitor.get_recommendations() if recommendations else []
+            }
+            console.print_json(data=data)
+            return
+        
+        # Display performance metrics
+        console.rule("Configuration Performance Metrics")
+        
+        # System info
+        uptime_hours = metrics.get('uptime_seconds', 0) / 3600
+        console.print(f"[bold]System Status:[/bold]")
+        console.print(f"  Monitoring: {'✅ Enabled' if metrics.get('monitoring_enabled') else '❌ Disabled'}")
+        console.print(f"  Uptime: {uptime_hours:.1f} hours")
+        console.print(f"  Performance Alerts: {metrics.get('performance_alerts', 0)}")
+        
+        # Operation metrics
+        operation_metrics = metrics.get('operation_metrics', {})
+        if operation_metrics:
+            console.print(f"\n[bold]Operation Performance:[/bold]")
+            
+            table = Table()
+            table.add_column("Operation", style="cyan")
+            table.add_column("Calls", style="yellow")
+            table.add_column("Avg Duration", style="green")
+            table.add_column("Max Duration", style="red")
+            table.add_column("Error Rate", style="magenta")
+            
+            for op_name, op_stats in operation_metrics.items():
+                error_rate = f"{op_stats['error_rate']:.1%}" if op_stats['error_rate'] > 0 else "0%"
+                table.add_row(
+                    op_name,
+                    str(op_stats['total_calls']),
+                    f"{op_stats['average_duration']:.3f}s",
+                    f"{op_stats['max_duration']:.3f}s",
+                    error_rate
+                )
+            
+            console.print(table)
+        
+        # Cache metrics
+        console.print(f"\n[bold]Cache Performance:[/bold]")
+        console.print(f"  Hit Ratio: {cache_stats.get('hit_ratio', 0):.1%}")
+        console.print(f"  Total Requests: {cache_stats.get('total_requests', 0)}")
+        console.print(f"  Cache Size: {cache_stats.get('current_size', 0)} / {cache_stats.get('max_size', 0)}")
+        console.print(f"  Utilization: {cache_stats.get('utilization_percent', 0):.1f}%")
+        console.print(f"  Efficiency Score: {cache_stats.get('efficiency_score', 0):.1f}/100")
+        
+        # Show recommendations if requested
+        if recommendations:
+            recs = monitor.get_recommendations()
+            if recs:
+                console.print(f"\n[bold yellow]Optimization Recommendations:[/bold yellow]")
+                for i, rec in enumerate(recs, 1):
+                    console.print(f"  {i}. {rec}")
+            else:
+                console.print(f"\n[green]No optimization recommendations at this time.[/green]")
+        
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Performance check cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Performance Check Error", f"Failed to get configuration performance metrics: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@config_app.command("validate")
+def config_validate(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        config_file: Annotated[Optional[Path], typer.Option("--config-file", help="Specific configuration file to validate")] = None,
+        json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format")] = False,
+        detailed: Annotated[bool, typer.Option("--detailed", help="Show detailed validation results")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Validate configuration with detailed error reporting."""
+    setup_logging(verbose, config_dir)
+    try:
+        from .config.configuration_validator import ConfigurationValidator
+        from .config.configuration_path_resolver import ConfigurationPathResolver
+        import json
+        
+        # Get configuration file path
+        if config_file:
+            target_file = Path(config_file)
+        else:
+            resolver = ConfigurationPathResolver(config_dir)
+            target_file = resolver.get_config_file()
+        
+        if not target_file.exists():
+            show_error_panel("Configuration Not Found", f"Configuration file not found: {target_file}")
+            raise typer.Exit(1)
+        
+        # Load configuration
+        try:
+            with open(target_file, 'r') as f:
+                config_data = json.load(f)
+        except json.JSONDecodeError as e:
+            show_error_panel("Invalid JSON", f"Configuration file contains invalid JSON: {e}")
+            raise typer.Exit(1)
+        
+        # Create validator and validate
+        validator = ConfigurationValidator()
+        result = validator.validate_config(config_data)
+        
+        if json_output:
+            data = {
+                'configuration_file': str(target_file),
+                'is_valid': result.is_valid,
+                'errors': result.errors,
+                'warnings': result.warnings,
+                'validation_timestamp': datetime.now().isoformat()
+            }
+            console.print_json(data=data)
+            return
+        
+        # Display validation results
+        console.rule("Configuration Validation")
+        console.print(f"[bold]Configuration File:[/bold] {target_file}")
+        console.print(f"[bold]Validation Time:[/bold] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        if result.is_valid and not result.errors:
+            status_color = "green"
+            status_icon = "✅"
+            status_text = "VALID"
+        else:
+            status_color = "red"
+            status_icon = "❌"
+            status_text = "INVALID"
+        
+        console.print(f"\n[bold {status_color}]{status_icon} Status: {status_text}[/bold {status_color}]")
+        
+        # Show errors
+        if result.errors:
+            console.print(f"\n[bold red]Errors ({len(result.errors)}):[/bold red]")
+            for i, error in enumerate(result.errors, 1):
+                console.print(f"  {i}. {error}")
+        
+        # Show warnings
+        if result.warnings:
+            console.print(f"\n[bold yellow]Warnings ({len(result.warnings)}):[/bold yellow]")
+            for i, warning in enumerate(result.warnings, 1):
+                console.print(f"  {i}. {warning}")
+        
+        # Show detailed information if requested
+        if detailed and hasattr(result, 'details'):
+            console.print(f"\n[bold]Detailed Validation Results:[/bold]")
+            for section, details in result.details.items():
+                console.print(f"  [cyan]{section}:[/cyan] {details}")
+        
+        # Summary
+        if result.is_valid and not result.errors:
+            show_success_panel("Validation Complete", "Configuration is valid and ready to use.")
+        else:
+            show_error_panel("Validation Failed", f"Configuration has {len(result.errors)} errors that must be fixed.")
+            raise typer.Exit(1)
+        
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Configuration validation cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Validation Error", f"Failed to validate configuration: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@config_app.command("diff")
+def config_diff(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        file1: Annotated[Optional[Path], typer.Option("--file1", help="First configuration file to compare")] = None,
+        file2: Annotated[Optional[Path], typer.Option("--file2", help="Second configuration file to compare")] = None,
+        backup_id: Annotated[Optional[str], typer.Option("--backup", help="Compare current config with backup ID")] = None,
+        section: Annotated[Optional[str], typer.Option("--section", help="Compare only specific section")] = None,
+        json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Compare configuration files or sections."""
+    setup_logging(verbose, config_dir)
+    try:
+        from .config.configuration_backup_manager import ConfigurationBackupManager
+        from .config.configuration_path_resolver import ConfigurationPathResolver
+        import json
+        
+        resolver = ConfigurationPathResolver(config_dir)
+        
+        # Determine what to compare
+        if backup_id:
+            # Compare current config with backup
+            current_file = resolver.get_config_file()
+            backup_dir = resolver.get_config_directory() / "backups"
+            backup_file = backup_dir / f"{backup_id}.json"
+            
+            if not current_file.exists():
+                show_error_panel("Configuration Not Found", f"Current configuration file not found: {current_file}")
+                raise typer.Exit(1)
+            
+            if not backup_file.exists():
+                show_error_panel("Backup Not Found", f"Backup file not found: {backup_file}")
+                raise typer.Exit(1)
+            
+            file1, file2 = current_file, backup_file
+            comparison_title = f"Current vs Backup {backup_id}"
+            
+        elif file1 and file2:
+            # Compare two specific files
+            file1, file2 = Path(file1), Path(file2)
+            
+            if not file1.exists():
+                show_error_panel("File Not Found", f"First configuration file not found: {file1}")
+                raise typer.Exit(1)
+            
+            if not file2.exists():
+                show_error_panel("File Not Found", f"Second configuration file not found: {file2}")
+                raise typer.Exit(1)
+            
+            comparison_title = f"{file1.name} vs {file2.name}"
+            
+        else:
+            show_error_panel("Missing Parameters", "Specify either --backup ID or both --file1 and --file2")
+            raise typer.Exit(2)
+        
+        # Load configurations
+        with open(file1, 'r') as f:
+            config1 = json.load(f)
+        with open(file2, 'r') as f:
+            config2 = json.load(f)
+        
+        # Filter by section if specified
+        if section:
+            config1 = {section: config1.get(section, {})}
+            config2 = {section: config2.get(section, {})}
+        
+        # Compare configurations using backup manager's comparison logic
+        backup_manager = ConfigurationBackupManager(resolver.get_config_directory() / "backups")
+        differences = backup_manager._compare_configurations(config1, config2)
+        
+        if json_output:
+            data = {
+                'file1': str(file1),
+                'file2': str(file2),
+                'section_filter': section,
+                'identical': len(differences) == 0,
+                'differences': differences,
+                'comparison_timestamp': datetime.now().isoformat()
+            }
+            console.print_json(data=data)
+            return
+        
+        # Display comparison results
+        console.rule(f"Configuration Diff: {comparison_title}")
+        
+        if section:
+            console.print(f"[bold]Section Filter:[/bold] {section}")
+        
+        console.print(f"[bold]File 1:[/bold] {file1}")
+        console.print(f"[bold]File 2:[/bold] {file2}")
+        
+        if len(differences) == 0:
+            show_success_panel("Comparison Result", "The configurations are identical.")
+        else:
+            console.print(f"\n[bold red]Found {len(differences)} differences:[/bold red]")
+            
+            # Group differences by type
+            changes = {'added': [], 'removed': [], 'modified': [], 'type_changed': []}
+            
+            for diff in differences:
+                diff_type = diff['type']
+                if diff_type == 'added':
+                    changes['added'].append(diff)
+                elif diff_type == 'removed':
+                    changes['removed'].append(diff)
+                elif diff_type == 'value_change':
+                    changes['modified'].append(diff)
+                elif diff_type == 'type_change':
+                    changes['type_changed'].append(diff)
+            
+            # Display grouped differences
+            for change_type, change_list in changes.items():
+                if not change_list:
+                    continue
+                
+                if change_type == 'added':
+                    console.print(f"\n[bold green]Added ({len(change_list)}):[/bold green]")
+                    for diff in change_list[:5]:  # Show first 5
+                        console.print(f"  + {diff['path']}: {diff['new_value']}")
+                elif change_type == 'removed':
+                    console.print(f"\n[bold red]Removed ({len(change_list)}):[/bold red]")
+                    for diff in change_list[:5]:  # Show first 5
+                        console.print(f"  - {diff['path']}: {diff['old_value']}")
+                elif change_type == 'modified':
+                    console.print(f"\n[bold yellow]Modified ({len(change_list)}):[/bold yellow]")
+                    for diff in change_list[:5]:  # Show first 5
+                        console.print(f"  ~ {diff['path']}: '{diff['old_value']}' → '{diff['new_value']}'")
+                elif change_type == 'type_changed':
+                    console.print(f"\n[bold magenta]Type Changed ({len(change_list)}):[/bold magenta]")
+                    for diff in change_list[:5]:  # Show first 5
+                        console.print(f"  ! {diff['path']}: {diff['old_type']} → {diff['new_type']}")
+                
+                if len(change_list) > 5:
+                    console.print(f"    ... and {len(change_list) - 5} more")
+        
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Configuration diff cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Diff Error", f"Failed to compare configurations: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@config_app.command("health-check")
+def config_health_check(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        fix: Annotated[bool, typer.Option("--fix", help="Attempt to fix detected issues")] = False,
+        json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Perform comprehensive configuration health check and diagnostics."""
+    setup_logging(verbose, config_dir)
+    try:
+        from .config.configuration_validator import ConfigurationValidator
+        from .config.configuration_backup_manager import ConfigurationBackupManager
+        from .config.configuration_lock_manager import ConfigurationLockManager
+        from .config.configuration_performance_monitor import ConfigurationPerformanceMonitor
+        from .config.configuration_path_resolver import ConfigurationPathResolver
+        import json
+        import os
+        
+        resolver = ConfigurationPathResolver(config_dir)
+        config_file = resolver.get_config_file()
+        config_dir_path = resolver.get_config_directory()
+        
+        health_results = {
+            'timestamp': datetime.now().isoformat(),
+            'configuration_file': str(config_file),
+            'configuration_directory': str(config_dir_path),
+            'checks': {},
+            'issues': [],
+            'recommendations': [],
+            'overall_status': 'unknown'
+        }
+        
+        issues_found = 0
+        
+        # Check 1: Configuration file existence and readability
+        console.print("🔍 Checking configuration file...")
+        if config_file.exists():
+            try:
+                with open(config_file, 'r') as f:
+                    config_data = json.load(f)
+                health_results['checks']['file_readable'] = True
+                console.print("  ✅ Configuration file exists and is readable")
+            except json.JSONDecodeError as e:
+                health_results['checks']['file_readable'] = False
+                health_results['issues'].append(f"Configuration file contains invalid JSON: {e}")
+                issues_found += 1
+                console.print(f"  ❌ Configuration file contains invalid JSON: {e}")
+            except PermissionError:
+                health_results['checks']['file_readable'] = False
+                health_results['issues'].append("Permission denied reading configuration file")
+                issues_found += 1
+                console.print("  ❌ Permission denied reading configuration file")
+        else:
+            health_results['checks']['file_readable'] = False
+            health_results['issues'].append("Configuration file does not exist")
+            issues_found += 1
+            console.print("  ❌ Configuration file does not exist")
+        
+        # Check 2: Configuration validation
+        if health_results['checks'].get('file_readable'):
+            console.print("🔍 Validating configuration structure...")
+            validator = ConfigurationValidator()
+            validation_result = validator.validate_config(config_data)
+            
+            health_results['checks']['validation_passed'] = validation_result.is_valid
+            if validation_result.is_valid:
+                console.print("  ✅ Configuration structure is valid")
+            else:
+                for error in validation_result.errors:
+                    health_results['issues'].append(f"Validation error: {error}")
+                    issues_found += 1
+                console.print(f"  ❌ Configuration validation failed ({len(validation_result.errors)} errors)")
+            
+            if validation_result.warnings:
+                for warning in validation_result.warnings:
+                    health_results['recommendations'].append(f"Validation warning: {warning}")
+                console.print(f"  ⚠️  {len(validation_result.warnings)} validation warnings")
+        
+        # Check 3: Directory permissions
+        console.print("🔍 Checking directory permissions...")
+        try:
+            # Test write permissions
+            test_file = config_dir_path / ".health_check_test"
+            test_file.write_text("test")
+            test_file.unlink()
+            health_results['checks']['directory_writable'] = True
+            console.print("  ✅ Configuration directory is writable")
+        except PermissionError:
+            health_results['checks']['directory_writable'] = False
+            health_results['issues'].append("Configuration directory is not writable")
+            issues_found += 1
+            console.print("  ❌ Configuration directory is not writable")
+        except Exception as e:
+            health_results['checks']['directory_writable'] = False
+            health_results['issues'].append(f"Directory permission check failed: {e}")
+            issues_found += 1
+            console.print(f"  ❌ Directory permission check failed: {e}")
+        
+        # Check 4: Backup system
+        console.print("🔍 Checking backup system...")
+        backup_dir = config_dir_path / "backups"
+        try:
+            backup_manager = ConfigurationBackupManager(backup_dir)
+            backups = backup_manager.list_backups(limit=5)
+            health_results['checks']['backup_system'] = True
+            health_results['checks']['backup_count'] = len(backups)
+            console.print(f"  ✅ Backup system operational ({len(backups)} recent backups)")
+            
+            if len(backups) == 0:
+                health_results['recommendations'].append("No configuration backups found. Consider creating a backup.")
+            elif len(backups) < 3:
+                health_results['recommendations'].append("Few configuration backups available. Consider regular backup schedule.")
+        except Exception as e:
+            health_results['checks']['backup_system'] = False
+            health_results['issues'].append(f"Backup system error: {e}")
+            issues_found += 1
+            console.print(f"  ❌ Backup system error: {e}")
+        
+        # Check 5: Lock system
+        console.print("🔍 Checking lock system...")
+        try:
+            lock_manager = ConfigurationLockManager()
+            active_locks = lock_manager.list_active_locks()
+            stale_locks = lock_manager.cleanup_stale_locks(max_age=300)  # 5 minutes
+            
+            health_results['checks']['lock_system'] = True
+            health_results['checks']['active_locks'] = len(active_locks)
+            health_results['checks']['stale_locks_cleaned'] = stale_locks
+            
+            console.print(f"  ✅ Lock system operational")
+            if active_locks:
+                console.print(f"    ℹ️  {len(active_locks)} active locks")
+            if stale_locks > 0:
+                console.print(f"    🧹 Cleaned {stale_locks} stale locks")
+        except Exception as e:
+            health_results['checks']['lock_system'] = False
+            health_results['issues'].append(f"Lock system error: {e}")
+            issues_found += 1
+            console.print(f"  ❌ Lock system error: {e}")
+        
+        # Check 6: Performance monitoring
+        console.print("🔍 Checking performance monitoring...")
+        try:
+            monitor = ConfigurationPerformanceMonitor()
+            metrics = monitor.get_performance_metrics()
+            recommendations = monitor.get_recommendations()
+            
+            health_results['checks']['performance_monitoring'] = True
+            health_results['checks']['monitoring_enabled'] = metrics.get('monitoring_enabled', False)
+            
+            console.print("  ✅ Performance monitoring available")
+            if not metrics.get('monitoring_enabled'):
+                health_results['recommendations'].append("Performance monitoring is disabled. Enable for better insights.")
+            
+            for rec in recommendations:
+                health_results['recommendations'].append(f"Performance: {rec}")
+        except Exception as e:
+            health_results['checks']['performance_monitoring'] = False
+            health_results['issues'].append(f"Performance monitoring error: {e}")
+            console.print(f"  ⚠️  Performance monitoring error: {e}")
+        
+        # Check 7: File system space
+        console.print("🔍 Checking disk space...")
+        try:
+            stat = os.statvfs(config_dir_path)
+            free_bytes = stat.f_bavail * stat.f_frsize
+            total_bytes = stat.f_blocks * stat.f_frsize
+            free_mb = free_bytes / (1024 * 1024)
+            
+            health_results['checks']['disk_space_mb'] = free_mb
+            
+            if free_mb < 10:  # Less than 10MB
+                health_results['issues'].append(f"Low disk space: {free_mb:.1f} MB available")
+                issues_found += 1
+                console.print(f"  ❌ Low disk space: {free_mb:.1f} MB available")
+            elif free_mb < 100:  # Less than 100MB
+                health_results['recommendations'].append(f"Limited disk space: {free_mb:.1f} MB available")
+                console.print(f"  ⚠️  Limited disk space: {free_mb:.1f} MB available")
+            else:
+                console.print(f"  ✅ Sufficient disk space: {free_mb:.1f} MB available")
+        except Exception as e:
+            health_results['issues'].append(f"Disk space check failed: {e}")
+            console.print(f"  ⚠️  Disk space check failed: {e}")
+        
+        # Determine overall status
+        if issues_found == 0:
+            health_results['overall_status'] = 'healthy'
+            status_color = 'green'
+            status_icon = '✅'
+        elif issues_found <= 2:
+            health_results['overall_status'] = 'warning'
+            status_color = 'yellow'
+            status_icon = '⚠️'
+        else:
+            health_results['overall_status'] = 'critical'
+            status_color = 'red'
+            status_icon = '❌'
+        
+        if json_output:
+            console.print_json(data=health_results)
+            return
+        
+        # Display summary
+        console.rule("Health Check Summary")
+        console.print(f"[bold {status_color}]{status_icon} Overall Status: {health_results['overall_status'].upper()}[/bold {status_color}]")
+        console.print(f"Issues Found: {issues_found}")
+        console.print(f"Recommendations: {len(health_results['recommendations'])}")
+        
+        # Show issues
+        if health_results['issues']:
+            console.print(f"\n[bold red]Issues ({len(health_results['issues'])}):[/bold red]")
+            for i, issue in enumerate(health_results['issues'], 1):
+                console.print(f"  {i}. {issue}")
+        
+        # Show recommendations
+        if health_results['recommendations']:
+            console.print(f"\n[bold yellow]Recommendations ({len(health_results['recommendations'])}):[/bold yellow]")
+            for i, rec in enumerate(health_results['recommendations'], 1):
+                console.print(f"  {i}. {rec}")
+        
+        # Offer to fix issues if requested
+        if fix and health_results['issues']:
+            console.print(f"\n[bold blue]Attempting to fix issues...[/bold blue]")
+            fixed_count = 0
+            
+            # Try to fix common issues
+            for issue in health_results['issues']:
+                if "Configuration file does not exist" in issue:
+                    try:
+                        # Create default configuration
+                        default_config = {"general": {}, "repositories": {}, "backup_targets": {}}
+                        with open(config_file, 'w') as f:
+                            json.dump(default_config, f, indent=2)
+                        console.print("  ✅ Created default configuration file")
+                        fixed_count += 1
+                    except Exception as e:
+                        console.print(f"  ❌ Failed to create configuration file: {e}")
+                
+                elif "stale locks" in issue.lower():
+                    try:
+                        lock_manager = ConfigurationLockManager()
+                        cleaned = lock_manager.cleanup_stale_locks(max_age=60)
+                        console.print(f"  ✅ Cleaned {cleaned} stale locks")
+                        fixed_count += 1
+                    except Exception as e:
+                        console.print(f"  ❌ Failed to clean stale locks: {e}")
+            
+            if fixed_count > 0:
+                show_success_panel("Issues Fixed", f"Successfully fixed {fixed_count} issues.")
+            else:
+                show_info_panel("No Fixes Applied", "No automatic fixes were available for the detected issues.")
+        
+        # Exit with appropriate code
+        if health_results['overall_status'] == 'critical':
+            raise typer.Exit(2)
+        elif health_results['overall_status'] == 'warning':
+            raise typer.Exit(1)
+        else:
+            show_success_panel("Health Check Complete", "Configuration system is healthy.")
+        
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Health check cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Health Check Error", f"Failed to perform configuration health check: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
 @config_import_app.command("timeshift")
 def config_import_timeshift(
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
