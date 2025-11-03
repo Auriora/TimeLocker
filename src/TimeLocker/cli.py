@@ -273,6 +273,10 @@ config_app.info.options_metavar = "⟨OPTIONS⟩"
 credentials_app = typer.Typer(help="Credential management commands", context_settings=CLI_CONTEXT_SETTINGS)
 credentials_app.info.options_metavar = "⟨OPTIONS⟩"
 
+# Create security sub-app
+security_app = typer.Typer(help="Security management commands", context_settings=CLI_CONTEXT_SETTINGS)
+security_app.info.options_metavar = "⟨OPTIONS⟩"
+
 # Add sub-apps to main app
 app.add_typer(backup_app, name="backup")
 
@@ -281,6 +285,7 @@ app.add_typer(repos_app, name="repos")
 app.add_typer(targets_app, name="targets")
 app.add_typer(config_app, name="config")
 app.add_typer(credentials_app, name="credentials")
+app.add_typer(security_app, name="security")
 
 # Create config sub-apps (only import remains under config)
 config_import_app = typer.Typer(help="Import configuration commands", context_settings=CLI_CONTEXT_SETTINGS)
@@ -900,6 +905,93 @@ def _create_credential_manager(config_dir: Optional[Path] = None):
     from .security.credential_manager import CredentialManager
 
     return CredentialManager()
+
+
+def _create_security_manager(config_dir: Optional[Path] = None):
+    """Create security manager with access manager integration."""
+    from .security import CredentialManager, AccessManager
+    
+    credential_manager = CredentialManager(config_dir=config_dir)
+    security_service = SecurityService(credential_manager, config_dir=config_dir)
+    access_manager = AccessManager(config_dir=config_dir)
+    
+    return security_service, access_manager
+
+
+def _authenticate_user_session(access_manager: 'AccessManager', user_id: Optional[str] = None) -> Optional[str]:
+    """
+    Authenticate user and create session if needed.
+    
+    Args:
+        access_manager: AccessManager instance
+        user_id: Optional user ID (defaults to current system user)
+        
+    Returns:
+        Session ID if authentication successful, None otherwise
+    """
+    try:
+        if user_id is None:
+            import os
+            user_id = os.getenv('USER', os.getenv('USERNAME', 'unknown'))
+        
+        from .security.access_manager import UserCredentials
+        credentials = UserCredentials(user_id=user_id)
+        
+        auth_result = access_manager.authenticate_user(credentials)
+        if auth_result.success:
+            return auth_result.session_id
+        else:
+            logger.warning(f"Authentication failed: {auth_result.error_message}")
+            return None
+            
+    except Exception as e:
+        logger.error(f"Session authentication error: {e}")
+        return None
+
+
+def _validate_session_for_operation(access_manager: 'AccessManager', operation: str, 
+                                   repository_id: Optional[str] = None) -> bool:
+    """
+    Validate session for operation and create if needed.
+    
+    Args:
+        access_manager: AccessManager instance
+        operation: Operation being performed
+        repository_id: Optional repository ID
+        
+    Returns:
+        True if session is valid for operation
+    """
+    try:
+        # Get or create session
+        active_sessions = access_manager.get_active_sessions()
+        session_id = None
+        
+        if active_sessions:
+            # Use the most recent valid session
+            for session in sorted(active_sessions, key=lambda s: s.last_accessed, reverse=True):
+                if session.is_valid():
+                    session_id = session.session_id
+                    break
+        
+        if not session_id:
+            # Create new session
+            session_id = _authenticate_user_session(access_manager)
+            if not session_id:
+                return False
+        
+        # Validate session for operation
+        if not access_manager.validate_session(session_id):
+            return False
+            
+        # Extend session
+        access_manager.extend_session(session_id)
+        
+        return True
+        
+    except Exception as e:
+        logger.error(f"Session validation error: {e}")
+        return False
 
 
 def _create_configuration_module(config_dir: Optional[Path] = None):
@@ -1582,9 +1674,13 @@ def repos_remove(
         }
 
         # Initialize security service for confirmation
-        from .security import CredentialManager
-        credential_manager = CredentialManager(config_dir=config_dir)
-        security_service = SecurityService(credential_manager, config_dir=config_dir)
+        security_service, access_manager = _create_security_manager(config_dir)
+
+        # Validate session for repository operations
+        if not _validate_session_for_operation(access_manager, "repository_delete", name):
+            show_error_panel("Authentication Required", 
+                           "Session authentication failed. Please ensure you have proper access.")
+            raise typer.Exit(1)
 
         # Check if repository is locked
         if security_service.is_repository_locked(name):
@@ -1676,9 +1772,13 @@ def repos_lock(
     setup_logging(verbose, config_dir)
     try:
         # Initialize security service
-        from .security import CredentialManager
-        credential_manager = CredentialManager(config_dir=config_dir)
-        security_service = SecurityService(credential_manager, config_dir=config_dir)
+        security_service, access_manager = _create_security_manager(config_dir)
+
+        # Validate session for repository operations
+        if not _validate_session_for_operation(access_manager, "repository_lock", name):
+            show_error_panel("Authentication Required", 
+                           "Session authentication failed. Please ensure you have proper access.")
+            raise typer.Exit(1)
 
         # Get current user
         import os
@@ -1710,9 +1810,13 @@ def repos_unlock(
     setup_logging(verbose, config_dir)
     try:
         # Initialize security service
-        from .security import CredentialManager
-        credential_manager = CredentialManager(config_dir=config_dir)
-        security_service = SecurityService(credential_manager, config_dir=config_dir)
+        security_service, access_manager = _create_security_manager(config_dir)
+
+        # Validate session for repository operations
+        if not _validate_session_for_operation(access_manager, "repository_unlock", name):
+            show_error_panel("Authentication Required", 
+                           "Session authentication failed. Please ensure you have proper access.")
+            raise typer.Exit(1)
 
         # Get current user
         import os
@@ -1745,9 +1849,14 @@ def repos_mode(
     setup_logging(verbose, config_dir)
     try:
         # Initialize security service
-        from .security import CredentialManager
-        credential_manager = CredentialManager(config_dir=config_dir)
-        security_service = SecurityService(credential_manager, config_dir=config_dir)
+        security_service, access_manager = _create_security_manager(config_dir)
+
+        # Validate session for repository operations (only if setting mode)
+        if mode is not None:
+            if not _validate_session_for_operation(access_manager, "repository_mode_change", name):
+                show_error_panel("Authentication Required", 
+                               "Session authentication failed. Please ensure you have proper access.")
+                raise typer.Exit(1)
 
         if mode is None:
             # Get current mode
@@ -1796,9 +1905,7 @@ def repos_protection_status(
     setup_logging(verbose, config_dir)
     try:
         # Initialize security service
-        from .security import CredentialManager
-        credential_manager = CredentialManager(config_dir=config_dir)
-        security_service = SecurityService(credential_manager, config_dir=config_dir)
+        security_service, access_manager = _create_security_manager(config_dir)
 
         # Get protection status
         status = security_service.get_repository_protection_status()
@@ -3684,9 +3791,13 @@ def snapshots_forget(
         }
 
         # Initialize security service for confirmation
-        from .security import CredentialManager
-        credential_manager = CredentialManager(config_dir=config_dir)
-        security_service = SecurityService(credential_manager, config_dir=config_dir)
+        security_service, access_manager = _create_security_manager(config_dir)
+
+        # Validate session for snapshot operations
+        if not _validate_session_for_operation(access_manager, "snapshot_delete", repo_name):
+            show_error_panel("Authentication Required", 
+                           "Session authentication failed. Please ensure you have proper access.")
+            raise typer.Exit(1)
 
         # Check if repository is locked
         if security_service.is_repository_locked(repo_name):
@@ -4012,6 +4123,473 @@ def snapshots_diff(
         raise typer.Exit(130)
     except Exception as e:
         show_error_panel("Diff Error", f"Failed to compare snapshots: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+# Security Commands
+
+@security_app.command("status")
+def security_status(
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Display security status and summary."""
+    setup_logging(verbose, config_dir)
+    try:
+        # Initialize security components
+        from .security import CredentialManager, AccessManager
+        credential_manager = CredentialManager(config_dir=config_dir)
+        security_service = SecurityService(credential_manager, config_dir=config_dir)
+        access_manager = AccessManager(config_dir=config_dir)
+
+        # Get security status
+        security_status_info = security_service.get_security_summary(days=7)
+        access_status = access_manager.get_security_status()
+        protection_status = security_service.get_repository_protection_status()
+
+        # Display status table
+        table = Table(title="Security Status Overview")
+        table.add_column("Component", style="cyan")
+        table.add_column("Status", style="green")
+        table.add_column("Details", style="white")
+
+        # Access Manager Status
+        active_sessions = access_status.get('active_sessions', 0)
+        locked_users = access_status.get('locked_users', 0)
+        session_status = "Active" if active_sessions > 0 else "Idle"
+        session_color = "green" if locked_users == 0 else "yellow"
+        table.add_row(
+            "Session Management",
+            f"[{session_color}]{session_status}[/{session_color}]",
+            f"{active_sessions} active sessions, {locked_users} locked users"
+        )
+
+        # Security Events
+        total_events = security_status_info.get('total_events', 0)
+        events_by_level = security_status_info.get('events_by_level', {})
+        critical_events = events_by_level.get('critical', 0)
+        high_events = events_by_level.get('high', 0)
+        
+        event_status = "Normal"
+        event_color = "green"
+        if critical_events > 0:
+            event_status = "Critical Issues"
+            event_color = "red"
+        elif high_events > 0:
+            event_status = "Warnings"
+            event_color = "yellow"
+
+        table.add_row(
+            "Security Events (7 days)",
+            f"[{event_color}]{event_status}[/{event_color}]",
+            f"{total_events} total events, {critical_events} critical, {high_events} high"
+        )
+
+        # Repository Protection
+        protected_repos = protection_status.get('protected_repositories', 0)
+        locked_repos = protection_status.get('locked_repositories', 0)
+        protection_color = "green" if locked_repos == 0 else "yellow"
+        table.add_row(
+            "Repository Protection",
+            f"[{protection_color}]Active[/{protection_color}]",
+            f"{protected_repos} protected, {locked_repos} locked"
+        )
+
+        console.print(table)
+
+        if verbose:
+            # Show detailed information
+            console.print("\n[bold]Detailed Security Information[/bold]")
+            
+            # Access Manager Details
+            console.print(f"\n[cyan]Access Manager:[/cyan]")
+            console.print(f"  Session Timeout: {access_status.get('session_timeout_minutes', 30)} minutes")
+            console.print(f"  Max Failed Attempts: {access_status.get('max_failed_attempts', 3)}")
+            console.print(f"  Lockout Duration: {access_status.get('lockout_duration_minutes', 15)} minutes")
+            console.print(f"  Config Directory: {access_status.get('config_directory', 'Unknown')}")
+
+            # Recent Events by Type
+            events_by_type = security_status_info.get('events_by_type', {})
+            if events_by_type:
+                console.print(f"\n[cyan]Recent Security Events by Type:[/cyan]")
+                for event_type, count in events_by_type.items():
+                    console.print(f"  {event_type}: {count}")
+
+    except Exception as e:
+        show_error_panel("Security Status Error", f"Failed to get security status: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@security_app.command("logs")
+def security_logs(
+        days: Annotated[int, typer.Option("--days", "-d", help="Number of days to show")] = 7,
+        event_type: Annotated[Optional[str], typer.Option("--type", "-t", help="Filter by event type")] = None,
+        level: Annotated[Optional[str], typer.Option("--level", "-l", help="Filter by security level")] = None,
+        limit: Annotated[Optional[int], typer.Option("--limit", help="Maximum number of entries")] = 50,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """View security logs with filtering options."""
+    setup_logging(verbose, config_dir)
+    try:
+        # Initialize security service
+        from .security import CredentialManager
+        credential_manager = CredentialManager(config_dir=config_dir)
+        security_service = SecurityService(credential_manager, config_dir=config_dir)
+
+        # Get security logs
+        logs = security_service.get_security_logs(
+            days=days,
+            event_type=event_type,
+            level=level,
+            limit=limit
+        )
+
+        if not logs:
+            show_info_panel("Security Logs", f"No security events found in the last {days} days.")
+            return
+
+        # Display logs in a table
+        table = Table(title=f"Security Logs (Last {days} days)")
+        table.add_column("Timestamp", style="cyan", no_wrap=True)
+        table.add_column("Level", style="yellow", width=8)
+        table.add_column("Type", style="blue", width=15)
+        table.add_column("Description", style="white")
+        
+        if verbose:
+            table.add_column("Repository", style="green", width=12)
+            table.add_column("User", style="magenta", width=10)
+
+        for log_entry in logs:
+            timestamp = log_entry.get('timestamp', '')
+            if timestamp:
+                # Format timestamp for display
+                try:
+                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                    timestamp_str = dt.strftime('%m-%d %H:%M:%S')
+                except:
+                    timestamp_str = timestamp[:16]  # Fallback
+            else:
+                timestamp_str = 'Unknown'
+
+            level_str = log_entry.get('level', 'unknown').upper()
+            event_type_str = log_entry.get('event_type', 'unknown').replace('_', ' ').title()
+            description = log_entry.get('description', '')
+
+            # Color code levels
+            level_colors = {
+                'CRITICAL': 'red',
+                'HIGH': 'yellow', 
+                'MEDIUM': 'blue',
+                'LOW': 'green'
+            }
+            level_color = level_colors.get(level_str, 'white')
+            level_display = f"[{level_color}]{level_str}[/{level_color}]"
+
+            if verbose:
+                repository_id = log_entry.get('repository_id', '')[:12] if log_entry.get('repository_id') else ''
+                user_id = log_entry.get('user_id', '')[:10] if log_entry.get('user_id') else ''
+                table.add_row(timestamp_str, level_display, event_type_str, description, repository_id, user_id)
+            else:
+                table.add_row(timestamp_str, level_display, event_type_str, description)
+
+        console.print(table)
+        console.print(f"\n[dim]Showing {len(logs)} of {len(logs)} events[/dim]")
+
+    except Exception as e:
+        show_error_panel("Security Logs Error", f"Failed to retrieve security logs: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@security_app.command("notifications")
+def security_notifications(
+        hours: Annotated[int, typer.Option("--hours", "-h", help="Number of hours to show")] = 24,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """View recent security notifications."""
+    setup_logging(verbose, config_dir)
+    try:
+        # Initialize security service
+        from .security import CredentialManager
+        credential_manager = CredentialManager(config_dir=config_dir)
+        security_service = SecurityService(credential_manager, config_dir=config_dir)
+
+        # Get security notifications
+        notifications = security_service.get_security_notifications(hours=hours)
+
+        if not notifications:
+            show_info_panel("Security Notifications", f"No security notifications in the last {hours} hours.")
+            return
+
+        # Display notifications
+        console.print(f"[bold]Security Notifications (Last {hours} hours)[/bold]\n")
+
+        for notification in notifications:
+            timestamp = notification.get('timestamp', '')
+            if timestamp:
+                try:
+                    dt = datetime.fromisoformat(timestamp.replace('Z', '+00:00'))
+                    time_str = dt.strftime('%Y-%m-%d %H:%M:%S')
+                except:
+                    time_str = timestamp
+
+            level = notification.get('level', 'medium').upper()
+            message = notification.get('message', '')
+            details = notification.get('details', '')
+
+            # Color code by level
+            level_colors = {
+                'CRITICAL': 'red',
+                'HIGH': 'yellow',
+                'MEDIUM': 'blue', 
+                'LOW': 'green'
+            }
+            level_color = level_colors.get(level, 'white')
+
+            console.print(f"[{level_color}]●[/{level_color}] [{level_color}]{level}[/{level_color}] - {time_str}")
+            console.print(f"  {message}")
+            if details and verbose:
+                console.print(f"  [dim]{details}[/dim]")
+            console.print()
+
+    except Exception as e:
+        show_error_panel("Security Notifications Error", f"Failed to retrieve security notifications: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@security_app.command("sessions")
+def security_sessions(
+        user_id: Annotated[Optional[str], typer.Option("--user", "-u", help="Filter by user ID")] = None,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """View active security sessions."""
+    setup_logging(verbose, config_dir)
+    try:
+        # Initialize access manager
+        from .security import AccessManager
+        access_manager = AccessManager(config_dir=config_dir)
+
+        # Get active sessions
+        sessions = access_manager.get_active_sessions(user_id=user_id)
+
+        if not sessions:
+            if user_id:
+                show_info_panel("Active Sessions", f"No active sessions found for user '{user_id}'.")
+            else:
+                show_info_panel("Active Sessions", "No active sessions found.")
+            return
+
+        # Display sessions in a table
+        table = Table(title="Active Security Sessions")
+        table.add_column("Session ID", style="cyan", width=12)
+        table.add_column("User ID", style="green")
+        table.add_column("Created", style="yellow")
+        table.add_column("Last Accessed", style="blue")
+        table.add_column("Expires", style="red")
+
+        for session in sessions:
+            session_id = session.session_id[:12] if len(session.session_id) > 12 else session.session_id
+            created_str = session.created_at.strftime('%m-%d %H:%M')
+            accessed_str = session.last_accessed.strftime('%m-%d %H:%M')
+            expires_str = session.expires_at.strftime('%m-%d %H:%M')
+
+            table.add_row(
+                session_id,
+                session.user_id,
+                created_str,
+                accessed_str,
+                expires_str
+            )
+
+        console.print(table)
+
+        if verbose:
+            console.print(f"\n[dim]Total active sessions: {len(sessions)}[/dim]")
+            
+            # Show session details
+            for session in sessions:
+                console.print(f"\n[cyan]Session {session.session_id}:[/cyan]")
+                console.print(f"  User: {session.user_id}")
+                console.print(f"  Created: {session.created_at}")
+                console.print(f"  Last Accessed: {session.last_accessed}")
+                console.print(f"  Expires: {session.expires_at}")
+                console.print(f"  Valid: {session.is_valid()}")
+                if session.metadata:
+                    console.print(f"  Metadata: {session.metadata}")
+
+    except Exception as e:
+        show_error_panel("Security Sessions Error", f"Failed to retrieve security sessions: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@security_app.command("cleanup")
+def security_cleanup(
+        logs: Annotated[bool, typer.Option("--logs", help="Clean up old security logs")] = False,
+        sessions: Annotated[bool, typer.Option("--sessions", help="Clean up expired sessions")] = False,
+        temp_files: Annotated[bool, typer.Option("--temp-files", help="Clean up temporary files")] = False,
+        all_items: Annotated[bool, typer.Option("--all", help="Clean up all items")] = False,
+        max_age_hours: Annotated[Optional[int], typer.Option("--max-age", help="Maximum age in hours for cleanup")] = None,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Clean up security data (logs, sessions, temporary files)."""
+    setup_logging(verbose, config_dir)
+    
+    if not any([logs, sessions, temp_files, all_items]):
+        show_error_panel("Cleanup Options", "Please specify what to clean up: --logs, --sessions, --temp-files, or --all")
+        raise typer.Exit(1)
+
+    try:
+        # Initialize security components
+        from .security import CredentialManager, AccessManager
+        credential_manager = CredentialManager(config_dir=config_dir)
+        security_service = SecurityService(credential_manager, config_dir=config_dir)
+        access_manager = AccessManager(config_dir=config_dir)
+
+        cleanup_results = {}
+
+        # Clean up security logs
+        if logs or all_items:
+            console.print("🧹 Cleaning up security logs...")
+            success = security_service.cleanup_security_logs()
+            cleanup_results['logs'] = success
+            if success:
+                console.print("  ✅ Security logs cleaned up")
+            else:
+                console.print("  ❌ Failed to clean up security logs")
+
+        # Clean up expired sessions
+        if sessions or all_items:
+            console.print("🧹 Cleaning up expired sessions...")
+            cleaned_sessions = access_manager.cleanup_expired_sessions()
+            cleanup_results['sessions'] = cleaned_sessions
+            console.print(f"  ✅ Cleaned up {cleaned_sessions} expired sessions")
+
+        # Clean up temporary files
+        if temp_files or all_items:
+            console.print("🧹 Cleaning up temporary files...")
+            temp_stats = security_service.cleanup_temporary_files(max_age_hours=max_age_hours)
+            cleanup_results['temp_files'] = temp_stats
+            
+            registered_deleted = temp_stats.get('registered_files_deleted', 0)
+            old_deleted = temp_stats.get('old_files_deleted', 0)
+            errors = temp_stats.get('errors', 0)
+            
+            console.print(f"  ✅ Deleted {registered_deleted} registered temporary files")
+            console.print(f"  ✅ Deleted {old_deleted} old temporary files")
+            if errors > 0:
+                console.print(f"  ⚠️  {errors} errors occurred during cleanup")
+
+        # Clean up repository protection data
+        if all_items:
+            console.print("🧹 Cleaning up repository protection data...")
+            protection_stats = security_service.cleanup_repository_protection()
+            cleanup_results['repository_protection'] = protection_stats
+            
+            expired_locks = protection_stats.get('expired_locks_cleaned', 0)
+            console.print(f"  ✅ Cleaned up {expired_locks} expired repository locks")
+
+        # Summary
+        console.print("\n[bold green]Cleanup Summary:[/bold green]")
+        total_cleaned = 0
+        
+        if 'logs' in cleanup_results:
+            status = "✅" if cleanup_results['logs'] else "❌"
+            console.print(f"  {status} Security logs cleanup")
+            
+        if 'sessions' in cleanup_results:
+            sessions_cleaned = cleanup_results['sessions']
+            console.print(f"  ✅ {sessions_cleaned} expired sessions removed")
+            total_cleaned += sessions_cleaned
+            
+        if 'temp_files' in cleanup_results:
+            temp_stats = cleanup_results['temp_files']
+            files_cleaned = temp_stats.get('registered_files_deleted', 0) + temp_stats.get('old_files_deleted', 0)
+            console.print(f"  ✅ {files_cleaned} temporary files removed")
+            total_cleaned += files_cleaned
+            
+        if 'repository_protection' in cleanup_results:
+            locks_cleaned = cleanup_results['repository_protection'].get('expired_locks_cleaned', 0)
+            console.print(f"  ✅ {locks_cleaned} expired locks removed")
+            total_cleaned += locks_cleaned
+
+        if total_cleaned > 0:
+            show_success_panel("Cleanup Complete", f"Successfully cleaned up {total_cleaned} items.")
+        else:
+            show_info_panel("Cleanup Complete", "No items needed cleanup.")
+
+    except Exception as e:
+        show_error_panel("Security Cleanup Error", f"Failed to perform security cleanup: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@security_app.command("config")
+def security_config(
+        show: Annotated[bool, typer.Option("--show", help="Show current security configuration")] = False,
+        validate: Annotated[bool, typer.Option("--validate", help="Validate security configuration")] = False,
+        export_path: Annotated[Optional[str], typer.Option("--export", help="Export configuration to file")] = None,
+        import_path: Annotated[Optional[str], typer.Option("--import", help="Import configuration from file")] = None,
+        reset: Annotated[bool, typer.Option("--reset", help="Reset to default configuration")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+) -> None:
+    """Manage security configuration settings."""
+    setup_logging(verbose, config_dir)
+    
+    if not any([show, validate, export_path, import_path, reset]):
+        show_error_panel("Configuration Options", "Please specify an action: --show, --validate, --export, --import, or --reset")
+        raise typer.Exit(1)
+
+    try:
+        # Initialize security configuration CLI
+        from .security.security_configuration_cli import SecurityConfigurationCLI
+        from .config import ConfigurationModule
+        
+        config_module = ConfigurationModule(config_dir=config_dir)
+        security_cli = SecurityConfigurationCLI(config_module=config_module)
+
+        # Show configuration
+        if show:
+            security_cli.show_security_summary(format_type="table")
+
+        # Validate configuration
+        if validate:
+            security_cli.validate_security_config(level="moderate", fix=False)
+
+        # Export configuration
+        if export_path:
+            security_cli.export_security_configuration(export_path, include_sensitive=False)
+
+        # Import configuration
+        if import_path:
+            security_cli.import_security_configuration(import_path, validate=True)
+
+        # Reset configuration
+        if reset:
+            interactive = sys.stdin.isatty()
+            if interactive:
+                confirmed = Confirm.ask("Reset security configuration to defaults? This cannot be undone.", default=False)
+                if not confirmed:
+                    show_info_panel("Reset Cancelled", "Security configuration reset cancelled.")
+                    return
+            security_cli.reset_security_configuration(confirm=True)
+
+    except Exception as e:
+        show_error_panel("Security Configuration Error", f"Failed to manage security configuration: {e}")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)

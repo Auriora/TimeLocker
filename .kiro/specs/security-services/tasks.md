@@ -34,7 +34,7 @@
   - Integrate security configuration with existing configuration system
   - _Requirements: 1.5, 2.4, 3.3, 5.4_
 
-- [-] 6. Integrate security components with CLI and UI
+- [x] 6. Integrate security components with CLI and UI
   - Update CLI commands to use AccessManager for session management
   - Add security status and summary commands to CLI
   - Implement security event viewing commands
