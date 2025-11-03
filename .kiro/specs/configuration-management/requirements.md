@@ -115,3 +115,39 @@ The Configuration Management feature provides centralized configuration persiste
 3. THE TimeLocker System SHALL audit configuration access and modifications with detailed logging
 4. THE TimeLocker System SHALL support configuration signing and integrity verification for critical settings
 5. WHERE configuration security is compromised, THE TimeLocker System SHALL alert administrators and provide recovery options
+
+### Requirement 9
+
+**User Story:** As a system administrator, I want configuration locking during critical operations, so that concurrent modifications don't corrupt the system state.
+
+#### Acceptance Criteria
+
+1. THE TimeLocker System SHALL implement file-based locking mechanisms to prevent concurrent configuration modifications
+2. WHEN configuration is being modified, THE TimeLocker System SHALL acquire an exclusive lock before making changes
+3. THE TimeLocker System SHALL automatically release locks after operations complete or timeout after 30 seconds
+4. WHERE lock acquisition fails, THE TimeLocker System SHALL provide clear error messages and retry options
+5. THE TimeLocker System SHALL detect and recover from stale locks left by crashed processes
+
+### Requirement 10
+
+**User Story:** As a system administrator, I want enhanced configuration backup capabilities, so that I can recover from configuration errors with precision and confidence.
+
+#### Acceptance Criteria
+
+1. THE TimeLocker System SHALL maintain configuration backup metadata including creation time, reason, and validation status
+2. THE TimeLocker System SHALL provide configuration diff capabilities between current and backup versions
+3. THE TimeLocker System SHALL support selective restoration of configuration sections from backups
+4. WHERE backup storage exceeds limits, THE TimeLocker System SHALL implement intelligent cleanup preserving critical backups
+5. THE TimeLocker System SHALL validate backup integrity before restoration operations
+
+### Requirement 11
+
+**User Story:** As a service component, I want enhanced configuration change notifications, so that I can respond to specific configuration updates with detailed context.
+
+#### Acceptance Criteria
+
+1. THE TimeLocker System SHALL support file system watching for external configuration changes
+2. THE TimeLocker System SHALL provide configuration change events with before/after values and change source identification
+3. THE TimeLocker System SHALL support configuration change filtering and subscription by component or section
+4. WHERE configuration watching fails, THE TimeLocker System SHALL fall back to periodic polling with configurable intervals
+5. THE TimeLocker System SHALL provide change event queuing and replay capabilities for offline components
