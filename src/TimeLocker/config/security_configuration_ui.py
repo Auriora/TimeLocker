@@ -1,700 +1,494 @@
 """
-Security Configuration UI Components for TimeLocker.
+Copyright ©  Bruce Cherrington
 
-This module provides user interface components for security configuration
-management, including forms, validation displays, and interactive elements.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
+import json
 import logging
-from typing import Dict, Any, List, Optional, Callable, Tuple
-from dataclasses import dataclass
-from enum import Enum
+from datetime import datetime, timedelta
+from typing import Dict, Any, Optional, List
+from pathlib import Path
+
+from .security_configuration_manager import SecurityConfigurationManager
+from .security_configuration_migrator import SecurityConfigurationMigrator
 
 logger = logging.getLogger(__name__)
 
 
-class UIComponentType(Enum):
-    """UI component types"""
-    FORM = "form"
-    DISPLAY = "display"
-    VALIDATION = "validation"
-    RECOMMENDATION = "recommendation"
-    STATUS = "status"
-
-
-class UIValidationState(Enum):
-    """UI validation states"""
-    VALID = "valid"
-    WARNING = "warning"
-    ERROR = "error"
-    PENDING = "pending"
-
-
-@dataclass
-class UIComponent:
-    """Base UI component definition"""
-    component_id: str
-    component_type: UIComponentType
-    title: str
-    description: str
-    is_visible: bool = True
-    is_enabled: bool = True
-    css_classes: List[str] = None
-    
-    def __post_init__(self):
-        if self.css_classes is None:
-            self.css_classes = []
-
-
-@dataclass
-class UIFormField:
-    """UI form field definition"""
-    field_id: str
-    field_type: str  # text, number, boolean, select, etc.
-    label: str
-    description: str
-    value: Any = None
-    default_value: Any = None
-    is_required: bool = False
-    is_readonly: bool = False
-    validation_state: UIValidationState = UIValidationState.VALID
-    validation_message: str = ""
-    options: List[Dict[str, Any]] = None
-    min_value: Optional[int] = None
-    max_value: Optional[int] = None
-    placeholder: str = ""
-    help_text: str = ""
-    
-    def __post_init__(self):
-        if self.options is None:
-            self.options = []
-
-
-@dataclass
-class UIValidationDisplay:
-    """UI validation display component"""
-    validation_id: str
-    state: UIValidationState
-    title: str
-    message: str
-    details: List[str] = None
-    actions: List[Dict[str, Any]] = None
-    
-    def __post_init__(self):
-        if self.details is None:
-            self.details = []
-        if self.actions is None:
-            self.actions = []
-
-
-@dataclass
-class UIRecommendation:
-    """UI recommendation component"""
-    recommendation_id: str
-    priority: str  # critical, high, medium, low
-    category: str
-    title: str
-    description: str
-    action_text: str
-    is_applied: bool = False
-    can_apply: bool = True
-    estimated_impact: str = ""
-    
-    
-@dataclass
-class UIStatusIndicator:
-    """UI status indicator component"""
-    status_id: str
-    label: str
-    value: str
-    state: UIValidationState
-    icon: str = ""
-    tooltip: str = ""
-
-
 class SecurityConfigurationUI:
     """
-    Security configuration UI components manager.
+    User interface component for security configuration management.
     
-    This class provides methods to generate and manage UI components
-    for security configuration, following the Single Responsibility Principle.
+    Provides CLI-friendly methods for managing configuration encryption,
+    integrity verification, and security operations.
     """
 
-    def __init__(self, security_config_manager: Optional['SecurityConfigurationManager'] = None):
+    def __init__(self, security_manager: SecurityConfigurationManager):
         """
         Initialize security configuration UI.
         
         Args:
-            security_config_manager: Optional security configuration manager instance
+            security_manager: SecurityConfigurationManager instance
         """
-        self.security_config_manager = security_config_manager
-        self._component_registry = {}
-        self._event_handlers = {}
-        
-    def create_security_configuration_form(self, current_config: Dict[str, Any]) -> Dict[str, Any]:
+        self.security_manager = security_manager
+        self.migrator = SecurityConfigurationMigrator(security_manager)
+
+    def show_encryption_status(self) -> Dict[str, Any]:
         """
-        Create security configuration form components.
+        Display encryption status information.
         
-        Args:
-            current_config: Current security configuration
-            
         Returns:
-            Dict: Form component definitions
+            Dict containing formatted encryption status
         """
         try:
-            form_fields = []
+            status = self.security_manager.get_encryption_status()
             
-            # Encryption settings
-            form_fields.append(UIFormField(
-                field_id="encryption_enabled",
-                field_type="boolean",
-                label="Enable Encryption",
-                description="Encrypt all backup data using industry-standard encryption",
-                value=current_config.get("encryption_enabled", True),
-                default_value=True,
-                is_required=True,
-                help_text="Disabling encryption is not recommended for security reasons"
-            ))
+            formatted_status = {
+                "encryption_enabled": status["encryption_enabled"],
+                "current_key_id": status["current_key_id"] or "None",
+                "total_keys": status["total_keys"],
+                "signature_exists": status["signature_exists"],
+                "sensitive_patterns_count": len(status["sensitive_patterns"]),
+                "status": "Enabled" if status["encryption_enabled"] else "Disabled"
+            }
             
-            # Audit logging
-            form_fields.append(UIFormField(
-                field_id="audit_logging",
-                field_type="boolean",
-                label="Enable Audit Logging",
-                description="Log security events for monitoring and troubleshooting",
-                value=current_config.get("audit_logging", True),
-                default_value=True,
-                help_text="Audit logging helps track security events and diagnose issues"
-            ))
+            return formatted_status
             
-            # Credential timeout
-            form_fields.append(UIFormField(
-                field_id="credential_timeout",
-                field_type="number",
-                label="Credential Timeout (minutes)",
-                description="How long credentials remain valid without re-authentication",
-                value=current_config.get("credential_timeout", 3600) // 60,  # Convert to minutes
-                default_value=60,
-                min_value=5,
-                max_value=240,
-                help_text="Shorter timeouts are more secure but less convenient"
-            ))
+        except Exception as e:
+            logger.error(f"Failed to get encryption status: {e}")
+            return {"error": str(e)}
+
+    def encrypt_configuration_section(
+        self,
+        section_name: str,
+        section_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Encrypt sensitive values in a configuration section.
+        
+        Args:
+            section_name: Name of the configuration section
+            section_data: Section data to encrypt
             
-            # Max failed attempts
-            form_fields.append(UIFormField(
-                field_id="max_failed_attempts",
-                field_type="number",
-                label="Maximum Failed Attempts",
-                description="Number of failed authentication attempts before lockout",
-                value=current_config.get("max_failed_attempts", 3),
-                default_value=3,
-                min_value=1,
-                max_value=10,
-                help_text="Lower values provide better protection against brute force attacks"
-            ))
+        Returns:
+            Dict containing encryption results
+        """
+        try:
+            encrypted_values = 0
+            processed_section = {}
             
-            # Lockout duration
-            form_fields.append(UIFormField(
-                field_id="lockout_duration",
-                field_type="number",
-                label="Lockout Duration (minutes)",
-                description="How long to lock out after maximum failed attempts",
-                value=current_config.get("lockout_duration", 300) // 60,  # Convert to minutes
-                default_value=5,
-                min_value=1,
-                max_value=60,
-                help_text="Balance security with user convenience"
-            ))
-            
-            # Password strength checking
-            form_fields.append(UIFormField(
-                field_id="password_strength_check",
-                field_type="boolean",
-                label="Enable Password Strength Checking",
-                description="Validate password strength when setting passwords",
-                value=current_config.get("password_strength_check", True),
-                default_value=True,
-                help_text="Helps ensure strong passwords are used"
-            ))
-            
-            # Password confirmation
-            form_fields.append(UIFormField(
-                field_id="require_password_confirmation",
-                field_type="boolean",
-                label="Require Password Confirmation",
-                description="Require password confirmation for sensitive operations",
-                value=current_config.get("require_password_confirmation", True),
-                default_value=True,
-                help_text="Adds an extra layer of security for critical operations"
-            ))
-            
-            # Create form component
-            form_component = UIComponent(
-                component_id="security_configuration_form",
-                component_type=UIComponentType.FORM,
-                title="Security Configuration",
-                description="Configure security settings for TimeLocker",
-                css_classes=["security-form", "config-form"]
-            )
+            for key, value in section_data.items():
+                key_path = f"{section_name}.{key}"
+                encrypted_value = self.security_manager.encrypt_value(value, key_path)
+                processed_section[key] = encrypted_value
+                
+                if encrypted_value.get("encrypted", False):
+                    encrypted_values += 1
             
             return {
-                "component": form_component,
-                "fields": [field.__dict__ for field in form_fields],
-                "validation_rules": self._get_form_validation_rules(),
-                "help_sections": self._get_form_help_sections()
+                "success": True,
+                "section": section_name,
+                "total_values": len(section_data),
+                "encrypted_values": encrypted_values,
+                "processed_section": processed_section
             }
             
         except Exception as e:
-            logger.error(f"Failed to create security configuration form: {e}")
-            return {"error": str(e)}
+            logger.error(f"Failed to encrypt configuration section: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "section": section_name
+            }
 
-    def create_security_status_display(self, status_data: Dict[str, Any]) -> Dict[str, Any]:
+    def verify_configuration_integrity(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Create security status display components.
+        Verify configuration integrity and display results.
         
         Args:
-            status_data: Security status information
+            config_data: Configuration data to verify
             
         Returns:
-            Dict: Status display component definitions
+            Dict containing verification results
         """
         try:
-            status_indicators = []
+            verification_passed = self.security_manager.verify_configuration(config_data)
             
-            # Overall security level
-            security_level = status_data.get("security_level", "unknown")
-            level_state = UIValidationState.VALID if security_level == "high" else \
-                         UIValidationState.WARNING if security_level == "medium" else \
-                         UIValidationState.ERROR
-                         
-            status_indicators.append(UIStatusIndicator(
-                status_id="security_level",
-                label="Security Level",
-                value=security_level.title(),
-                state=level_state,
-                icon=self._get_security_level_icon(security_level),
-                tooltip=f"Overall security assessment: {security_level}"
-            ))
+            # Get signature information
+            signature_file = self.security_manager.signature_file
+            signature_exists = signature_file.exists()
+            signature_age = None
             
-            # Compliance score
-            compliance_score = status_data.get("compliance_score", 0.0)
-            compliance_percentage = int(compliance_score * 100)
-            compliance_state = UIValidationState.VALID if compliance_score >= 0.8 else \
-                              UIValidationState.WARNING if compliance_score >= 0.6 else \
-                              UIValidationState.ERROR
-                              
-            status_indicators.append(UIStatusIndicator(
-                status_id="compliance_score",
-                label="Compliance Score",
-                value=f"{compliance_percentage}%",
-                state=compliance_state,
-                icon="percentage",
-                tooltip=f"Security configuration compliance: {compliance_percentage}%"
-            ))
-            
-            # Issues count
-            issues_count = status_data.get("issues_count", 0)
-            issues_state = UIValidationState.VALID if issues_count == 0 else UIValidationState.ERROR
-            
-            status_indicators.append(UIStatusIndicator(
-                status_id="issues_count",
-                label="Security Issues",
-                value=str(issues_count),
-                state=issues_state,
-                icon="alert-triangle" if issues_count > 0 else "check-circle",
-                tooltip=f"{issues_count} security issues found"
-            ))
-            
-            # Warnings count
-            warnings_count = status_data.get("warnings_count", 0)
-            warnings_state = UIValidationState.VALID if warnings_count == 0 else UIValidationState.WARNING
-            
-            status_indicators.append(UIStatusIndicator(
-                status_id="warnings_count",
-                label="Warnings",
-                value=str(warnings_count),
-                state=warnings_state,
-                icon="alert-circle" if warnings_count > 0 else "check-circle",
-                tooltip=f"{warnings_count} security warnings found"
-            ))
-            
-            # Encryption status
-            encryption_enabled = status_data.get("encryption_enabled", False)
-            encryption_state = UIValidationState.VALID if encryption_enabled else UIValidationState.ERROR
-            
-            status_indicators.append(UIStatusIndicator(
-                status_id="encryption_status",
-                label="Encryption",
-                value="Enabled" if encryption_enabled else "Disabled",
-                state=encryption_state,
-                icon="shield" if encryption_enabled else "shield-off",
-                tooltip="Data encryption status"
-            ))
-            
-            # Audit logging status
-            audit_logging = status_data.get("audit_logging", False)
-            audit_state = UIValidationState.VALID if audit_logging else UIValidationState.WARNING
-            
-            status_indicators.append(UIStatusIndicator(
-                status_id="audit_logging_status",
-                label="Audit Logging",
-                value="Enabled" if audit_logging else "Disabled",
-                state=audit_state,
-                icon="file-text" if audit_logging else "file-x",
-                tooltip="Security event logging status"
-            ))
-            
-            # Create status display component
-            status_component = UIComponent(
-                component_id="security_status_display",
-                component_type=UIComponentType.STATUS,
-                title="Security Status",
-                description="Current security configuration status",
-                css_classes=["security-status", "status-grid"]
-            )
+            if signature_exists:
+                signature_mtime = datetime.fromtimestamp(signature_file.stat().st_mtime)
+                signature_age = datetime.now() - signature_mtime
             
             return {
-                "component": status_component,
-                "indicators": [indicator.__dict__ for indicator in status_indicators],
-                "last_updated": status_data.get("last_validated", ""),
-                "refresh_interval": 300  # 5 minutes
+                "verification_passed": verification_passed,
+                "signature_exists": signature_exists,
+                "signature_age_hours": signature_age.total_seconds() / 3600 if signature_age else None,
+                "status": "VALID" if verification_passed else "INVALID",
+                "recommendation": self._get_integrity_recommendation(verification_passed, signature_age)
             }
             
         except Exception as e:
-            logger.error(f"Failed to create security status display: {e}")
-            return {"error": str(e)}
+            logger.error(f"Failed to verify configuration integrity: {e}")
+            return {
+                "verification_passed": False,
+                "error": str(e),
+                "status": "ERROR"
+            }
 
-    def create_validation_display(self, validation_result: 'ValidationResult') -> Dict[str, Any]:
+    def _get_integrity_recommendation(
+        self,
+        verification_passed: bool,
+        signature_age: Optional[timedelta]
+    ) -> str:
         """
-        Create validation display components.
+        Get recommendation based on integrity verification results.
         
         Args:
-            validation_result: Validation result to display
+            verification_passed: Whether verification passed
+            signature_age: Age of the signature
             
         Returns:
-            Dict: Validation display component definitions
+            str: Recommendation message
+        """
+        if not verification_passed:
+            return "Configuration integrity check failed. Consider restoring from backup."
+        
+        if signature_age and signature_age > timedelta(days=30):
+            return "Configuration signature is old. Consider re-signing for freshness."
+        
+        return "Configuration integrity is valid."
+
+    def rotate_encryption_keys(self) -> Dict[str, Any]:
+        """
+        Rotate encryption keys and display results.
+        
+        Returns:
+            Dict containing rotation results
         """
         try:
-            validation_displays = []
-            
-            # Overall validation status
-            overall_state = UIValidationState.VALID if validation_result.is_valid else UIValidationState.ERROR
-            
-            validation_displays.append(UIValidationDisplay(
-                validation_id="overall_validation",
-                state=overall_state,
-                title="Configuration Validation",
-                message="Valid configuration" if validation_result.is_valid else "Configuration has issues",
-                details=validation_result.errors + validation_result.warnings,
-                actions=[
-                    {"id": "fix_issues", "label": "Fix Issues", "type": "primary"},
-                    {"id": "ignore_warnings", "label": "Ignore Warnings", "type": "secondary"}
-                ] if not validation_result.is_valid else []
-            ))
-            
-            # Error details
-            if validation_result.errors:
-                validation_displays.append(UIValidationDisplay(
-                    validation_id="validation_errors",
-                    state=UIValidationState.ERROR,
-                    title="Configuration Errors",
-                    message=f"{len(validation_result.errors)} errors found",
-                    details=validation_result.errors,
-                    actions=[
-                        {"id": "auto_fix_errors", "label": "Auto-Fix Errors", "type": "primary"},
-                        {"id": "reset_to_defaults", "label": "Reset to Defaults", "type": "secondary"}
-                    ]
-                ))
-                
-            # Warning details
-            if validation_result.warnings:
-                validation_displays.append(UIValidationDisplay(
-                    validation_id="validation_warnings",
-                    state=UIValidationState.WARNING,
-                    title="Configuration Warnings",
-                    message=f"{len(validation_result.warnings)} warnings found",
-                    details=validation_result.warnings,
-                    actions=[
-                        {"id": "apply_recommendations", "label": "Apply Recommendations", "type": "primary"},
-                        {"id": "dismiss_warnings", "label": "Dismiss", "type": "secondary"}
-                    ]
-                ))
-                
-            # Create validation component
-            validation_component = UIComponent(
-                component_id="security_validation_display",
-                component_type=UIComponentType.VALIDATION,
-                title="Security Validation",
-                description="Security configuration validation results",
-                css_classes=["security-validation", "validation-panel"]
-            )
+            old_key_id = self.security_manager._current_key_id
+            new_key_id = self.security_manager.rotate_encryption_keys()
             
             return {
-                "component": validation_component,
-                "displays": [display.__dict__ for display in validation_displays],
+                "success": True,
+                "old_key_id": old_key_id,
+                "new_key_id": new_key_id,
+                "total_keys": len(self.security_manager._encryption_keys),
+                "message": f"Encryption keys rotated successfully: {old_key_id} -> {new_key_id}"
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to rotate encryption keys: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "Key rotation failed"
+            }
+
+    def cleanup_old_keys(self, keep_count: int = 3) -> Dict[str, Any]:
+        """
+        Clean up old encryption keys and display results.
+        
+        Args:
+            keep_count: Number of recent keys to keep
+            
+        Returns:
+            Dict containing cleanup results
+        """
+        try:
+            removed_count = self.security_manager.cleanup_old_keys(keep_count)
+            
+            return {
+                "success": True,
+                "removed_keys": removed_count,
+                "remaining_keys": len(self.security_manager._encryption_keys),
+                "message": f"Cleaned up {removed_count} old encryption keys"
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to cleanup old keys: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "Key cleanup failed"
+            }
+
+    def migrate_configuration_with_encryption(
+        self,
+        source_config: Dict[str, Any],
+        create_backup: bool = True
+    ) -> Dict[str, Any]:
+        """
+        Migrate configuration with encryption support.
+        
+        Args:
+            source_config: Source configuration to migrate
+            create_backup: Whether to create backup before migration
+            
+        Returns:
+            Dict containing migration results
+        """
+        try:
+            backup_file = None
+            
+            if create_backup:
+                backup_dir = self.security_manager.config_dir / "migration_backups"
+                backup_file = self.migrator.create_migration_backup(source_config, backup_dir)
+            
+            migrated_config = self.migrator.migrate_configuration_with_encryption(source_config)
+            
+            # Get migration statistics
+            migration_metadata = migrated_config.get("_migration", {})
+            encrypted_keys = migration_metadata.get("encrypted_keys", [])
+            
+            return {
+                "success": True,
+                "backup_created": backup_file is not None,
+                "backup_file": str(backup_file) if backup_file else None,
+                "migrated_sections": len([k for k in migrated_config.keys() if not k.startswith("_")]),
+                "encrypted_values": len(encrypted_keys),
+                "target_version": migration_metadata.get("version"),
+                "message": f"Configuration migrated successfully with {len(encrypted_keys)} encrypted values"
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to migrate configuration: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "message": "Configuration migration failed"
+            }
+
+    def list_sensitive_patterns(self) -> Dict[str, Any]:
+        """
+        List sensitive configuration patterns.
+        
+        Returns:
+            Dict containing sensitive patterns information
+        """
+        try:
+            patterns = list(self.security_manager.sensitive_patterns)
+            
+            return {
+                "success": True,
+                "patterns": sorted(patterns),
+                "pattern_count": len(patterns),
+                "description": "Configuration keys containing these patterns will be encrypted"
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to list sensitive patterns: {e}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+
+    def add_sensitive_pattern(self, pattern: str) -> Dict[str, Any]:
+        """
+        Add a new sensitive configuration pattern.
+        
+        Args:
+            pattern: Pattern to add to sensitive patterns
+            
+        Returns:
+            Dict containing operation results
+        """
+        try:
+            if pattern in self.security_manager.sensitive_patterns:
+                return {
+                    "success": False,
+                    "message": f"Pattern '{pattern}' already exists",
+                    "pattern": pattern
+                }
+            
+            self.security_manager.sensitive_patterns.add(pattern)
+            
+            return {
+                "success": True,
+                "pattern": pattern,
+                "total_patterns": len(self.security_manager.sensitive_patterns),
+                "message": f"Added sensitive pattern: {pattern}"
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to add sensitive pattern: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "pattern": pattern
+            }
+
+    def remove_sensitive_pattern(self, pattern: str) -> Dict[str, Any]:
+        """
+        Remove a sensitive configuration pattern.
+        
+        Args:
+            pattern: Pattern to remove from sensitive patterns
+            
+        Returns:
+            Dict containing operation results
+        """
+        try:
+            if pattern not in self.security_manager.sensitive_patterns:
+                return {
+                    "success": False,
+                    "message": f"Pattern '{pattern}' not found",
+                    "pattern": pattern
+                }
+            
+            self.security_manager.sensitive_patterns.remove(pattern)
+            
+            return {
+                "success": True,
+                "pattern": pattern,
+                "total_patterns": len(self.security_manager.sensitive_patterns),
+                "message": f"Removed sensitive pattern: {pattern}"
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to remove sensitive pattern: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "pattern": pattern
+            }
+
+    def export_security_configuration(self, output_file: Path) -> Dict[str, Any]:
+        """
+        Export security configuration settings.
+        
+        Args:
+            output_file: Path to export file
+            
+        Returns:
+            Dict containing export results
+        """
+        try:
+            security_config = {
+                "encryption_status": self.security_manager.get_encryption_status(),
+                "sensitive_patterns": list(self.security_manager.sensitive_patterns),
+                "migration_log": self.migrator.get_migration_log(),
+                "exported_at": datetime.now().isoformat()
+            }
+            
+            with open(output_file, 'w') as f:
+                json.dump(security_config, f, indent=2)
+            
+            return {
+                "success": True,
+                "output_file": str(output_file),
+                "sections_exported": len(security_config),
+                "message": f"Security configuration exported to {output_file}"
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to export security configuration: {e}")
+            return {
+                "success": False,
+                "error": str(e),
+                "output_file": str(output_file)
+            }
+
+    def validate_security_setup(self) -> Dict[str, Any]:
+        """
+        Validate security configuration setup.
+        
+        Returns:
+            Dict containing validation results and recommendations
+        """
+        try:
+            status = self.security_manager.get_encryption_status()
+            issues = []
+            warnings = []
+            recommendations = []
+            
+            # Check encryption setup
+            if not status["encryption_enabled"]:
+                issues.append("Encryption is not enabled - security service not available")
+            elif not status["current_key_id"]:
+                warnings.append("No encryption keys generated yet")
+            
+            # Check signature setup
+            if not status["signature_exists"]:
+                warnings.append("No configuration signature found")
+            
+            # Check sensitive patterns
+            if len(status["sensitive_patterns"]) < 5:
+                recommendations.append("Consider adding more sensitive patterns for better coverage")
+            
+            # Check key management
+            if status["total_keys"] > 10:
+                recommendations.append("Consider cleaning up old encryption keys")
+            
+            validation_score = 100
+            validation_score -= len(issues) * 30
+            validation_score -= len(warnings) * 10
+            validation_score = max(0, validation_score)
+            
+            return {
+                "validation_score": validation_score,
+                "status": "GOOD" if validation_score >= 80 else "NEEDS_ATTENTION" if validation_score >= 50 else "POOR",
+                "issues": issues,
+                "warnings": warnings,
+                "recommendations": recommendations,
+                "encryption_enabled": status["encryption_enabled"],
+                "total_keys": status["total_keys"]
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to validate security setup: {e}")
+            return {
+                "validation_score": 0,
+                "status": "ERROR",
+                "error": str(e)
+            }
+
+    def get_security_summary(self) -> Dict[str, Any]:
+        """
+        Get comprehensive security configuration summary.
+        
+        Returns:
+            Dict containing security summary
+        """
+        try:
+            status = self.security_manager.get_encryption_status()
+            validation = self.validate_security_setup()
+            
+            return {
+                "encryption_status": status,
+                "validation_results": validation,
+                "sensitive_patterns_count": len(self.security_manager.sensitive_patterns),
+                "migration_events": len(self.migrator.get_migration_log()),
                 "summary": {
-                    "is_valid": validation_result.is_valid,
-                    "error_count": len(validation_result.errors),
-                    "warning_count": len(validation_result.warnings)
+                    "encryption_enabled": status["encryption_enabled"],
+                    "keys_available": status["total_keys"] > 0,
+                    "signature_exists": status["signature_exists"],
+                    "validation_score": validation["validation_score"],
+                    "overall_status": validation["status"]
                 }
             }
             
         except Exception as e:
-            logger.error(f"Failed to create validation display: {e}")
-            return {"error": str(e)}
-
-    def create_recommendations_display(self, recommendations: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """
-        Create recommendations display components.
-        
-        Args:
-            recommendations: List of security recommendations
-            
-        Returns:
-            Dict: Recommendations display component definitions
-        """
-        try:
-            recommendation_components = []
-            
-            # Group recommendations by priority
-            recommendations_by_priority = {}
-            for rec in recommendations:
-                priority = rec.get("priority", "medium")
-                if priority not in recommendations_by_priority:
-                    recommendations_by_priority[priority] = []
-                recommendations_by_priority[priority].append(rec)
-                
-            # Create recommendation components
-            priority_order = ["critical", "high", "medium", "low"]
-            for priority in priority_order:
-                if priority in recommendations_by_priority:
-                    for rec in recommendations_by_priority[priority]:
-                        recommendation_components.append(UIRecommendation(
-                            recommendation_id=rec.get("setting", ""),
-                            priority=priority,
-                            category=rec.get("category", "general"),
-                            title=rec.get("title", ""),
-                            description=rec.get("description", ""),
-                            action_text=rec.get("action", ""),
-                            can_apply=True,
-                            estimated_impact=self._get_recommendation_impact(priority)
-                        ))
-                        
-            # Create recommendations component
-            recommendations_component = UIComponent(
-                component_id="security_recommendations_display",
-                component_type=UIComponentType.RECOMMENDATION,
-                title="Security Recommendations",
-                description="Recommended security configuration improvements",
-                css_classes=["security-recommendations", "recommendations-list"]
-            )
-            
+            logger.error(f"Failed to get security summary: {e}")
             return {
-                "component": recommendations_component,
-                "recommendations": [rec.__dict__ for rec in recommendation_components],
+                "error": str(e),
                 "summary": {
-                    "total_count": len(recommendations),
-                    "critical_count": len(recommendations_by_priority.get("critical", [])),
-                    "high_count": len(recommendations_by_priority.get("high", [])),
-                    "medium_count": len(recommendations_by_priority.get("medium", [])),
-                    "low_count": len(recommendations_by_priority.get("low", []))
-                },
-                "actions": [
-                    {"id": "apply_all_critical", "label": "Apply All Critical", "type": "primary"},
-                    {"id": "apply_selected", "label": "Apply Selected", "type": "secondary"},
-                    {"id": "dismiss_all", "label": "Dismiss All", "type": "tertiary"}
-                ]
+                    "overall_status": "ERROR"
+                }
             }
-            
-        except Exception as e:
-            logger.error(f"Failed to create recommendations display: {e}")
-            return {"error": str(e)}
-
-    def create_security_dashboard(self, security_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Create comprehensive security dashboard.
-        
-        Args:
-            security_data: Complete security information
-            
-        Returns:
-            Dict: Dashboard component definitions
-        """
-        try:
-            dashboard_sections = []
-            
-            # Status section
-            if "status" in security_data:
-                status_display = self.create_security_status_display(security_data["status"])
-                dashboard_sections.append({
-                    "section_id": "status",
-                    "title": "Security Status",
-                    "component": status_display,
-                    "order": 1
-                })
-                
-            # Configuration section
-            if "configuration" in security_data:
-                form_display = self.create_security_configuration_form(security_data["configuration"])
-                dashboard_sections.append({
-                    "section_id": "configuration",
-                    "title": "Security Configuration",
-                    "component": form_display,
-                    "order": 2
-                })
-                
-            # Validation section
-            if "validation" in security_data:
-                validation_display = self.create_validation_display(security_data["validation"])
-                dashboard_sections.append({
-                    "section_id": "validation",
-                    "title": "Configuration Validation",
-                    "component": validation_display,
-                    "order": 3
-                })
-                
-            # Recommendations section
-            if "recommendations" in security_data:
-                recommendations_display = self.create_recommendations_display(security_data["recommendations"])
-                dashboard_sections.append({
-                    "section_id": "recommendations",
-                    "title": "Security Recommendations",
-                    "component": recommendations_display,
-                    "order": 4
-                })
-                
-            # Create dashboard component
-            dashboard_component = UIComponent(
-                component_id="security_dashboard",
-                component_type=UIComponentType.DISPLAY,
-                title="Security Dashboard",
-                description="Comprehensive security configuration management",
-                css_classes=["security-dashboard", "dashboard-grid"]
-            )
-            
-            return {
-                "component": dashboard_component,
-                "sections": dashboard_sections,
-                "navigation": self._create_dashboard_navigation(dashboard_sections),
-                "actions": [
-                    {"id": "export_config", "label": "Export Configuration", "type": "secondary"},
-                    {"id": "import_config", "label": "Import Configuration", "type": "secondary"},
-                    {"id": "reset_config", "label": "Reset to Defaults", "type": "tertiary"}
-                ]
-            }
-            
-        except Exception as e:
-            logger.error(f"Failed to create security dashboard: {e}")
-            return {"error": str(e)}
-
-    def _get_form_validation_rules(self) -> Dict[str, Any]:
-        """Get form validation rules"""
-        return {
-            "credential_timeout": {
-                "min": 5,
-                "max": 240,
-                "message": "Credential timeout must be between 5 and 240 minutes"
-            },
-            "max_failed_attempts": {
-                "min": 1,
-                "max": 10,
-                "message": "Max failed attempts must be between 1 and 10"
-            },
-            "lockout_duration": {
-                "min": 1,
-                "max": 60,
-                "message": "Lockout duration must be between 1 and 60 minutes"
-            }
-        }
-
-    def _get_form_help_sections(self) -> List[Dict[str, Any]]:
-        """Get form help sections"""
-        return [
-            {
-                "title": "Encryption Settings",
-                "content": "Encryption protects your backup data from unauthorized access. It is strongly recommended to keep encryption enabled.",
-                "fields": ["encryption_enabled"]
-            },
-            {
-                "title": "Authentication Settings",
-                "content": "These settings control how user authentication works, including timeouts and failed attempt handling.",
-                "fields": ["credential_timeout", "max_failed_attempts", "lockout_duration"]
-            },
-            {
-                "title": "Password Security",
-                "content": "Password strength checking and confirmation requirements help ensure strong security practices.",
-                "fields": ["password_strength_check", "require_password_confirmation"]
-            },
-            {
-                "title": "Monitoring Settings",
-                "content": "Audit logging helps track security events and troubleshoot issues. It is recommended for security monitoring.",
-                "fields": ["audit_logging"]
-            }
-        ]
-
-    def _get_security_level_icon(self, level: str) -> str:
-        """Get icon for security level"""
-        icons = {
-            "high": "shield-check",
-            "medium": "shield",
-            "low": "shield-alert",
-            "unknown": "shield-off"
-        }
-        return icons.get(level, "shield-off")
-
-    def _get_recommendation_impact(self, priority: str) -> str:
-        """Get estimated impact for recommendation priority"""
-        impacts = {
-            "critical": "High security impact",
-            "high": "Significant security improvement",
-            "medium": "Moderate security enhancement",
-            "low": "Minor security improvement"
-        }
-        return impacts.get(priority, "Unknown impact")
-
-    def _create_dashboard_navigation(self, sections: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Create dashboard navigation"""
-        navigation = []
-        for section in sorted(sections, key=lambda x: x["order"]):
-            navigation.append({
-                "id": section["section_id"],
-                "label": section["title"],
-                "icon": self._get_section_icon(section["section_id"]),
-                "order": section["order"]
-            })
-        return navigation
-
-    def _get_section_icon(self, section_id: str) -> str:
-        """Get icon for dashboard section"""
-        icons = {
-            "status": "activity",
-            "configuration": "settings",
-            "validation": "check-circle",
-            "recommendations": "lightbulb"
-        }
-        return icons.get(section_id, "circle")
-
-    def register_event_handler(self, event_type: str, handler: Callable) -> None:
-        """Register UI event handler"""
-        if event_type not in self._event_handlers:
-            self._event_handlers[event_type] = []
-        self._event_handlers[event_type].append(handler)
-
-    def handle_ui_event(self, event_type: str, event_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Handle UI event"""
-        try:
-            if event_type in self._event_handlers:
-                results = []
-                for handler in self._event_handlers[event_type]:
-                    try:
-                        result = handler(event_data)
-                        results.append(result)
-                    except Exception as e:
-                        logger.error(f"Error in UI event handler: {e}")
-                        results.append({"error": str(e)})
-                return {"results": results}
-            else:
-                return {"error": f"No handlers registered for event type: {event_type}"}
-        except Exception as e:
-            logger.error(f"Failed to handle UI event {event_type}: {e}")
-            return {"error": str(e)}

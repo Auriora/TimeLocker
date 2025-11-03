@@ -1,561 +1,493 @@
 """
-Security Configuration Migration and Upgrade Handler for TimeLocker.
+Copyright ©  Bruce Cherrington
 
-This module handles migration of security configuration from older versions
-and provides upgrade handling for security settings.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
 import logging
+import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
-from dataclasses import dataclass, asdict
-from enum import Enum
+from typing import Dict, Any, Optional, List, Tuple
 
-from .configuration_schema import SecurityConfig
-from .configuration_defaults import ConfigurationDefaults
-from .configuration_validator import ValidationResult
+from .security_configuration_manager import SecurityConfigurationManager
 from ..interfaces.exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
 
 
-class MigrationVersion(Enum):
-    """Security configuration migration versions"""
-    V1_0 = "1.0"
-    V1_1 = "1.1"
-    V1_2 = "1.2"
-    CURRENT = "1.2"
-
-
-@dataclass
-class MigrationStep:
-    """Individual migration step definition"""
-    from_version: str
-    to_version: str
-    description: str
-    migration_function: str
-    is_required: bool = True
-    backup_required: bool = True
-
-
-@dataclass
-class MigrationResult:
-    """Migration operation result"""
-    success: bool
-    from_version: str
-    to_version: str
-    steps_completed: List[str]
-    errors: List[str]
-    warnings: List[str]
-    backup_created: Optional[str] = None
-    migration_time: Optional[datetime] = None
+class SecurityMigrationError(ConfigurationError):
+    """Exception for security-related migration errors"""
+    pass
 
 
 class SecurityConfigurationMigrator:
     """
-    Security configuration migration and upgrade handler.
+    Handles secure migration of configuration data with encryption support.
     
-    This class handles migration of security configuration from older versions,
-    following the Single Responsibility Principle by focusing solely on
-    migration and upgrade operations.
+    Provides migration capabilities that preserve security properties during
+    configuration upgrades and format changes.
     """
 
-    def __init__(self, config_dir: Optional[Path] = None):
+    def __init__(self, security_manager: SecurityConfigurationManager):
         """
         Initialize security configuration migrator.
         
         Args:
-            config_dir: Optional configuration directory
+            security_manager: SecurityConfigurationManager instance
         """
-        self.config_dir = config_dir or Path.home() / ".timelocker"
-        self.migration_log_file = self.config_dir / "security_migration.log"
-        self._migration_steps = self._initialize_migration_steps()
-        
-    def _initialize_migration_steps(self) -> List[MigrationStep]:
-        """Initialize migration steps"""
-        return [
-            MigrationStep(
-                from_version="1.0",
-                to_version="1.1",
-                description="Add password strength checking and confirmation requirements",
-                migration_function="_migrate_v1_0_to_v1_1"
-            ),
-            MigrationStep(
-                from_version="1.1",
-                to_version="1.2",
-                description="Add advanced security settings and validation",
-                migration_function="_migrate_v1_1_to_v1_2"
-            )
-        ]
+        self.security_manager = security_manager
+        self.migration_log: List[Dict[str, Any]] = []
 
-    def detect_configuration_version(self, config_data: Dict[str, Any]) -> str:
+    def migrate_configuration_with_encryption(
+        self,
+        source_config: Dict[str, Any],
+        target_format_version: str = "2.0"
+    ) -> Dict[str, Any]:
         """
-        Detect the version of security configuration.
+        Migrate configuration data while applying encryption to sensitive values.
         
         Args:
-            config_data: Security configuration data
+            source_config: Source configuration data
+            target_format_version: Target configuration format version
             
         Returns:
-            str: Detected version
+            Dict containing migrated and encrypted configuration
         """
         try:
-            # Check for version field
-            if "version" in config_data:
-                return config_data["version"]
-                
-            # Detect version based on available fields
-            if "password_strength_check" in config_data and "require_password_confirmation" in config_data:
-                return MigrationVersion.V1_2.value
-            elif "password_strength_check" in config_data:
-                return MigrationVersion.V1_1.value
-            else:
-                return MigrationVersion.V1_0.value
-                
-        except Exception as e:
-            logger.warning(f"Failed to detect configuration version: {e}")
-            return MigrationVersion.V1_0.value
-
-    def is_migration_needed(self, config_data: Dict[str, Any]) -> bool:
-        """
-        Check if migration is needed for security configuration.
-        
-        Args:
-            config_data: Security configuration data
+            self._log_migration_event("migration_start", {
+                "source_sections": list(source_config.keys()),
+                "target_version": target_format_version
+            })
             
-        Returns:
-            bool: True if migration is needed
-        """
-        try:
-            current_version = self.detect_configuration_version(config_data)
-            target_version = MigrationVersion.CURRENT.value
+            migrated_config = {}
             
-            return current_version != target_version
+            # Process each configuration section
+            for section_name, section_data in source_config.items():
+                if isinstance(section_data, dict):
+                    migrated_section = self._migrate_section_with_encryption(
+                        section_name, section_data
+                    )
+                    migrated_config[section_name] = migrated_section
+                else:
+                    # Handle non-dict values directly
+                    encrypted_value = self.security_manager.encrypt_value(section_data, section_name)
+                    migrated_config[section_name] = encrypted_value
             
-        except Exception as e:
-            logger.error(f"Failed to check migration need: {e}")
-            return False
-
-    def migrate_security_configuration(self, config_data: Dict[str, Any], 
-                                     target_version: Optional[str] = None) -> MigrationResult:
-        """
-        Migrate security configuration to target version.
-        
-        Args:
-            config_data: Security configuration data to migrate
-            target_version: Target version (defaults to current)
-            
-        Returns:
-            MigrationResult: Migration operation result
-        """
-        start_time = datetime.now()
-        current_version = self.detect_configuration_version(config_data)
-        target_version = target_version or MigrationVersion.CURRENT.value
-        
-        result = MigrationResult(
-            success=False,
-            from_version=current_version,
-            to_version=target_version,
-            steps_completed=[],
-            errors=[],
-            warnings=[],
-            migration_time=start_time
-        )
-        
-        try:
-            logger.info(f"Starting security configuration migration from {current_version} to {target_version}")
-            
-            # Check if migration is needed
-            if current_version == target_version:
-                result.success = True
-                result.warnings.append("Configuration is already at target version")
-                return result
-                
-            # Create backup
-            backup_id = self._create_migration_backup(config_data, current_version)
-            result.backup_created = backup_id
-            
-            # Apply migration steps
-            migrated_data = config_data.copy()
-            current_step_version = current_version
-            
-            for step in self._migration_steps:
-                if self._should_apply_step(step, current_step_version, target_version):
-                    try:
-                        logger.info(f"Applying migration step: {step.description}")
-                        
-                        migration_method = getattr(self, step.migration_function, None)
-                        if migration_method:
-                            migrated_data = migration_method(migrated_data)
-                            current_step_version = step.to_version
-                            result.steps_completed.append(step.description)
-                            
-                            # Log migration step
-                            self._log_migration_step(step, migrated_data)
-                        else:
-                            error_msg = f"Migration method {step.migration_function} not found"
-                            result.errors.append(error_msg)
-                            logger.error(error_msg)
-                            
-                    except Exception as e:
-                        error_msg = f"Failed to apply migration step {step.description}: {e}"
-                        result.errors.append(error_msg)
-                        logger.error(error_msg)
-                        
-                        if step.is_required:
-                            return result
-                            
-            # Validate migrated configuration
-            validation_result = self._validate_migrated_configuration(migrated_data)
-            if not validation_result.is_valid:
-                result.errors.extend(validation_result.errors)
-                result.warnings.extend(validation_result.warnings)
-                return result
-                
-            # Update configuration data with migrated version
-            migrated_data["version"] = target_version
-            migrated_data["migrated_at"] = datetime.now().isoformat()
-            migrated_data["migrated_from"] = current_version
-            
-            # Copy migrated data back to original
-            config_data.clear()
-            config_data.update(migrated_data)
-            
-            result.success = True
-            logger.info(f"Security configuration migration completed successfully")
-            
-        except Exception as e:
-            error_msg = f"Security configuration migration failed: {e}"
-            result.errors.append(error_msg)
-            logger.error(error_msg)
-            
-        finally:
-            result.migration_time = datetime.now() - start_time
-            
-        return result
-
-    def _should_apply_step(self, step: MigrationStep, current_version: str, target_version: str) -> bool:
-        """Check if migration step should be applied"""
-        try:
-            # Simple version comparison (assumes semantic versioning)
-            current_parts = [int(x) for x in current_version.split('.')]
-            step_from_parts = [int(x) for x in step.from_version.split('.')]
-            step_to_parts = [int(x) for x in step.to_version.split('.')]
-            target_parts = [int(x) for x in target_version.split('.')]
-            
-            # Apply step if current version matches step from version and target is >= step to version
-            return (current_parts == step_from_parts and 
-                   step_to_parts <= target_parts)
-                   
-        except Exception as e:
-            logger.warning(f"Failed to compare versions for step {step.description}: {e}")
-            return False
-
-    def _migrate_v1_0_to_v1_1(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Migrate from version 1.0 to 1.1.
-        
-        Adds password strength checking configuration.
-        """
-        migrated = config_data.copy()
-        
-        # Add password strength checking (default enabled)
-        if "password_strength_check" not in migrated:
-            migrated["password_strength_check"] = True
-            
-        # Ensure other v1.1 fields exist with defaults
-        defaults = asdict(ConfigurationDefaults.get_security_defaults())
-        
-        v1_1_fields = ["password_strength_check"]
-        for field in v1_1_fields:
-            if field not in migrated:
-                migrated[field] = defaults.get(field, True)
-                
-        logger.info("Migrated security configuration from v1.0 to v1.1")
-        return migrated
-
-    def _migrate_v1_1_to_v1_2(self, config_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Migrate from version 1.1 to 1.2.
-        
-        Adds password confirmation requirements and advanced settings.
-        """
-        migrated = config_data.copy()
-        
-        # Add password confirmation requirement (default enabled)
-        if "require_password_confirmation" not in migrated:
-            migrated["require_password_confirmation"] = True
-            
-        # Ensure other v1.2 fields exist with defaults
-        defaults = asdict(ConfigurationDefaults.get_security_defaults())
-        
-        v1_2_fields = ["require_password_confirmation"]
-        for field in v1_2_fields:
-            if field not in migrated:
-                migrated[field] = defaults.get(field, True)
-                
-        # Migrate legacy field names if they exist
-        legacy_mappings = {
-            "enable_encryption": "encryption_enabled",
-            "enable_audit_log": "audit_logging",
-            "session_timeout": "credential_timeout",
-            "max_login_attempts": "max_failed_attempts",
-            "lockout_time": "lockout_duration"
-        }
-        
-        for old_field, new_field in legacy_mappings.items():
-            if old_field in migrated and new_field not in migrated:
-                migrated[new_field] = migrated.pop(old_field)
-                
-        logger.info("Migrated security configuration from v1.1 to v1.2")
-        return migrated
-
-    def _create_migration_backup(self, config_data: Dict[str, Any], version: str) -> str:
-        """Create backup before migration"""
-        try:
-            backup_dir = self.config_dir / "backups" / "security_migration"
-            backup_dir.mkdir(parents=True, exist_ok=True)
-            
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            backup_id = f"security_config_v{version}_{timestamp}"
-            backup_file = backup_dir / f"{backup_id}.json"
-            
-            backup_data = {
-                "version": version,
-                "created_at": datetime.now().isoformat(),
-                "config_data": config_data
+            # Add migration metadata
+            migrated_config["_migration"] = {
+                "version": target_format_version,
+                "migrated_at": datetime.now().isoformat(),
+                "source_version": source_config.get("_migration", {}).get("version", "1.0"),
+                "encrypted_keys": self._get_encrypted_keys_list(migrated_config)
             }
+            
+            # Sign the migrated configuration
+            signature = self.security_manager.sign_configuration(migrated_config)
+            
+            self._log_migration_event("migration_complete", {
+                "target_sections": list(migrated_config.keys()),
+                "encrypted_values": len(migrated_config["_migration"]["encrypted_keys"]),
+                "signature_created": True
+            })
+            
+            return migrated_config
+            
+        except Exception as e:
+            self._log_migration_event("migration_error", {"error": str(e)})
+            logger.error(f"Failed to migrate configuration with encryption: {e}")
+            raise SecurityMigrationError(f"Migration failed: {e}")
+
+    def _migrate_section_with_encryption(
+        self,
+        section_name: str,
+        section_data: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Migrate a configuration section while encrypting sensitive values.
+        
+        Args:
+            section_name: Name of the configuration section
+            section_data: Section data to migrate
+            
+        Returns:
+            Dict containing migrated section with encrypted values
+        """
+        migrated_section = {}
+        
+        for key, value in section_data.items():
+            key_path = f"{section_name}.{key}"
+            
+            if isinstance(value, dict):
+                # Recursively process nested dictionaries
+                migrated_section[key] = self._migrate_nested_dict(key_path, value)
+            elif isinstance(value, list):
+                # Process lists that might contain sensitive data
+                migrated_section[key] = self._migrate_list(key_path, value)
+            else:
+                # Process individual values
+                encrypted_value = self.security_manager.encrypt_value(value, key_path)
+                migrated_section[key] = encrypted_value
+        
+        return migrated_section
+
+    def _migrate_nested_dict(self, base_path: str, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Migrate nested dictionary with encryption support.
+        
+        Args:
+            base_path: Base key path for encryption detection
+            data: Dictionary data to migrate
+            
+        Returns:
+            Dict containing migrated nested data
+        """
+        migrated_dict = {}
+        
+        for key, value in data.items():
+            key_path = f"{base_path}.{key}"
+            
+            if isinstance(value, dict):
+                migrated_dict[key] = self._migrate_nested_dict(key_path, value)
+            elif isinstance(value, list):
+                migrated_dict[key] = self._migrate_list(key_path, value)
+            else:
+                encrypted_value = self.security_manager.encrypt_value(value, key_path)
+                migrated_dict[key] = encrypted_value
+        
+        return migrated_dict
+
+    def _migrate_list(self, key_path: str, data: List[Any]) -> List[Any]:
+        """
+        Migrate list data with encryption support.
+        
+        Args:
+            key_path: Key path for encryption detection
+            data: List data to migrate
+            
+        Returns:
+            List containing migrated data
+        """
+        migrated_list = []
+        
+        for i, item in enumerate(data):
+            item_path = f"{key_path}[{i}]"
+            
+            if isinstance(item, dict):
+                migrated_list.append(self._migrate_nested_dict(item_path, item))
+            elif isinstance(item, list):
+                migrated_list.append(self._migrate_list(item_path, item))
+            else:
+                encrypted_value = self.security_manager.encrypt_value(item, item_path)
+                migrated_list.append(encrypted_value)
+        
+        return migrated_list
+
+    def _get_encrypted_keys_list(self, config: Dict[str, Any]) -> List[str]:
+        """
+        Get list of encrypted keys in the configuration.
+        
+        Args:
+            config: Configuration data to analyze
+            
+        Returns:
+            List of key paths that are encrypted
+        """
+        encrypted_keys = []
+        
+        def find_encrypted_keys(data: Any, path: str = ""):
+            if isinstance(data, dict):
+                if data.get("encrypted", False):
+                    encrypted_keys.append(path)
+                else:
+                    for key, value in data.items():
+                        if key.startswith("_"):  # Skip metadata keys
+                            continue
+                        new_path = f"{path}.{key}" if path else key
+                        find_encrypted_keys(value, new_path)
+            elif isinstance(data, list):
+                for i, item in enumerate(data):
+                    new_path = f"{path}[{i}]"
+                    find_encrypted_keys(item, new_path)
+        
+        find_encrypted_keys(config)
+        return encrypted_keys
+
+    def decrypt_migrated_configuration(self, encrypted_config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Decrypt a migrated configuration for use.
+        
+        Args:
+            encrypted_config: Configuration with encrypted values
+            
+        Returns:
+            Dict containing decrypted configuration
+        """
+        try:
+            self._log_migration_event("decryption_start", {
+                "sections": list(encrypted_config.keys())
+            })
+            
+            decrypted_config = {}
+            
+            for section_name, section_data in encrypted_config.items():
+                if section_name.startswith("_"):  # Skip metadata sections
+                    decrypted_config[section_name] = section_data
+                    continue
+                    
+                decrypted_section = self._decrypt_section(section_data)
+                decrypted_config[section_name] = decrypted_section
+            
+            self._log_migration_event("decryption_complete", {
+                "sections_decrypted": len([k for k in decrypted_config.keys() if not k.startswith("_")])
+            })
+            
+            return decrypted_config
+            
+        except Exception as e:
+            self._log_migration_event("decryption_error", {"error": str(e)})
+            logger.error(f"Failed to decrypt migrated configuration: {e}")
+            raise SecurityMigrationError(f"Decryption failed: {e}")
+
+    def _decrypt_section(self, section_data: Any) -> Any:
+        """
+        Recursively decrypt a configuration section.
+        
+        Args:
+            section_data: Section data to decrypt
+            
+        Returns:
+            Decrypted section data
+        """
+        if isinstance(section_data, dict):
+            if section_data.get("encrypted", False):
+                # This is an encrypted value
+                return self.security_manager.decrypt_value(section_data)
+            else:
+                # Regular dictionary - process recursively
+                decrypted_dict = {}
+                for key, value in section_data.items():
+                    decrypted_dict[key] = self._decrypt_section(value)
+                return decrypted_dict
+        elif isinstance(section_data, list):
+            # Process list items
+            return [self._decrypt_section(item) for item in section_data]
+        else:
+            # Regular value - return as-is
+            return section_data
+
+    def validate_migration_integrity(self, migrated_config: Dict[str, Any]) -> bool:
+        """
+        Validate the integrity of migrated configuration.
+        
+        Args:
+            migrated_config: Migrated configuration to validate
+            
+        Returns:
+            bool: True if validation passes
+        """
+        try:
+            # Verify configuration signature
+            verification_passed = self.security_manager.verify_configuration(migrated_config)
+            
+            # Check migration metadata
+            migration_metadata = migrated_config.get("_migration", {})
+            has_valid_metadata = all(
+                key in migration_metadata
+                for key in ["version", "migrated_at", "encrypted_keys"]
+            )
+            
+            # Validate encrypted keys can be decrypted
+            encrypted_keys_valid = True
+            try:
+                self.decrypt_migrated_configuration(migrated_config)
+            except Exception:
+                encrypted_keys_valid = False
+            
+            validation_result = verification_passed and has_valid_metadata and encrypted_keys_valid
+            
+            self._log_migration_event("validation_complete", {
+                "signature_valid": verification_passed,
+                "metadata_valid": has_valid_metadata,
+                "encryption_valid": encrypted_keys_valid,
+                "overall_valid": validation_result
+            })
+            
+            return validation_result
+            
+        except Exception as e:
+            self._log_migration_event("validation_error", {"error": str(e)})
+            logger.error(f"Failed to validate migration integrity: {e}")
+            return False
+
+    def create_migration_backup(
+        self,
+        source_config: Dict[str, Any],
+        backup_dir: Path
+    ) -> Optional[Path]:
+        """
+        Create encrypted backup of source configuration before migration.
+        
+        Args:
+            source_config: Source configuration to backup
+            backup_dir: Directory to store backup
+            
+        Returns:
+            Optional[Path]: Path to backup file if successful
+        """
+        try:
+            backup_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            backup_file = backup_dir / f"pre_migration_backup_{timestamp}.json"
+            
+            # Create backup with encryption
+            encrypted_backup = self.migrate_configuration_with_encryption(
+                source_config, "backup"
+            )
             
             with open(backup_file, 'w') as f:
-                json.dump(backup_data, f, indent=2)
-                
-            logger.info(f"Created migration backup: {backup_id}")
-            return backup_id
+                json.dump(encrypted_backup, f, indent=2)
+            
+            self._log_migration_event("backup_created", {
+                "backup_file": str(backup_file),
+                "source_sections": len(source_config)
+            })
+            
+            logger.info(f"Created migration backup: {backup_file}")
+            return backup_file
             
         except Exception as e:
-            logger.warning(f"Failed to create migration backup: {e}")
-            return ""
+            self._log_migration_event("backup_error", {"error": str(e)})
+            logger.error(f"Failed to create migration backup: {e}")
+            return None
 
-    def _log_migration_step(self, step: MigrationStep, migrated_data: Dict[str, Any]) -> None:
-        """Log migration step details"""
-        try:
-            log_entry = {
-                "timestamp": datetime.now().isoformat(),
-                "step": step.description,
-                "from_version": step.from_version,
-                "to_version": step.to_version,
-                "config_fields": list(migrated_data.keys())
-            }
-            
-            # Ensure log file exists
-            self.migration_log_file.parent.mkdir(parents=True, exist_ok=True)
-            
-            # Append to log file
-            with open(self.migration_log_file, 'a') as f:
-                f.write(json.dumps(log_entry) + "\n")
-                
-        except Exception as e:
-            logger.warning(f"Failed to log migration step: {e}")
-
-    def _validate_migrated_configuration(self, config_data: Dict[str, Any]) -> ValidationResult:
-        """Validate migrated configuration"""
-        try:
-            # Import here to avoid circular imports
-            from .security_configuration_manager import SecurityConfigurationManager
-            
-            manager = SecurityConfigurationManager()
-            return manager.validate_security_config(config_data)
-            
-        except Exception as e:
-            result = ValidationResult()
-            result.add_error(f"Failed to validate migrated configuration: {e}")
-            return result
-
-    def get_migration_history(self) -> List[Dict[str, Any]]:
+    def restore_from_backup(self, backup_file: Path) -> Dict[str, Any]:
         """
-        Get migration history from log file.
-        
-        Returns:
-            List: Migration history entries
-        """
-        history = []
-        
-        try:
-            if self.migration_log_file.exists():
-                with open(self.migration_log_file, 'r') as f:
-                    for line in f:
-                        try:
-                            entry = json.loads(line.strip())
-                            history.append(entry)
-                        except json.JSONDecodeError:
-                            continue
-                            
-        except Exception as e:
-            logger.error(f"Failed to read migration history: {e}")
-            
-        return history
-
-    def rollback_migration(self, backup_id: str) -> bool:
-        """
-        Rollback migration using backup.
+        Restore configuration from encrypted backup.
         
         Args:
-            backup_id: Backup identifier to restore
+            backup_file: Path to backup file
             
         Returns:
-            bool: True if rollback successful
+            Dict containing restored configuration
         """
         try:
-            backup_dir = self.config_dir / "backups" / "security_migration"
-            backup_file = backup_dir / f"{backup_id}.json"
-            
             if not backup_file.exists():
-                logger.error(f"Backup file not found: {backup_file}")
-                return False
-                
-            # Load backup data
-            with open(backup_file, 'r') as f:
-                backup_data = json.load(f)
-                
-            # Validate backup data
-            if "config_data" not in backup_data:
-                logger.error("Invalid backup data format")
-                return False
-                
-            # This would need to be integrated with the configuration system
-            # For now, just log the rollback attempt
-            logger.info(f"Rollback requested for backup: {backup_id}")
-            logger.info(f"Backup version: {backup_data.get('version', 'unknown')}")
+                raise SecurityMigrationError(f"Backup file not found: {backup_file}")
             
-            return True
+            with open(backup_file, 'r') as f:
+                encrypted_backup = json.load(f)
+            
+            # Decrypt and restore
+            restored_config = self.decrypt_migrated_configuration(encrypted_backup)
+            
+            # Remove backup-specific metadata
+            if "_migration" in restored_config:
+                migration_meta = restored_config["_migration"]
+                if migration_meta.get("version") == "backup":
+                    del restored_config["_migration"]
+            
+            self._log_migration_event("backup_restored", {
+                "backup_file": str(backup_file),
+                "restored_sections": len(restored_config)
+            })
+            
+            logger.info(f"Restored configuration from backup: {backup_file}")
+            return restored_config
             
         except Exception as e:
-            logger.error(f"Failed to rollback migration: {e}")
-            return False
+            self._log_migration_event("restore_error", {"error": str(e)})
+            logger.error(f"Failed to restore from backup: {e}")
+            raise SecurityMigrationError(f"Backup restoration failed: {e}")
 
-    def cleanup_old_backups(self, keep_count: int = 5) -> int:
+    def get_migration_log(self) -> List[Dict[str, Any]]:
         """
-        Clean up old migration backups.
+        Get migration operation log.
+        
+        Returns:
+            List of migration log entries
+        """
+        return self.migration_log.copy()
+
+    def _log_migration_event(self, event_type: str, metadata: Dict[str, Any]) -> None:
+        """
+        Log migration event for audit trail.
         
         Args:
-            keep_count: Number of recent backups to keep
+            event_type: Type of migration event
+            metadata: Event metadata
+        """
+        log_entry = {
+            "timestamp": datetime.now().isoformat(),
+            "event_type": event_type,
+            "metadata": metadata
+        }
+        
+        self.migration_log.append(log_entry)
+        
+        # Also log to security service if available
+        if self.security_manager.security_service:
+            from ..security.security_service import SecurityEvent, SecurityLevel
+            self.security_manager.security_service.log_security_event(
+                SecurityEvent(
+                    timestamp=datetime.now(),
+                    event_type="configuration_migration",
+                    level=SecurityLevel.MEDIUM,
+                    description=f"Configuration migration event: {event_type}",
+                    metadata=metadata
+                )
+            )
+
+    def cleanup_migration_artifacts(self, keep_backups: int = 5) -> int:
+        """
+        Clean up old migration artifacts and backups.
+        
+        Args:
+            keep_backups: Number of recent backups to keep
             
         Returns:
-            int: Number of backups cleaned up
+            int: Number of artifacts cleaned up
         """
         try:
-            backup_dir = self.config_dir / "backups" / "security_migration"
-            
+            backup_dir = self.security_manager.config_dir / "migration_backups"
             if not backup_dir.exists():
                 return 0
-                
-            # Get all backup files
-            backup_files = list(backup_dir.glob("*.json"))
             
-            if len(backup_files) <= keep_count:
-                return 0
-                
-            # Sort by modification time (newest first)
+            # Find backup files
+            backup_files = list(backup_dir.glob("pre_migration_backup_*.json"))
             backup_files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
             
             # Remove old backups
-            cleaned_count = 0
-            for backup_file in backup_files[keep_count:]:
+            files_to_remove = backup_files[keep_backups:]
+            removed_count = 0
+            
+            for backup_file in files_to_remove:
                 try:
                     backup_file.unlink()
-                    cleaned_count += 1
-                    logger.debug(f"Removed old backup: {backup_file.name}")
+                    removed_count += 1
                 except Exception as e:
-                    logger.warning(f"Failed to remove backup {backup_file.name}: {e}")
-                    
-            logger.info(f"Cleaned up {cleaned_count} old migration backups")
-            return cleaned_count
+                    logger.warning(f"Failed to remove backup file {backup_file}: {e}")
+            
+            if removed_count > 0:
+                self._log_migration_event("cleanup_complete", {
+                    "removed_backups": removed_count,
+                    "remaining_backups": len(backup_files) - removed_count
+                })
+            
+            return removed_count
             
         except Exception as e:
-            logger.error(f"Failed to cleanup old backups: {e}")
+            logger.error(f"Failed to cleanup migration artifacts: {e}")
             return 0
-
-    def get_available_backups(self) -> List[Dict[str, Any]]:
-        """
-        Get list of available migration backups.
-        
-        Returns:
-            List: Available backup information
-        """
-        backups = []
-        
-        try:
-            backup_dir = self.config_dir / "backups" / "security_migration"
-            
-            if not backup_dir.exists():
-                return backups
-                
-            for backup_file in backup_dir.glob("*.json"):
-                try:
-                    with open(backup_file, 'r') as f:
-                        backup_data = json.load(f)
-                        
-                    backups.append({
-                        "backup_id": backup_file.stem,
-                        "version": backup_data.get("version", "unknown"),
-                        "created_at": backup_data.get("created_at", ""),
-                        "file_size": backup_file.stat().st_size,
-                        "file_path": str(backup_file)
-                    })
-                    
-                except Exception as e:
-                    logger.warning(f"Failed to read backup {backup_file.name}: {e}")
-                    
-        except Exception as e:
-            logger.error(f"Failed to get available backups: {e}")
-            
-        return sorted(backups, key=lambda b: b["created_at"], reverse=True)
-
-    def validate_backup(self, backup_id: str) -> ValidationResult:
-        """
-        Validate a migration backup.
-        
-        Args:
-            backup_id: Backup identifier to validate
-            
-        Returns:
-            ValidationResult: Validation results
-        """
-        result = ValidationResult()
-        
-        try:
-            backup_dir = self.config_dir / "backups" / "security_migration"
-            backup_file = backup_dir / f"{backup_id}.json"
-            
-            if not backup_file.exists():
-                result.add_error(f"Backup file not found: {backup_id}")
-                return result
-                
-            # Load and validate backup data
-            with open(backup_file, 'r') as f:
-                backup_data = json.load(f)
-                
-            # Check backup structure
-            required_fields = ["version", "created_at", "config_data"]
-            for field in required_fields:
-                if field not in backup_data:
-                    result.add_error(f"Missing required field in backup: {field}")
-                    
-            # Validate config data if present
-            if "config_data" in backup_data:
-                config_validation = self._validate_migrated_configuration(backup_data["config_data"])
-                result.errors.extend(config_validation.errors)
-                result.warnings.extend(config_validation.warnings)
-                
-            if result.is_valid:
-                logger.info(f"Backup validation passed: {backup_id}")
-            else:
-                logger.warning(f"Backup validation failed: {backup_id}")
-                
-        except json.JSONDecodeError as e:
-            result.add_error(f"Invalid JSON in backup file: {e}")
-        except Exception as e:
-            result.add_error(f"Failed to validate backup: {e}")
-            
-        return result

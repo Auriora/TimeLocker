@@ -1,672 +1,633 @@
 """
-Security Configuration Manager for TimeLocker.
+Copyright ©  Bruce Cherrington
 
-This module provides comprehensive security configuration management,
-including validation, UI components, migration, and integration with
-the existing configuration system.
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
 import logging
-from datetime import datetime, timedelta
+import hashlib
+import secrets
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Union, Tuple
-from dataclasses import dataclass, asdict
+from typing import Dict, Any, Optional, List, Set
+from dataclasses import dataclass
 from enum import Enum
+from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+import base64
 
-from .configuration_schema import SecurityConfig
-from .configuration_validator import ValidationResult
-from .configuration_defaults import ConfigurationDefaults
-from ..interfaces.exceptions import ConfigurationError, InvalidConfigurationError
+from ..interfaces.exceptions import ConfigurationError
 
 logger = logging.getLogger(__name__)
 
 
-class SecurityConfigurationError(ConfigurationError):
-    """Security configuration specific error"""
+class EncryptionError(ConfigurationError):
+    """Exception for encryption-related configuration errors"""
     pass
 
 
-class SecurityValidationLevel(Enum):
-    """Security validation levels"""
-    STRICT = "strict"
-    MODERATE = "moderate"
-    PERMISSIVE = "permissive"
+class IntegrityError(ConfigurationError):
+    """Exception for configuration integrity verification failures"""
+    pass
+
+
+class EncryptionLevel(Enum):
+    """Encryption levels for configuration values"""
+    NONE = "none"
+    SENSITIVE = "sensitive"  # Passwords, keys, tokens
+    FULL = "full"  # All configuration data
 
 
 @dataclass
-class SecurityValidationRule:
-    """Security validation rule definition"""
-    name: str
-    description: str
-    level: SecurityValidationLevel
-    validator_function: str
-    error_message: str
-    recommendation: Optional[str] = None
+class EncryptionMetadata:
+    """Metadata for encrypted configuration values"""
+    encrypted: bool
+    algorithm: str
+    key_id: str
+    created_at: datetime
+    last_accessed: Optional[datetime] = None
+    access_count: int = 0
 
 
 @dataclass
-class SecurityConfigurationStatus:
-    """Security configuration status information"""
-    is_valid: bool
-    security_level: str
-    issues_count: int
-    warnings_count: int
-    last_validated: datetime
-    recommendations: List[str]
-    compliance_score: float  # 0.0 to 1.0
+class ConfigurationSignature:
+    """Digital signature for configuration integrity"""
+    signature: str
+    algorithm: str
+    timestamp: datetime
+    sections: List[str]
+    checksum: str
 
 
 class SecurityConfigurationManager:
     """
-    Comprehensive security configuration management following SOLID principles.
+    Provides encryption and integrity verification for configuration data.
     
-    This class handles security configuration validation, UI components,
-    migration, and integration with the existing configuration system.
+    Integrates with TimeLocker Security Services to encrypt sensitive configuration
+    values and verify configuration integrity through digital signatures.
     """
 
-    def __init__(self, config_module: Optional['ConfigurationModule'] = None):
+    def __init__(self, security_service: Optional['SecurityService'] = None, 
+                 config_dir: Optional[Path] = None):
         """
         Initialize security configuration manager.
         
         Args:
-            config_module: Optional configuration module instance
+            security_service: SecurityService instance for encryption operations
+            config_dir: Configuration directory for security metadata
         """
-        self.config_module = config_module
-        self._validation_rules = self._initialize_validation_rules()
-        self._ui_components = {}
+        self.security_service = security_service
         
-    def _initialize_validation_rules(self) -> Dict[str, SecurityValidationRule]:
-        """Initialize security validation rules"""
-        return {
-            "encryption_enabled": SecurityValidationRule(
-                name="encryption_enabled",
-                description="Encryption must be enabled for security",
-                level=SecurityValidationLevel.STRICT,
-                validator_function="_validate_encryption_enabled",
-                error_message="Encryption is disabled - this is a critical security risk",
-                recommendation="Enable encryption to protect backup data"
-            ),
-            "audit_logging": SecurityValidationRule(
-                name="audit_logging",
-                description="Audit logging should be enabled for security monitoring",
-                level=SecurityValidationLevel.MODERATE,
-                validator_function="_validate_audit_logging",
-                error_message="Audit logging is disabled - reduces security monitoring capability",
-                recommendation="Enable audit logging to track security events"
-            ),
-            "credential_timeout": SecurityValidationRule(
-                name="credential_timeout",
-                description="Credential timeout should be reasonable for security",
-                level=SecurityValidationLevel.MODERATE,
-                validator_function="_validate_credential_timeout",
-                error_message="Credential timeout is not within recommended range",
-                recommendation="Set credential timeout between 5 minutes and 4 hours"
-            ),
-            "max_failed_attempts": SecurityValidationRule(
-                name="max_failed_attempts",
-                description="Maximum failed attempts should prevent brute force attacks",
-                level=SecurityValidationLevel.MODERATE,
-                validator_function="_validate_max_failed_attempts",
-                error_message="Maximum failed attempts setting is not secure",
-                recommendation="Set max failed attempts between 3 and 10"
-            ),
-            "lockout_duration": SecurityValidationRule(
-                name="lockout_duration",
-                description="Lockout duration should balance security and usability",
-                level=SecurityValidationLevel.MODERATE,
-                validator_function="_validate_lockout_duration",
-                error_message="Lockout duration is not within recommended range",
-                recommendation="Set lockout duration between 1 minute and 30 minutes"
-            ),
-            "password_strength": SecurityValidationRule(
-                name="password_strength",
-                description="Password strength checking should be enabled",
-                level=SecurityValidationLevel.MODERATE,
-                validator_function="_validate_password_strength",
-                error_message="Password strength checking is disabled",
-                recommendation="Enable password strength checking for better security"
-            )
+        if config_dir is None:
+            from .configuration_path_resolver import ConfigurationPathResolver
+            config_dir = ConfigurationPathResolver.get_config_directory()
+        
+        self.config_dir = Path(config_dir)
+        self.security_dir = self.config_dir / "security"
+        self.security_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Security metadata files
+        self.encryption_metadata_file = self.security_dir / "encryption_metadata.json"
+        self.signature_file = self.security_dir / "configuration_signature.json"
+        self.key_store_file = self.security_dir / "key_store.enc"
+        
+        # Sensitive configuration patterns
+        self.sensitive_patterns = {
+            "password", "passwd", "secret", "key", "token", "credential",
+            "auth", "api_key", "access_key", "private_key", "cert", "certificate"
         }
+        
+        # Initialize encryption key management
+        self._encryption_keys: Dict[str, bytes] = {}
+        self._current_key_id: Optional[str] = None
+        
+        # Load existing metadata
+        self._load_encryption_metadata()
 
-    def validate_security_config(self, security_config: Union[SecurityConfig, Dict[str, Any]], 
-                                validation_level: SecurityValidationLevel = SecurityValidationLevel.MODERATE) -> ValidationResult:
-        """
-        Validate security configuration with comprehensive checks.
-        
-        Args:
-            security_config: Security configuration to validate
-            validation_level: Validation strictness level
-            
-        Returns:
-            ValidationResult: Detailed validation results
-        """
-        result = ValidationResult()
-        
+    def _load_encryption_metadata(self) -> None:
+        """Load encryption metadata from disk"""
         try:
-            # Convert dict to SecurityConfig if needed
-            if isinstance(security_config, dict):
-                config = SecurityConfig(**security_config)
-            else:
-                config = security_config
-                
-            # Run validation rules based on level
-            for rule_name, rule in self._validation_rules.items():
-                if rule.level.value in [validation_level.value, "strict"] or validation_level == SecurityValidationLevel.PERMISSIVE:
-                    validator_method = getattr(self, rule.validator_function, None)
-                    if validator_method:
-                        try:
-                            is_valid, message = validator_method(config)
-                            if not is_valid:
-                                if rule.level == SecurityValidationLevel.STRICT:
-                                    result.add_error(f"{rule.error_message}: {message}")
-                                else:
-                                    result.add_warning(f"{rule.error_message}: {message}")
-                                    
-                                if rule.recommendation:
-                                    result.add_warning(f"Recommendation: {rule.recommendation}")
-                        except Exception as e:
-                            logger.error(f"Error running validation rule {rule_name}: {e}")
-                            result.add_warning(f"Could not validate {rule_name}: {e}")
-                            
+            if self.encryption_metadata_file.exists():
+                with open(self.encryption_metadata_file, 'r') as f:
+                    metadata = json.load(f)
+                    self._current_key_id = metadata.get("current_key_id")
+                    
+                    # Load encryption keys if security service is available
+                    if self.security_service and self.key_store_file.exists():
+                        self._load_encryption_keys()
+                        
         except Exception as e:
-            result.add_error(f"Security configuration validation failed: {e}")
+            logger.warning(f"Failed to load encryption metadata: {e}")
+
+    def _save_encryption_metadata(self) -> None:
+        """Save encryption metadata to disk"""
+        try:
+            metadata = {
+                "current_key_id": self._current_key_id,
+                "created_at": datetime.now().isoformat(),
+                "key_count": len(self._encryption_keys)
+            }
             
-        return result
+            with open(self.encryption_metadata_file, 'w') as f:
+                json.dump(metadata, f, indent=2)
+                
+        except Exception as e:
+            logger.error(f"Failed to save encryption metadata: {e}")
+            raise EncryptionError(f"Failed to save encryption metadata: {e}")
 
-    def _validate_encryption_enabled(self, config: SecurityConfig) -> Tuple[bool, str]:
-        """Validate encryption is enabled"""
-        if not config.encryption_enabled:
-            return False, "Encryption is disabled"
-        return True, "Encryption is properly enabled"
-
-    def _validate_audit_logging(self, config: SecurityConfig) -> Tuple[bool, str]:
-        """Validate audit logging is enabled"""
-        if not config.audit_logging:
-            return False, "Audit logging is disabled"
-        return True, "Audit logging is properly enabled"
-
-    def _validate_credential_timeout(self, config: SecurityConfig) -> Tuple[bool, str]:
-        """Validate credential timeout is within reasonable range"""
-        timeout = config.credential_timeout
-        if timeout < 300:  # Less than 5 minutes
-            return False, f"Timeout ({timeout}s) is too short, minimum 300s recommended"
-        elif timeout > 14400:  # More than 4 hours
-            return False, f"Timeout ({timeout}s) is too long, maximum 14400s recommended"
-        return True, f"Credential timeout ({timeout}s) is within recommended range"
-
-    def _validate_max_failed_attempts(self, config: SecurityConfig) -> Tuple[bool, str]:
-        """Validate max failed attempts setting"""
-        attempts = config.max_failed_attempts
-        if attempts <= 0:
-            return False, "Max failed attempts must be greater than 0"
-        elif attempts > 10:
-            return False, f"Max failed attempts ({attempts}) is too high, consider reducing"
-        return True, f"Max failed attempts ({attempts}) is within recommended range"
-
-    def _validate_lockout_duration(self, config: SecurityConfig) -> Tuple[bool, str]:
-        """Validate lockout duration setting"""
-        duration = config.lockout_duration
-        if duration < 60:  # Less than 1 minute
-            return False, f"Lockout duration ({duration}s) is too short"
-        elif duration > 1800:  # More than 30 minutes
-            return False, f"Lockout duration ({duration}s) is too long"
-        return True, f"Lockout duration ({duration}s) is within recommended range"
-
-    def _validate_password_strength(self, config: SecurityConfig) -> Tuple[bool, str]:
-        """Validate password strength checking is enabled"""
-        if not config.password_strength_check:
-            return False, "Password strength checking is disabled"
-        return True, "Password strength checking is enabled"
-
-    def get_security_configuration_status(self) -> SecurityConfigurationStatus:
+    def _generate_encryption_key(self) -> str:
         """
-        Get comprehensive security configuration status.
+        Generate a new encryption key for configuration data.
         
         Returns:
-            SecurityConfigurationStatus: Current security status
+            str: Key identifier for the generated key
         """
         try:
-            if not self.config_module:
-                # Get config from default location if no module provided
-                from . import ConfigurationModule
-                self.config_module = ConfigurationModule()
-                
-            config = self.config_module.get_config()
-            security_config = config.security
+            # Generate a new Fernet key
+            key = Fernet.generate_key()
+            key_id = secrets.token_hex(16)
             
-            # Validate configuration
-            validation_result = self.validate_security_config(security_config)
+            # Store the key
+            self._encryption_keys[key_id] = key
+            self._current_key_id = key_id
             
-            # Calculate compliance score
-            total_rules = len(self._validation_rules)
-            passed_rules = total_rules - len(validation_result.errors)
-            compliance_score = passed_rules / total_rules if total_rules > 0 else 0.0
+            # Save keys to encrypted storage
+            self._save_encryption_keys()
+            self._save_encryption_metadata()
             
-            # Determine security level
-            if compliance_score >= 0.9:
-                security_level = "high"
-            elif compliance_score >= 0.7:
-                security_level = "medium"
-            else:
-                security_level = "low"
-                
-            # Generate recommendations
-            recommendations = []
-            if not security_config.encryption_enabled:
-                recommendations.append("Enable encryption for data protection")
-            if not security_config.audit_logging:
-                recommendations.append("Enable audit logging for security monitoring")
-            if security_config.credential_timeout < 900:
-                recommendations.append("Consider increasing credential timeout for better security")
-                
-            return SecurityConfigurationStatus(
-                is_valid=validation_result.is_valid,
-                security_level=security_level,
-                issues_count=len(validation_result.errors),
-                warnings_count=len(validation_result.warnings),
-                last_validated=datetime.now(),
-                recommendations=recommendations,
-                compliance_score=compliance_score
+            logger.info(f"Generated new encryption key: {key_id}")
+            return key_id
+            
+        except Exception as e:
+            logger.error(f"Failed to generate encryption key: {e}")
+            raise EncryptionError(f"Failed to generate encryption key: {e}")
+
+    def _save_encryption_keys(self) -> None:
+        """Save encryption keys to encrypted storage"""
+        if not self.security_service:
+            logger.warning("No security service available for key storage")
+            return
+            
+        try:
+            # Use credential manager to encrypt and store keys
+            credential_manager = self.security_service.credential_manager
+            
+            # Serialize keys to JSON
+            keys_data = {
+                key_id: base64.b64encode(key).decode('utf-8')
+                for key_id, key in self._encryption_keys.items()
+            }
+            
+            # Store as a special credential
+            credential_manager.store_repository_password(
+                "timelocker_config_encryption_keys",
+                json.dumps(keys_data)
             )
             
         except Exception as e:
-            logger.error(f"Failed to get security configuration status: {e}")
-            return SecurityConfigurationStatus(
-                is_valid=False,
-                security_level="unknown",
-                issues_count=1,
-                warnings_count=0,
-                last_validated=datetime.now(),
-                recommendations=["Fix configuration errors"],
-                compliance_score=0.0
+            logger.error(f"Failed to save encryption keys: {e}")
+            raise EncryptionError(f"Failed to save encryption keys: {e}")
+
+    def _load_encryption_keys(self) -> None:
+        """Load encryption keys from encrypted storage"""
+        if not self.security_service:
+            return
+            
+        try:
+            credential_manager = self.security_service.credential_manager
+            
+            # Retrieve keys from credential manager
+            keys_json = credential_manager.get_repository_password(
+                "timelocker_config_encryption_keys"
             )
+            
+            if keys_json:
+                keys_data = json.loads(keys_json)
+                self._encryption_keys = {
+                    key_id: base64.b64decode(key_b64.encode('utf-8'))
+                    for key_id, key_b64 in keys_data.items()
+                }
+                
+        except Exception as e:
+            logger.warning(f"Failed to load encryption keys: {e}")
 
-    def update_security_configuration(self, updates: Dict[str, Any], 
-                                    validate: bool = True) -> ValidationResult:
+    def _get_encryption_key(self, key_id: Optional[str] = None) -> bytes:
         """
-        Update security configuration with validation.
+        Get encryption key by ID or current key.
         
         Args:
-            updates: Dictionary of security configuration updates
-            validate: Whether to validate before applying updates
+            key_id: Key identifier, uses current key if None
             
         Returns:
-            ValidationResult: Validation results
+            bytes: Encryption key
         """
-        try:
-            if not self.config_module:
-                from . import ConfigurationModule
-                self.config_module = ConfigurationModule()
+        if key_id is None:
+            key_id = self._current_key_id
+            
+        if key_id is None or key_id not in self._encryption_keys:
+            # Generate new key if none exists
+            if not self._encryption_keys:
+                self._generate_encryption_key()
+                key_id = self._current_key_id
+            else:
+                raise EncryptionError(f"Encryption key not found: {key_id}")
                 
-            # Get current configuration
-            config = self.config_module.get_config()
-            current_security = config.security
-            
-            # Create updated security config
-            security_dict = asdict(current_security)
-            security_dict.update(updates)
-            updated_security = SecurityConfig(**security_dict)
-            
-            # Validate if requested
-            validation_result = ValidationResult()
-            if validate:
-                validation_result = self.validate_security_config(updated_security)
-                if not validation_result.is_valid:
-                    return validation_result
-                    
-            # Apply updates
-            config.security = updated_security
-            self.config_module.save_config(config)
-            
-            logger.info(f"Security configuration updated: {list(updates.keys())}")
-            return validation_result
-            
-        except Exception as e:
-            error_msg = f"Failed to update security configuration: {e}"
-            logger.error(error_msg)
-            result = ValidationResult()
-            result.add_error(error_msg)
-            return result
+        return self._encryption_keys[key_id]
 
-    def reset_security_configuration(self) -> ValidationResult:
+    def is_sensitive_key(self, key: str) -> bool:
         """
-        Reset security configuration to defaults.
-        
-        Returns:
-            ValidationResult: Reset operation results
-        """
-        try:
-            if not self.config_module:
-                from . import ConfigurationModule
-                self.config_module = ConfigurationModule()
-                
-            # Get default security configuration
-            default_security = ConfigurationDefaults.get_security_defaults()
-            
-            # Update configuration
-            config = self.config_module.get_config()
-            config.security = default_security
-            self.config_module.save_config(config)
-            
-            logger.info("Security configuration reset to defaults")
-            
-            # Validate the reset configuration
-            return self.validate_security_config(default_security)
-            
-        except Exception as e:
-            error_msg = f"Failed to reset security configuration: {e}"
-            logger.error(error_msg)
-            result = ValidationResult()
-            result.add_error(error_msg)
-            return result
-
-    def migrate_security_configuration(self, old_config: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Migrate security configuration from older versions.
+        Check if a configuration key contains sensitive data.
         
         Args:
-            old_config: Old configuration format
+            key: Configuration key to check
             
         Returns:
-            Dict: Migrated security configuration
+            bool: True if key is considered sensitive
         """
-        try:
-            migrated = {}
+        key_lower = key.lower()
+        return any(pattern in key_lower for pattern in self.sensitive_patterns)
+
+    def encrypt_value(self, value: Any, key_path: str) -> Dict[str, Any]:
+        """
+        Encrypt a configuration value if it's sensitive.
+        
+        Args:
+            value: Value to potentially encrypt
+            key_path: Configuration key path for sensitivity detection
             
-            # Map old field names to new ones
-            field_mapping = {
-                "enable_encryption": "encryption_enabled",
-                "enable_audit_log": "audit_logging",
-                "session_timeout": "credential_timeout",
-                "max_login_attempts": "max_failed_attempts",
-                "lockout_time": "lockout_duration",
-                "check_password_strength": "password_strength_check",
-                "require_confirmation": "require_password_confirmation"
+        Returns:
+            Dict containing encrypted value and metadata
+        """
+        if not self.security_service:
+            logger.warning("No security service available for encryption")
+            return {"value": value, "encrypted": False}
+            
+        # Only encrypt sensitive string values
+        if not isinstance(value, str) or not self.is_sensitive_key(key_path):
+            return {"value": value, "encrypted": False}
+            
+        try:
+            # Get encryption key
+            key = self._get_encryption_key()
+            fernet = Fernet(key)
+            
+            # Encrypt the value
+            encrypted_value = fernet.encrypt(value.encode('utf-8'))
+            encrypted_b64 = base64.b64encode(encrypted_value).decode('utf-8')
+            
+            # Create metadata
+            metadata = EncryptionMetadata(
+                encrypted=True,
+                algorithm="Fernet-AES256",
+                key_id=self._current_key_id,
+                created_at=datetime.now()
+            )
+            
+            # Log encryption event
+            if self.security_service:
+                from ..security.security_service import SecurityEvent, SecurityLevel
+                self.security_service.log_security_event(
+                    SecurityEvent(
+                        timestamp=datetime.now(),
+                        event_type="configuration_encryption",
+                        level=SecurityLevel.MEDIUM,
+                        description=f"Configuration value encrypted: {key_path}",
+                        metadata={
+                            "key_path": key_path,
+                            "algorithm": metadata.algorithm,
+                            "key_id": metadata.key_id
+                        }
+                    )
+                )
+            
+            return {
+                "value": encrypted_b64,
+                "encrypted": True,
+                "metadata": {
+                    "algorithm": metadata.algorithm,
+                    "key_id": metadata.key_id,
+                    "created_at": metadata.created_at.isoformat()
+                }
             }
             
-            # Apply field mappings
-            for old_field, new_field in field_mapping.items():
-                if old_field in old_config:
-                    migrated[new_field] = old_config[old_field]
-                    
-            # Handle special cases
-            if "timeout" in old_config and "credential_timeout" not in migrated:
-                # Convert minutes to seconds if needed
-                timeout_value = old_config["timeout"]
-                if isinstance(timeout_value, int) and timeout_value < 1000:
-                    # Assume it's in minutes, convert to seconds
-                    migrated["credential_timeout"] = timeout_value * 60
-                else:
-                    migrated["credential_timeout"] = timeout_value
-                    
-            # Set defaults for missing fields
-            defaults = asdict(ConfigurationDefaults.get_security_defaults())
-            for field, default_value in defaults.items():
-                if field not in migrated:
-                    migrated[field] = default_value
-                    
-            logger.info(f"Migrated security configuration: {len(migrated)} fields")
-            return migrated
-            
         except Exception as e:
-            logger.error(f"Failed to migrate security configuration: {e}")
-            # Return defaults on migration failure
-            return asdict(ConfigurationDefaults.get_security_defaults())
+            logger.error(f"Failed to encrypt configuration value: {e}")
+            raise EncryptionError(f"Failed to encrypt configuration value: {e}")
 
-    def export_security_configuration(self, output_path: Path, 
-                                    include_sensitive: bool = False) -> bool:
+    def decrypt_value(self, encrypted_data: Dict[str, Any]) -> Any:
         """
-        Export security configuration to file.
+        Decrypt an encrypted configuration value.
         
         Args:
-            output_path: Path to export file
-            include_sensitive: Whether to include sensitive settings
+            encrypted_data: Dictionary containing encrypted value and metadata
             
         Returns:
-            bool: True if export successful
+            Decrypted value
         """
+        if not encrypted_data.get("encrypted", False):
+            return encrypted_data.get("value")
+            
+        if not self.security_service:
+            raise EncryptionError("No security service available for decryption")
+            
         try:
-            if not self.config_module:
-                from . import ConfigurationModule
-                self.config_module = ConfigurationModule()
-                
-            config = self.config_module.get_config()
-            security_config = asdict(config.security)
+            metadata = encrypted_data.get("metadata", {})
+            key_id = metadata.get("key_id")
             
-            # Remove sensitive fields if requested
-            if not include_sensitive:
-                sensitive_fields = ["credential_timeout", "max_failed_attempts", "lockout_duration"]
-                for field in sensitive_fields:
-                    security_config.pop(field, None)
-                    
-            # Add metadata
-            export_data = {
-                "exported_at": datetime.now().isoformat(),
-                "version": "1.0",
-                "security_configuration": security_config
-            }
+            # Get decryption key
+            key = self._get_encryption_key(key_id)
+            fernet = Fernet(key)
             
-            # Write to file
-            with open(output_path, 'w') as f:
-                json.dump(export_data, f, indent=2)
-                
-            logger.info(f"Security configuration exported to {output_path}")
-            return True
+            # Decrypt the value
+            encrypted_b64 = encrypted_data["value"]
+            encrypted_bytes = base64.b64decode(encrypted_b64.encode('utf-8'))
+            decrypted_bytes = fernet.decrypt(encrypted_bytes)
+            decrypted_value = decrypted_bytes.decode('utf-8')
+            
+            # Update access metadata
+            if self.security_service:
+                from ..security.security_service import SecurityEvent, SecurityLevel
+                self.security_service.log_security_event(
+                    SecurityEvent(
+                        timestamp=datetime.now(),
+                        event_type="configuration_decryption",
+                        level=SecurityLevel.LOW,
+                        description="Configuration value decrypted",
+                        metadata={
+                            "key_id": key_id,
+                            "algorithm": metadata.get("algorithm")
+                        }
+                    )
+                )
+            
+            return decrypted_value
             
         except Exception as e:
-            logger.error(f"Failed to export security configuration: {e}")
+            logger.error(f"Failed to decrypt configuration value: {e}")
+            raise EncryptionError(f"Failed to decrypt configuration value: {e}")
+
+    def sign_configuration(self, config_data: Dict[str, Any]) -> ConfigurationSignature:
+        """
+        Create digital signature for configuration data.
+        
+        Args:
+            config_data: Configuration data to sign
+            
+        Returns:
+            ConfigurationSignature object
+        """
+        try:
+            # Create deterministic JSON representation
+            config_json = json.dumps(config_data, sort_keys=True, separators=(',', ':'))
+            
+            # Calculate checksum
+            checksum = hashlib.sha256(config_json.encode('utf-8')).hexdigest()
+            
+            # Create signature using HMAC with current encryption key
+            if self._current_key_id:
+                key = self._get_encryption_key()
+                signature_data = f"{checksum}:{datetime.now().isoformat()}"
+                signature = hashlib.pbkdf2_hmac(
+                    'sha256',
+                    signature_data.encode('utf-8'),
+                    key[:32],  # Use first 32 bytes as salt
+                    100000
+                ).hex()
+            else:
+                # Fallback to simple checksum if no encryption key
+                signature = checksum
+            
+            config_signature = ConfigurationSignature(
+                signature=signature,
+                algorithm="PBKDF2-HMAC-SHA256",
+                timestamp=datetime.now(),
+                sections=list(config_data.keys()),
+                checksum=checksum
+            )
+            
+            # Save signature
+            self._save_signature(config_signature)
+            
+            # Log signing event
+            if self.security_service:
+                from ..security.security_service import SecurityEvent, SecurityLevel
+                self.security_service.log_security_event(
+                    SecurityEvent(
+                        timestamp=datetime.now(),
+                        event_type="configuration_signing",
+                        level=SecurityLevel.MEDIUM,
+                        description="Configuration signed for integrity verification",
+                        metadata={
+                            "sections": len(config_signature.sections),
+                            "algorithm": config_signature.algorithm,
+                            "checksum": checksum[:16]  # First 16 chars for logging
+                        }
+                    )
+                )
+            
+            return config_signature
+            
+        except Exception as e:
+            logger.error(f"Failed to sign configuration: {e}")
+            raise IntegrityError(f"Failed to sign configuration: {e}")
+
+    def verify_configuration(self, config_data: Dict[str, Any]) -> bool:
+        """
+        Verify configuration integrity using stored signature.
+        
+        Args:
+            config_data: Configuration data to verify
+            
+        Returns:
+            bool: True if verification passes
+        """
+        try:
+            # Load stored signature
+            stored_signature = self._load_signature()
+            if not stored_signature:
+                logger.warning("No stored signature found for verification")
+                return False
+            
+            # Calculate current checksum
+            config_json = json.dumps(config_data, sort_keys=True, separators=(',', ':'))
+            current_checksum = hashlib.sha256(config_json.encode('utf-8')).hexdigest()
+            
+            # Verify checksum matches
+            verification_passed = current_checksum == stored_signature.checksum
+            
+            # Log verification event
+            if self.security_service:
+                from ..security.security_service import SecurityEvent, SecurityLevel
+                self.security_service.log_security_event(
+                    SecurityEvent(
+                        timestamp=datetime.now(),
+                        event_type="configuration_verification",
+                        level=SecurityLevel.MEDIUM if verification_passed else SecurityLevel.HIGH,
+                        description=f"Configuration integrity verification: {'PASSED' if verification_passed else 'FAILED'}",
+                        metadata={
+                            "verification_passed": verification_passed,
+                            "stored_checksum": stored_signature.checksum[:16],
+                            "current_checksum": current_checksum[:16],
+                            "signature_timestamp": stored_signature.timestamp.isoformat()
+                        }
+                    )
+                )
+            
+            return verification_passed
+            
+        except Exception as e:
+            logger.error(f"Failed to verify configuration: {e}")
             return False
 
-    def import_security_configuration(self, import_path: Path, 
-                                    validate: bool = True) -> ValidationResult:
-        """
-        Import security configuration from file.
-        
-        Args:
-            import_path: Path to import file
-            validate: Whether to validate imported configuration
-            
-        Returns:
-            ValidationResult: Import operation results
-        """
-        result = ValidationResult()
-        
+    def _save_signature(self, signature: ConfigurationSignature) -> None:
+        """Save configuration signature to disk"""
         try:
-            if not import_path.exists():
-                result.add_error(f"Import file does not exist: {import_path}")
-                return result
-                
-            # Read import file
-            with open(import_path, 'r') as f:
-                import_data = json.load(f)
-                
-            # Extract security configuration
-            if "security_configuration" in import_data:
-                security_config = import_data["security_configuration"]
-            else:
-                # Assume the entire file is security configuration
-                security_config = import_data
-                
-            # Validate if requested
-            if validate:
-                validation_result = self.validate_security_config(security_config)
-                if not validation_result.is_valid:
-                    result.errors.extend(validation_result.errors)
-                    result.warnings.extend(validation_result.warnings)
-                    return result
-                    
-            # Apply configuration
-            update_result = self.update_security_configuration(security_config, validate=False)
-            result.errors.extend(update_result.errors)
-            result.warnings.extend(update_result.warnings)
-            
-            if result.is_valid:
-                logger.info(f"Security configuration imported from {import_path}")
-            
-            return result
-            
-        except json.JSONDecodeError as e:
-            result.add_error(f"Invalid JSON in import file: {e}")
-            return result
-        except Exception as e:
-            result.add_error(f"Failed to import security configuration: {e}")
-            return result
-
-    def get_security_recommendations(self) -> List[Dict[str, Any]]:
-        """
-        Get security configuration recommendations.
-        
-        Returns:
-            List: Security recommendations with priorities
-        """
-        try:
-            if not self.config_module:
-                from . import ConfigurationModule
-                self.config_module = ConfigurationModule()
-                
-            config = self.config_module.get_config()
-            security_config = config.security
-            
-            recommendations = []
-            
-            # Check encryption
-            if not security_config.encryption_enabled:
-                recommendations.append({
-                    "priority": "critical",
-                    "category": "encryption",
-                    "title": "Enable Encryption",
-                    "description": "Backup data encryption is currently disabled",
-                    "action": "Enable encryption to protect backup data from unauthorized access",
-                    "setting": "encryption_enabled",
-                    "recommended_value": True
-                })
-                
-            # Check audit logging
-            if not security_config.audit_logging:
-                recommendations.append({
-                    "priority": "high",
-                    "category": "monitoring",
-                    "title": "Enable Audit Logging",
-                    "description": "Security event logging is currently disabled",
-                    "action": "Enable audit logging to monitor security events and troubleshoot issues",
-                    "setting": "audit_logging",
-                    "recommended_value": True
-                })
-                
-            # Check credential timeout
-            if security_config.credential_timeout < 900:  # Less than 15 minutes
-                recommendations.append({
-                    "priority": "medium",
-                    "category": "authentication",
-                    "title": "Increase Credential Timeout",
-                    "description": f"Current timeout ({security_config.credential_timeout}s) is quite short",
-                    "action": "Consider increasing credential timeout to reduce frequent re-authentication",
-                    "setting": "credential_timeout",
-                    "recommended_value": 1800  # 30 minutes
-                })
-                
-            # Check password strength
-            if not security_config.password_strength_check:
-                recommendations.append({
-                    "priority": "medium",
-                    "category": "authentication",
-                    "title": "Enable Password Strength Checking",
-                    "description": "Password strength validation is currently disabled",
-                    "action": "Enable password strength checking to ensure strong passwords",
-                    "setting": "password_strength_check",
-                    "recommended_value": True
-                })
-                
-            # Check max failed attempts
-            if security_config.max_failed_attempts > 5:
-                recommendations.append({
-                    "priority": "low",
-                    "category": "authentication",
-                    "title": "Reduce Max Failed Attempts",
-                    "description": f"Current setting ({security_config.max_failed_attempts}) is quite high",
-                    "action": "Consider reducing max failed attempts to improve security",
-                    "setting": "max_failed_attempts",
-                    "recommended_value": 3
-                })
-                
-            return recommendations
-            
-        except Exception as e:
-            logger.error(f"Failed to get security recommendations: {e}")
-            return []
-
-    def apply_security_recommendations(self, recommendation_ids: List[str]) -> ValidationResult:
-        """
-        Apply selected security recommendations.
-        
-        Args:
-            recommendation_ids: List of recommendation IDs to apply
-            
-        Returns:
-            ValidationResult: Application results
-        """
-        result = ValidationResult()
-        
-        try:
-            recommendations = self.get_security_recommendations()
-            recommendations_by_setting = {rec["setting"]: rec for rec in recommendations}
-            
-            updates = {}
-            for rec_id in recommendation_ids:
-                if rec_id in recommendations_by_setting:
-                    rec = recommendations_by_setting[rec_id]
-                    updates[rec["setting"]] = rec["recommended_value"]
-                    
-            if updates:
-                update_result = self.update_security_configuration(updates)
-                result.errors.extend(update_result.errors)
-                result.warnings.extend(update_result.warnings)
-                
-                if result.is_valid:
-                    logger.info(f"Applied {len(updates)} security recommendations")
-                    
-            return result
-            
-        except Exception as e:
-            result.add_error(f"Failed to apply security recommendations: {e}")
-            return result
-
-    def get_security_configuration_summary(self) -> Dict[str, Any]:
-        """
-        Get security configuration summary for display.
-        
-        Returns:
-            Dict: Security configuration summary
-        """
-        try:
-            if not self.config_module:
-                from . import ConfigurationModule
-                self.config_module = ConfigurationModule()
-                
-            config = self.config_module.get_config()
-            security_config = config.security
-            status = self.get_security_configuration_status()
-            
-            return {
-                "encryption_enabled": security_config.encryption_enabled,
-                "audit_logging": security_config.audit_logging,
-                "credential_timeout_minutes": security_config.credential_timeout // 60,
-                "max_failed_attempts": security_config.max_failed_attempts,
-                "lockout_duration_minutes": security_config.lockout_duration // 60,
-                "password_strength_check": security_config.password_strength_check,
-                "require_password_confirmation": security_config.require_password_confirmation,
-                "security_level": status.security_level,
-                "compliance_score": status.compliance_score,
-                "issues_count": status.issues_count,
-                "warnings_count": status.warnings_count,
-                "recommendations_count": len(status.recommendations)
+            signature_data = {
+                "signature": signature.signature,
+                "algorithm": signature.algorithm,
+                "timestamp": signature.timestamp.isoformat(),
+                "sections": signature.sections,
+                "checksum": signature.checksum
             }
             
+            with open(self.signature_file, 'w') as f:
+                json.dump(signature_data, f, indent=2)
+                
         except Exception as e:
-            logger.error(f"Failed to get security configuration summary: {e}")
-            return {
-                "error": str(e),
-                "security_level": "unknown",
-                "compliance_score": 0.0
-            }
+            logger.error(f"Failed to save signature: {e}")
+            raise IntegrityError(f"Failed to save signature: {e}")
+
+    def _load_signature(self) -> Optional[ConfigurationSignature]:
+        """Load configuration signature from disk"""
+        try:
+            if not self.signature_file.exists():
+                return None
+                
+            with open(self.signature_file, 'r') as f:
+                signature_data = json.load(f)
+                
+            return ConfigurationSignature(
+                signature=signature_data["signature"],
+                algorithm=signature_data["algorithm"],
+                timestamp=datetime.fromisoformat(signature_data["timestamp"]),
+                sections=signature_data["sections"],
+                checksum=signature_data["checksum"]
+            )
+            
+        except Exception as e:
+            logger.warning(f"Failed to load signature: {e}")
+            return None
+
+    def rotate_encryption_keys(self) -> str:
+        """
+        Rotate encryption keys for enhanced security.
+        
+        Returns:
+            str: New key identifier
+        """
+        try:
+            old_key_id = self._current_key_id
+            new_key_id = self._generate_encryption_key()
+            
+            # Log key rotation event
+            if self.security_service:
+                from ..security.security_service import SecurityEvent, SecurityLevel
+                self.security_service.log_security_event(
+                    SecurityEvent(
+                        timestamp=datetime.now(),
+                        event_type="key_rotation",
+                        level=SecurityLevel.HIGH,
+                        description="Configuration encryption keys rotated",
+                        metadata={
+                            "old_key_id": old_key_id,
+                            "new_key_id": new_key_id,
+                            "total_keys": len(self._encryption_keys)
+                        }
+                    )
+                )
+            
+            logger.info(f"Encryption keys rotated: {old_key_id} -> {new_key_id}")
+            return new_key_id
+            
+        except Exception as e:
+            logger.error(f"Failed to rotate encryption keys: {e}")
+            raise EncryptionError(f"Failed to rotate encryption keys: {e}")
+
+    def get_encryption_status(self) -> Dict[str, Any]:
+        """
+        Get encryption status and statistics.
+        
+        Returns:
+            Dict containing encryption status information
+        """
+        return {
+            "encryption_enabled": self.security_service is not None,
+            "current_key_id": self._current_key_id,
+            "total_keys": len(self._encryption_keys),
+            "sensitive_patterns": list(self.sensitive_patterns),
+            "signature_exists": self.signature_file.exists(),
+            "metadata_file_exists": self.encryption_metadata_file.exists()
+        }
+
+    def cleanup_old_keys(self, keep_count: int = 3) -> int:
+        """
+        Clean up old encryption keys while keeping recent ones.
+        
+        Args:
+            keep_count: Number of recent keys to keep
+            
+        Returns:
+            int: Number of keys removed
+        """
+        if len(self._encryption_keys) <= keep_count:
+            return 0
+            
+        try:
+            # Sort keys by creation order (assuming key_id contains timestamp info)
+            sorted_keys = sorted(self._encryption_keys.keys())
+            keys_to_remove = sorted_keys[:-keep_count]
+            
+            removed_count = 0
+            for key_id in keys_to_remove:
+                if key_id != self._current_key_id:  # Never remove current key
+                    del self._encryption_keys[key_id]
+                    removed_count += 1
+            
+            if removed_count > 0:
+                self._save_encryption_keys()
+                self._save_encryption_metadata()
+                
+                # Log cleanup event
+                if self.security_service:
+                    from ..security.security_service import SecurityEvent, SecurityLevel
+                    self.security_service.log_security_event(
+                        SecurityEvent(
+                            timestamp=datetime.now(),
+                            event_type="key_cleanup",
+                            level=SecurityLevel.LOW,
+                            description=f"Cleaned up {removed_count} old encryption keys",
+                            metadata={
+                                "removed_count": removed_count,
+                                "remaining_count": len(self._encryption_keys)
+                            }
+                        )
+                    )
+            
+            return removed_count
+            
+        except Exception as e:
+            logger.error(f"Failed to cleanup old keys: {e}")
+            return 0
