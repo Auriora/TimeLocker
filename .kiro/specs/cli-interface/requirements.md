@@ -95,15 +95,15 @@ The CLI Interface feature provides a comprehensive command-line interface for Ti
 
 ### Requirement 6
 
-**User Story:** As a security administrator, I want CLI operations to maintain security standards, so that command-line access doesn't compromise system security.
+**User Story:** As a security administrator, I want CLI operations to integrate with Security Services, so that command-line access maintains consistent security standards across the system.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL never expose credentials in process lists or command history
-2. THE TimeLocker System SHALL support secure credential input methods including environment variables and encrypted configuration files
-3. THE TimeLocker System SHALL log security-related CLI operations for audit purposes
-4. THE TimeLocker System SHALL apply the same encryption and access controls as other system interfaces
-5. WHERE CLI commands access sensitive data, THE TimeLocker System SHALL validate permissions and log access attempts
+1. THE TimeLocker System SHALL integrate CLI operations with Security Services for all authentication and credential management
+2. THE TimeLocker System SHALL use Security Services session management for CLI operations requiring authentication
+3. THE TimeLocker System SHALL delegate all credential operations to Security Services and never implement independent credential handling
+4. THE TimeLocker System SHALL integrate with Security Services audit logging for all security-related CLI operations
+5. WHERE CLI commands access sensitive data, THE TimeLocker System SHALL use Security Services authorization and access control mechanisms
 
 ### Requirement 7
 
@@ -268,3 +268,27 @@ The CLI Interface feature provides a comprehensive command-line interface for Ti
 3. THE TimeLocker System SHALL support command abbreviation where unambiguous (e.g., `tl repo` for `tl repos`, `tl sel` for `tl selections`)
 4. THE TimeLocker System SHALL provide `--help` and `-h` options for all commands and subcommands with usage examples
 5. THE TimeLocker System SHALL support global options including `--verbose`, `--quiet`, `--format`, `--non-interactive`, and `--config` across all commands
+
+### Requirement 20
+
+**User Story:** As a CLI user, I want responsive command performance, so that CLI operations provide good user experience and don't cause delays.
+
+#### Acceptance Criteria
+
+1. THE TimeLocker System SHALL complete CLI command startup and initialization within 200ms for simple commands and 500ms for complex commands
+2. THE TimeLocker System SHALL respond to help and information commands within 100ms to provide immediate user feedback
+3. THE TimeLocker System SHALL provide progress indicators for operations taking longer than 2 seconds with estimated completion times
+4. THE TimeLocker System SHALL support command cancellation (Ctrl+C) with graceful cleanup within 1 second
+5. WHERE CLI operations exceed expected performance thresholds, THE TimeLocker System SHALL provide performance warnings and optimization suggestions
+
+### Requirement 21
+
+**User Story:** As a CLI user, I want cross-platform CLI compatibility, so that CLI behavior is consistent across different operating systems.
+
+#### Acceptance Criteria
+
+1. THE TimeLocker System SHALL provide consistent CLI behavior across Windows, macOS, and Linux platforms with identical command syntax and output
+2. THE TimeLocker System SHALL handle platform-specific paths and file operations transparently through Integration Architecture
+3. THE TimeLocker System SHALL integrate with platform-specific features (credential stores, schedulers) through appropriate service interfaces
+4. THE TimeLocker System SHALL provide platform-appropriate error messages and help information while maintaining consistent functionality
+5. WHERE platform-specific limitations exist, THE TimeLocker System SHALL provide clear capability reporting and alternative approaches

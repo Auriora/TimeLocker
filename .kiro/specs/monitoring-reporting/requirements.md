@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Monitoring & Reporting feature provides essential operational visibility for the TimeLocker desktop backup application. This system handles activity logging, user notifications, basic reporting, and storage monitoring to help users understand their backup status and troubleshoot issues. The focus is on user-friendly monitoring appropriate for personal and small business desktop backup needs.
+The Monitoring & Reporting feature provides essential operational visibility and basic logging for the TimeLocker desktop backup application. This system focuses on core logging capabilities, simple user notifications, and basic status reporting to help users understand their backup operations and troubleshoot common issues. The feature emphasizes simplicity and ease of use for desktop backup scenarios.
 
 ## Glossary
 
@@ -105,24 +105,24 @@ The Monitoring & Reporting feature provides essential operational visibility for
 
 ### Requirement 8
 
-**User Story:** As a desktop backup user, I want basic health monitoring integration, so that I can optionally connect my backup status to external monitoring services if desired.
+**User Story:** As a CLI user, I want monitoring integration with CLI operations, so that CLI commands can access and display monitoring information effectively.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL provide optional integration with health check services like healthchecks.io through simple HTTP ping endpoints
-2. WHEN backup operations complete, THE TimeLocker System SHALL support optional webhook notifications to user-configured URLs
-3. THE TimeLocker System SHALL provide simple webhook configuration with URL validation and basic retry logic
-4. THE TimeLocker System SHALL allow users to enable or disable external monitoring integrations through the user interface
-5. WHERE external monitoring integration fails, THE TimeLocker System SHALL continue normal operation and log integration issues for user review
+1. THE TimeLocker System SHALL provide CLI integration for viewing logs, status, and basic monitoring information
+2. WHEN CLI operations complete, THE TimeLocker System SHALL update monitoring data and provide status feedback
+3. THE TimeLocker System SHALL support CLI-based log filtering and searching for troubleshooting
+4. THE TimeLocker System SHALL integrate with Integration Architecture to provide monitoring data to CLI service manager
+5. WHERE CLI monitoring operations fail, THE TimeLocker System SHALL provide fallback mechanisms and error reporting
 
 ### Requirement 9
 
-**User Story:** As a desktop backup user, I want event correlation and troubleshooting support, so that I can understand why backup problems occur and how to fix them.
+**User Story:** As a system administrator, I want basic event correlation and troubleshooting support, so that I can understand and resolve common backup issues.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL correlate related backup and recovery events to help users understand system behavior and identify root causes of issues
-2. WHEN backup operations fail, THE TimeLocker System SHALL analyze recent events and provide context about potential causes including repository connectivity, storage space, or file access issues
-3. THE TimeLocker System SHALL provide troubleshooting guidance that connects monitoring data from backup operations, repository status, and system resources
-4. THE TimeLocker System SHALL maintain event correlation data for recent operations to support user troubleshooting and technical support
-5. WHERE patterns of related failures are detected, THE TimeLocker System SHALL provide proactive recommendations to prevent future issues
+1. THE TimeLocker System SHALL provide basic correlation of related backup and recovery events to help identify common failure patterns
+2. WHEN backup operations fail, THE TimeLocker System SHALL provide simple troubleshooting guidance based on error types and recent events
+3. THE TimeLocker System SHALL maintain basic event history for recent operations to support troubleshooting
+4. THE TimeLocker System SHALL integrate with Configuration Management to provide configuration-related troubleshooting information
+5. WHERE common failure patterns are detected, THE TimeLocker System SHALL provide basic recommendations for resolution

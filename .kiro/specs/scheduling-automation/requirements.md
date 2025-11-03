@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Scheduling/Automation feature provides comprehensive automated backup scheduling capabilities for TimeLocker, enabling unattended operations through platform-appropriate system schedulers and external monitoring integration. This system handles cross-platform scheduler integration (systemd timers, cron, Windows Task Scheduler), secure credential management, and health check integration to ensure reliable automated backup operations. This specification integrates with Policy Management for backup policy execution, Backup Operations for job orchestration, Data Selection for automated file selection, Repository Management for credential handling, and Monitoring & Reporting for status tracking and notifications.
+The Scheduling/Automation feature provides basic automated backup scheduling capabilities for TimeLocker, enabling simple unattended operations through platform-appropriate system schedulers. This system focuses on essential scheduling functionality that can be added after core CLI implementation is complete. The feature emphasizes simplicity and reliability for desktop backup scenarios while integrating with existing TimeLocker components through the Integration Architecture.
 
 ## Glossary
 
@@ -104,24 +104,24 @@ The Scheduling/Automation feature provides comprehensive automated backup schedu
 
 ### Requirement 8
 
-**User Story:** As a compliance administrator, I want comprehensive audit trails for scheduled operations, so that automated backup activities are properly documented for compliance and troubleshooting purposes.
+**User Story:** As a system administrator, I want basic audit trails for scheduled operations, so that automated backup activities are tracked and issues can be identified.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL maintain detailed audit logs of all scheduling operations including policy assignments, schedule changes, and execution outcomes with timestamps and user context
-2. WHEN scheduled backups execute, THE TimeLocker System SHALL log comprehensive execution details including policy applied, data selection used, repository accessed, and backup tool utilized
-3. THE TimeLocker System SHALL integrate with Policy Management audit capabilities to ensure scheduled operations comply with retention policies and compliance requirements
-4. THE TimeLocker System SHALL provide audit log retention and protection mechanisms to prevent unauthorized modification of scheduling history
-5. WHERE audit requirements are configured, THE TimeLocker System SHALL generate compliance reports showing scheduled backup adherence to policies and regulatory requirements
+1. THE TimeLocker System SHALL integrate with Monitoring & Reporting to log scheduling operations including schedule creation, execution, and outcomes
+2. WHEN scheduled backups execute, THE TimeLocker System SHALL log basic execution details including schedule name, execution time, and result status
+3. THE TimeLocker System SHALL provide basic scheduling history through the monitoring system for troubleshooting purposes
+4. THE TimeLocker System SHALL integrate with Integration Architecture to ensure scheduled operations are properly coordinated with other system components
+5. WHERE scheduling operations fail, THE TimeLocker System SHALL provide error logging and basic diagnostic information through the monitoring system
 
 ### Requirement 9
 
-**User Story:** As a system administrator, I want scheduling validation and testing capabilities, so that I can verify automated backup configurations work correctly before deployment and troubleshoot issues effectively.
+**User Story:** As a system administrator, I want basic scheduling validation and testing capabilities, so that I can verify scheduled backup configurations work correctly.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL provide comprehensive dry-run capabilities for testing scheduled backup configurations including policy validation, data selection testing, and repository connectivity verification
-2. WHEN validating scheduling setup, THE TimeLocker System SHALL verify all integration points including Policy Management, Data Selection, Repository Management, and Backup Operations compatibility
-3. THE TimeLocker System SHALL support test execution of generated platform scheduler configurations with simulation of actual backup operations
-4. THE TimeLocker System SHALL provide scheduling health checks that validate platform scheduler status, credential accessibility, and system resource availability
-5. WHERE validation fails, THE TimeLocker System SHALL provide specific diagnostic information and remediation guidance including integration point failures and configuration conflicts
+1. THE TimeLocker System SHALL provide basic validation for scheduled backup configurations including policy existence and repository accessibility
+2. WHEN creating schedules, THE TimeLocker System SHALL verify integration with Policy Management, Repository Management, and Backup Operations through Integration Architecture
+3. THE TimeLocker System SHALL support basic testing of schedule configurations with dry-run capabilities
+4. THE TimeLocker System SHALL provide simple scheduling health checks that validate platform scheduler availability and basic system requirements
+5. WHERE validation fails, THE TimeLocker System SHALL provide clear error messages and basic remediation guidance

@@ -118,15 +118,15 @@ The Repository Management feature enables users to create, configure, validate, 
 
 ### Requirement 8
 
-**User Story:** As a backup administrator, I want per-repository credential management, so that I can securely store and manage authentication information for different storage backends.
+**User Story:** As a backup administrator, I want per-repository credential integration with Security Services, so that repository authentication uses the centralized secure credential management system.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL support per-repository credential storage with unique identification using repository identifiers
-2. WHEN managing repository credentials, THE TimeLocker System SHALL provide commands for setting, showing status, and removing stored credentials
-3. THE TimeLocker System SHALL implement credential resolution order: stored credentials, environment variables, then interactive prompts
-4. THE TimeLocker System SHALL support credential rotation for repository access without requiring re-initialization
-5. WHERE repository credentials are accessed, THE TimeLocker System SHALL use secure credential management provided by the Security Services component
+1. THE TimeLocker System SHALL integrate with Security Services for per-repository credential storage using repository identifiers as unique keys
+2. WHEN managing repository credentials, THE TimeLocker System SHALL delegate credential operations to Security Services through defined interfaces
+3. THE TimeLocker System SHALL implement credential resolution order through Security Services: stored credentials, environment variables, then interactive prompts
+4. THE TimeLocker System SHALL support credential rotation through Security Services without requiring repository re-initialization
+5. WHERE repository credentials are accessed, THE TimeLocker System SHALL use only Security Services credential management and never implement independent credential storage
 
 ### Requirement 9
 
@@ -161,8 +161,20 @@ The Repository Management feature enables users to create, configure, validate, 
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL include repository configurations and system settings in backup operations by default
+1. THE TimeLocker System SHALL integrate with Configuration Management to include repository configurations in backup operations by default
 2. THE TimeLocker System SHALL exclude all credential information from configuration backups for security purposes
 3. WHERE configuration backup inclusion is not desired, THE TimeLocker System SHALL provide an option to exclude TimeLocker configuration from backups
 4. THE TimeLocker System SHALL store configuration data in a structured format that enables restoration to different TimeLocker instances
 5. WHEN restoring from backup, THE TimeLocker System SHALL validate configuration compatibility and prompt for credential re-entry where required
+
+### Requirement 12
+
+**User Story:** As a cross-platform user, I want repository management to work consistently across different operating systems, so that repository operations are reliable regardless of platform.
+
+#### Acceptance Criteria
+
+1. THE TimeLocker System SHALL handle repository URIs and paths consistently across Windows, macOS, and Linux platforms with automatic path translation
+2. THE TimeLocker System SHALL support platform-specific storage backends while maintaining consistent repository interfaces
+3. THE TimeLocker System SHALL integrate with platform-specific credential stores through Security Services for secure authentication
+4. THE TimeLocker System SHALL handle file permissions and access controls appropriately for each platform's security model
+5. WHERE platform-specific features are required, THE TimeLocker System SHALL provide fallback mechanisms and clear capability reporting

@@ -2,7 +2,7 @@
 
 ## Introduction
 
-The Policy Management feature enables administrators to define, configure, and manage all types of policies within the TimeLocker system, including backup policies that define what and how to backup, and retention policies that control backup lifecycle management. This system provides centralized policy creation, configuration, assignment, and enforcement across repositories, ensuring consistent backup operations and optimal storage utilization while meeting compliance and recovery requirements.
+The Policy Management feature enables administrators to define and manage basic backup and retention policies within the TimeLocker system. This system provides essential policy creation, configuration, and assignment capabilities focused on core backup operations and simple retention rules. The feature emphasizes simplicity and ease of use for desktop backup scenarios while providing a foundation for future policy enhancements.
 
 ## Glossary
 
@@ -46,24 +46,24 @@ The Policy Management feature enables administrators to define, configure, and m
 
 ### Requirement 3
 
-**User Story:** As a backup administrator, I want to create advanced policy rules with simulation capabilities, so that I can apply policies based on metadata and preview effects before enforcement.
+**User Story:** As a backup administrator, I want basic policy validation and preview capabilities, so that I can verify policy configurations before applying them to repositories.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL support policies that apply based on snapshot tags, metadata, data classification, and compliance requirements
-2. WHEN creating advanced rules, THE TimeLocker System SHALL allow specification of tag patterns, metadata criteria, minimum retention periods, and backup frequency requirements
-3. THE TimeLocker System SHALL provide policy simulation functionality showing which operations and snapshots would be affected before enforcement
-4. THE TimeLocker System SHALL evaluate policies in configurable priority order and apply precedence rules when multiple policies could apply
-5. WHERE simulation reveals conflicts or unexpected results, THE TimeLocker System SHALL allow policy modification before activation
+1. THE TimeLocker System SHALL validate policy configurations for completeness and compatibility with target repositories and backup tools
+2. WHEN creating policies, THE TimeLocker System SHALL check that referenced repositories exist and are accessible
+3. THE TimeLocker System SHALL provide basic policy preview showing which repositories and data selections will be affected
+4. THE TimeLocker System SHALL validate that retention policies are compatible with backup policies and storage constraints
+5. WHERE policy validation fails, THE TimeLocker System SHALL provide specific error messages and prevent policy activation
 
 ### Requirement 4
 
-**User Story:** As a compliance officer, I want comprehensive audit and alerting capabilities, so that policy compliance is maintained and documented.
+**User Story:** As a backup administrator, I want basic policy audit and monitoring, so that policy operations are tracked and issues can be identified.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL maintain comprehensive audit logs of all policy creation, modification, assignment, and enforcement actions
-2. WHEN compliance rules are configured, THE TimeLocker System SHALL prevent deletion of snapshots within compliance periods and ensure backup frequency requirements are met
-3. THE TimeLocker System SHALL alert administrators when snapshots approach compliance expiration dates or backup operations fall behind schedules
-4. THE TimeLocker System SHALL provide compliance reporting capabilities with detailed policy adherence metrics
-5. WHERE compliance requirements change, THE TimeLocker System SHALL analyze impact on existing policies and provide migration guidance
+1. THE TimeLocker System SHALL maintain basic audit logs of policy creation, modification, assignment, and enforcement actions
+2. WHEN policies are enforced, THE TimeLocker System SHALL log enforcement results including snapshots affected and any errors encountered
+3. THE TimeLocker System SHALL integrate with Monitoring & Reporting to track policy compliance and execution status
+4. THE TimeLocker System SHALL provide basic policy status reporting showing active policies and recent enforcement activities
+5. WHERE policy enforcement fails, THE TimeLocker System SHALL alert administrators through the monitoring system and provide error details

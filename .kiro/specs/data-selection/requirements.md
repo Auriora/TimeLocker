@@ -126,11 +126,11 @@ The Data Selection and Selection Management feature provides comprehensive funct
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL allow assignment of selection templates to backup operations for reusable configuration
-2. WHEN creating backup operations, THE TimeLocker System SHALL support inline selection definition and template reference
+1. THE TimeLocker System SHALL integrate with Backup Operations through Integration Architecture to provide selection templates for backup workflows
+2. WHEN creating backup operations, THE TimeLocker System SHALL support inline selection definition and template reference through service interfaces
 3. THE TimeLocker System SHALL validate that referenced selection templates exist and are accessible during backup execution
 4. THE TimeLocker System SHALL support override of template selections with operation-specific modifications
-5. WHERE selection configurations change, THE TimeLocker System SHALL update dependent backup operations and notify administrators of impacts
+5. WHERE selection configurations change, THE TimeLocker System SHALL notify dependent systems through Integration Architecture event mechanisms
 
 ### Requirement 10
 
