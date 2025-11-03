@@ -91,6 +91,9 @@ from .configuration_migrator import (
     MigrationResult
 )
 
+# Locking support
+from .configuration_lock_manager import ConfigurationLockManager
+
 # Legacy enum compatibility for tests that still reference ConfigSection
 from enum import Enum
 
@@ -234,6 +237,7 @@ __all__ = [
         'ConfigurationPathResolver',
         'ConfigurationMigrator',
         'MigrationResult',
+        'ConfigurationLockManager',
 
         # Convenience functions
         'get_default_configuration_module',

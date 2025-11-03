@@ -18,8 +18,15 @@ from .configuration_defaults import ConfigurationDefaults
 from .configuration_validator import ConfigurationValidator, ValidationResult
 from .configuration_path_resolver import ConfigurationPathResolver
 from .configuration_migrator import ConfigurationMigrator, MigrationResult
+from .configuration_lock_manager import ConfigurationLockManager
 from ..interfaces.configuration_provider import IConfigurationProvider
-from ..interfaces.exceptions import ConfigurationError, InvalidConfigurationError, RepositoryNotFoundError
+from ..interfaces.exceptions import (
+    ConfigurationError, 
+    InvalidConfigurationError, 
+    RepositoryNotFoundError,
+    ConfigurationLockError,
+    ConfigurationLockTimeoutError
+)
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +54,7 @@ class ConfigurationModule(IConfigurationProvider):
         self._validator = ConfigurationValidator()
         self._migrator = ConfigurationMigrator(self._validator)
         self._path_resolver = ConfigurationPathResolver()
+        self._lock_manager = ConfigurationLockManager(self._config_dir / "locks")
 
         # Configuration cache and synchronization
         self._config_cache: Optional[TimeLockerConfig] = None
@@ -188,8 +196,14 @@ class ConfigurationModule(IConfigurationProvider):
             raise ConfigurationError(error_msg)
 
     def _save_config_to_file(self, config: TimeLockerConfig) -> None:
-        """Save configuration to file"""
+        """Save configuration to file with locking"""
+        lock_acquired = False
         try:
+            # Acquire lock before making changes
+            lock_acquired = self._lock_manager.acquire_lock(self._config_file, timeout=30)
+            if not lock_acquired:
+                raise ConfigurationLockTimeoutError("Could not acquire lock for configuration save")
+
             # Create backup of existing configuration
             if self._config_file.exists():
                 self._create_backup()
@@ -225,6 +239,13 @@ class ConfigurationModule(IConfigurationProvider):
             error_msg = f"Failed to save configuration: {e}"
             logger.error(error_msg)
             raise ConfigurationError(error_msg)
+        finally:
+            # Always release lock if we acquired it
+            if lock_acquired:
+                try:
+                    self._lock_manager.release_lock(self._config_file)
+                except Exception as e:
+                    logger.warning(f"Failed to release configuration lock: {e}")
 
     def _create_backup(self) -> None:
         """Create backup of current configuration"""
@@ -753,6 +774,79 @@ class ConfigurationModule(IConfigurationProvider):
                 "backup_dir":              str(self.backup_dir) if hasattr(self, 'backup_dir') else "N/A",
                 "backup_count":            0  # ConfigurationModule doesn't use backup system
         }
+
+    # ------------------------------------------------------------------
+    # Configuration Locking Methods
+    # ------------------------------------------------------------------
+
+    def acquire_lock(self, timeout: int = 30) -> bool:
+        """
+        Acquire exclusive lock for configuration operations.
+        
+        Args:
+            timeout: Lock timeout in seconds
+            
+        Returns:
+            True if lock was acquired
+            
+        Raises:
+            ConfigurationLockError: If lock cannot be acquired
+        """
+        try:
+            return self._lock_manager.acquire_lock(self._config_file, timeout)
+        except Exception as e:
+            logger.error(f"Failed to acquire configuration lock: {e}")
+            raise ConfigurationLockError(f"Lock acquisition failed: {e}")
+
+    def release_lock(self) -> None:
+        """
+        Release the configuration lock.
+        
+        Raises:
+            ConfigurationLockError: If lock cannot be released
+        """
+        try:
+            self._lock_manager.release_lock(self._config_file)
+        except Exception as e:
+            logger.error(f"Failed to release configuration lock: {e}")
+            raise ConfigurationLockError(f"Lock release failed: {e}")
+
+    def is_locked(self) -> bool:
+        """
+        Check if configuration is currently locked.
+        
+        Returns:
+            True if configuration is locked
+        """
+        return self._lock_manager.is_locked(self._config_file)
+
+    def get_lock_info(self) -> Optional[Dict[str, Any]]:
+        """
+        Get information about the current configuration lock.
+        
+        Returns:
+            Lock information if locked, None if not locked
+        """
+        lock_info = self._lock_manager.get_lock_info(self._config_file)
+        if lock_info:
+            return {
+                'lock_id': lock_info.lock_id,
+                'acquired_at': lock_info.acquired_at.isoformat(),
+                'expires_at': lock_info.expires_at.isoformat(),
+                'process_id': lock_info.process_id,
+                'operation': lock_info.operation,
+                'sections': lock_info.sections
+            }
+        return None
+
+    def cleanup_stale_locks(self) -> int:
+        """
+        Clean up stale configuration locks.
+        
+        Returns:
+            Number of stale locks cleaned up
+        """
+        return self._lock_manager.cleanup_stale_locks()
 
     # ------------------------------------------------------------------
     # Backward-compatibility aliases (legacy API)

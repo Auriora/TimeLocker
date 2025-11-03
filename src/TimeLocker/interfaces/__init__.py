@@ -9,6 +9,9 @@ from .repository_factory import IRepositoryFactory
 from .configuration_provider import IConfigurationProvider
 from .credential_provider import ICredentialProvider
 from .backup_orchestrator import IBackupOrchestrator
+from .configuration_store import IConfigurationStore
+from .configuration_watcher import IConfigurationWatcher, ConfigurationChangeEvent
+from .configuration_lock import IConfigurationLock, ConfigurationLock
 
 # Exception classes
 from .exceptions import (
@@ -20,6 +23,22 @@ from .exceptions import (
     InvalidConfigurationError,
     RepositoryNotFoundError,
     RepositoryAlreadyExistsError,
+    ConfigurationStoreError,
+    ConfigurationAtomicUpdateError,
+    ConfigurationBackupError,
+    ConfigurationLockError,
+    ConfigurationLockTimeoutError,
+    ConfigurationLockNotHeldError,
+    ConfigurationStaleLockError,
+    ConfigurationWatchError,
+    ConfigurationWatchNotFoundError,
+    ConfigurationWatchStartupError,
+    ConfigurationValidationError,
+    ConfigurationSchemaError,
+    ConfigurationConstraintError,
+    ConfigurationMigrationError,
+    ConfigurationVersionError,
+    ConfigurationCorruptionError,
     CredentialError,
     CredentialNotFoundError,
     CredentialAccessError,
@@ -47,6 +66,13 @@ __all__ = [
         'IConfigurationProvider',
         'ICredentialProvider',
         'IBackupOrchestrator',
+        'IConfigurationStore',
+        'IConfigurationWatcher',
+        'IConfigurationLock',
+
+        # Configuration Data Models
+        'ConfigurationChangeEvent',
+        'ConfigurationLock',
 
         # Exceptions
         'TimeLockerInterfaceError',
@@ -57,6 +83,22 @@ __all__ = [
         'InvalidConfigurationError',
         'RepositoryNotFoundError',
         'RepositoryAlreadyExistsError',
+        'ConfigurationStoreError',
+        'ConfigurationAtomicUpdateError',
+        'ConfigurationBackupError',
+        'ConfigurationLockError',
+        'ConfigurationLockTimeoutError',
+        'ConfigurationLockNotHeldError',
+        'ConfigurationStaleLockError',
+        'ConfigurationWatchError',
+        'ConfigurationWatchNotFoundError',
+        'ConfigurationWatchStartupError',
+        'ConfigurationValidationError',
+        'ConfigurationSchemaError',
+        'ConfigurationConstraintError',
+        'ConfigurationMigrationError',
+        'ConfigurationVersionError',
+        'ConfigurationCorruptionError',
         'CredentialError',
         'CredentialNotFoundError',
         'CredentialAccessError',

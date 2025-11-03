@@ -64,6 +64,91 @@ class RepositoryAlreadyExistsError(ConfigurationError):
     pass
 
 
+# Configuration Store Exceptions
+class ConfigurationStoreError(ConfigurationError):
+    """Base exception for configuration store errors"""
+    pass
+
+
+class ConfigurationAtomicUpdateError(ConfigurationStoreError):
+    """Raised when atomic configuration update fails"""
+    pass
+
+
+class ConfigurationBackupError(ConfigurationStoreError):
+    """Raised when configuration backup operations fail"""
+    pass
+
+
+# Configuration Lock Exceptions
+class ConfigurationLockError(ConfigurationError):
+    """Base exception for configuration locking errors"""
+    pass
+
+
+class ConfigurationLockTimeoutError(ConfigurationLockError):
+    """Raised when lock acquisition times out"""
+    pass
+
+
+class ConfigurationLockNotHeldError(ConfigurationLockError):
+    """Raised when trying to release a lock that is not held"""
+    pass
+
+
+class ConfigurationStaleLockError(ConfigurationLockError):
+    """Raised when a stale lock is detected"""
+    pass
+
+
+# Configuration Watcher Exceptions
+class ConfigurationWatchError(ConfigurationError):
+    """Base exception for configuration watching errors"""
+    pass
+
+
+class ConfigurationWatchNotFoundError(ConfigurationWatchError):
+    """Raised when trying to remove a non-existent watch"""
+    pass
+
+
+class ConfigurationWatchStartupError(ConfigurationWatchError):
+    """Raised when configuration watching cannot be started"""
+    pass
+
+
+# Configuration Validation Exceptions
+class ConfigurationValidationError(ConfigurationError):
+    """Base exception for configuration validation errors"""
+    pass
+
+
+class ConfigurationSchemaError(ConfigurationValidationError):
+    """Raised when configuration schema is invalid"""
+    pass
+
+
+class ConfigurationConstraintError(ConfigurationValidationError):
+    """Raised when configuration violates constraints"""
+    pass
+
+
+# Configuration Migration Exceptions
+class ConfigurationMigrationError(ConfigurationError):
+    """Base exception for configuration migration errors"""
+    pass
+
+
+class ConfigurationVersionError(ConfigurationMigrationError):
+    """Raised when configuration version is incompatible"""
+    pass
+
+
+class ConfigurationCorruptionError(ConfigurationError):
+    """Raised when configuration data is corrupted"""
+    pass
+
+
 # Credential Provider Exceptions
 class CredentialError(TimeLockerInterfaceError):
     """Base exception for credential-related errors"""
