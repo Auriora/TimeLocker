@@ -111,7 +111,7 @@ class ConfigurationLockManager(IConfigurationLock):
                     continue
                 
                 # Try to acquire lock
-                if self._acquire_file_lock(lock_file_path, lock_id):
+                if self._acquire_file_lock(lock_file_path, lock_id, lock_path):
                     logger.debug(f"Acquired lock for {lock_path}")
                     return True
                     
@@ -318,7 +318,7 @@ class ConfigurationLockManager(IConfigurationLock):
         import uuid
         return f"{resource_path.name}_{os.getpid()}_{uuid.uuid4().hex[:8]}"
 
-    def _acquire_file_lock(self, lock_file_path: Path, lock_id: str) -> bool:
+    def _acquire_file_lock(self, lock_file_path: Path, lock_id: str, resource_path: Path) -> bool:
         """Acquire a file-based lock"""
         try:
             # Create lock data
@@ -338,8 +338,8 @@ class ConfigurationLockManager(IConfigurationLock):
                     import json
                     json.dump(asdict(lock_data), f, indent=2)
                 
-                # Store lock info
-                lock_key = str(lock_file_path.parent / lock_file_path.stem.replace('.lock', ''))
+                # Store lock info using the original resource path as key
+                lock_key = str(resource_path)
                 self._held_locks[lock_key] = {
                     'lock_id': lock_id,
                     'lock_file': lock_file_path,
