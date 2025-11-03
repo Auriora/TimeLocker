@@ -813,6 +813,47 @@ class CredentialManager:
             self._log_audit_event("rotate_credential", repository_id, success=False, details=str(e))
             raise
 
+    def rotate_repository_backend_credentials(
+        self,
+        repository_id: str,
+        backend_type: str,
+        new_credentials: Dict[str, str]
+    ) -> bool:
+        """
+        Rotate backend credentials for a specific repository.
+
+        Args:
+            repository_id: Repository identifier
+            backend_type: Type of backend (s3, b2, etc.)
+            new_credentials: New credential dictionary
+
+        Returns:
+            bool: True if rotation successful
+        """
+        try:
+            # Get existing credentials for audit trail
+            old_credentials = self.get_repository_backend_credentials(repository_id, backend_type)
+            
+            # Store new credentials
+            self.store_repository_backend_credentials(repository_id, backend_type, new_credentials)
+
+            self._log_audit_event(
+                "rotate_repository_backend_credentials",
+                f"{repository_id}:{backend_type}",
+                success=True,
+                details=f"Backend credentials rotated for {backend_type}"
+            )
+            return True
+
+        except Exception as e:
+            self._log_audit_event(
+                "rotate_repository_backend_credentials",
+                f"{repository_id}:{backend_type}",
+                success=False,
+                details=str(e)
+            )
+            raise
+
     def secure_delete_credential(self, repository_id: str) -> bool:
         """
         Securely delete a credential with multiple overwrites

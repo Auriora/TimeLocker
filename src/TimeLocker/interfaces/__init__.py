@@ -79,6 +79,16 @@ from .data_models import (
     BackupTargetInfo
 )
 
+# S3 Configuration Models
+from .s3_config_models import (
+    S3Config,
+    S3ServiceType,
+    S3ServiceTemplate,
+    S3ConfigValidator,
+    S3_SERVICE_TEMPLATES,
+    create_s3_config_for_service
+)
+
 # Integration Architecture Data Models
 from .integration_data_models import (
     ServiceContext,
@@ -158,6 +168,14 @@ __all__ = [
         'SnapshotInfo',
         'RepositoryInfo',
         'BackupTargetInfo',
+        
+        # S3 Configuration Models
+        'S3Config',
+        'S3ServiceType',
+        'S3ServiceTemplate',
+        'S3ConfigValidator',
+        'S3_SERVICE_TEMPLATES',
+        'create_s3_config_for_service',
         
         # Integration Architecture Data Models
         'ServiceContext',

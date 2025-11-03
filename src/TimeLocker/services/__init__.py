@@ -11,6 +11,8 @@ from .repository_service import RepositoryService
 from .repository_state_manager import RepositoryStateManager
 from .existing_repository_handler import ExistingRepositoryHandler
 from .validation_service import ValidationService
+from .repository_credential_manager import RepositoryCredentialManager
+from .s3_service_manager import S3ServiceManager
 
 __all__ = [
     'RepositoryManager',
@@ -18,5 +20,7 @@ __all__ = [
     'RepositoryService',
     'RepositoryStateManager',
     'ExistingRepositoryHandler',
-    'ValidationService'
+    'ValidationService',
+    'RepositoryCredentialManager',
+    'S3ServiceManager'
 ]

@@ -96,26 +96,26 @@
   - Test plugin integration with repository operations
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-- [ ] 4. Enhance Repository Credential Management
+- [x] 4. Enhance Repository Credential Management
   - Integrate repository management with Security Services for per-repository credentials
   - Implement credential resolution order (stored, environment, interactive)
   - Add credential rotation support without repository re-initialization
   - Enhance S3-compatible service configuration with custom endpoints
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 4.1 Integrate with Security Services
+- [x] 4.1 Integrate with Security Services
   - Update RepositoryCredentialManager to use Security Services as backend
   - Implement per-repository credential storage using repository identifiers as keys
   - Add credential resolution with fallback to environment variables and interactive prompts
   - _Requirements: 8.1, 8.2, 8.3_
 
-- [ ] 4.2 Implement credential rotation
+- [x] 4.2 Implement credential rotation
   - Add rotate_credentials method supporting password and key updates
   - Ensure credential rotation works without repository re-initialization
   - Add audit logging for all credential operations
   - _Requirements: 8.4, 8.5_
 
-- [ ] 4.3 Enhance S3-compatible service support
+- [x] 4.3 Enhance S3-compatible service support
   - Add S3Config data model with endpoint, region, and TLS configuration
   - Implement support for MinIO, Wasabi, Backblaze B2, and DigitalOcean Spaces
   - Add custom endpoint specification with protocol validation
