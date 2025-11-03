@@ -2,129 +2,127 @@
 
 ## Introduction
 
-The Monitoring & Reporting feature provides comprehensive operational visibility and audit capabilities for the TimeLocker backup platform. This system handles logging, real-time notifications, audit reporting, storage utilization monitoring, integrity breach detection, and performance metrics collection to ensure reliable backup operations and compliance with organizational and regulatory requirements.
+The Monitoring & Reporting feature provides essential operational visibility for the TimeLocker desktop backup application. This system handles activity logging, user notifications, basic reporting, and storage monitoring to help users understand their backup status and troubleshoot issues. The focus is on user-friendly monitoring appropriate for personal and small business desktop backup needs.
 
 ## Glossary
 
-- **Operational Monitoring**: Real-time tracking of system performance, backup operations, and resource utilization
-- **Audit Trail**: Comprehensive logging of all system activities for compliance and investigation purposes
-- **Notification System**: Automated alerting mechanism for backup events, errors, and system status changes
-- **Health Check Endpoint**: HTTP endpoint that reports system health status for external monitoring
-- **Webhook Integration**: HTTP callback mechanism for sending real-time notifications to external systems
-- **Health Check Service**: External monitoring service (like healthchecks.io) that monitors system availability
-- **Storage Utilization Monitoring**: Tracking of backup storage consumption and capacity planning
-- **Integrity Monitoring**: Continuous verification of backup data consistency and corruption detection
-- **Performance Metrics**: Quantitative measurements of system performance including throughput, latency, and resource usage
-- **Compliance Reporting**: Structured reports for regulatory and organizational compliance requirements
-- **TimeLocker System**: The backup orchestration platform built on Restic
-- **Event Correlation**: Analysis of related events to identify patterns and root causes
+- **Activity Logging**: Recording of backup operations and system events for troubleshooting and history tracking
+- **User Notifications**: Desktop notifications and alerts for backup events and status changes
+- **Backup History**: Record of completed backup operations with basic statistics and outcomes
+- **Storage Monitoring**: Tracking of backup storage usage and available space
+- **Integrity Checking**: Periodic verification of backup data consistency using backup tool capabilities
+- **Performance Tracking**: Basic monitoring of backup speed and resource usage for optimization
+- **TimeLocker System**: The desktop backup application built on Restic and other backup tools
+- **Event Correlation**: Basic analysis of related backup and recovery events to help users understand system behavior
+- **Health Status**: Overall system health indicator showing backup system readiness
+- **Desktop Integration**: Integration with desktop notification systems and system tray indicators
 
 ## Requirements
 
 ### Requirement 1
 
-**User Story:** As a backup administrator, I want comprehensive logging of all backup operations, so that I can track system activity and troubleshoot issues effectively.
+**User Story:** As a desktop backup user, I want basic logging of backup operations, so that I can track what happened and troubleshoot problems when backups fail.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL log all backup policy starts, progress updates every 30 seconds, and completion events with ISO 8601 timestamps and execution details
-2. WHEN operations encounter errors, THE TimeLocker System SHALL log detailed error information including error codes, context, affected files, and specific remediation suggestions
-3. THE TimeLocker System SHALL support configurable log levels (debug, info, warning, error, critical) with runtime level changes without service restart
-4. THE TimeLocker System SHALL provide structured logging in JSON format with consistent schema including correlation IDs for automated processing
-5. WHERE log retention is configured, THE TimeLocker System SHALL automatically rotate logs daily and archive according to policy settings with compression ratios of at least 70%
+1. THE TimeLocker System SHALL log backup starts, completions, and failures with timestamps and basic execution details
+2. WHEN operations encounter errors, THE TimeLocker System SHALL log error information with user-friendly descriptions and suggested next steps
+3. THE TimeLocker System SHALL support configurable log levels (info, warning, error) with settings accessible through the user interface
+4. THE TimeLocker System SHALL provide readable log format suitable for desktop users with clear event descriptions
+5. WHERE log files grow large, THE TimeLocker System SHALL automatically limit log file size to 10MB and keep the most recent 5 log files
 
 ### Requirement 2
 
-**User Story:** As a system administrator, I want real-time notifications for backup events, so that I can respond promptly to successes, failures, and warnings.
+**User Story:** As a desktop backup user, I want to be notified about backup results, so that I know when backups succeed or fail without constantly checking the application.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL send notifications for backup job completion, failure, and warning conditions
-2. WHEN configuring notifications, THE TimeLocker System SHALL support multiple delivery methods including email, SMS, webhooks, and SNMP
-3. THE TimeLocker System SHALL allow notification customization based on event type, severity, and repository
-4. THE TimeLocker System SHALL support notification escalation for unacknowledged critical events
-5. WHERE notification delivery fails, THE TimeLocker System SHALL retry delivery and log notification failures
+1. THE TimeLocker System SHALL send desktop notifications for backup completion and failure events
+2. WHEN configuring notifications, THE TimeLocker System SHALL support desktop notifications and optional email notifications
+3. THE TimeLocker System SHALL allow users to enable or disable notifications for different event types (success, failure, warnings)
+4. THE TimeLocker System SHALL show backup status in the system tray with visual indicators for success, failure, and in-progress states
+5. WHERE desktop notifications are not available, THE TimeLocker System SHALL provide in-application status indicators and alerts
 
 ### Requirement 3
 
-**User Story:** As a compliance officer, I want comprehensive audit reports, so that I can demonstrate compliance with backup and data retention policies.
+**User Story:** As a desktop backup user, I want to see a history of my backup activities, so that I can understand what has been backed up and when.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL generate audit reports showing all backup activities, policy enforcement, and access events
-2. WHEN creating audit reports, THE TimeLocker System SHALL include user actions, timestamps, and outcome details
-3. THE TimeLocker System SHALL support report filtering by date range, user, repository, and event type
-4. THE TimeLocker System SHALL provide audit reports in multiple formats including PDF, CSV, and JSON
-5. WHERE audit data is accessed, THE TimeLocker System SHALL log report generation and access for audit trail integrity
+1. THE TimeLocker System SHALL maintain a backup history showing recent backup operations with dates, repositories, and outcomes
+2. WHEN viewing backup history, THE TimeLocker System SHALL display backup duration, data size, and success/failure status
+3. THE TimeLocker System SHALL support filtering backup history by date range and repository
+4. THE TimeLocker System SHALL provide backup history export in CSV format for personal record keeping
+5. WHERE backup history grows large, THE TimeLocker System SHALL retain at least 90 days of backup history and allow users to configure longer retention periods
 
 ### Requirement 4
 
-**User Story:** As a storage administrator, I want storage utilization monitoring, so that I can plan capacity and optimize storage usage across repositories.
+**User Story:** As a desktop backup user, I want to monitor my backup storage usage, so that I can understand how much space my backups are using and plan for storage needs.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL monitor and report storage utilization for all configured repositories
-2. WHEN storage thresholds are approached, THE TimeLocker System SHALL generate capacity warnings and recommendations
-3. THE TimeLocker System SHALL track storage growth trends and provide capacity forecasting
-4. THE TimeLocker System SHALL monitor deduplication ratios and compression effectiveness
-5. WHERE storage backends support it, THE TimeLocker System SHALL report storage costs and optimization opportunities
+1. THE TimeLocker System SHALL display storage usage for each configured repository with used and available space information
+2. WHEN storage space becomes limited, THE TimeLocker System SHALL warn users when repositories approach 90% capacity
+3. THE TimeLocker System SHALL show basic storage growth trends over the past 30 days to help users understand usage patterns
+4. THE TimeLocker System SHALL display deduplication and compression ratios when supported by the backup tool
+5. WHERE storage usage information is available, THE TimeLocker System SHALL provide recommendations for storage cleanup or expansion
 
 ### Requirement 5
 
-**User Story:** As a backup administrator, I want integrity monitoring, so that I can detect and respond to backup data corruption or inconsistencies.
+**User Story:** As a desktop backup user, I want to verify my backup integrity, so that I can be confident my backups are reliable and can be restored when needed.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL continuously monitor backup integrity through periodic repository checks at least every 24 hours with configurable intervals from 1 hour to 7 days
-2. WHEN integrity issues are detected, THE TimeLocker System SHALL alert administrators within 5 minutes and provide detailed diagnostics including affected snapshots, corruption type, and estimated impact
-3. THE TimeLocker System SHALL track integrity check results over time with at least 90 days of history to identify degradation patterns and trends
-4. THE TimeLocker System SHALL support on-demand integrity verification for specific repositories or snapshots completing within 10 minutes for repositories under 1TB
-5. WHERE integrity breaches occur, THE TimeLocker System SHALL provide specific remediation guidance including recovery options, affected data identification, and step-by-step repair procedures
+1. THE TimeLocker System SHALL perform periodic integrity checks using backup tool capabilities with user-configurable intervals from daily to weekly
+2. WHEN integrity issues are detected, THE TimeLocker System SHALL notify the user and provide clear information about affected backups
+3. THE TimeLocker System SHALL track integrity check results and display the status of recent checks in the user interface
+4. THE TimeLocker System SHALL support manual integrity verification for specific repositories when requested by the user
+5. WHERE integrity problems occur, THE TimeLocker System SHALL provide user-friendly guidance on next steps including re-running backups or seeking technical support
 
 ### Requirement 6
 
-**User Story:** As a system administrator, I want performance metrics collection, so that I can optimize backup operations and identify performance bottlenecks.
+**User Story:** As a desktop backup user, I want to understand backup performance, so that I can optimize my backup settings and schedule backups at appropriate times.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL collect performance metrics including backup throughput, completion times, and resource utilization
-2. WHEN analyzing performance, THE TimeLocker System SHALL provide trending data and performance comparisons over time
-3. THE TimeLocker System SHALL monitor system resources during backup operations including CPU, memory, disk I/O, and network usage
-4. THE TimeLocker System SHALL identify performance bottlenecks and provide optimization recommendations
-5. WHERE performance degrades, THE TimeLocker System SHALL alert administrators and suggest corrective actions
+1. THE TimeLocker System SHALL display basic performance information including backup duration and data transfer rates
+2. WHEN backups complete, THE TimeLocker System SHALL show performance summary with files processed and data transferred
+3. THE TimeLocker System SHALL track backup performance trends over recent operations to help users identify patterns
+4. THE TimeLocker System SHALL provide simple performance recommendations such as optimal backup timing or settings adjustments
+5. WHERE backup performance is significantly slower than normal, THE TimeLocker System SHALL suggest possible causes and solutions
 
 ### Requirement 7
 
-**User Story:** As a backup administrator, I want centralized monitoring dashboards, so that I can have a unified view of all backup operations and system health.
+**User Story:** As a desktop backup user, I want a simple overview of my backup status, so that I can quickly understand the health of my backup system.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL provide web-based dashboards showing real-time backup status and system health
-2. WHEN displaying dashboard information, THE TimeLocker System SHALL support customizable views for different user roles
-3. THE TimeLocker System SHALL provide drill-down capabilities from summary views to detailed operation logs
-4. THE TimeLocker System SHALL support dashboard export and sharing for reporting and collaboration
-5. WHERE multiple TimeLocker instances exist, THE TimeLocker System SHALL support centralized monitoring across all instances
+1. THE TimeLocker System SHALL provide a main status view showing overall backup health and recent activity
+2. WHEN displaying status information, THE TimeLocker System SHALL show repository status, last backup dates, and any issues requiring attention
+3. THE TimeLocker System SHALL provide easy navigation from status overview to detailed backup history and logs
+4. THE TimeLocker System SHALL display backup progress and current operations when backups are running
+5. WHERE multiple repositories are configured, THE TimeLocker System SHALL provide a unified view of all repository statuses
 
 ### Requirement 8
 
-**User Story:** As a DevOps engineer, I want health check endpoints and webhook integration, so that I can monitor backup operations through external monitoring systems and receive real-time notifications.
+**User Story:** As a desktop backup user, I want basic health monitoring integration, so that I can optionally connect my backup status to external monitoring services if desired.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL provide health check endpoints (/health, /metrics, /status) for external monitoring services
-2. WHEN backup operations complete, THE TimeLocker System SHALL support webhook notifications to external systems with configurable payloads
-3. THE TimeLocker System SHALL integrate with health check services like healthchecks.io through HTTP ping endpoints
-4. THE TimeLocker System SHALL provide webhook configuration management with URL validation, retry logic, and failure handling
-5. WHERE health check or webhook notifications fail, THE TimeLocker System SHALL log failures and implement exponential backoff retry mechanisms
+1. THE TimeLocker System SHALL provide optional integration with health check services like healthchecks.io through simple HTTP ping endpoints
+2. WHEN backup operations complete, THE TimeLocker System SHALL support optional webhook notifications to user-configured URLs
+3. THE TimeLocker System SHALL provide simple webhook configuration with URL validation and basic retry logic
+4. THE TimeLocker System SHALL allow users to enable or disable external monitoring integrations through the user interface
+5. WHERE external monitoring integration fails, THE TimeLocker System SHALL continue normal operation and log integration issues for user review
 
 ### Requirement 9
 
-**User Story:** As an integration engineer, I want comprehensive monitoring APIs and protocol support, so that I can integrate TimeLocker monitoring with external systems and monitoring platforms.
+**User Story:** As a desktop backup user, I want event correlation and troubleshooting support, so that I can understand why backup problems occur and how to fix them.
 
 #### Acceptance Criteria
 
-1. THE TimeLocker System SHALL provide REST APIs for accessing monitoring data, metrics, and logs
-2. WHEN external systems request monitoring data, THE TimeLocker System SHALL support real-time and historical data queries
-3. THE TimeLocker System SHALL support standard monitoring protocols including SNMP, Prometheus metrics, and syslog
-4. THE TimeLocker System SHALL provide webhook endpoints for real-time event streaming to external monitoring systems
-5. WHERE monitoring integrations are configured, THE TimeLocker System SHALL maintain integration health and report connectivity issues
+1. THE TimeLocker System SHALL correlate related backup and recovery events to help users understand system behavior and identify root causes of issues
+2. WHEN backup operations fail, THE TimeLocker System SHALL analyze recent events and provide context about potential causes including repository connectivity, storage space, or file access issues
+3. THE TimeLocker System SHALL provide troubleshooting guidance that connects monitoring data from backup operations, repository status, and system resources
+4. THE TimeLocker System SHALL maintain event correlation data for recent operations to support user troubleshooting and technical support
+5. WHERE patterns of related failures are detected, THE TimeLocker System SHALL provide proactive recommendations to prevent future issues
