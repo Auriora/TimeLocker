@@ -92,6 +92,11 @@ class SecurityConfig:
     lockout_duration: int = 300  # seconds
     password_strength_check: bool = True
     require_password_confirmation: bool = True
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary format"""
+        from dataclasses import asdict
+        return asdict(self)
 
 
 @dataclass

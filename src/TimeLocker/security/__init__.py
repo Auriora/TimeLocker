@@ -33,6 +33,7 @@ from .confirmation_dialogs import ConfirmationDialogs, ConfirmationError, Confir
 from .data_privacy_manager import (
     DataPrivacyManager, PrivacyLevel, SecureDeletionMethod, PrivacyInfo, SensitiveFilePattern
 )
+from .security_configuration_cli import SecurityConfigurationCLI
 
 __all__ = [
     'CredentialManager', 'CredentialManagerError', 'CredentialAccessError', 'CredentialSecurityError',
@@ -44,5 +45,6 @@ __all__ = [
     'RepositoryProtectionManager', 'RepositoryProtectionError', 'RepositoryLockError', 'RepositoryAccessError',
     'RepositoryMode', 'RepositoryLock', 'RepositoryInfo', 'DestructiveOperation',
     'ConfirmationDialogs', 'ConfirmationError', 'ConfirmationCancelledError',
-    'DataPrivacyManager', 'PrivacyLevel', 'SecureDeletionMethod', 'PrivacyInfo', 'SensitiveFilePattern'
+    'DataPrivacyManager', 'PrivacyLevel', 'SecureDeletionMethod', 'PrivacyInfo', 'SensitiveFilePattern',
+    'SecurityConfigurationCLI'
 ]

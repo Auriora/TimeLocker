@@ -112,6 +112,11 @@ from .configuration_performance_monitor import ConfigurationPerformanceMonitor
 # Error handling and recovery
 from .configuration_error_handler import ConfigurationErrorHandler, RecoveryAction, ErrorSeverity
 
+# Security configuration management
+from .security_configuration_manager import SecurityConfigurationManager
+from .security_configuration_ui import SecurityConfigurationUI
+from .security_configuration_migrator import SecurityConfigurationMigrator
+
 # Legacy enum compatibility for tests that still reference ConfigSection
 from enum import Enum
 
@@ -265,6 +270,11 @@ __all__ = [
         'ConfigurationErrorHandler',
         'RecoveryAction',
         'ErrorSeverity',
+        
+        # Security configuration
+        'SecurityConfigurationManager',
+        'SecurityConfigurationUI', 
+        'SecurityConfigurationMigrator',
 
         # Convenience functions
         'get_default_configuration_module',

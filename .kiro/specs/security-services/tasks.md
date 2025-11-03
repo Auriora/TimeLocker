@@ -27,14 +27,14 @@
   - Improve secure memory handling during credential operations
   - _Requirements: 6.2, 6.3, 6.4, 6.5_
 
-- [ ] 5. Create comprehensive security configuration management
+- [x] 5. Create comprehensive security configuration management
   - Implement SecurityConfig validation and management
   - Add security configuration UI components
   - Create security settings migration and upgrade handling
   - Integrate security configuration with existing configuration system
   - _Requirements: 1.5, 2.4, 3.3, 5.4_
 
-- [ ] 6. Integrate security components with CLI and UI
+- [-] 6. Integrate security components with CLI and UI
   - Update CLI commands to use AccessManager for session management
   - Add security status and summary commands to CLI
   - Implement security event viewing commands

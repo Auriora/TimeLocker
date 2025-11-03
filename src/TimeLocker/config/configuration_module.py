@@ -25,6 +25,9 @@ from .configuration_watcher import ConfigurationWatcher
 from .configuration_transaction_manager import ConfigurationTransactionManager
 from .configuration_performance_monitor import ConfigurationPerformanceMonitor
 from .configuration_error_handler import ConfigurationErrorHandler, RecoveryAction
+from .security_configuration_manager import SecurityConfigurationManager
+from .security_configuration_ui import SecurityConfigurationUI
+from .security_configuration_migrator import SecurityConfigurationMigrator
 from ..interfaces.configuration_provider import IConfigurationProvider
 from ..interfaces.exceptions import (
     ConfigurationError, 
@@ -77,6 +80,11 @@ class ConfigurationModule(IConfigurationProvider):
             self._lock_manager,
             self._performance_monitor
         )
+        
+        # Security configuration components
+        self._security_config_manager = SecurityConfigurationManager(self)
+        self._security_config_ui = SecurityConfigurationUI(self._security_config_manager)
+        self._security_config_migrator = SecurityConfigurationMigrator(self._config_dir)
 
         # Enhanced caching
         self._section_cache: Dict[str, Any] = {}
@@ -1538,6 +1546,276 @@ class ConfigurationModule(IConfigurationProvider):
                 self._section_cache.pop(key, None)
                 self._cache_timestamps.pop(key, None)
                 self._performance_monitor.track_cache_eviction()
+
+    # ------------------------------------------------------------------
+    # Security Configuration Management Methods
+    # ------------------------------------------------------------------
+
+    def get_security_configuration_status(self) -> Dict[str, Any]:
+        """
+        Get comprehensive security configuration status.
+        
+        Returns:
+            Dict: Security configuration status information
+        """
+        try:
+            status = self._security_config_manager.get_security_configuration_status()
+            return {
+                "is_valid": status.is_valid,
+                "security_level": status.security_level,
+                "issues_count": status.issues_count,
+                "warnings_count": status.warnings_count,
+                "last_validated": status.last_validated.isoformat(),
+                "recommendations": status.recommendations,
+                "compliance_score": status.compliance_score
+            }
+        except Exception as e:
+            logger.error(f"Failed to get security configuration status: {e}")
+            return {"error": str(e)}
+
+    def validate_security_configuration(self, validation_level: str = "moderate") -> ValidationResult:
+        """
+        Validate security configuration with specified level.
+        
+        Args:
+            validation_level: Validation strictness ("strict", "moderate", "permissive")
+            
+        Returns:
+            ValidationResult: Validation results
+        """
+        try:
+            from .security_configuration_manager import SecurityValidationLevel
+            
+            level_mapping = {
+                "strict": SecurityValidationLevel.STRICT,
+                "moderate": SecurityValidationLevel.MODERATE,
+                "permissive": SecurityValidationLevel.PERMISSIVE
+            }
+            
+            level = level_mapping.get(validation_level, SecurityValidationLevel.MODERATE)
+            config = self.get_config()
+            
+            return self._security_config_manager.validate_security_config(config.security, level)
+            
+        except Exception as e:
+            result = ValidationResult()
+            result.add_error(f"Failed to validate security configuration: {e}")
+            return result
+
+    def update_security_configuration(self, updates: Dict[str, Any], validate: bool = True) -> ValidationResult:
+        """
+        Update security configuration settings.
+        
+        Args:
+            updates: Dictionary of security configuration updates
+            validate: Whether to validate before applying updates
+            
+        Returns:
+            ValidationResult: Update operation results
+        """
+        return self._security_config_manager.update_security_configuration(updates, validate)
+
+    def reset_security_configuration(self) -> ValidationResult:
+        """
+        Reset security configuration to defaults.
+        
+        Returns:
+            ValidationResult: Reset operation results
+        """
+        return self._security_config_manager.reset_security_configuration()
+
+    def get_security_recommendations(self) -> List[Dict[str, Any]]:
+        """
+        Get security configuration recommendations.
+        
+        Returns:
+            List: Security recommendations with priorities
+        """
+        return self._security_config_manager.get_security_recommendations()
+
+    def apply_security_recommendations(self, recommendation_ids: List[str]) -> ValidationResult:
+        """
+        Apply selected security recommendations.
+        
+        Args:
+            recommendation_ids: List of recommendation IDs to apply
+            
+        Returns:
+            ValidationResult: Application results
+        """
+        return self._security_config_manager.apply_security_recommendations(recommendation_ids)
+
+    def export_security_configuration(self, output_path: Path, include_sensitive: bool = False) -> bool:
+        """
+        Export security configuration to file.
+        
+        Args:
+            output_path: Path to export file
+            include_sensitive: Whether to include sensitive settings
+            
+        Returns:
+            bool: True if export successful
+        """
+        return self._security_config_manager.export_security_configuration(output_path, include_sensitive)
+
+    def import_security_configuration(self, import_path: Path, validate: bool = True) -> ValidationResult:
+        """
+        Import security configuration from file.
+        
+        Args:
+            import_path: Path to import file
+            validate: Whether to validate imported configuration
+            
+        Returns:
+            ValidationResult: Import operation results
+        """
+        return self._security_config_manager.import_security_configuration(import_path, validate)
+
+    def get_security_configuration_summary(self) -> Dict[str, Any]:
+        """
+        Get security configuration summary for display.
+        
+        Returns:
+            Dict: Security configuration summary
+        """
+        return self._security_config_manager.get_security_configuration_summary()
+
+    def migrate_security_configuration(self, target_version: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Migrate security configuration to target version.
+        
+        Args:
+            target_version: Target version (defaults to current)
+            
+        Returns:
+            Dict: Migration operation results
+        """
+        try:
+            config = self.get_config()
+            security_dict = config.security.__dict__.copy()
+            
+            result = self._security_config_migrator.migrate_security_configuration(
+                security_dict, target_version
+            )
+            
+            if result.success:
+                # Update configuration with migrated data
+                from .configuration_schema import SecurityConfig
+                config.security = SecurityConfig(**security_dict)
+                self.save_config(config)
+                
+            return {
+                "success": result.success,
+                "from_version": result.from_version,
+                "to_version": result.to_version,
+                "steps_completed": result.steps_completed,
+                "errors": result.errors,
+                "warnings": result.warnings,
+                "backup_created": result.backup_created,
+                "migration_time": result.migration_time.total_seconds() if result.migration_time else 0
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to migrate security configuration: {e}")
+            return {
+                "success": False,
+                "errors": [str(e)],
+                "warnings": [],
+                "steps_completed": []
+            }
+
+    # ------------------------------------------------------------------
+    # Security Configuration UI Methods
+    # ------------------------------------------------------------------
+
+    def create_security_configuration_form(self) -> Dict[str, Any]:
+        """
+        Create security configuration form UI components.
+        
+        Returns:
+            Dict: Form component definitions
+        """
+        try:
+            config = self.get_config()
+            security_dict = config.security.__dict__
+            return self._security_config_ui.create_security_configuration_form(security_dict)
+        except Exception as e:
+            logger.error(f"Failed to create security configuration form: {e}")
+            return {"error": str(e)}
+
+    def create_security_status_display(self) -> Dict[str, Any]:
+        """
+        Create security status display UI components.
+        
+        Returns:
+            Dict: Status display component definitions
+        """
+        try:
+            status_data = self.get_security_configuration_summary()
+            return self._security_config_ui.create_security_status_display(status_data)
+        except Exception as e:
+            logger.error(f"Failed to create security status display: {e}")
+            return {"error": str(e)}
+
+    def create_security_validation_display(self) -> Dict[str, Any]:
+        """
+        Create security validation display UI components.
+        
+        Returns:
+            Dict: Validation display component definitions
+        """
+        try:
+            validation_result = self.validate_security_configuration()
+            return self._security_config_ui.create_validation_display(validation_result)
+        except Exception as e:
+            logger.error(f"Failed to create security validation display: {e}")
+            return {"error": str(e)}
+
+    def create_security_recommendations_display(self) -> Dict[str, Any]:
+        """
+        Create security recommendations display UI components.
+        
+        Returns:
+            Dict: Recommendations display component definitions
+        """
+        try:
+            recommendations = self.get_security_recommendations()
+            return self._security_config_ui.create_recommendations_display(recommendations)
+        except Exception as e:
+            logger.error(f"Failed to create security recommendations display: {e}")
+            return {"error": str(e)}
+
+    def create_security_dashboard(self) -> Dict[str, Any]:
+        """
+        Create comprehensive security dashboard UI.
+        
+        Returns:
+            Dict: Dashboard component definitions
+        """
+        try:
+            security_data = {
+                "status": self.get_security_configuration_summary(),
+                "configuration": self.get_config().security.__dict__,
+                "validation": self.validate_security_configuration(),
+                "recommendations": self.get_security_recommendations()
+            }
+            return self._security_config_ui.create_security_dashboard(security_data)
+        except Exception as e:
+            logger.error(f"Failed to create security dashboard: {e}")
+            return {"error": str(e)}
+
+    def handle_security_ui_event(self, event_type: str, event_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Handle security configuration UI events.
+        
+        Args:
+            event_type: Type of UI event
+            event_data: Event data
+            
+        Returns:
+            Dict: Event handling results
+        """
+        return self._security_config_ui.handle_ui_event(event_type, event_data)
 
     # ------------------------------------------------------------------
     # Backward-compatibility aliases (legacy API)
