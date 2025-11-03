@@ -94,6 +94,24 @@ from .configuration_migrator import (
 # Locking support
 from .configuration_lock_manager import ConfigurationLockManager
 
+# Enhanced backup support
+from .configuration_backup_manager import ConfigurationBackupManager, BackupReason
+
+# Configuration watching support
+from .configuration_watcher import ConfigurationWatcher
+
+# Transaction support
+from .configuration_transaction_manager import ConfigurationTransactionManager
+
+# File system store
+from .filesystem_configuration_store import FileSystemConfigurationStore
+
+# Performance monitoring
+from .configuration_performance_monitor import ConfigurationPerformanceMonitor
+
+# Error handling and recovery
+from .configuration_error_handler import ConfigurationErrorHandler, RecoveryAction, ErrorSeverity
+
 # Legacy enum compatibility for tests that still reference ConfigSection
 from enum import Enum
 
@@ -238,6 +256,15 @@ __all__ = [
         'ConfigurationMigrator',
         'MigrationResult',
         'ConfigurationLockManager',
+        'ConfigurationBackupManager',
+        'BackupReason',
+        'ConfigurationWatcher',
+        'ConfigurationTransactionManager',
+        'FileSystemConfigurationStore',
+        'ConfigurationPerformanceMonitor',
+        'ConfigurationErrorHandler',
+        'RecoveryAction',
+        'ErrorSeverity',
 
         # Convenience functions
         'get_default_configuration_module',

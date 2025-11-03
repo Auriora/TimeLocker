@@ -8,10 +8,11 @@ SOLID principles and serving as the single entry point for all configuration ope
 import json
 import logging
 import os
+import time
 from pathlib import Path
-from typing import Dict, Any, Optional, List, Union
+from typing import Dict, Any, Optional, List, Union, Callable
 from threading import RLock
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from .configuration_schema import TimeLockerConfig, RepositoryConfig, BackupTargetConfig
 from .configuration_defaults import ConfigurationDefaults
@@ -19,6 +20,11 @@ from .configuration_validator import ConfigurationValidator, ValidationResult
 from .configuration_path_resolver import ConfigurationPathResolver
 from .configuration_migrator import ConfigurationMigrator, MigrationResult
 from .configuration_lock_manager import ConfigurationLockManager
+from .configuration_backup_manager import ConfigurationBackupManager, BackupReason
+from .configuration_watcher import ConfigurationWatcher
+from .configuration_transaction_manager import ConfigurationTransactionManager
+from .configuration_performance_monitor import ConfigurationPerformanceMonitor
+from .configuration_error_handler import ConfigurationErrorHandler, RecoveryAction
 from ..interfaces.configuration_provider import IConfigurationProvider
 from ..interfaces.exceptions import (
     ConfigurationError, 
@@ -55,6 +61,27 @@ class ConfigurationModule(IConfigurationProvider):
         self._migrator = ConfigurationMigrator(self._validator)
         self._path_resolver = ConfigurationPathResolver()
         self._lock_manager = ConfigurationLockManager(self._config_dir / "locks")
+        self._backup_manager = ConfigurationBackupManager(
+            self._path_resolver.get_backup_directory(self._config_dir),
+            self._validator
+        )
+        self._watcher = ConfigurationWatcher(self._config_file)
+        self._transaction_manager = ConfigurationTransactionManager(
+            self._config_file,
+            self._lock_manager,
+            self._backup_manager
+        )
+        self._performance_monitor = ConfigurationPerformanceMonitor()
+        self._error_handler = ConfigurationErrorHandler(
+            self._backup_manager,
+            self._lock_manager,
+            self._performance_monitor
+        )
+
+        # Enhanced caching
+        self._section_cache: Dict[str, Any] = {}
+        self._cache_timestamps: Dict[str, datetime] = {}
+        self._cache_max_age = timedelta(minutes=5)  # Cache sections for 5 minutes
 
         # Configuration cache and synchronization
         self._config_cache: Optional[TimeLockerConfig] = None
@@ -247,20 +274,15 @@ class ConfigurationModule(IConfigurationProvider):
                 except Exception as e:
                     logger.warning(f"Failed to release configuration lock: {e}")
 
-    def _create_backup(self) -> None:
-        """Create backup of current configuration"""
-        backup_dir = self._path_resolver.get_backup_directory(self._config_dir)
-        backup_dir.mkdir(parents=True, exist_ok=True)
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        backup_file = backup_dir / f"config_backup_{timestamp}.json"
-
+    def _create_backup(self, reason: BackupReason = BackupReason.AUTOMATIC) -> Optional[str]:
+        """Create backup of current configuration using enhanced backup manager"""
         try:
-            import shutil
-            shutil.copy2(self._config_file, backup_file)
-            logger.debug(f"Created configuration backup: {backup_file}")
+            backup_id = self._backup_manager.create_backup(self._config_file, reason)
+            logger.debug(f"Created configuration backup: {backup_id}")
+            return backup_id
         except Exception as e:
             logger.warning(f"Failed to create configuration backup: {e}")
+            return None
 
     def _check_for_updates(self) -> None:
         """Check if configuration file has been updated externally"""
@@ -363,32 +385,54 @@ class ConfigurationModule(IConfigurationProvider):
 
     # Extended interface methods (beyond IConfigurationProvider)
 
+    @property
+    def performance_monitor(self) -> ConfigurationPerformanceMonitor:
+        """Get the performance monitor instance"""
+        return self._performance_monitor
+
     def get_config(self) -> TimeLockerConfig:
-        """Get complete configuration"""
-        needs_reload = False
+        """Get complete configuration with performance monitoring"""
+        start_time = time.time()
+        cache_hit = False
+        
+        try:
+            needs_reload = False
 
-        # Check for updates and cache status while holding lock
-        with self._cache_lock:
-            # Check if file has been updated externally
-            if self._config_file.exists():
-                current_modified = datetime.fromtimestamp(self._config_file.stat().st_mtime)
-                if self._last_modified is None or current_modified > self._last_modified:
-                    needs_reload = True
+            # Check for updates and cache status while holding lock
+            with self._cache_lock:
+                # Check if file has been updated externally
+                if self._config_file.exists():
+                    current_modified = datetime.fromtimestamp(self._config_file.stat().st_mtime)
+                    if self._last_modified is None or current_modified > self._last_modified:
+                        needs_reload = True
+                    elif self._config_cache is not None:
+                        cache_hit = True
+                        self._performance_monitor.track_cache_hit()
+                        return self._config_cache
                 elif self._config_cache is not None:
+                    cache_hit = True
+                    self._performance_monitor.track_cache_hit()
                     return self._config_cache
-            elif self._config_cache is not None:
+
+            # Cache miss - need to load configuration
+            if not cache_hit:
+                self._performance_monitor.track_cache_miss()
+
+            # Load configuration outside of lock to avoid recursive locking in _load_configuration
+            if needs_reload:
+                logger.debug("Configuration file updated externally, reloading")
+            self._load_configuration()
+
+            # Return the loaded config
+            with self._cache_lock:
+                if self._config_cache is None:
+                    raise ConfigurationError("Failed to load configuration")
                 return self._config_cache
-
-        # Load configuration outside of lock to avoid recursive locking in _load_configuration
-        if needs_reload:
-            logger.debug("Configuration file updated externally, reloading")
-        self._load_configuration()
-
-        # Return the loaded config
-        with self._cache_lock:
-            if self._config_cache is None:
-                raise ConfigurationError("Failed to load configuration")
-            return self._config_cache
+                
+        finally:
+            # Track operation performance
+            duration = time.time() - start_time
+            self._performance_monitor.track_operation('get_config', duration, True)
 
 
     def get_configuration(self) -> Dict[str, Any]:
@@ -399,45 +443,104 @@ class ConfigurationModule(IConfigurationProvider):
         return cfg.to_dict()
 
     def save_config(self, config: Optional[TimeLockerConfig] = None) -> None:
-        """Save complete configuration.
+        """Save complete configuration with error handling and recovery.
 
         If config is None, save the current in-memory configuration.
         """
-        if config is None:
-            config = self.get_config()
-        # Validate before saving
-        validation_result = self._validator.validate_config(config)
-        if not validation_result:
-            error_msg = f"Configuration validation failed: {'; '.join(validation_result.errors)}"
-            raise InvalidConfigurationError(error_msg)
+        def _save_operation():
+            if config is None:
+                current_config = self.get_config()
+            else:
+                current_config = config
+                
+            # Validate before saving
+            validation_result = self._validator.validate_config(current_config)
+            if not validation_result:
+                error_msg = f"Configuration validation failed: {'; '.join(validation_result.errors)}"
+                raise InvalidConfigurationError(error_msg)
 
-        self._save_config_to_file(config)
+            self._save_config_to_file(current_config)
+        
+        # Execute with error handling and retry
+        try:
+            self._error_handler.retry_with_backoff(
+                _save_operation,
+                "save_config",
+                context_data={'config_file': str(self._config_file)}
+            )
+        except Exception as e:
+            # Handle the error and attempt recovery
+            recovery_action = self._error_handler.handle_error(
+                e, 
+                "save_config",
+                {'config_file': str(self._config_file)}
+            )
+            
+            if recovery_action == RecoveryAction.RESTORE_BACKUP:
+                logger.warning("Attempting to restore from backup after save failure")
+                # The error handler will handle the restoration
+            
+            # Re-raise the exception after handling
+            raise e
 
     def get_section(self, section_name: Any) -> Dict[str, Any]:
-        """Get configuration section.
+        """Get configuration section with caching and performance monitoring.
 
         Accepts string names or legacy enum values (ConfigSection). Provides
         alias mapping for backward compatibility (e.g., 'settings' -> 'general').
         """
-        # Coerce enum values to their string value
+        start_time = time.time()
+        
         try:
-            section_key = section_name.value  # type: ignore[attr-defined]
-        except Exception:
-            section_key = str(section_name)
+            # Coerce enum values to their string value
+            try:
+                section_key = section_name.value  # type: ignore[attr-defined]
+            except Exception:
+                section_key = str(section_name)
 
-        # Backward-compatibility alias
-        alias_map = {
-                'settings': 'general',
-        }
-        section_key = alias_map.get(section_key, section_key)
+            # Backward-compatibility alias
+            alias_map = {
+                    'settings': 'general',
+            }
+            section_key = alias_map.get(section_key, section_key)
 
-        config = self.get_config()
-        config_dict = config.to_dict()
+            # Check section cache first
+            cache_key = f"section_{section_key}"
+            now = datetime.now()
+            
+            if (cache_key in self._section_cache and 
+                cache_key in self._cache_timestamps and
+                now - self._cache_timestamps[cache_key] < self._cache_max_age):
+                
+                self._performance_monitor.track_cache_hit()
+                return self._section_cache[cache_key].copy()  # Return copy to prevent modification
+            
+            # Cache miss - get from full config
+            self._performance_monitor.track_cache_miss()
+            config = self.get_config()
+            config_dict = config.to_dict()
 
-        if section_key not in config_dict:
-            raise ConfigurationError(f"Configuration section '{section_key}' not found")
+            if section_key not in config_dict:
+                raise ConfigurationError(f"Configuration section '{section_key}' not found")
 
-        return config_dict[section_key]
+            section_data = config_dict[section_key]
+            
+            # Update section cache
+            self._section_cache[cache_key] = section_data.copy()
+            self._cache_timestamps[cache_key] = now
+            
+            # Update cache size metrics
+            self._performance_monitor.update_cache_size(len(self._section_cache), 50)  # Max 50 sections
+            
+            # Clean up old cache entries if needed
+            self._cleanup_section_cache()
+
+            return section_data
+            
+        finally:
+            # Track operation performance
+            duration = time.time() - start_time
+            self._performance_monitor.track_operation('get_section', duration, True)
 
     def update_section(self, section_name: Any, section_data: Dict[str, Any]) -> None:
         """Update configuration section
@@ -847,6 +950,594 @@ class ConfigurationModule(IConfigurationProvider):
             Number of stale locks cleaned up
         """
         return self._lock_manager.cleanup_stale_locks()
+
+    # ------------------------------------------------------------------
+    # Enhanced Backup Management Methods
+    # ------------------------------------------------------------------
+
+    def create_backup(self, reason: BackupReason = BackupReason.MANUAL, 
+                     tags: Optional[List[str]] = None) -> str:
+        """
+        Create a backup of the current configuration.
+        
+        Args:
+            reason: Reason for creating the backup
+            tags: Optional tags for the backup
+            
+        Returns:
+            Backup identifier
+            
+        Raises:
+            ConfigurationBackupError: If backup creation fails
+        """
+        return self._backup_manager.create_backup(self._config_file, reason, tags)
+
+    def list_backups(self, limit: Optional[int] = None, 
+                    reason_filter: Optional[BackupReason] = None) -> List[Dict[str, Any]]:
+        """
+        List available configuration backups.
+        
+        Args:
+            limit: Maximum number of backups to return
+            reason_filter: Filter backups by reason
+            
+        Returns:
+            List of backup information dictionaries
+        """
+        return self._backup_manager.list_backups(limit, reason_filter)
+
+    def restore_backup(self, backup_id: str) -> bool:
+        """
+        Restore configuration from a backup.
+        
+        Args:
+            backup_id: Backup identifier to restore
+            
+        Returns:
+            True if restore was successful
+            
+        Raises:
+            ConfigurationBackupError: If backup restoration fails
+        """
+        return self._backup_manager.restore_backup(backup_id, self._config_file)
+
+    def compare_backups(self, backup_id1: str, backup_id2: str) -> Dict[str, Any]:
+        """
+        Compare two configuration backups.
+        
+        Args:
+            backup_id1: First backup to compare
+            backup_id2: Second backup to compare
+            
+        Returns:
+            Comparison result with differences
+            
+        Raises:
+            ConfigurationBackupError: If comparison fails
+        """
+        return self._backup_manager.compare_backups(backup_id1, backup_id2)
+
+    def restore_section(self, backup_id: str, section: str) -> bool:
+        """
+        Restore a specific section from a backup.
+        
+        Args:
+            backup_id: Backup identifier
+            section: Section name to restore
+            
+        Returns:
+            True if section restore was successful
+            
+        Raises:
+            ConfigurationBackupError: If section restoration fails
+        """
+        return self._backup_manager.restore_section(backup_id, section, self._config_file)
+
+    def cleanup_old_backups(self, keep_count: int = 5, max_age_days: Optional[int] = None) -> int:
+        """
+        Clean up old configuration backups.
+        
+        Args:
+            keep_count: Number of recent backups to keep
+            max_age_days: Maximum age in days for backups
+            
+        Returns:
+            Number of backups cleaned up
+        """
+        return self._backup_manager.cleanup_old_backups(keep_count, max_age_days)
+
+    def validate_backup(self, backup_id: str) -> ValidationResult:
+        """
+        Validate a configuration backup.
+        
+        Args:
+            backup_id: Backup identifier to validate
+            
+        Returns:
+            Validation result
+        """
+        return self._backup_manager.validate_backup(backup_id)
+
+    # ------------------------------------------------------------------
+    # Configuration Change Watching Methods
+    # ------------------------------------------------------------------
+
+    def watch_section(self, section: str, callback: Callable) -> str:
+        """
+        Watch for changes to a specific configuration section.
+        
+        Args:
+            section: Section name to watch
+            callback: Function to call when section changes
+            
+        Returns:
+            Watch identifier for later removal
+            
+        Raises:
+            ConfigurationWatchError: If watching cannot be established
+        """
+        return self._watcher.watch_section(section, callback)
+
+    def watch_key(self, key: str, callback: Callable) -> str:
+        """
+        Watch for changes to a specific configuration key.
+        
+        Args:
+            key: Configuration key to watch (supports dot notation)
+            callback: Function to call when key changes
+            
+        Returns:
+            Watch identifier for later removal
+            
+        Raises:
+            ConfigurationWatchError: If watching cannot be established
+        """
+        return self._watcher.watch_key(key, callback)
+
+    def unwatch(self, watch_id: str) -> None:
+        """
+        Remove a configuration watch.
+        
+        Args:
+            watch_id: Watch identifier to remove
+            
+        Raises:
+            ConfigurationWatchError: If watch cannot be removed
+        """
+        self._watcher.unwatch(watch_id)
+
+    def start_watching(self) -> None:
+        """
+        Start the configuration watching system.
+        
+        Raises:
+            ConfigurationWatchError: If watching cannot be started
+        """
+        self._watcher.start_watching()
+
+    def stop_watching(self) -> None:
+        """
+        Stop the configuration watching system.
+        
+        Raises:
+            ConfigurationWatchError: If watching cannot be stopped
+        """
+        self._watcher.stop_watching()
+
+    def get_change_history(self, limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Get recent configuration change history.
+        
+        Args:
+            limit: Maximum number of events to return
+            
+        Returns:
+            List of recent change events as dictionaries
+        """
+        events = self._watcher.get_change_history(limit)
+        return [
+            {
+                'event_id': event.event_id,
+                'timestamp': event.timestamp.isoformat(),
+                'section': event.section,
+                'key': event.key,
+                'old_value': event.old_value,
+                'new_value': event.new_value,
+                'source': event.source,
+                'user_context': event.user_context,
+                'transaction_id': event.transaction_id
+            }
+            for event in events
+        ]
+
+    def is_watching(self) -> bool:
+        """
+        Check if the configuration watcher is currently active.
+        
+        Returns:
+            True if watching is active
+        """
+        return self._watcher.is_watching()
+
+    def get_watch_statistics(self) -> Dict[str, Any]:
+        """
+        Get statistics about configuration watching.
+        
+        Returns:
+            Statistics including watch count, event count, etc.
+        """
+        return self._watcher.get_watch_statistics()
+
+    # ------------------------------------------------------------------
+    # Transaction Support Methods
+    # ------------------------------------------------------------------
+
+    def begin_transaction(self, timeout_minutes: int = 5) -> str:
+        """
+        Begin a new configuration transaction.
+        
+        Args:
+            timeout_minutes: Transaction timeout in minutes
+            
+        Returns:
+            Transaction identifier
+            
+        Raises:
+            ConfigurationError: If transaction cannot be started
+        """
+        from datetime import timedelta
+        timeout = timedelta(minutes=timeout_minutes)
+        return self._transaction_manager.begin_transaction(timeout)
+
+    def commit_transaction(self, transaction_id: str) -> bool:
+        """
+        Commit a configuration transaction.
+        
+        Args:
+            transaction_id: Transaction identifier
+            
+        Returns:
+            True if commit was successful
+            
+        Raises:
+            ConfigurationError: If commit fails
+        """
+        return self._transaction_manager.commit_transaction(transaction_id)
+
+    def rollback_transaction(self, transaction_id: str) -> bool:
+        """
+        Rollback a configuration transaction.
+        
+        Args:
+            transaction_id: Transaction identifier
+            
+        Returns:
+            True if rollback was successful
+            
+        Raises:
+            ConfigurationError: If rollback fails
+        """
+        return self._transaction_manager.rollback_transaction(transaction_id)
+
+    def atomic_update(self, updates: Dict[str, Dict[str, Any]]) -> bool:
+        """
+        Perform atomic update of multiple configuration sections.
+        
+        Args:
+            updates: Dictionary mapping section names to their new data
+            
+        Returns:
+            True if all updates were successful
+            
+        Raises:
+            ConfigurationAtomicUpdateError: If atomic update fails
+        """
+        return self._transaction_manager.atomic_update(updates)
+
+    def get_transaction_info(self, transaction_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get information about a transaction.
+        
+        Args:
+            transaction_id: Transaction identifier
+            
+        Returns:
+            Transaction information or None if not found
+        """
+        return self._transaction_manager.get_transaction_info(transaction_id)
+
+    def list_active_transactions(self) -> List[Dict[str, Any]]:
+        """
+        List all active transactions.
+        
+        Returns:
+            List of active transaction information
+        """
+        return self._transaction_manager.list_active_transactions()
+
+    def cleanup_expired_transactions(self) -> int:
+        """
+        Clean up expired transactions.
+        
+        Returns:
+            Number of transactions cleaned up
+        """
+        return self._transaction_manager.cleanup_expired_transactions()
+
+    # ------------------------------------------------------------------
+    # Performance Monitoring and Optimization Methods
+    # ------------------------------------------------------------------
+
+    def get_performance_metrics(self) -> Dict[str, Any]:
+        """
+        Get comprehensive performance metrics.
+        
+        Returns:
+            Performance metrics dictionary
+        """
+        return self._performance_monitor.get_performance_metrics()
+
+    def get_cache_statistics(self) -> Dict[str, Any]:
+        """
+        Get detailed cache statistics.
+        
+        Returns:
+            Cache statistics dictionary
+        """
+        return self._performance_monitor.get_cache_statistics()
+
+    def optimize_cache(self) -> Dict[str, Any]:
+        """
+        Analyze cache performance and provide optimization recommendations.
+        
+        Returns:
+            Optimization recommendations
+        """
+        return self._performance_monitor.optimize_cache()
+
+    def get_optimization_recommendations(self) -> List[str]:
+        """
+        Get performance optimization recommendations.
+        
+        Returns:
+            List of optimization recommendations
+        """
+        return self._performance_monitor.get_recommendations()
+
+    def clear_performance_metrics(self) -> None:
+        """Clear all performance metrics and caches"""
+        self._performance_monitor.clear_metrics()
+        self._section_cache.clear()
+        self._cache_timestamps.clear()
+
+    def enable_performance_monitoring(self) -> None:
+        """Enable performance monitoring"""
+        self._performance_monitor.enable_monitoring()
+
+    def disable_performance_monitoring(self) -> None:
+        """Disable performance monitoring"""
+        self._performance_monitor.disable_monitoring()
+
+    # ------------------------------------------------------------------
+    # Error Handling and Recovery Methods
+    # ------------------------------------------------------------------
+
+    def get_error_statistics(self) -> Dict[str, Any]:
+        """
+        Get error statistics and trends.
+        
+        Returns:
+            Error statistics dictionary
+        """
+        return self._error_handler.get_error_statistics()
+
+    def get_recent_errors(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """
+        Get recent error information.
+        
+        Args:
+            limit: Maximum number of errors to return
+            
+        Returns:
+            List of recent error information
+        """
+        return self._error_handler.get_recent_errors(limit)
+
+    def add_error_callback(self, callback: Callable) -> None:
+        """
+        Add a callback for error notifications.
+        
+        Args:
+            callback: Function to call when errors occur
+        """
+        self._error_handler.add_error_callback(callback)
+
+    def reset_to_defaults(self) -> None:
+        """Reset configuration to defaults with error handling"""
+        try:
+            logger.warning("Resetting configuration to defaults")
+
+            # Create backup first
+            if self._config_file.exists():
+                try:
+                    self._backup_manager.create_backup(
+                        self._config_file, 
+                        BackupReason.PRE_UPDATE,
+                        ["reset_to_defaults"]
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to create backup before reset: {e}")
+
+            # Create and save default configuration
+            default_config = ConfigurationDefaults.get_default_config()
+            default_config = ConfigurationDefaults.apply_environment_overrides(default_config)
+
+            self.save_config(default_config)
+            
+            # Clear caches
+            self._section_cache.clear()
+            self._cache_timestamps.clear()
+            
+            logger.info("Configuration successfully reset to defaults")
+            
+        except Exception as e:
+            recovery_action = self._error_handler.handle_error(
+                e, 
+                "reset_to_defaults",
+                {'config_file': str(self._config_file)}
+            )
+            
+            if recovery_action != RecoveryAction.FAIL:
+                logger.info("Attempting recovery after reset failure")
+            
+            raise ConfigurationError(f"Failed to reset configuration to defaults: {e}")
+
+    def recover_from_corruption(self) -> bool:
+        """
+        Attempt to recover from configuration corruption.
+        
+        Returns:
+            True if recovery was successful
+        """
+        try:
+            logger.warning("Attempting to recover from configuration corruption")
+            
+            # Try to restore from the most recent backup
+            backups = self._backup_manager.list_backups(limit=5)
+            
+            for backup in backups:
+                try:
+                    backup_id = backup['backup_id']
+                    logger.info(f"Attempting to restore from backup: {backup_id}")
+                    
+                    # Validate backup before restoration
+                    validation_result = self._backup_manager.validate_backup(backup_id)
+                    if validation_result.is_valid:
+                        success = self._backup_manager.restore_backup(backup_id, self._config_file)
+                        if success:
+                            # Clear caches after restoration
+                            self._section_cache.clear()
+                            self._cache_timestamps.clear()
+                            
+                            # Reload configuration
+                            self._load_configuration()
+                            
+                            logger.info(f"Successfully recovered from backup: {backup_id}")
+                            return True
+                    else:
+                        logger.warning(f"Backup {backup_id} is invalid: {validation_result.errors}")
+                        
+                except Exception as e:
+                    logger.warning(f"Failed to restore from backup {backup_id}: {e}")
+                    continue
+            
+            # If no backups work, reset to defaults as last resort
+            logger.warning("No valid backups found, resetting to defaults")
+            self.reset_to_defaults()
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to recover from corruption: {e}")
+            return False
+
+    def validate_and_repair(self) -> Dict[str, Any]:
+        """
+        Validate configuration and attempt automatic repairs.
+        
+        Returns:
+            Validation and repair results
+        """
+        try:
+            config = self.get_config()
+            validation_result = self._validator.validate_config(config)
+            
+            repair_results = {
+                'validation_passed': validation_result.is_valid,
+                'errors_found': len(validation_result.errors),
+                'warnings_found': len(validation_result.warnings),
+                'repairs_attempted': 0,
+                'repairs_successful': 0,
+                'errors': validation_result.errors,
+                'warnings': validation_result.warnings
+            }
+            
+            if not validation_result.is_valid:
+                logger.warning(f"Configuration validation failed with {len(validation_result.errors)} errors")
+                
+                # Attempt automatic repairs for common issues
+                config_dict = config.to_dict()
+                repaired = False
+                
+                # Try to repair missing sections
+                defaults = ConfigurationDefaults.get_default_config().to_dict()
+                for section_name, default_section in defaults.items():
+                    if section_name not in config_dict:
+                        config_dict[section_name] = default_section
+                        repair_results['repairs_attempted'] += 1
+                        repaired = True
+                        logger.info(f"Repaired missing section: {section_name}")
+                
+                # Try to repair invalid enum values
+                for section_name, section_data in config_dict.items():
+                    if isinstance(section_data, dict):
+                        for key, value in section_data.items():
+                            # Check for invalid log levels
+                            if key == 'log_level' and isinstance(value, str):
+                                valid_levels = ['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL']
+                                if value.upper() not in valid_levels:
+                                    section_data[key] = 'INFO'
+                                    repair_results['repairs_attempted'] += 1
+                                    repaired = True
+                                    logger.info(f"Repaired invalid log level: {value} -> INFO")
+                
+                if repaired:
+                    try:
+                        # Save repaired configuration
+                        repaired_config = TimeLockerConfig.from_dict(config_dict)
+                        self.save_config(repaired_config)
+                        repair_results['repairs_successful'] = repair_results['repairs_attempted']
+                        
+                        # Re-validate
+                        new_validation = self._validator.validate_config(repaired_config)
+                        repair_results['validation_passed'] = new_validation.is_valid
+                        repair_results['errors_found'] = len(new_validation.errors)
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to save repaired configuration: {e}")
+            
+            return repair_results
+            
+        except Exception as e:
+            logger.error(f"Configuration validation and repair failed: {e}")
+            return {
+                'validation_passed': False,
+                'error': str(e),
+                'repairs_attempted': 0,
+                'repairs_successful': 0
+            }
+
+    def _cleanup_section_cache(self) -> None:
+        """Clean up expired section cache entries"""
+        now = datetime.now()
+        expired_keys = []
+        
+        for cache_key, timestamp in self._cache_timestamps.items():
+            if now - timestamp > self._cache_max_age:
+                expired_keys.append(cache_key)
+        
+        for key in expired_keys:
+            self._section_cache.pop(key, None)
+            self._cache_timestamps.pop(key, None)
+            self._performance_monitor.track_cache_eviction()
+        
+        # Also limit cache size
+        if len(self._section_cache) > 50:
+            # Remove oldest entries
+            sorted_items = sorted(self._cache_timestamps.items(), key=lambda x: x[1])
+            for key, _ in sorted_items[:len(self._section_cache) - 40]:  # Keep 40, remove excess
+                self._section_cache.pop(key, None)
+                self._cache_timestamps.pop(key, None)
+                self._performance_monitor.track_cache_eviction()
 
     # ------------------------------------------------------------------
     # Backward-compatibility aliases (legacy API)
