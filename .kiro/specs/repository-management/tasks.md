@@ -32,28 +32,28 @@
   - Test state management and audit logging functionality
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8_
 
-- [ ] 2. Enhance Repository Configuration and Validation
+- [x] 2. Enhance Repository Configuration and Validation
   - Extend current RepositoryConfig with new fields for engine selection and metadata
   - Enhance ValidationService with comprehensive repository URI and configuration validation
   - Add performance monitoring and threshold checking for desktop usage
   - Implement configuration backup and recovery mechanisms
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4, 3.5, 9.1, 9.2, 9.3, 9.4, 9.5, 10.1, 10.2, 10.7_
 
-- [ ] 2.1 Extend RepositoryConfig data model
+- [x] 2.1 Extend RepositoryConfig data model
   - Add engine field for backup engine selection (restic, rsync, rclone)
   - Add metadata field for repository descriptions and custom properties
   - Add engine_config field for engine-specific configuration
   - Add status and validation tracking fields
   - _Requirements: 4.1, 4.2, 6.1, 6.2_
 
-- [ ] 2.2 Enhance ValidationService for repositories
+- [x] 2.2 Enhance ValidationService for repositories
   - Add comprehensive repository URI validation for all supported schemes
   - Implement configuration validation with detailed error messages
   - Add connectivity testing with timeout handling for network repositories
   - Add performance threshold validation (15s network, 3s local)
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 9.2, 9.3, 9.5_
 
-- [ ] 2.3 Implement configuration backup manager
+- [x] 2.3 Implement configuration backup manager
   - Create ConfigurationBackupManager for automatic backups before risky operations
   - Implement backup cleanup (keep last 5 backups per repository)
   - Add configuration restoration from backup functionality
