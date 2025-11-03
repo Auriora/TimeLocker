@@ -58,6 +58,7 @@ from .config import configuration_manager as _timelocker_config_manager_module
 from .utils.repository_resolver import validate_repository_name_or_uri
 from .utils.snapshot_validation import validate_snapshot_id_format
 from .cli_helpers import store_backend_credentials as store_backend_credentials_helper  # Added import for extracted helper
+from .security import SecurityService, RepositoryInfo, RepositoryMode, ConfirmationDialogs
 
 # Test-friendly patch: ensure stderr is captured separately in Typer's CliRunner
 # so tests can safely access result.stderr when using CliRunner.
@@ -1563,24 +1564,64 @@ def repos_remove(
 ) -> None:
     setup_logging(verbose, config_dir)
     try:
-        interactive = sys.stdin.isatty()
-        confirmed = yes
-        if not confirmed:
-            if interactive:
-                confirmed = Confirm.ask(f"Remove repository '{name}' from configuration?", default=False)
+        # Get repository information for confirmation
+        config_manager = ConfigurationManager(config_dir=config_dir)
+        
+        try:
+            repo_config = config_manager.get_repository(name)
+        except ConfigurationError:
+            show_error_panel("Repository Not Found", f"Repository '{name}' not found in configuration.")
+            raise typer.Exit(1)
+
+        # Create repository info for confirmation
+        repository_info = {
+            'repository_id': name,
+            'name': name,
+            'location': repo_config.get('uri', 'Unknown'),
+            'mode': 'read_write'  # Default mode
+        }
+
+        # Initialize security service for confirmation
+        from .security import CredentialManager
+        credential_manager = CredentialManager(config_dir=config_dir)
+        security_service = SecurityService(credential_manager, config_dir=config_dir)
+
+        # Check if repository is locked
+        if security_service.is_repository_locked(name):
+            show_error_panel("Repository Locked", 
+                           f"Repository '{name}' is currently locked and cannot be removed. "
+                           f"Please unlock it first using 'timelocker repos unlock {name}'.")
+            raise typer.Exit(1)
+
+        # Use enhanced confirmation for repository deletion
+        if not yes:
+            try:
+                confirmed = security_service.confirm_destructive_operation(
+                    "delete_repository", repository_info, force=False
+                )
                 if not confirmed:
                     show_info_panel("Operation Cancelled", "Repository removal cancelled.")
                     raise typer.Exit(0)
-            else:
-                confirmed = True
+            except Exception as e:
+                # Fallback to simple confirmation if security service fails
+                logger.warning(f"Security confirmation failed, using simple confirmation: {e}")
+                interactive = sys.stdin.isatty()
+                if interactive:
+                    confirmed = Confirm.ask(f"Remove repository '{name}' from configuration?", default=False)
+                    if not confirmed:
+                        show_info_panel("Operation Cancelled", "Repository removal cancelled.")
+                        raise typer.Exit(0)
+
+        # Proceed with removal
         manager = _get_service_manager_for_command(config_dir)
         remove_method = _get_service_method(manager, "remove_repository")
         if remove_method:
             _call_service_method(remove_method, name=name, repository=name, repository_name=name)
         else:
-            config_manager = ConfigurationManager(config_dir=config_dir)
             config_manager.remove_repository(name)
+        
         show_success_panel("Repository Removed", f"Repository '{name}' removed successfully.")
+        
     except ConfigurationError as e:
         show_error_panel("Repository Not Found", str(e))
         raise typer.Exit(1)
@@ -1618,6 +1659,165 @@ def repos_default(
         raise typer.Exit(130)
     except Exception as e:
         show_error_panel("Default Error", f"Failed to set default repository: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("lock")
+def repos_lock(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        operation: Annotated[str, typer.Option("--operation", help="Operation requiring the lock")] = "manual_lock",
+        timeout: Annotated[Optional[int], typer.Option("--timeout", help="Lock timeout in minutes")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Lock repository to prevent accidental modifications."""
+    setup_logging(verbose, config_dir)
+    try:
+        # Initialize security service
+        from .security import CredentialManager
+        credential_manager = CredentialManager(config_dir=config_dir)
+        security_service = SecurityService(credential_manager, config_dir=config_dir)
+
+        # Get current user
+        import os
+        current_user = os.getenv('USER', os.getenv('USERNAME', 'system'))
+
+        # Lock repository
+        lock_id = security_service.lock_repository(name, operation, current_user, timeout)
+        
+        timeout_str = f" (timeout: {timeout} minutes)" if timeout else ""
+        show_success_panel("Repository Locked", 
+                         f"Repository '{name}' locked for operation '{operation}'{timeout_str}.\n"
+                         f"Lock ID: {lock_id}")
+        
+    except Exception as e:
+        show_error_panel("Lock Error", f"Failed to lock repository '{name}': {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("unlock")
+def repos_unlock(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        lock_id: Annotated[Optional[str], typer.Option("--lock-id", help="Specific lock ID to remove")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Unlock repository."""
+    setup_logging(verbose, config_dir)
+    try:
+        # Initialize security service
+        from .security import CredentialManager
+        credential_manager = CredentialManager(config_dir=config_dir)
+        security_service = SecurityService(credential_manager, config_dir=config_dir)
+
+        # Get current user
+        import os
+        current_user = os.getenv('USER', os.getenv('USERNAME', 'system'))
+
+        # Unlock repository
+        success = security_service.unlock_repository(name, lock_id, current_user)
+        
+        if success:
+            show_success_panel("Repository Unlocked", f"Repository '{name}' unlocked successfully.")
+        else:
+            show_error_panel("Unlock Failed", f"Failed to unlock repository '{name}'. Repository may not be locked.")
+            raise typer.Exit(1)
+        
+    except Exception as e:
+        show_error_panel("Unlock Error", f"Failed to unlock repository '{name}': {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("mode")
+def repos_mode(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        mode: Annotated[Optional[str], typer.Argument(help="Repository mode (read_write, read_only, locked)")] = None,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Get or set repository access mode."""
+    setup_logging(verbose, config_dir)
+    try:
+        # Initialize security service
+        from .security import CredentialManager
+        credential_manager = CredentialManager(config_dir=config_dir)
+        security_service = SecurityService(credential_manager, config_dir=config_dir)
+
+        if mode is None:
+            # Get current mode
+            current_mode = security_service.get_repository_mode(name)
+            mode_display = current_mode.replace("_", " ").title()
+            
+            # Check if locked
+            is_locked = security_service.is_repository_locked(name)
+            lock_status = " (Currently Locked)" if is_locked else ""
+            
+            show_info_panel("Repository Mode", f"Repository '{name}' is in {mode_display} mode{lock_status}.")
+        else:
+            # Validate mode
+            valid_modes = ["read_write", "read_only", "locked"]
+            if mode not in valid_modes:
+                show_error_panel("Invalid Mode", f"Mode must be one of: {', '.join(valid_modes)}")
+                raise typer.Exit(1)
+
+            # Get current user
+            import os
+            current_user = os.getenv('USER', os.getenv('USERNAME', 'system'))
+
+            # Set mode
+            success = security_service.set_repository_mode(name, mode, current_user)
+            
+            if success:
+                mode_display = mode.replace("_", " ").title()
+                show_success_panel("Mode Changed", f"Repository '{name}' mode set to {mode_display}.")
+            else:
+                show_error_panel("Mode Change Failed", f"Failed to change repository mode for '{name}'.")
+                raise typer.Exit(1)
+        
+    except Exception as e:
+        show_error_panel("Mode Error", f"Failed to manage repository mode for '{name}': {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("protection-status")
+def repos_protection_status(
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Show repository protection status."""
+    setup_logging(verbose, config_dir)
+    try:
+        # Initialize security service
+        from .security import CredentialManager
+        credential_manager = CredentialManager(config_dir=config_dir)
+        security_service = SecurityService(credential_manager, config_dir=config_dir)
+
+        # Get protection status
+        status = security_service.get_repository_protection_status()
+
+        # Create status table
+        table = Table(title="Repository Protection Status")
+        table.add_column("Metric", style="cyan", no_wrap=True)
+        table.add_column("Value", style="white")
+
+        table.add_row("Active Locks", str(status.get('active_locks', 0)))
+        table.add_row("Total Locks", str(status.get('total_locks', 0)))
+        table.add_row("Read-Only Repositories", str(status.get('read_only_repositories', 0)))
+        table.add_row("Locked Repositories", str(status.get('locked_repositories', 0)))
+        table.add_row("Protected Repositories", str(status.get('total_protected_repositories', 0)))
+
+        console.print(table)
+        
+    except Exception as e:
+        show_error_panel("Status Error", f"Failed to get protection status: {e}")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
@@ -3450,21 +3650,104 @@ def snapshots_umount(
 def snapshots_forget(
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID", autocompletion=snapshot_id_completer)],
         repository: Annotated[Optional[str], typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
+        yes: Annotated[bool, typer.Option("--yes", "-y", help="Confirm deletion without prompt")] = False,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
 ) -> None:
-    setup_logging(verbose)
+    """Forget (remove) a specific snapshot."""
+    setup_logging(verbose, config_dir)
     try:
         if repository:
             validate_repository_name_or_uri(repository)
         validate_snapshot_id_format(snapshot_id, allow_latest=True)
-        show_error_panel("Not Implemented", "Snapshot 'forget' command is not implemented yet")
+
+        # Get repository name for confirmation
+        repo_name = repository or "default"
+        
+        # Get repository information for confirmation
+        try:
+            config_manager = ConfigurationManager(config_dir=config_dir)
+            if repository:
+                repo_config = config_manager.get_repository(repository)
+            else:
+                repo_config = config_manager.get_default_repository()
+                repo_name = repo_config.get('name', 'default')
+        except ConfigurationError:
+            repo_config = {'uri': repository or 'Unknown'}
+
+        # Create repository info for confirmation
+        repository_info = {
+            'repository_id': repo_name,
+            'name': repo_name,
+            'location': repo_config.get('uri', 'Unknown'),
+            'mode': 'read_write'  # Default mode
+        }
+
+        # Initialize security service for confirmation
+        from .security import CredentialManager
+        credential_manager = CredentialManager(config_dir=config_dir)
+        security_service = SecurityService(credential_manager, config_dir=config_dir)
+
+        # Check if repository is locked
+        if security_service.is_repository_locked(repo_name):
+            show_error_panel("Repository Locked", 
+                           f"Repository '{repo_name}' is currently locked and snapshots cannot be modified. "
+                           f"Please unlock it first using 'timelocker repos unlock {repo_name}'.")
+            raise typer.Exit(1)
+
+        # Check if operation is allowed
+        if not security_service.is_operation_allowed(repo_name, "delete"):
+            mode = security_service.get_repository_mode(repo_name)
+            show_error_panel("Operation Not Allowed", 
+                           f"Repository '{repo_name}' is in {mode} mode and does not allow snapshot deletion.")
+            raise typer.Exit(1)
+
+        # Use enhanced confirmation for snapshot deletion
+        if not yes:
+            try:
+                # Create confirmation dialogs
+                confirmation_dialogs = ConfirmationDialogs()
+                
+                # Create repository info object
+                from .security import RepositoryInfo, RepositoryMode
+                repo_info = RepositoryInfo(
+                    repository_id=repo_name,
+                    name=repo_name,
+                    location=repository_info['location'],
+                    mode=RepositoryMode.READ_WRITE
+                )
+                
+                confirmed = confirmation_dialogs.confirm_snapshot_deletion(
+                    repo_info, snapshot_id, force=False
+                )
+                if not confirmed:
+                    show_info_panel("Operation Cancelled", "Snapshot deletion cancelled.")
+                    raise typer.Exit(0)
+            except Exception as e:
+                # Fallback to simple confirmation if security service fails
+                logger.warning(f"Security confirmation failed, using simple confirmation: {e}")
+                interactive = sys.stdin.isatty()
+                if interactive:
+                    confirmed = Confirm.ask(f"Delete snapshot '{snapshot_id}' from repository '{repo_name}'?", default=False)
+                    if not confirmed:
+                        show_info_panel("Operation Cancelled", "Snapshot deletion cancelled.")
+                        raise typer.Exit(0)
+
+        # TODO: Implement actual snapshot deletion
+        show_error_panel("Not Implemented", "Snapshot 'forget' command implementation is pending")
         raise typer.Exit(1)
+        
     except ValueError as ve:
         show_error_panel("Invalid Input", str(ve))
         raise typer.Exit(1)
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "Operation cancelled by user")
         raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Forget Error", f"Failed to forget snapshot: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
 
 
 @snapshots_app.command("find")

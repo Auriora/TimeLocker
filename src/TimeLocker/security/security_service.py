@@ -27,6 +27,8 @@ from dataclasses import dataclass
 from enum import Enum
 
 from .credential_manager import CredentialManager
+from .repository_protection import RepositoryProtectionManager, RepositoryInfo, RepositoryMode
+from .confirmation_dialogs import ConfirmationDialogs
 
 logger = logging.getLogger(__name__)
 
@@ -104,6 +106,12 @@ class SecurityService:
             # Import here to avoid circular imports
             from .security_logger import SecurityLogger
             self.security_logger = SecurityLogger(config_dir=config_dir)
+
+        # Repository protection manager
+        self.repository_protection = RepositoryProtectionManager(config_dir=config_dir)
+        
+        # Confirmation dialogs
+        self.confirmation_dialogs = ConfirmationDialogs()
 
         # Initialize audit log
         self._initialize_audit_log()
@@ -832,3 +840,261 @@ class SecurityService:
 
         except Exception as e:
             logger.error(f"Failed to audit integrity check: {e}")
+
+    # Repository Protection Methods
+
+    def lock_repository(self, repository_id: str, operation: str, 
+                       locked_by: str = "system", timeout_minutes: Optional[int] = None) -> str:
+        """
+        Lock repository to prevent accidental modifications
+        
+        Args:
+            repository_id: Repository ID to lock
+            operation: Operation that requires the lock
+            locked_by: User or process locking the repository
+            timeout_minutes: Lock timeout in minutes
+            
+        Returns:
+            str: Lock ID for the created lock
+        """
+        try:
+            lock_id = self.repository_protection.lock_repository(
+                repository_id, operation, locked_by, timeout_minutes
+            )
+            
+            # Log security event
+            self.log_security_event(SecurityEvent(
+                timestamp=datetime.now(),
+                event_type="repository_lock",
+                level=SecurityLevel.MEDIUM,
+                description=f"Repository locked for operation: {operation}",
+                repository_id=repository_id,
+                metadata={
+                    "lock_id": lock_id,
+                    "operation": operation,
+                    "locked_by": locked_by,
+                    "timeout_minutes": timeout_minutes
+                }
+            ))
+            
+            return lock_id
+            
+        except Exception as e:
+            logger.error(f"Failed to lock repository {repository_id}: {e}")
+            raise SecurityError(f"Failed to lock repository: {e}")
+
+    def unlock_repository(self, repository_id: str, lock_id: Optional[str] = None,
+                         unlocked_by: str = "system") -> bool:
+        """
+        Unlock repository
+        
+        Args:
+            repository_id: Repository ID to unlock
+            lock_id: Specific lock ID to remove (optional)
+            unlocked_by: User or process unlocking the repository
+            
+        Returns:
+            bool: True if repository was unlocked successfully
+        """
+        try:
+            success = self.repository_protection.unlock_repository(
+                repository_id, lock_id, unlocked_by
+            )
+            
+            # Log security event
+            self.log_security_event(SecurityEvent(
+                timestamp=datetime.now(),
+                event_type="repository_unlock",
+                level=SecurityLevel.MEDIUM,
+                description=f"Repository unlock {'successful' if success else 'failed'}",
+                repository_id=repository_id,
+                metadata={
+                    "lock_id": lock_id,
+                    "unlocked_by": unlocked_by,
+                    "success": success
+                }
+            ))
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Failed to unlock repository {repository_id}: {e}")
+            return False
+
+    def is_repository_locked(self, repository_id: str) -> bool:
+        """
+        Check if repository is currently locked
+        
+        Args:
+            repository_id: Repository ID to check
+            
+        Returns:
+            bool: True if repository is locked
+        """
+        return self.repository_protection.is_repository_locked(repository_id)
+
+    def set_repository_mode(self, repository_id: str, mode: str,
+                           changed_by: str = "system") -> bool:
+        """
+        Set repository access mode
+        
+        Args:
+            repository_id: Repository ID to set mode for
+            mode: Repository mode ('read_write', 'read_only', 'locked')
+            changed_by: User or process changing the mode
+            
+        Returns:
+            bool: True if mode was set successfully
+        """
+        try:
+            # Convert string to RepositoryMode enum
+            if mode == "read_write":
+                repo_mode = RepositoryMode.READ_WRITE
+            elif mode == "read_only":
+                repo_mode = RepositoryMode.READ_ONLY
+            elif mode == "locked":
+                repo_mode = RepositoryMode.LOCKED
+            else:
+                raise ValueError(f"Invalid repository mode: {mode}")
+            
+            success = self.repository_protection.set_repository_mode(
+                repository_id, repo_mode, changed_by
+            )
+            
+            # Log security event
+            self.log_security_event(SecurityEvent(
+                timestamp=datetime.now(),
+                event_type="repository_mode_change",
+                level=SecurityLevel.MEDIUM,
+                description=f"Repository mode changed to {mode}",
+                repository_id=repository_id,
+                metadata={
+                    "new_mode": mode,
+                    "changed_by": changed_by,
+                    "success": success
+                }
+            ))
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Failed to set repository mode for {repository_id}: {e}")
+            return False
+
+    def get_repository_mode(self, repository_id: str) -> str:
+        """
+        Get repository access mode
+        
+        Args:
+            repository_id: Repository ID to get mode for
+            
+        Returns:
+            str: Current repository mode
+        """
+        mode = self.repository_protection.get_repository_mode(repository_id)
+        return mode.value
+
+    def is_operation_allowed(self, repository_id: str, operation: str) -> bool:
+        """
+        Check if operation is allowed on repository
+        
+        Args:
+            repository_id: Repository ID to check
+            operation: Operation to check
+            
+        Returns:
+            bool: True if operation is allowed
+        """
+        return self.repository_protection.is_operation_allowed(repository_id, operation)
+
+    def confirm_destructive_operation(self, operation_type: str, repository_info: Dict[str, Any],
+                                    force: bool = False) -> bool:
+        """
+        Confirm destructive operation with user
+        
+        Args:
+            operation_type: Type of destructive operation
+            repository_info: Repository information dictionary
+            force: Skip confirmation if True
+            
+        Returns:
+            bool: True if operation is confirmed
+        """
+        try:
+            # Convert dictionary to RepositoryInfo object
+            repo_info = RepositoryInfo(
+                repository_id=repository_info.get('repository_id', ''),
+                name=repository_info.get('name', ''),
+                location=repository_info.get('location', ''),
+                size_bytes=repository_info.get('size_bytes'),
+                snapshot_count=repository_info.get('snapshot_count'),
+                last_backup=repository_info.get('last_backup'),
+                created_at=repository_info.get('created_at'),
+                mode=RepositoryMode(repository_info.get('mode', 'read_write'))
+            )
+            
+            # Create destructive operation info
+            operation = self.repository_protection.create_destructive_operation_info(
+                operation_type, repo_info
+            )
+            
+            # Get confirmation
+            confirmed = self.confirmation_dialogs.confirm_destructive_operation(operation, force)
+            
+            # Log security event
+            self.log_security_event(SecurityEvent(
+                timestamp=datetime.now(),
+                event_type="destructive_operation_confirmation",
+                level=SecurityLevel.HIGH,
+                description=f"Destructive operation {operation_type} {'confirmed' if confirmed else 'cancelled'}",
+                repository_id=repo_info.repository_id,
+                metadata={
+                    "operation_type": operation_type,
+                    "confirmed": confirmed,
+                    "force": force
+                }
+            ))
+            
+            return confirmed
+            
+        except Exception as e:
+            logger.error(f"Failed to confirm destructive operation: {e}")
+            return False
+
+    def cleanup_repository_protection(self) -> Dict[str, int]:
+        """
+        Clean up expired repository locks and protection data
+        
+        Returns:
+            Dict: Cleanup statistics
+        """
+        try:
+            expired_locks = self.repository_protection.cleanup_expired_locks()
+            
+            # Log cleanup event
+            self.log_security_event(SecurityEvent(
+                timestamp=datetime.now(),
+                event_type="repository_protection_cleanup",
+                level=SecurityLevel.LOW,
+                description=f"Repository protection cleanup completed",
+                metadata={
+                    "expired_locks_cleaned": expired_locks
+                }
+            ))
+            
+            return {
+                "expired_locks_cleaned": expired_locks
+            }
+            
+        except Exception as e:
+            logger.error(f"Repository protection cleanup failed: {e}")
+            return {"expired_locks_cleaned": 0}
+
+    def get_repository_protection_status(self) -> Dict[str, Any]:
+        """
+        Get repository protection status
+        
+        Returns:
+            Dict: Protection status information
+        """
+        return self.repository_protection.get_protection_status()

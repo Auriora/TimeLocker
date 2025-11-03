@@ -25,6 +25,11 @@ from .access_manager import (
     AccessManager, AccessManagerError, AuthenticationError, AuthorizationError, SessionError,
     UserCredentials, AuthResult, Session, SecurityContext, Operation
 )
+from .repository_protection import (
+    RepositoryProtectionManager, RepositoryProtectionError, RepositoryLockError, RepositoryAccessError,
+    RepositoryMode, RepositoryLock, RepositoryInfo, DestructiveOperation
+)
+from .confirmation_dialogs import ConfirmationDialogs, ConfirmationError, ConfirmationCancelledError
 
 __all__ = [
     'CredentialManager', 'CredentialManagerError', 'CredentialAccessError', 'CredentialSecurityError',
@@ -32,5 +37,8 @@ __all__ = [
     'SecurityLogger', 'SecurityLogEntry', 'SecurityLogLevel', 'SecurityEventType', 
     'EventFilter', 'SecurityNotification',
     'AccessManager', 'AccessManagerError', 'AuthenticationError', 'AuthorizationError', 'SessionError',
-    'UserCredentials', 'AuthResult', 'Session', 'SecurityContext', 'Operation'
+    'UserCredentials', 'AuthResult', 'Session', 'SecurityContext', 'Operation',
+    'RepositoryProtectionManager', 'RepositoryProtectionError', 'RepositoryLockError', 'RepositoryAccessError',
+    'RepositoryMode', 'RepositoryLock', 'RepositoryInfo', 'DestructiveOperation',
+    'ConfirmationDialogs', 'ConfirmationError', 'ConfirmationCancelledError'
 ]
