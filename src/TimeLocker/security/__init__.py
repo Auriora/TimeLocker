@@ -17,6 +17,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from .credential_manager import CredentialManager, CredentialManagerError, CredentialAccessError, CredentialSecurityError
 from .security_service import SecurityService, SecurityError, SecurityEvent, SecurityLevel
+from .security_logger import (
+    SecurityLogger, SecurityLogEntry, SecurityLogLevel, SecurityEventType, 
+    EventFilter, SecurityNotification
+)
+from .access_manager import (
+    AccessManager, AccessManagerError, AuthenticationError, AuthorizationError, SessionError,
+    UserCredentials, AuthResult, Session, SecurityContext, Operation
+)
 
-__all__ = ['CredentialManager', 'CredentialManagerError', 'CredentialAccessError', 'CredentialSecurityError', 'SecurityService', 'SecurityError',
-           'SecurityEvent', 'SecurityLevel']
+__all__ = [
+    'CredentialManager', 'CredentialManagerError', 'CredentialAccessError', 'CredentialSecurityError',
+    'SecurityService', 'SecurityError', 'SecurityEvent', 'SecurityLevel',
+    'SecurityLogger', 'SecurityLogEntry', 'SecurityLogLevel', 'SecurityEventType', 
+    'EventFilter', 'SecurityNotification',
+    'AccessManager', 'AccessManagerError', 'AuthenticationError', 'AuthorizationError', 'SessionError',
+    'UserCredentials', 'AuthResult', 'Session', 'SecurityContext', 'Operation'
+]

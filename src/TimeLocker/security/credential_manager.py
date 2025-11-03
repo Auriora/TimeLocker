@@ -53,7 +53,8 @@ class CredentialManager:
     Stores credentials encrypted on disk using a master password.
     """
 
-    def __init__(self, config_dir: Optional[Path] = None, auto_lock_timeout: int = 1800):
+    def __init__(self, config_dir: Optional[Path] = None, auto_lock_timeout: int = 1800,
+                 security_logger: Optional['SecurityLogger'] = None):
         """
         Initialize credential manager
 
@@ -61,6 +62,7 @@ class CredentialManager:
             config_dir: Directory to store encrypted credentials.
                        Defaults to ~/.timelocker/credentials
             auto_lock_timeout: Auto-lock timeout in seconds (default: 30 minutes)
+            security_logger: Optional SecurityLogger instance for enhanced logging
         """
         if config_dir is None:
             config_dir = Path.home() / ".timelocker" / "credentials"
@@ -81,6 +83,18 @@ class CredentialManager:
 
         # Thread safety for concurrent access
         self._file_lock = threading.RLock()
+
+        # Enhanced security logger
+        self.security_logger = security_logger
+        if self.security_logger is None:
+            try:
+                # Import here to avoid circular imports
+                from .security_logger import SecurityLogger
+                # Use parent directory for security logger to align with SecurityService
+                security_config_dir = self.config_dir.parent / "security"
+                self.security_logger = SecurityLogger(config_dir=security_config_dir)
+            except ImportError:
+                self.security_logger = None
 
         # Initialize audit logging
         self._initialize_audit_log()
@@ -104,6 +118,42 @@ class CredentialManager:
         except Exception:
             # Don't fail operations due to audit logging issues
             pass
+
+        # Also log to SecurityLogger for enhanced functionality
+        if self.security_logger:
+            try:
+                from .security_logger import SecurityLogEntry, SecurityLogLevel, SecurityEventType
+                
+                # Determine appropriate level based on success and operation
+                if not success:
+                    level = SecurityLogLevel.HIGH
+                elif operation in ["unlock", "lock", "change_master_password"]:
+                    level = SecurityLogLevel.MEDIUM
+                else:
+                    level = SecurityLogLevel.LOW
+                
+                description = f"Credential {operation}: {'SUCCESS' if success else 'FAILED'}"
+                if details:
+                    description += f" - {details}"
+                
+                security_log_entry = SecurityLogEntry(
+                    timestamp=datetime.now(),
+                    event_type=SecurityEventType.CREDENTIAL_ACCESS,
+                    level=level,
+                    description=description,
+                    repository_id=credential_id if credential_id else None,
+                    metadata={
+                        "operation": operation,
+                        "success": success,
+                        "details": details
+                    },
+                    source="CredentialManager"
+                )
+                
+                self.security_logger.log_event(security_log_entry)
+            except Exception:
+                # Don't fail operations due to enhanced logging issues
+                pass
 
     def _log_access_event(self, operation: str, success: bool = True, details: str = ""):
         """Log access event for security monitoring"""

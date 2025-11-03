@@ -29,6 +29,10 @@ try:
     HAS_WATCHDOG = True
 except ImportError:
     HAS_WATCHDOG = False
+    Observer = None
+    FileSystemEventHandler = object  # Fallback base class
+    FileModifiedEvent = None
+    FileCreatedEvent = None
     logger.warning("watchdog library not available, using polling fallback")
 
 

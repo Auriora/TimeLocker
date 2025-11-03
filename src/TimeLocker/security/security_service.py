@@ -72,13 +72,15 @@ class SecurityService:
     and provides additional security features including audit logging and monitoring.
     """
 
-    def __init__(self, credential_manager: CredentialManager, config_dir: Optional[Path] = None):
+    def __init__(self, credential_manager: CredentialManager, config_dir: Optional[Path] = None, 
+                 security_logger: Optional['SecurityLogger'] = None):
         """
         Initialize security service
         
         Args:
             credential_manager: Credential manager instance
             config_dir: Directory for security configuration and logs
+            security_logger: Optional SecurityLogger instance for enhanced logging
         """
         self.credential_manager = credential_manager
 
@@ -96,8 +98,18 @@ class SecurityService:
         # Security event handlers
         self._event_handlers: List[Callable[[SecurityEvent], None]] = []
 
+        # Enhanced security logger
+        self.security_logger = security_logger
+        if self.security_logger is None:
+            # Import here to avoid circular imports
+            from .security_logger import SecurityLogger
+            self.security_logger = SecurityLogger(config_dir=config_dir)
+
         # Initialize audit log
         self._initialize_audit_log()
+        
+        # Integrate with existing logs
+        self.security_logger.integrate_with_existing_logs()
 
     def _initialize_audit_log(self):
         """Initialize the audit log with proper headers"""
@@ -124,7 +136,7 @@ class SecurityService:
             event: Security event to log
         """
         try:
-            # Create audit log entry
+            # Create audit log entry (maintain backward compatibility)
             log_entry = (
                     f"{event.timestamp.isoformat()}|"
                     f"{event.event_type}|"
@@ -138,6 +150,44 @@ class SecurityService:
             # Write to audit log
             with open(self.audit_log_file, 'a') as f:
                 f.write(log_entry + "\n")
+
+            # Also log to SecurityLogger for enhanced functionality
+            if self.security_logger:
+                from .security_logger import SecurityLogEntry, SecurityLogLevel, SecurityEventType
+                
+                # Map SecurityLevel to SecurityLogLevel
+                level_mapping = {
+                    SecurityLevel.LOW: SecurityLogLevel.LOW,
+                    SecurityLevel.MEDIUM: SecurityLogLevel.MEDIUM,
+                    SecurityLevel.HIGH: SecurityLogLevel.HIGH,
+                    SecurityLevel.CRITICAL: SecurityLogLevel.CRITICAL
+                }
+                
+                # Map event type string to SecurityEventType
+                event_type_mapping = {
+                    "encryption_verification": SecurityEventType.ENCRYPTION_VERIFICATION,
+                    "integrity_validation": SecurityEventType.INTEGRITY_CHECK,
+                    "integrity_validation_error": SecurityEventType.INTEGRITY_CHECK,
+                    "credential_access": SecurityEventType.CREDENTIAL_ACCESS,
+                    "backup_operation": SecurityEventType.BACKUP_OPERATION,
+                    "restore_operation": SecurityEventType.RESTORE_OPERATION,
+                    "emergency_lockdown": SecurityEventType.EMERGENCY_LOCKDOWN,
+                    "emergency_lockdown_failed": SecurityEventType.EMERGENCY_LOCKDOWN,
+                    "integrity_check": SecurityEventType.INTEGRITY_CHECK,
+                }
+                
+                security_log_entry = SecurityLogEntry(
+                    timestamp=event.timestamp,
+                    event_type=event_type_mapping.get(event.event_type, SecurityEventType.SYSTEM_EVENT),
+                    level=level_mapping.get(event.level, SecurityLogLevel.MEDIUM),
+                    description=event.description,
+                    user_id=event.user_id,
+                    repository_id=event.repository_id,
+                    metadata=event.metadata,
+                    source="SecurityService"
+                )
+                
+                self.security_logger.log_event(security_log_entry)
 
             # Notify event handlers
             for handler in self._event_handlers:
@@ -573,6 +623,130 @@ class SecurityService:
                 ))
             except:
                 pass  # If we can't even log, we're in serious trouble
+            return False
+
+    def get_security_logs(self, days: int = 7, event_type: Optional[str] = None, 
+                         level: Optional[str] = None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """
+        Get security logs with user-friendly filtering
+        
+        Args:
+            days: Number of days to look back (default: 7)
+            event_type: Filter by event type (optional)
+            level: Filter by security level (optional)
+            limit: Maximum number of entries to return (optional)
+            
+        Returns:
+            List of security log entries as dictionaries
+        """
+        if not self.security_logger:
+            return []
+        
+        try:
+            from .security_logger import EventFilter, SecurityEventType, SecurityLogLevel
+            
+            # Build filter criteria
+            filter_criteria = EventFilter(
+                start_date=datetime.now() - timedelta(days=days),
+                limit=limit
+            )
+            
+            if event_type:
+                try:
+                    filter_criteria.event_types = [SecurityEventType(event_type)]
+                except ValueError:
+                    logger.warning(f"Invalid event type: {event_type}")
+            
+            if level:
+                try:
+                    filter_criteria.levels = [SecurityLogLevel(level)]
+                except ValueError:
+                    logger.warning(f"Invalid security level: {level}")
+            
+            # Get events and convert to dictionaries
+            events = self.security_logger.get_events(filter_criteria)
+            return [event.to_dict() for event in events]
+            
+        except Exception as e:
+            logger.error(f"Failed to get security logs: {e}")
+            return []
+
+    def get_security_notifications(self, hours: int = 24) -> List[Dict[str, Any]]:
+        """
+        Get recent security notifications
+        
+        Args:
+            hours: Number of hours to look back (default: 24)
+            
+        Returns:
+            List of security notifications as dictionaries
+        """
+        if not self.security_logger:
+            return []
+        
+        try:
+            notifications = self.security_logger.get_notifications(hours=hours)
+            return [notification.to_dict() for notification in notifications]
+            
+        except Exception as e:
+            logger.error(f"Failed to get security notifications: {e}")
+            return []
+
+    def cleanup_security_logs(self) -> bool:
+        """
+        Clean up old security logs based on retention policy
+        
+        Returns:
+            True if cleanup successful, False otherwise
+        """
+        if not self.security_logger:
+            return False
+        
+        try:
+            self.security_logger.cleanup_old_logs()
+            logger.info("Security log cleanup completed")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to cleanup security logs: {e}")
+            return False
+
+    def export_security_logs(self, output_path: str, days: int = 30, 
+                           format_type: str = "json") -> bool:
+        """
+        Export security logs to a file
+        
+        Args:
+            output_path: Path to export file
+            days: Number of days to include in export (default: 30)
+            format_type: Export format ("json" or "csv")
+            
+        Returns:
+            True if export successful, False otherwise
+        """
+        if not self.security_logger:
+            return False
+        
+        try:
+            from .security_logger import EventFilter
+            
+            filter_criteria = EventFilter(
+                start_date=datetime.now() - timedelta(days=days)
+            )
+            
+            success = self.security_logger.export_logs(
+                output_path=Path(output_path),
+                filter_criteria=filter_criteria,
+                format_type=format_type
+            )
+            
+            if success:
+                logger.info(f"Security logs exported to: {output_path}")
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Failed to export security logs: {e}")
             return False
 
     def audit_integrity_check(self, repository=None, check_type: str = None, success: bool = None,

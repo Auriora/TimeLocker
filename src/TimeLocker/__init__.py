@@ -25,7 +25,7 @@ from .snapshot_manager import SnapshotManager
 from .file_selections import FileSelection, PatternGroup
 
 # Security components
-from .security import SecurityService, CredentialManager
+from .security import SecurityService, CredentialManager, SecurityLogger
 
 # Monitoring components
 from .monitoring import StatusReporter, NotificationService
@@ -52,6 +52,7 @@ __all__ = [
         # Security components
         'SecurityService',
         'CredentialManager',
+        'SecurityLogger',
 
         # Monitoring components
         'StatusReporter',
