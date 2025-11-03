@@ -21,7 +21,7 @@ import os
 import re
 from enum import auto, Enum
 from pathlib import Path
-from typing import Dict, List, Set, Union, Optional
+from typing import Dict, List, Set, Union, Optional, Any
 from functools import lru_cache
 
 from .utils import (
@@ -58,6 +58,18 @@ class PatternGroup:
             "source_code":      [
                     "*.py", "*.java", "*.cpp", "*.h", "*.js", "*.ts",
                     "*.html", "*.css", "*.sql"
+            ],
+            "sensitive_files": [
+                    "*tax*", "*bank*", "*financial*", "*invoice*", "*receipt*", "*.qif", "*.ofx",
+                    "*passport*", "*ssn*", "*social*security*", "*birth*certificate*", "*medical*",
+                    "*.key", "*.pem", "*.p12", "*.pfx", "*password*", "*credential*", "*.keychain",
+                    "*cookies*", "*history*", "*bookmarks*", "*login*data*", "*web*data*"
+            ],
+            "privacy_exclude": [
+                    "*.tmp", "*.temp", "~*", "*.bak", "*.swp", "*.cache",
+                    "__pycache__/*", "*.pyc", "node_modules/*",
+                    "*.key", "*.pem", "*.p12", "*.pfx", "*password*", "*credential*",
+                    "*cookies*", "*history*", "*login*data*", "*web*data*"
             ]
     }
 
@@ -521,6 +533,108 @@ class FileSelection:
 
         finally:
             complete_operation_tracking(operation_id)
+
+    def apply_privacy_exclusions(self, privacy_level: str = "medium") -> None:
+        """
+        Apply privacy-based exclusions to protect sensitive data
+        
+        Args:
+            privacy_level: Level of privacy protection ("low", "medium", "high")
+        """
+        if privacy_level == "low":
+            # Only exclude temporary files
+            self.add_pattern_group("temporary_files", SelectionType.EXCLUDE)
+        elif privacy_level == "medium":
+            # Exclude temporary files and common privacy-sensitive patterns
+            self.add_pattern_group("privacy_exclude", SelectionType.EXCLUDE)
+        elif privacy_level == "high":
+            # Exclude all sensitive file patterns
+            self.add_pattern_group("sensitive_files", SelectionType.EXCLUDE)
+            self.add_pattern_group("temporary_files", SelectionType.EXCLUDE)
+
+    def get_privacy_analysis(self) -> Dict[str, Any]:
+        """
+        Analyze the current selection for privacy implications
+        
+        Returns:
+            Dict containing privacy analysis results
+        """
+        analysis = {
+            "sensitive_patterns_included": [],
+            "privacy_recommendations": [],
+            "estimated_sensitive_files": 0,
+            "privacy_level": "unknown"
+        }
+
+        # Check if sensitive file patterns are excluded
+        sensitive_excluded = False
+        temp_excluded = False
+        
+        for pattern in self._exclude_patterns:
+            if any(sens_pattern in pattern.lower() for sens_pattern in 
+                   ["*password*", "*credential*", "*.key", "*cookies*", "*history*"]):
+                sensitive_excluded = True
+            if any(temp_pattern in pattern.lower() for temp_pattern in 
+                   ["*.tmp", "*.temp", "*.cache", "*.bak"]):
+                temp_excluded = True
+
+        # Determine privacy level
+        if sensitive_excluded and temp_excluded:
+            analysis["privacy_level"] = "high"
+        elif temp_excluded:
+            analysis["privacy_level"] = "medium"
+        else:
+            analysis["privacy_level"] = "low"
+
+        # Generate recommendations
+        if not temp_excluded:
+            analysis["privacy_recommendations"].append({
+                "type": "exclude_temporary",
+                "description": "Consider excluding temporary files to protect cached sensitive data",
+                "action": "Add temporary file exclusion patterns"
+            })
+
+        if not sensitive_excluded:
+            analysis["privacy_recommendations"].append({
+                "type": "exclude_sensitive",
+                "description": "Consider excluding sensitive files like credentials and browser data",
+                "action": "Add sensitive file exclusion patterns"
+            })
+
+        return analysis
+
+    def get_sensitive_file_count_estimate(self) -> int:
+        """
+        Estimate the number of potentially sensitive files in the selection
+        
+        Returns:
+            int: Estimated count of sensitive files
+        """
+        sensitive_count = 0
+        
+        # Sample files to estimate sensitive file count
+        for include_path in self._includes:
+            if include_path.exists() and include_path.is_dir():
+                file_count = 0
+                for file_path in include_path.rglob("*"):
+                    if file_path.is_file() and file_count < 1000:  # Limit sampling
+                        filename = file_path.name.lower()
+                        path_str = str(file_path).lower()
+                        
+                        # Check for sensitive patterns
+                        sensitive_indicators = [
+                            "password", "credential", "key", "certificate",
+                            "cookies", "history", "login", "bank", "tax",
+                            "financial", "medical", "passport", "ssn"
+                        ]
+                        
+                        if any(indicator in filename or indicator in path_str 
+                               for indicator in sensitive_indicators):
+                            sensitive_count += 1
+                        
+                        file_count += 1
+
+        return sensitive_count
 
     def __repr__(self) -> str:
         return (f"<FileSelection includes={self._includes}, "

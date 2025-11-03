@@ -22,7 +22,7 @@ import time
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Any, Callable
+from typing import Dict, List, Optional, Any, Callable, Union
 from dataclasses import dataclass
 from enum import Enum
 
@@ -112,6 +112,13 @@ class SecurityService:
         
         # Confirmation dialogs
         self.confirmation_dialogs = ConfirmationDialogs()
+
+        # Data privacy manager
+        from .data_privacy_manager import DataPrivacyManager
+        self.data_privacy_manager = DataPrivacyManager(
+            config_dir=config_dir,
+            security_logger=self.security_logger
+        )
 
         # Initialize audit log
         self._initialize_audit_log()
@@ -1098,3 +1105,210 @@ class SecurityService:
             Dict: Protection status information
         """
         return self.repository_protection.get_protection_status()
+
+    # Data Privacy Methods
+
+    def get_privacy_info(self) -> Dict[str, Any]:
+        """
+        Get privacy information for user display
+        
+        Returns:
+            Dict: Privacy information and status
+        """
+        try:
+            privacy_info = self.data_privacy_manager.get_privacy_info()
+            return {
+                "data_types_processed": privacy_info.data_types_processed,
+                "privacy_level": privacy_info.privacy_level.value,
+                "retention_period_hours": privacy_info.retention_period.total_seconds() / 3600 if privacy_info.retention_period else None,
+                "secure_deletion_enabled": privacy_info.secure_deletion_enabled,
+                "encryption_status": privacy_info.encryption_status,
+                "last_cleanup": privacy_info.last_cleanup.isoformat() if privacy_info.last_cleanup else None,
+                "temporary_files_location": privacy_info.temporary_files_location,
+                "privacy_policy_summary": privacy_info.privacy_policy_summary
+            }
+        except Exception as e:
+            logger.error(f"Failed to get privacy info: {e}")
+            return {}
+
+    def get_privacy_recommendations(self, file_selection: 'FileSelection') -> List[Dict[str, Any]]:
+        """
+        Get privacy recommendations for file selection
+        
+        Args:
+            file_selection: FileSelection object to analyze
+            
+        Returns:
+            List of privacy recommendations
+        """
+        try:
+            return self.data_privacy_manager.get_privacy_recommendations(file_selection)
+        except Exception as e:
+            logger.error(f"Failed to get privacy recommendations: {e}")
+            return []
+
+    def apply_privacy_exclusions(self, file_selection: 'FileSelection', 
+                                exclude_patterns: List[str]) -> bool:
+        """
+        Apply privacy-based exclusions to file selection
+        
+        Args:
+            file_selection: FileSelection object to modify
+            exclude_patterns: List of patterns to exclude for privacy
+            
+        Returns:
+            bool: True if exclusions were applied successfully
+        """
+        try:
+            self.data_privacy_manager.apply_privacy_exclusions(file_selection, exclude_patterns)
+            
+            # Log security event
+            self.log_security_event(SecurityEvent(
+                timestamp=datetime.now(),
+                event_type="data_privacy",
+                level=SecurityLevel.MEDIUM,
+                description=f"Privacy exclusions applied: {len(exclude_patterns)} patterns",
+                metadata={
+                    "patterns_count": len(exclude_patterns),
+                    "patterns": exclude_patterns[:5]  # Log first 5 patterns
+                }
+            ))
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to apply privacy exclusions: {e}")
+            return False
+
+    def cleanup_temporary_files(self, max_age_hours: Optional[int] = None) -> Dict[str, int]:
+        """
+        Clean up temporary files and cached data
+        
+        Args:
+            max_age_hours: Maximum age of files to keep
+            
+        Returns:
+            Dict: Cleanup statistics
+        """
+        try:
+            stats = self.data_privacy_manager.cleanup_temporary_files(max_age_hours)
+            
+            # Log security event
+            self.log_security_event(SecurityEvent(
+                timestamp=datetime.now(),
+                event_type="data_privacy",
+                level=SecurityLevel.LOW,
+                description=f"Temporary file cleanup completed",
+                metadata=stats
+            ))
+            
+            return stats
+            
+        except Exception as e:
+            logger.error(f"Failed to cleanup temporary files: {e}")
+            return {"registered_files_deleted": 0, "old_files_deleted": 0, "errors": 1}
+
+    def secure_delete_file(self, file_path: Union[str, Path]) -> bool:
+        """
+        Securely delete a file
+        
+        Args:
+            file_path: Path to file to delete
+            
+        Returns:
+            bool: True if deletion successful
+        """
+        try:
+            success = self.data_privacy_manager.secure_delete_file(file_path)
+            
+            # Log security event
+            self.log_security_event(SecurityEvent(
+                timestamp=datetime.now(),
+                event_type="data_privacy",
+                level=SecurityLevel.MEDIUM,
+                description=f"Secure file deletion {'successful' if success else 'failed'}",
+                metadata={
+                    "file_path": str(file_path),
+                    "success": success
+                }
+            ))
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Failed to securely delete file {file_path}: {e}")
+            return False
+
+    def register_temporary_file(self, file_path: Union[str, Path]) -> None:
+        """
+        Register a temporary file for automatic cleanup
+        
+        Args:
+            file_path: Path to temporary file
+        """
+        try:
+            self.data_privacy_manager.register_temporary_file(file_path)
+        except Exception as e:
+            logger.error(f"Failed to register temporary file {file_path}: {e}")
+
+    def get_sensitive_file_patterns(self) -> Dict[str, Any]:
+        """
+        Get sensitive file patterns for privacy protection
+        
+        Returns:
+            Dict: Sensitive file patterns and information
+        """
+        try:
+            patterns = self.data_privacy_manager.get_sensitive_file_patterns()
+            return {
+                name: {
+                    "pattern": pattern.pattern,
+                    "description": pattern.description,
+                    "privacy_level": pattern.privacy_level.value,
+                    "recommended_action": pattern.recommended_action
+                }
+                for name, pattern in patterns.items()
+            }
+        except Exception as e:
+            logger.error(f"Failed to get sensitive file patterns: {e}")
+            return {}
+
+    def check_file_sensitivity(self, file_path: Union[str, Path]) -> Optional[Dict[str, Any]]:
+        """
+        Check if a file is potentially sensitive
+        
+        Args:
+            file_path: Path to check
+            
+        Returns:
+            Dict with sensitivity information if file is sensitive, None otherwise
+        """
+        try:
+            sensitivity = self.data_privacy_manager.check_file_sensitivity(file_path)
+            if sensitivity:
+                return {
+                    "pattern": sensitivity.pattern,
+                    "description": sensitivity.description,
+                    "privacy_level": sensitivity.privacy_level.value,
+                    "recommended_action": sensitivity.recommended_action
+                }
+            return None
+        except Exception as e:
+            logger.error(f"Failed to check file sensitivity for {file_path}: {e}")
+            return None
+
+    def get_privacy_cleanup_statistics(self, days: int = 7) -> Dict[str, Any]:
+        """
+        Get privacy cleanup statistics
+        
+        Args:
+            days: Number of days to include in statistics
+            
+        Returns:
+            Dict: Cleanup statistics
+        """
+        try:
+            return self.data_privacy_manager.get_cleanup_statistics(days)
+        except Exception as e:
+            logger.error(f"Failed to get cleanup statistics: {e}")
+            return {}

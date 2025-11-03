@@ -30,6 +30,9 @@ from .repository_protection import (
     RepositoryMode, RepositoryLock, RepositoryInfo, DestructiveOperation
 )
 from .confirmation_dialogs import ConfirmationDialogs, ConfirmationError, ConfirmationCancelledError
+from .data_privacy_manager import (
+    DataPrivacyManager, PrivacyLevel, SecureDeletionMethod, PrivacyInfo, SensitiveFilePattern
+)
 
 __all__ = [
     'CredentialManager', 'CredentialManagerError', 'CredentialAccessError', 'CredentialSecurityError',
@@ -40,5 +43,6 @@ __all__ = [
     'UserCredentials', 'AuthResult', 'Session', 'SecurityContext', 'Operation',
     'RepositoryProtectionManager', 'RepositoryProtectionError', 'RepositoryLockError', 'RepositoryAccessError',
     'RepositoryMode', 'RepositoryLock', 'RepositoryInfo', 'DestructiveOperation',
-    'ConfirmationDialogs', 'ConfirmationError', 'ConfirmationCancelledError'
+    'ConfirmationDialogs', 'ConfirmationError', 'ConfirmationCancelledError',
+    'DataPrivacyManager', 'PrivacyLevel', 'SecureDeletionMethod', 'PrivacyInfo', 'SensitiveFilePattern'
 ]

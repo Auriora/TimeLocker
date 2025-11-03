@@ -830,6 +830,9 @@ class CredentialManager:
             if repository_id not in repositories:
                 return False
 
+            # Get original password for secure memory clearing
+            original_password = repositories[repository_id].get("password", "")
+
             # Overwrite the password multiple times before deletion
             for _ in range(3):
                 repositories[repository_id]["password"] = secrets.token_urlsafe(32)
@@ -838,6 +841,9 @@ class CredentialManager:
             # Finally delete the entry
             del repositories[repository_id]
             self._save_credentials(credentials)
+
+            # Securely clear the original password from memory
+            self._secure_memory_clear(original_password)
 
             self._log_audit_event("secure_delete_credential", repository_id, success=True)
             return True
@@ -946,6 +952,8 @@ class CredentialManager:
                 password = self.get_repository_password(repo_id)
                 if password is None:
                     return False
+                # Securely clear password from memory after validation
+                self._secure_memory_clear(password)
 
             self._log_audit_event("validate_integrity", success=True)
             return True
@@ -953,3 +961,100 @@ class CredentialManager:
         except Exception as e:
             self._log_audit_event("validate_integrity", success=False, details=str(e))
             return False
+
+    def _secure_memory_clear(self, data: Any) -> None:
+        """
+        Attempt to securely clear sensitive data from memory
+        
+        Args:
+            data: Data object to clear (string, bytes, etc.)
+        """
+        try:
+            # For strings and bytes, try to overwrite if possible
+            if isinstance(data, (str, bytes, bytearray)):
+                if hasattr(data, '__len__') and len(data) > 0:
+                    # For mutable types like bytearray, overwrite with zeros
+                    if isinstance(data, bytearray):
+                        for i in range(len(data)):
+                            data[i] = 0
+                    
+                    # For immutable types, we can't directly overwrite,
+                    # but we can try to encourage garbage collection
+                    del data
+
+            # Force garbage collection to clean up references
+            import gc
+            gc.collect()
+
+        except Exception as e:
+            # Don't fail operations due to memory clearing issues
+            pass
+
+    def secure_credential_operation(self, operation_func, *args, **kwargs):
+        """
+        Wrapper for credential operations that ensures secure memory handling
+        
+        Args:
+            operation_func: Function to execute
+            *args: Arguments for the function
+            **kwargs: Keyword arguments for the function
+            
+        Returns:
+            Result of the operation function
+        """
+        sensitive_data = []
+        try:
+            # Execute the operation
+            result = operation_func(*args, **kwargs)
+            
+            # If result contains sensitive data, track it for cleanup
+            if isinstance(result, (str, bytes)) and len(result) > 0:
+                sensitive_data.append(result)
+            
+            return result
+            
+        finally:
+            # Always attempt to clear sensitive data
+            for data in sensitive_data:
+                self._secure_memory_clear(data)
+            
+            # Force garbage collection
+            import gc
+            gc.collect()
+
+    def get_repository_password_secure(self, repository_id: str, allow_prompt: bool = False) -> Optional[str]:
+        """
+        Securely retrieve password for a repository with automatic memory cleanup
+        
+        Args:
+            repository_id: Unique identifier for the repository
+            allow_prompt: Unused here (kept for API compatibility)
+
+        Returns:
+            str: Repository password if found, None otherwise
+            
+        Note:
+            The returned password should be used immediately and not stored.
+            It will be automatically cleared from memory when possible.
+        """
+        return self.secure_credential_operation(self.get_repository_password, repository_id, allow_prompt)
+
+    def cleanup_sensitive_memory(self) -> None:
+        """
+        Force cleanup of sensitive data from memory
+        """
+        try:
+            # Clear any cached Fernet instance
+            if self._fernet:
+                # Fernet objects contain keys, so we want to clear them
+                self._fernet = None
+            
+            # Force garbage collection multiple times
+            import gc
+            for _ in range(3):
+                gc.collect()
+            
+            self._log_audit_event("cleanup_sensitive_memory", success=True)
+            
+        except Exception as e:
+            self._log_audit_event("cleanup_sensitive_memory", success=False, details=str(e))

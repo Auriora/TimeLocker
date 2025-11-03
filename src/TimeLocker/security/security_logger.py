@@ -46,6 +46,7 @@ class SecurityEventType(Enum):
     ENCRYPTION_VERIFICATION = "encryption_verification"
     EMERGENCY_LOCKDOWN = "emergency_lockdown"
     CONFIGURATION_CHANGE = "configuration_change"
+    DATA_PRIVACY = "data_privacy"
     SYSTEM_EVENT = "system_event"
 
 
