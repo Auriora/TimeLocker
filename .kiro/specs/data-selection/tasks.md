@@ -45,14 +45,14 @@
     - Create bulk import/export operations with merge strategies
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 5. Create pattern groups and application presets
-  - [ ] 5.1 Enhance PatternGroup system
+- [x] 5. Create pattern groups and application presets
+  - [x] 5.1 Enhance PatternGroup system
     - Extend existing PatternGroup with custom group support
     - Add pattern group CRUD operations and persistence
     - Implement pattern group expansion during evaluation
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
-  - [ ] 5.2 Implement application presets
+  - [x] 5.2 Implement application presets
     - Create ApplicationPreset data model and management
     - Add predefined presets for common applications (PostgreSQL, web development, etc.)
     - Implement platform-specific preset configurations

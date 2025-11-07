@@ -407,3 +407,101 @@ class PreviewResult:
     preview_generation_time: float = 0.0
     truncated: bool = False
     selection_summary: Optional[str] = None
+
+
+class PatternCategory(Enum):
+    """Categories for pattern groups"""
+    DOCUMENT_TYPES = "documents"
+    MEDIA_FILES = "media"
+    TEMPORARY_FILES = "temporary"
+    SOURCE_CODE = "source"
+    SYSTEM_FILES = "system"
+    APPLICATION_DATA = "application"
+    CUSTOM = "custom"
+
+
+@dataclass
+class PatternGroup:
+    """
+    A named collection of related file patterns.
+    
+    Attributes:
+        id: Unique identifier for the pattern group
+        name: Human-readable name
+        description: Description of the pattern group's purpose
+        patterns: List of pattern rules in the group
+        category: Category for the pattern group
+        is_system_group: Whether this is a system-provided group
+        created_at: When the group was created
+        usage_count: Number of times group has been used
+        metadata: Additional metadata
+    """
+    id: str
+    name: str
+    description: str
+    patterns: List[PatternRule]
+    category: PatternCategory = PatternCategory.CUSTOM
+    is_system_group: bool = False
+    created_at: datetime = field(default_factory=datetime.utcnow)
+    usage_count: int = 0
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    def __post_init__(self):
+        """Validate pattern group after initialization"""
+        if not self.id:
+            raise ValueError("Pattern group ID cannot be empty")
+        if not self.name:
+            raise ValueError("Pattern group name cannot be empty")
+        if not self.patterns:
+            raise ValueError("Pattern group must contain at least one pattern")
+
+
+class ApplicationCategory(Enum):
+    """Categories for application presets"""
+    DATABASE = "database"
+    WEB_SERVER = "web_server"
+    DEVELOPMENT = "development"
+    OFFICE_SUITE = "office"
+    MEDIA_PRODUCTION = "media"
+    SYSTEM_ADMIN = "system"
+    CUSTOM = "custom"
+
+
+@dataclass
+class ApplicationPreset:
+    """
+    Pre-configured selection for common applications.
+    
+    Attributes:
+        id: Unique identifier for the preset
+        name: Human-readable name
+        description: Description of the preset's purpose
+        application_name: Name of the application
+        selection_template: The selection template for this preset
+        category: Category for the preset
+        platform_specific: Platform-specific configurations (OS -> SelectionConfig)
+        version_compatibility: List of compatible application versions
+        installation_paths: Common installation paths for the application
+        is_system_preset: Whether this is a system-provided preset
+        metadata: Additional metadata
+    """
+    id: str
+    name: str
+    description: str
+    application_name: str
+    selection_template: SelectionTemplate
+    category: ApplicationCategory = ApplicationCategory.CUSTOM
+    platform_specific: Dict[str, SelectionConfig] = field(default_factory=dict)
+    version_compatibility: List[str] = field(default_factory=list)
+    installation_paths: List[str] = field(default_factory=list)
+    is_system_preset: bool = False
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    def __post_init__(self):
+        """Validate application preset after initialization"""
+        if not self.id:
+            raise ValueError("Application preset ID cannot be empty")
+        if not self.name:
+            raise ValueError("Application preset name cannot be empty")
+        if not self.application_name:
+            raise ValueError("Application name cannot be empty")
