@@ -50,6 +50,7 @@ from .engine import (
     RetentionDecision,
     PruneResult,
 )
+from .manager import PolicyManager
 
 __all__ = [
     # Exceptions
@@ -92,4 +93,6 @@ __all__ = [
     'PolicyEngine',
     'RetentionDecision',
     'PruneResult',
+    # Manager
+    'PolicyManager',
 ]
