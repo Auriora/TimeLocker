@@ -20,11 +20,21 @@ from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from enum import Enum
 
+from .data_models import (
+    BackupJobConfig,
+    BackupJob,
+    ValidationResult as JobValidationResult,
+    ExecutionMode
+)
+
 
 class BackupStatus(Enum):
     """Backup operation status"""
     PENDING = "pending"
+    VALIDATING = "validating"
+    PREPARING = "preparing"
     RUNNING = "running"
+    RETRYING = "retrying"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -201,6 +211,96 @@ class IBackupOrchestrator(ABC):
             
         Raises:
             BackupOrchestratorError: If verification fails
+        """
+        pass
+
+    @abstractmethod
+    def execute_backup_job(self, job_config: BackupJobConfig) -> BackupResult:
+        """
+        Execute a backup job with full orchestration.
+        
+        Args:
+            job_config: Backup job configuration
+            
+        Returns:
+            BackupResult with operation details
+            
+        Raises:
+            BackupOrchestratorError: If backup job cannot be executed
+        """
+        pass
+
+    @abstractmethod
+    def validate_job_configuration(self, job_config: BackupJobConfig) -> JobValidationResult:
+        """
+        Validate job configuration against tool capabilities and system state.
+        
+        Args:
+            job_config: Job configuration to validate
+            
+        Returns:
+            JobValidationResult with validation details
+            
+        Raises:
+            BackupOrchestratorError: If validation encounters critical errors
+        """
+        pass
+
+    @abstractmethod
+    def prepare_backup_job(self, job_config: BackupJobConfig) -> BackupJob:
+        """
+        Prepare a backup job for execution.
+        
+        This method integrates with Policy Management and Data Selection systems
+        to build a complete BackupJob ready for execution.
+        
+        Args:
+            job_config: Job configuration
+            
+        Returns:
+            BackupJob ready for execution
+            
+        Raises:
+            BackupOrchestratorError: If job preparation fails
+        """
+        pass
+
+    @abstractmethod
+    def queue_backup_job(self, job_config: BackupJobConfig) -> str:
+        """
+        Queue a backup job for execution.
+        
+        Args:
+            job_config: Job configuration to queue
+            
+        Returns:
+            Job ID for tracking
+            
+        Raises:
+            BackupOrchestratorError: If job cannot be queued
+        """
+        pass
+
+    @abstractmethod
+    def get_queued_jobs(self) -> List[BackupJobConfig]:
+        """
+        Get list of queued backup jobs.
+        
+        Returns:
+            List of queued job configurations
+        """
+        pass
+
+    @abstractmethod
+    def cancel_queued_job(self, job_id: str) -> bool:
+        """
+        Cancel a queued backup job.
+        
+        Args:
+            job_id: Job ID to cancel
+            
+        Returns:
+            True if job was cancelled, False if not found or already running
         """
         pass
 

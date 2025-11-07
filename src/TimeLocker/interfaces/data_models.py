@@ -230,3 +230,142 @@ class SnapshotDiffResult:
     unchanged_files: List[str]
     size_changes: Dict[str, Dict[str, int]] = field(default_factory=dict)  # file -> {'old': size, 'new': size}
     metadata_changes: Dict[str, Any] = field(default_factory=dict)
+
+
+class ExecutionMode(Enum):
+    """Backup execution mode"""
+    ON_DEMAND = "on_demand"
+    SCHEDULED = "scheduled"
+    MANUAL_RETRY = "manual_retry"
+    POLICY_DRIVEN = "policy_driven"
+
+
+@dataclass
+class RetryConfig:
+    """Configuration for retry logic"""
+    max_retries: int = 3
+    base_delay_seconds: float = 2.0
+    backoff_multiplier: float = 2.0
+    max_delay_seconds: float = 60.0
+    retry_on_errors: List[str] = field(default_factory=lambda: [
+        "network_timeout",
+        "connection_error",
+        "temporary_failure"
+    ])
+    
+    def __post_init__(self):
+        """Validate retry configuration"""
+        if self.max_retries < 0:
+            raise ValueError("max_retries must be non-negative")
+        if self.base_delay_seconds < 0:
+            raise ValueError("base_delay_seconds must be non-negative")
+        if self.backoff_multiplier < 1.0:
+            raise ValueError("backoff_multiplier must be >= 1.0")
+
+
+@dataclass
+class NotificationConfig:
+    """Configuration for backup notifications"""
+    enabled: bool = True
+    notify_on_success: bool = True
+    notify_on_failure: bool = True
+    notify_on_warning: bool = False
+    notification_channels: List[str] = field(default_factory=list)
+    minimum_duration_for_notification: float = 60.0  # seconds
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class BackupJobConfig:
+    """Configuration for a backup job execution"""
+    job_id: str
+    repository_id: str
+    execution_mode: ExecutionMode = ExecutionMode.ON_DEMAND
+    policy_id: Optional[str] = None
+    data_selection_id: Optional[str] = None
+    target_names: List[str] = field(default_factory=list)
+    tool_type: str = "restic"
+    tags: List[str] = field(default_factory=list)
+    retry_config: RetryConfig = field(default_factory=RetryConfig)
+    notification_config: NotificationConfig = field(default_factory=NotificationConfig)
+    dry_run: bool = False
+    priority: int = 0
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    def __post_init__(self):
+        """Validate job configuration"""
+        if not self.job_id:
+            raise ValueError("job_id cannot be empty")
+        if not self.repository_id:
+            raise ValueError("repository_id cannot be empty")
+        if not self.target_names and not self.data_selection_id and not self.policy_id:
+            raise ValueError("Must specify target_names, data_selection_id, or policy_id")
+
+
+@dataclass
+class ExecutionContext:
+    """Runtime context for backup job execution"""
+    start_time: float
+    attempt_number: int = 1
+    previous_errors: List[str] = field(default_factory=list)
+    environment: Dict[str, Any] = field(default_factory=dict)
+    performance_hints: Dict[str, Any] = field(default_factory=dict)
+    resource_limits: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class ToolConfiguration:
+    """Configuration for backup tool execution"""
+    tool_type: str
+    parallel_operations: int = 1
+    compression_level: Optional[int] = None
+    encryption_enabled: bool = True
+    integrity_check_enabled: bool = True
+    bandwidth_limit: Optional[int] = None  # bytes per second
+    tool_specific_options: Dict[str, Any] = field(default_factory=dict)
+    
+    def __post_init__(self):
+        """Validate tool configuration"""
+        if self.parallel_operations < 1:
+            raise ValueError("parallel_operations must be >= 1")
+        if self.compression_level is not None and not (0 <= self.compression_level <= 9):
+            raise ValueError("compression_level must be between 0 and 9")
+
+
+@dataclass
+class BackupJob:
+    """Runtime representation of a backup job"""
+    config: BackupJobConfig
+    source_paths: List[str] = field(default_factory=list)
+    exclude_patterns: List[str] = field(default_factory=list)
+    include_patterns: List[str] = field(default_factory=list)
+    tool_configuration: Optional[ToolConfiguration] = None
+    execution_context: Optional[ExecutionContext] = None
+    data_selection_config: Optional[Dict[str, Any]] = None
+    policy_config: Optional[Dict[str, Any]] = None
+    
+    def __post_init__(self):
+        """Initialize default values"""
+        if self.tool_configuration is None:
+            self.tool_configuration = ToolConfiguration(tool_type=self.config.tool_type)
+        if self.execution_context is None:
+            import time
+            self.execution_context = ExecutionContext(start_time=time.time())
+
+
+@dataclass
+class ValidationResult:
+    """Result of job configuration validation"""
+    is_valid: bool
+    errors: List[str] = field(default_factory=list)
+    warnings: List[str] = field(default_factory=list)
+    validation_details: Dict[str, Any] = field(default_factory=dict)
+    
+    def add_error(self, error: str) -> None:
+        """Add a validation error"""
+        self.errors.append(error)
+        self.is_valid = False
+    
+    def add_warning(self, warning: str) -> None:
+        """Add a validation warning"""
+        self.warnings.append(warning)
