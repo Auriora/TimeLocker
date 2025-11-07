@@ -45,6 +45,11 @@ from .validator import (
     ValidationIssue,
     CompatibilityResult,
 )
+from .engine import (
+    PolicyEngine,
+    RetentionDecision,
+    PruneResult,
+)
 
 __all__ = [
     # Exceptions
@@ -83,4 +88,8 @@ __all__ = [
     'ValidationResult',
     'ValidationIssue',
     'CompatibilityResult',
+    # Engine
+    'PolicyEngine',
+    'RetentionDecision',
+    'PruneResult',
 ]
