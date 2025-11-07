@@ -110,14 +110,14 @@
     - Create service interfaces for backup workflow integration
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 10. Update existing FileSelection class
-  - [ ] 10.1 Migrate existing functionality to new architecture
+- [x] 10. Update existing FileSelection class
+  - [x] 10.1 Migrate existing functionality to new architecture
     - Preserve backward compatibility with existing FileSelection API
     - Integrate new pattern engine and precedence resolver
     - Add migration path for existing configurations
     - _Requirements: 1.1, 2.1, 4.1_
 
-  - [ ] 10.2 Enhance performance and add new features
+  - [x] 10.2 Enhance performance and add new features
     - Replace existing pattern matching with optimized engine
     - Add support for new pattern syntaxes and precedence rules
     - Integrate with template and preset systems
