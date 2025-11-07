@@ -58,14 +58,14 @@
     - Implement platform-specific preset configurations
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5_
 
-- [ ] 6. Add validation and conflict detection
-  - [ ] 6.1 Create SelectionValidationService
+- [x] 6. Add validation and conflict detection
+  - [x] 6.1 Create SelectionValidationService
     - Implement comprehensive selection rule validation
     - Add syntax validation for patterns and paths
     - Create logical consistency checking
     - _Requirements: 5.1, 5.2, 5.3, 5.5_
 
-  - [ ] 6.2 Implement preview and estimation functionality
+  - [x] 6.2 Implement preview and estimation functionality
     - Add selection preview with file sampling
     - Create size estimation with progress reporting
     - Implement accessible file checking and error handling
