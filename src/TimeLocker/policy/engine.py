@@ -98,6 +98,37 @@ class PruneResult:
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary format."""
+
+
+class EnforcementContext:
+    """Context for policy enforcement operations."""
+    
+    def __init__(
+        self,
+        repository_id: str,
+        repository_uri: str,
+        policy_ids: Optional[List[str]] = None,
+        dry_run: bool = False,
+        metadata: Optional[Dict[str, Any]] = None,
+    ):
+        """
+        Initialize enforcement context.
+        
+        Args:
+            repository_id: Repository identifier
+            repository_uri: Repository URI
+            policy_ids: Optional list of specific policy IDs to enforce
+            dry_run: Whether this is a dry run (no actual changes)
+            metadata: Additional context metadata
+        """
+        self.repository_id = repository_id
+        self.repository_uri = repository_uri
+        self.policy_ids = policy_ids or []
+        self.dry_run = dry_run
+        self.metadata = metadata or {}
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary format."""
         return {
             'success': self.success,
             'snapshots_removed': self.snapshots_removed,

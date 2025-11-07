@@ -1234,3 +1234,10 @@ try:
         repos_app.registered_groups.append(group)
 except ImportError as e:
     logging.getLogger(__name__).debug(f"Could not import repository commands: {e}")
+
+try:
+    from .cli_modules.commands.policy import policy_app as _policy_commands_app
+    # Add policy app to main app
+    app.add_typer(_policy_commands_app, name="policy")
+except ImportError as e:
+    logging.getLogger(__name__).debug(f"Could not import policy commands: {e}")

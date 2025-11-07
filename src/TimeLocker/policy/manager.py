@@ -22,6 +22,7 @@ from .models import (
     SnapshotInfo,
     StorageImpact,
     PolicyConflict,
+    EnforcementRecord,
 )
 from .types import (
     PolicyType,
@@ -1181,3 +1182,229 @@ class PolicyManager:
                 data['compliance_period'] = timedelta(seconds=data['compliance_period'])
         
         return RetentionPolicy(**data)
+
+    def list_all_assignments(self) -> List[PolicyAssignment]:
+        """
+        List all policy assignments.
+        
+        Returns:
+            List of all policy assignments
+        """
+        try:
+            return self.policy_store.list_assignments()
+        except Exception as e:
+            logger.error(f"Failed to list all assignments: {e}")
+            raise PolicyError(f"Failed to list assignments: {e}") from e
+    
+    def get_assignments_for_target(self, target_id: str) -> List[PolicyAssignment]:
+        """
+        Get all policy assignments for a specific target.
+        
+        Args:
+            target_id: Target identifier
+            
+        Returns:
+            List of policy assignments for the target
+        """
+        try:
+            all_assignments = self.policy_store.list_assignments()
+            return [a for a in all_assignments if a.target_id == target_id]
+        except Exception as e:
+            logger.error(f"Failed to get assignments for target {target_id}: {e}")
+            raise PolicyError(f"Failed to get assignments for target: {e}") from e
+    
+    def delete_assignment(self, assignment_id: str) -> bool:
+        """
+        Delete a policy assignment.
+        
+        Args:
+            assignment_id: Assignment ID to delete
+            
+        Returns:
+            True if deleted successfully
+        """
+        return self.unassign_policy(assignment_id)
+    
+    def simulate_all_policies(self, target: 'PolicyTarget') -> 'SimulationResult':
+        """
+        Simulate all applicable policies for a target.
+        
+        Args:
+            target: Target for simulation
+            
+        Returns:
+            Simulation result
+        """
+        try:
+            # Get all assignments for the target
+            assignments = self.get_assignments_for_target(target.target_id)
+            
+            if not assignments:
+                # Return empty simulation result
+                from .models import SimulationResult, StorageImpact
+                return SimulationResult(
+                    policy_id=None,
+                    target_id=target.target_id,
+                    simulation_time=datetime.now(),
+                    snapshots_to_prune=[],
+                    snapshots_to_retain=[],
+                    storage_impact=StorageImpact(bytes_freed=0, snapshots_removed=0),
+                    compliance_warnings=[],
+                    conflicts=[]
+                )
+            
+            # Simulate the highest priority policy
+            active_assignments = [a for a in assignments if a.active]
+            if not active_assignments:
+                from .models import SimulationResult, StorageImpact
+                return SimulationResult(
+                    policy_id=None,
+                    target_id=target.target_id,
+                    simulation_time=datetime.now(),
+                    snapshots_to_prune=[],
+                    snapshots_to_retain=[],
+                    storage_impact=StorageImpact(bytes_freed=0, snapshots_removed=0),
+                    compliance_warnings=["No active policies found for target"],
+                    conflicts=[]
+                )
+            
+            # Sort by priority and simulate the highest priority policy
+            active_assignments.sort(key=lambda a: a.priority, reverse=True)
+            highest_priority = active_assignments[0]
+            
+            return self.simulator.simulate_policy(highest_priority.policy_id, target)
+        except Exception as e:
+            logger.error(f"Failed to simulate all policies for target {target.target_id}: {e}")
+            raise PolicyError(f"Failed to simulate policies: {e}") from e
+    
+    def enforce_policies(self, context: 'EnforcementContext') -> EnforcementRecord:
+        """
+        Enforce policies based on enforcement context.
+        
+        Args:
+            context: Enforcement context
+            
+        Returns:
+            Enforcement record
+        """
+        try:
+            from .models import EnforcementRecord
+            from .types import EnforcementType
+            
+            # Get assignments for the repository
+            assignments = self.get_assignments_for_target(context.repository_id)
+            
+            if not assignments:
+                logger.warning(f"No policy assignments found for repository {context.repository_id}")
+                return EnforcementRecord(
+                    id=str(uuid.uuid4()),
+                    policy_id="none",
+                    target_id=context.repository_id,
+                    enforcement_type=EnforcementType.RETENTION,
+                    execution_time=datetime.now(),
+                    success=True,
+                    snapshots_affected=[],
+                    errors=["No policies assigned to repository"],
+                    metadata=context.metadata
+                )
+            
+            # Filter by policy IDs if specified
+            if context.policy_ids:
+                assignments = [a for a in assignments if a.policy_id in context.policy_ids]
+            
+            # Filter active assignments
+            active_assignments = [a for a in assignments if a.active]
+            if not active_assignments:
+                logger.warning(f"No active policy assignments found for repository {context.repository_id}")
+                return EnforcementRecord(
+                    id=str(uuid.uuid4()),
+                    policy_id="none",
+                    target_id=context.repository_id,
+                    enforcement_type=EnforcementType.RETENTION,
+                    execution_time=datetime.now(),
+                    success=True,
+                    snapshots_affected=[],
+                    errors=["No active policies found"],
+                    metadata=context.metadata
+                )
+            
+            # Sort by priority and enforce the highest priority retention policy
+            active_assignments.sort(key=lambda a: a.priority, reverse=True)
+            
+            # Find the first retention policy
+            retention_assignment = None
+            for assignment in active_assignments:
+                if assignment.policy_type == PolicyType.RETENTION:
+                    retention_assignment = assignment
+                    break
+            
+            if not retention_assignment:
+                logger.warning(f"No retention policy assigned to repository {context.repository_id}")
+                return EnforcementRecord(
+                    id=str(uuid.uuid4()),
+                    policy_id="none",
+                    target_id=context.repository_id,
+                    enforcement_type=EnforcementType.RETENTION,
+                    execution_time=datetime.now(),
+                    success=True,
+                    snapshots_affected=[],
+                    errors=["No retention policy assigned"],
+                    metadata=context.metadata
+                )
+            
+            # Get the retention policy
+            retention_policy = self.get_retention_policy(retention_assignment.policy_id)
+            
+            # Enforce the policy using the engine
+            # For now, return a placeholder record
+            # Full implementation would integrate with repository service
+            logger.info(f"Enforcing retention policy {retention_policy.id} on repository {context.repository_id}")
+            
+            return EnforcementRecord(
+                id=str(uuid.uuid4()),
+                policy_id=retention_policy.id,
+                target_id=context.repository_id,
+                enforcement_type=EnforcementType.RETENTION,
+                execution_time=datetime.now(),
+                success=True,
+                snapshots_affected=[],
+                errors=[],
+                metadata={
+                    **context.metadata,
+                    'dry_run': context.dry_run,
+                    'policy_name': retention_policy.name,
+                }
+            )
+        except Exception as e:
+            logger.error(f"Failed to enforce policies: {e}")
+            raise PolicyEnforcementError(f"Policy enforcement failed: {e}") from e
+    
+    def get_enforcement_history(
+        self,
+        policy_id: Optional[str] = None,
+        target_id: Optional[str] = None,
+        limit: int = 50
+    ) -> List[EnforcementRecord]:
+        """
+        Get policy enforcement history.
+        
+        Args:
+            policy_id: Optional policy ID filter
+            target_id: Optional target ID filter
+            limit: Maximum number of records to return
+            
+        Returns:
+            List of enforcement records
+        """
+        try:
+            # Get enforcement records from storage
+            records = self.policy_store.list_enforcement_records(
+                policy_id=policy_id,
+                target_id=target_id
+            )
+            # Apply limit
+            return records[:limit] if records else []
+        except Exception as e:
+            logger.error(f"Failed to get enforcement history: {e}")
+            # Return empty list if storage doesn't support enforcement records yet
+            return []

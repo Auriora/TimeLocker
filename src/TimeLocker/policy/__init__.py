@@ -32,6 +32,7 @@ from .models import (
     ScheduleConfig,
     ComplianceRule,
     TagBasedRule,
+    PolicyTarget,
 )
 from .types import (
     PolicyType,
@@ -88,6 +89,7 @@ __all__ = [
     'ScheduleConfig',
     'ComplianceRule',
     'TagBasedRule',
+    'PolicyTarget',
     # Types
     'PolicyType',
     'TargetType',

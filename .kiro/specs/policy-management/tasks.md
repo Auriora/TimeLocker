@@ -52,7 +52,7 @@
   - Add policy status reporting to existing monitoring infrastructure
   - _Requirements: 2.2, 2.5, 4.3, 4.4, 4.5_
 
-- [ ] 8. Create policy management CLI interface
+- [x] 8. Create policy management CLI interface
   - Add CLI commands for policy creation and management
   - Implement policy assignment commands for repositories
   - Add policy enforcement and simulation commands

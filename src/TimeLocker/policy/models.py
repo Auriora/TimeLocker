@@ -416,3 +416,22 @@ class EnforcementRecord:
             'errors': self.errors,
             'metadata': self.metadata,
         }
+
+
+@dataclass
+class PolicyTarget:
+    """Represents a target for policy operations."""
+    
+    target_type: TargetType
+    target_id: str
+    repository_uri: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary format."""
+        return {
+            'target_type': self.target_type.value,
+            'target_id': self.target_id,
+            'repository_uri': self.repository_uri,
+            'metadata': self.metadata,
+        }
