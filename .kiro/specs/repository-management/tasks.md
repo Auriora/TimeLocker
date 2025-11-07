@@ -253,26 +253,26 @@
   - Test configuration restoration with credential re-entry
   - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 12.1, 12.2, 12.3, 12.4, 12.5_
 
-- [ ] 9. Integration and End-to-End Testing
+- [x] 9. Integration and End-to-End Testing
   - Create comprehensive integration tests for repository lifecycle management
   - Test multi-backend repository management scenarios
   - Validate performance requirements under desktop usage conditions
   - Test error handling and recovery scenarios
   - _Requirements: All requirements validation_
 
-- [ ] 9.1 Create repository lifecycle integration tests
+- [x] 9.1 Create repository lifecycle integration tests
   - Test complete repository lifecycle: create → validate → use → update → delete
   - Test existing repository detection and handling workflows
   - Test repository state management and audit logging
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_
 
-- [ ] 9.2 Test multi-backend scenarios
+- [x] 9.2 Test multi-backend scenarios
   - Test repository management across local, S3, and B2 backends
   - Test credential management for different storage backends
   - Test plugin system with multiple backup engines
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 7.1, 7.2, 7.3, 7.4, 7.5, 8.1, 8.2, 8.3, 8.4, 8.5_
 
-- [ ] 9.3 Validate performance requirements
+- [x] 9.3 Validate performance requirements
   - Test desktop scalability (20+ repositories, concurrent operations)
   - Validate performance thresholds (15s network, 3s local, 2s listing)
   - Test concurrent validation limits (3 parallel operations)

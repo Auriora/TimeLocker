@@ -18,6 +18,7 @@ from ..interfaces.repository_management_models import (
     Repository, RepositoryConfig, RepositoryStatus, BackupEngine, RepositoryType,
     ValidationResult, ExistingRepositoryInfo, RepositoryCreationOptions,
     ConnectivityResult, IntegrityResult, ConfigValidationResult,
+    ConnectivityStatus, IntegrityStatus,
     RepositoryError, RepositoryNotFoundError, RepositoryAlreadyExistsError,
     RepositoryValidationError, CredentialError, DataLossConfirmationError,
     RepositoryLockError, RepositoryStateError, RepositoryStateTransition
