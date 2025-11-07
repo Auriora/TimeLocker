@@ -6,6 +6,7 @@ Extracted from cli.py using automation script.
 """
 
 import sys
+import os
 import logging
 from typing import Optional, List, Annotated, Dict, Any
 from pathlib import Path
@@ -78,6 +79,177 @@ repos_app = create_typer_app(
 )
 
 
+# Helper functions
+
+def _format_size(size_bytes: int) -> str:
+    """Format file size in human-readable format."""
+    if size_bytes is None:
+        return "Unknown"
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if size_bytes < 1024.0:
+            return f"{size_bytes:.1f} {unit}"
+        size_bytes /= 1024.0
+    return f"{size_bytes:.1f} PB"
+
+
+def _determine_backend_from_uri(uri: Optional[str]) -> Optional[str]:
+    """Determine repository backend based on URI."""
+    if not uri:
+        return None
+    normalized = uri.lower()
+    if normalized.startswith(("s3://", "s3:")):
+        return "s3"
+    if normalized.startswith(("b2://", "b2:")):
+        return "b2"
+    if normalized.startswith(("azure:", "azure://")):
+        return "azure"
+    if normalized.startswith(("gs://", "gcs:", "gcs://")):
+        return "gcs"
+    return None
+
+
+def _backend_display_name(backend: str) -> str:
+    """Return user-facing backend name."""
+    mapping = {
+        "s3": "AWS",
+        "b2": "Backblaze B2",
+        "azure": "Azure",
+        "gcs": "Google Cloud Storage"
+    }
+    return mapping.get(backend, backend.upper())
+
+
+def _repository_config_to_dict(repository_obj, name: str) -> Dict[str, Any]:
+    """Convert repository configuration object or mapping to dictionary."""
+    if repository_obj is None:
+        return {"name": name}
+    if hasattr(repository_obj, "to_dict"):
+        maybe_dict = repository_obj.to_dict()
+        data = dict(maybe_dict) if isinstance(maybe_dict, dict) else {"name": name}
+    elif isinstance(repository_obj, dict):
+        data = dict(repository_obj)
+    else:
+        data = {"name": name}
+        for attr in ("uri", "location", "description", "tags", "password", "has_backend_credentials"):
+            if hasattr(repository_obj, attr):
+                value = getattr(repository_obj, attr)
+                if value is not None:
+                    key = "uri" if attr == "location" else attr
+                    data[key] = value
+    data.setdefault("name", name)
+    # Normalise location/uri fields
+    if "uri" not in data and "location" in data:
+        data["uri"] = data.pop("location")
+    return data
+
+
+def _create_credential_manager(config_dir: Optional[Path] = None):
+    """Instantiate credential manager respecting configuration directory."""
+    return CredentialManager()
+
+
+def _create_security_manager(config_dir: Optional[Path] = None):
+    """Create security manager with access manager integration."""
+    from TimeLocker.security import AccessManager
+    
+    credential_manager = CredentialManager(config_dir=config_dir)
+    security_service = SecurityService(credential_manager, config_dir=config_dir)
+    access_manager = AccessManager(config_dir=config_dir)
+    
+    return security_service, access_manager
+
+
+def _validate_session_for_operation(access_manager: 'AccessManager', operation: str, 
+                                   repository_id: Optional[str] = None) -> bool:
+    """
+    Validate session for operation and create if needed.
+    
+    Args:
+        access_manager: AccessManager instance
+        operation: Operation being performed
+        repository_id: Optional repository ID
+        
+    Returns:
+        True if session is valid for operation
+    """
+    try:
+        # Get or create session
+        active_sessions = access_manager.get_active_sessions()
+        session_id = None
+        
+        if active_sessions:
+            # Use the most recent valid session
+            for session in sorted(active_sessions, key=lambda s: s.last_accessed, reverse=True):
+                if session.is_valid():
+                    session_id = session.session_id
+                    break
+        
+        if not session_id:
+            # Create new session
+            import os
+            user_id = os.getenv('USER', os.getenv('USERNAME', 'unknown'))
+            from TimeLocker.security.access_manager import UserCredentials
+            credentials = UserCredentials(user_id=user_id)
+            
+            auth_result = access_manager.authenticate_user(credentials)
+            if auth_result.success:
+                session_id = auth_result.session_id
+            else:
+                return False
+        
+        if not session_id:
+            return False
+            
+        # Validate session for operation
+        if not access_manager.validate_session(session_id):
+            return False
+            
+        # Extend session
+        access_manager.extend_session(session_id)
+        
+        return True
+        
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Session validation error: {e}")
+        return False
+
+
+def setup_logging(verbose: bool = False, config_dir: Optional[Path] = None) -> None:
+    """Set up logging configuration."""
+    from TimeLocker.config.configuration_path_resolver import ConfigurationPathResolver
+    
+    # Determine log level
+    level = logging.DEBUG if verbose else logging.INFO
+    
+    # Get appropriate XDG directory for log files
+    log_dir = ConfigurationPathResolver.get_cache_directory() / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Set up file logging
+    log_file = log_dir / "timelocker.log"
+    try:
+        import logging.handlers
+        file_handler = logging.handlers.RotatingFileHandler(
+            log_file,
+            maxBytes=10 * 1024 * 1024,  # 10MB
+            backupCount=5,
+            encoding='utf-8'
+        )
+        file_handler.setLevel(logging.DEBUG)
+        file_formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        file_handler.setFormatter(file_formatter)
+        
+        # Configure root logger
+        root_logger = logging.getLogger()
+        root_logger.setLevel(level)
+        if not any(isinstance(h, logging.handlers.RotatingFileHandler) for h in root_logger.handlers):
+            root_logger.addHandler(file_handler)
+    except (OSError, PermissionError) as exc:
+        logging.getLogger(__name__).debug("File logging disabled: %s", exc)
+
 
 # Commands
 
@@ -85,11 +257,43 @@ repos_app = create_typer_app(
 @with_error_handling("List Error")
 @with_logging
 def repos_list(
+        show_status: Annotated[bool, typer.Option("--status", help="Show repository status indicators")] = True,
+        show_performance: Annotated[bool, typer.Option("--performance", help="Show performance information")] = False,
+        filter_status: Annotated[Optional[str], typer.Option("--filter-status", help="Filter by status (active, inactive, error)")] = None,
+        filter_engine: Annotated[Optional[str], typer.Option("--filter-engine", help="Filter by engine (restic, rsync, rclone)")] = None,
         verbose: VerboseOption = False,
         json_output: JsonOption = False,
         config_dir: ConfigDirOption = None,
 ) -> None:
-    """List repository configurations and their URIs."""
+    """
+    List repository configurations with status indicators and performance information.
+    
+    Displays a comprehensive list of all configured repositories with:
+    - Repository name, URI, and description
+    - Repository type and backup engine
+    - Status indicators (active, inactive, error)
+    - Default repository marker
+    - Performance metrics (with --performance flag)
+    
+    Examples:
+        # List all repositories
+        tl repos list
+        
+        # List with detailed information
+        tl repos list --verbose
+        
+        # List with status and performance info
+        tl repos list --status --performance
+        
+        # Filter by status
+        tl repos list --filter-status active
+        
+        # Filter by engine
+        tl repos list --filter-engine restic
+        
+        # JSON output
+        tl repos list --json
+    """
     setup_logging(verbose, config_dir)
     try:
         manager = _get_service_manager_for_command(config_dir)
@@ -97,26 +301,51 @@ def repos_list(
         repositories = []
         if list_method:
             try:
-                repositories = list_method() or []
+                # Build filter dictionary
+                filters = {}
+                if filter_status:
+                    filters['status'] = filter_status
+                if filter_engine:
+                    filters['engine'] = filter_engine
+                
+                repositories = list_method(filters=filters if filters else None) or []
             except Exception as exc:
                 logging.getLogger(__name__).debug("Service repository listing failed: %s", exc)
                 raise
+        
         if json_output:
             import json
-            console.print(json.dumps(repositories, indent=2))
+            console.print(json.dumps(repositories, indent=2, default=str))
             return
+        
         if not repositories:
-            show_info_panel("No Repositories", "No repositories configured. Add one with 'tl repos add'.")
+            if filter_status or filter_engine:
+                show_info_panel("No Matching Repositories", 
+                              f"No repositories found matching the specified filters.")
+            else:
+                show_info_panel("No Repositories", "No repositories configured. Add one with 'tl repos add'.")
             return
+        
+        # Build table with appropriate columns
         table = Table(title="Configured Repositories")
         table.add_column("Name", style="cyan")
-        table.add_column("URI", style="magenta")
+        
+        if show_status:
+            table.add_column("Status", justify="center")
+        
+        table.add_column("URI", style="magenta", overflow="fold")
         table.add_column("Description", overflow="fold")
+        
         if verbose:
             table.add_column("Type", style="yellow")
             table.add_column("Engine", style="green")
+        
+        if show_performance:
+            table.add_column("Last Validated", style="blue")
+        
         table.add_column("Default", justify="center")
         
+        # Populate table
         for repo in repositories:
             if isinstance(repo, dict):
                 name = str(repo.get("name", "unknown"))
@@ -125,6 +354,8 @@ def repos_list(
                 is_default = repo.get("is_default", False)
                 repo_type = str(repo.get("type", "N/A"))
                 repo_engine = str(repo.get("engine", "N/A"))
+                repo_status = str(repo.get("status", "unknown"))
+                last_validated = repo.get("last_validated", "Never")
             else:
                 name = str(getattr(repo, "name", "unknown"))
                 uri = str(getattr(repo, "uri", getattr(repo, "location", "unknown")))
@@ -132,15 +363,45 @@ def repos_list(
                 is_default = getattr(repo, "is_default", False)
                 repo_type = str(getattr(repo, "type", "N/A"))
                 repo_engine = str(getattr(repo, "engine", "N/A"))
+                repo_status = str(getattr(repo, "status", "unknown"))
+                last_validated = getattr(repo, "last_validated", "Never")
+            
+            # Build row data
+            row_data = [name]
+            
+            # Add status indicator
+            if show_status:
+                status_icons = {
+                    "active": "[green]●[/green]",
+                    "inactive": "[yellow]●[/yellow]",
+                    "error": "[red]●[/red]",
+                    "validating": "[blue]●[/blue]"
+                }
+                status_str = repo_status.lower()
+                status_icon = status_icons.get(status_str, "[white]●[/white]")
+                row_data.append(status_icon)
+            
+            row_data.extend([uri, description])
+            
+            # Add verbose columns
+            if verbose:
+                row_data.extend([repo_type, repo_engine])
+            
+            # Add performance column
+            if show_performance:
+                row_data.append(str(last_validated))
             
             # Add default indicator
             default_indicator = "✓" if is_default else ""
+            row_data.append(default_indicator)
             
-            if verbose:
-                table.add_row(name, uri, description, repo_type, repo_engine, default_indicator)
-            else:
-                table.add_row(name, uri, description, default_indicator)
+            table.add_row(*row_data)
+        
         console.print(table)
+        
+        # Show summary
+        console.print(f"\n[dim]Total: {len(repositories)} repositories[/dim]")
+        
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "List operation was cancelled by user")
         raise typer.Exit(130)
@@ -163,13 +424,42 @@ def repos_add(
         uri: Annotated[Optional[str], typer.Argument(help="Repository URI", autocompletion=repository_uri_completer)] = None,
         description: Annotated[Optional[str], typer.Option("--description", "-d", help="Repository description")] = None,
         password: Annotated[Optional[str], typer.Option("--password", "-p", help="Repository password")] = None,
+        engine: Annotated[Optional[str], typer.Option("--engine", "-e", help="Backup engine (restic, rsync, rclone)")] = "restic",
         set_default: Annotated[bool, typer.Option("--set-default", help="Set as default repository")] = False,
+        connect_existing: Annotated[bool, typer.Option("--connect-existing", help="Connect to existing repository if found")] = False,
+        reinitialize: Annotated[bool, typer.Option("--reinitialize", help="Re-initialize existing repository (DESTRUCTIVE)")] = False,
         verbose: VerboseOption = False,
         config_dir: ConfigDirOption = None,
 ) -> None:
+    """
+    Add a new repository with existing repository detection and handling.
+    
+    This command will:
+    1. Validate the repository name and URI
+    2. Check if a repository already exists at the specified location
+    3. If existing repository found:
+       - Offer to connect to it (preserves data)
+       - Offer to re-initialize it (DESTROYS ALL DATA)
+       - Or cancel the operation
+    4. If no existing repository, create a new one
+    
+    Examples:
+        # Add a new local repository
+        tl repos add myrepo file:///path/to/repo
+        
+        # Add S3 repository with engine selection
+        tl repos add s3repo s3:s3.amazonaws.com/bucket/path --engine restic
+        
+        # Connect to existing repository
+        tl repos add existing file:///existing/repo --connect-existing
+        
+        # Re-initialize existing repository (DANGEROUS!)
+        tl repos add reinit file:///old/repo --reinitialize
+    """
     setup_logging(verbose, config_dir)
     interactive = sys.stdin.isatty()
     try:
+        # Validate repository name
         if not name:
             if interactive:
                 name = Prompt.ask("Repository name")
@@ -182,6 +472,8 @@ def repos_add(
         if not re.match(r"^[A-Za-z0-9._-]+$", name):
             show_error_panel("Invalid Repository Name", "Repository name contains unsupported characters. Use letters, numbers, dashes, underscores, or dots.")
             raise typer.Exit(1)
+        
+        # Validate repository URI
         if not uri:
             if interactive:
                 uri = Prompt.ask("Repository URI")
@@ -217,9 +509,126 @@ def repos_add(
                 if not parsed.netloc:
                     show_error_panel("Invalid Repository URI", f"Repository URI '{uri}' is missing required host or bucket component.")
                     raise typer.Exit(1)
+        
+        # Validate engine selection
+        valid_engines = ["restic", "rsync", "rclone"]
+        if engine and engine.lower() not in valid_engines:
+            show_error_panel("Invalid Engine", f"Engine must be one of: {', '.join(valid_engines)}")
+            raise typer.Exit(1)
 
         manager = _get_service_manager_for_command(config_dir)
         backend_type = _determine_backend_from_uri(uri)
+        
+        # Check for existing repository at URI
+        existing_repo_info = None
+        detect_method = _get_service_method(manager, "detect_existing_repository")
+        if detect_method:
+            try:
+                existing_repo_info = _call_service_method(detect_method, uri=uri)
+                if existing_repo_info:
+                    console.print(f"\n[yellow]⚠️  Existing repository detected at {uri}[/yellow]")
+                    
+                    # Display existing repository information
+                    if isinstance(existing_repo_info, dict):
+                        engine_type = existing_repo_info.get("engine_type", "unknown")
+                        requires_creds = existing_repo_info.get("requires_credentials", False)
+                        last_modified = existing_repo_info.get("last_modified", "unknown")
+                        estimated_size = existing_repo_info.get("estimated_size")
+                    else:
+                        engine_type = getattr(existing_repo_info, "engine_type", "unknown")
+                        requires_creds = getattr(existing_repo_info, "requires_credentials", False)
+                        last_modified = getattr(existing_repo_info, "last_modified", "unknown")
+                        estimated_size = getattr(existing_repo_info, "estimated_size", None)
+                    
+                    console.print(f"  Engine: {engine_type}")
+                    console.print(f"  Last Modified: {last_modified}")
+                    if estimated_size:
+                        console.print(f"  Estimated Size: {_format_size(estimated_size)}")
+                    if requires_creds:
+                        console.print("  [yellow]Requires credentials to access[/yellow]")
+                    
+                    # Handle existing repository based on options
+                    if reinitialize and connect_existing:
+                        show_error_panel("Conflicting Options", 
+                                       "Cannot use both --connect-existing and --reinitialize. Choose one.")
+                        raise typer.Exit(1)
+                    
+                    if reinitialize:
+                        # Require explicit confirmation for re-initialization
+                        console.print("\n[red bold]⚠️  WARNING: REPOSITORY RE-INITIALIZATION WILL PERMANENTLY DELETE ALL DATA ⚠️[/red bold]")
+                        console.print(f"[red]Repository URI: {uri}[/red]")
+                        console.print(f"[red]Engine: {engine_type}[/red]")
+                        if estimated_size:
+                            console.print(f"[red]Size: {_format_size(estimated_size)}[/red]")
+                        console.print(f"[red]Last modified: {last_modified}[/red]")
+                        console.print("\n[red]This action cannot be undone. All backup data will be permanently lost.[/red]\n")
+                        
+                        if interactive:
+                            confirmation = Prompt.ask(
+                                "[red bold]Type 'DELETE ALL DATA' to confirm re-initialization[/red bold]"
+                            )
+                            if confirmation != "DELETE ALL DATA":
+                                show_info_panel("Operation Cancelled", "Repository re-initialization cancelled.")
+                                raise typer.Exit(0)
+                        else:
+                            show_error_panel("Confirmation Required", 
+                                           "Re-initialization requires interactive confirmation. "
+                                           "Type 'DELETE ALL DATA' when prompted.")
+                            raise typer.Exit(1)
+                        
+                        console.print("[yellow]Proceeding with re-initialization...[/yellow]")
+                        # Continue with creation (will reinitialize)
+                        
+                    elif connect_existing:
+                        # Connect to existing repository
+                        console.print("[cyan]Connecting to existing repository...[/cyan]")
+                        
+                        # Prompt for credentials if required
+                        if requires_creds and not password:
+                            if interactive:
+                                password = Prompt.ask("Repository password", password=True)
+                            else:
+                                show_error_panel("Credentials Required", 
+                                               "Existing repository requires password. Use --password option.")
+                                raise typer.Exit(1)
+                        
+                        # Continue with connection
+                        
+                    else:
+                        # Interactive choice
+                        if interactive:
+                            console.print("\n[bold]What would you like to do?[/bold]")
+                            console.print("  1. Connect to existing repository (preserves data)")
+                            console.print("  2. Re-initialize repository (DESTROYS ALL DATA)")
+                            console.print("  3. Cancel operation")
+                            
+                            choice = Prompt.ask("Enter choice", choices=["1", "2", "3"], default="3")
+                            
+                            if choice == "3":
+                                show_info_panel("Operation Cancelled", "Repository add cancelled.")
+                                raise typer.Exit(0)
+                            elif choice == "2":
+                                # Require explicit confirmation
+                                console.print("\n[red bold]⚠️  WARNING: REPOSITORY RE-INITIALIZATION WILL PERMANENTLY DELETE ALL DATA ⚠️[/red bold]")
+                                confirmation = Prompt.ask(
+                                    "[red bold]Type 'DELETE ALL DATA' to confirm[/red bold]"
+                                )
+                                if confirmation != "DELETE ALL DATA":
+                                    show_info_panel("Operation Cancelled", "Repository re-initialization cancelled.")
+                                    raise typer.Exit(0)
+                                reinitialize = True
+                            else:  # choice == "1"
+                                connect_existing = True
+                                if requires_creds and not password:
+                                    password = Prompt.ask("Repository password", password=True)
+                        else:
+                            show_error_panel("Existing Repository", 
+                                           f"Repository already exists at {uri}. "
+                                           "Use --connect-existing to connect or --reinitialize to re-initialize.")
+                            raise typer.Exit(1)
+            except Exception as e:
+                logging.getLogger(__name__).debug(f"Existing repository detection failed: {e}")
+                # Continue with normal creation if detection fails
 
         add_method = _get_service_method(manager, "add_repository")
         payload = {
@@ -370,9 +779,32 @@ def repos_add(
 @with_logging
 def repos_show(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        show_status: Annotated[bool, typer.Option("--status", help="Show repository status and validation results")] = True,
+        show_performance: Annotated[bool, typer.Option("--performance", help="Show performance metrics")] = False,
         verbose: VerboseOption = False,
         config_dir: ConfigDirOption = None,
 ) -> None:
+    """
+    Display detailed repository information including status and metadata.
+    
+    Shows comprehensive information about a repository including:
+    - Basic configuration (name, URI, description)
+    - Repository type and backup engine
+    - Default repository status
+    - Validation status and last validation time
+    - Custom metadata
+    - Performance metrics (with --performance flag)
+    
+    Examples:
+        # Show basic repository information
+        tl repos show myrepo
+        
+        # Show with performance metrics
+        tl repos show myrepo --performance
+        
+        # Show without status information
+        tl repos show myrepo --no-status
+    """
     setup_logging(verbose, config_dir)
     try:
         manager = _get_service_manager_for_command(config_dir)
@@ -387,6 +819,7 @@ def repos_show(
         if repository_info is None:
             config_manager = ConfigurationManager(config_dir=config_dir)
             repository_info = config_manager.get_repository(name)
+        
         # Extract repository information
         if isinstance(repository_info, dict):
             repo_name = repository_info.get("name", name)
@@ -398,6 +831,10 @@ def repos_show(
             repo_engine = repository_info.get("engine", "N/A")
             created_at = repository_info.get("created_at", "N/A")
             updated_at = repository_info.get("updated_at", "N/A")
+            repo_status = repository_info.get("status", "unknown")
+            last_validated = repository_info.get("last_validated", "Never")
+            validation_result = repository_info.get("validation_result", {})
+            usage_stats = repository_info.get("usage_stats", {})
         else:
             repo_name = getattr(repository_info, "name", name)
             repo_uri = getattr(repository_info, "uri", getattr(repository_info, "location", "N/A"))
@@ -408,26 +845,90 @@ def repos_show(
             repo_engine = getattr(repository_info, "engine", "N/A")
             created_at = getattr(repository_info, "created_at", "N/A")
             updated_at = getattr(repository_info, "updated_at", "N/A")
+            repo_status = getattr(repository_info, "status", "unknown")
+            last_validated = getattr(repository_info, "last_validated", "Never")
+            validation_result = getattr(repository_info, "validation_result", {})
+            usage_stats = getattr(repository_info, "usage_stats", {})
         
         # Build display content
         panel_lines = []
+        
+        # Basic information
+        panel_lines.append("[bold cyan]Basic Information[/bold cyan]")
         panel_lines.append(f"[bold]Name:[/bold] {repo_name}")
         panel_lines.append(f"[bold]URI:[/bold] {repo_uri}")
         if repo_description:
             panel_lines.append(f"[bold]Description:[/bold] {repo_description}")
         panel_lines.append(f"[bold]Type:[/bold] {repo_type}")
         panel_lines.append(f"[bold]Engine:[/bold] {repo_engine}")
-        panel_lines.append(f"[bold]Default:[/bold] {'Yes' if is_default else 'No'}")
+        panel_lines.append(f"[bold]Default:[/bold] {'✓ Yes' if is_default else 'No'}")
+        
+        # Status information
+        if show_status:
+            panel_lines.append("\n[bold cyan]Status Information[/bold cyan]")
+            
+            # Color-code status
+            status_colors = {
+                "active": "green",
+                "inactive": "yellow",
+                "error": "red",
+                "validating": "blue"
+            }
+            status_str = str(repo_status).lower()
+            status_color = status_colors.get(status_str, "white")
+            panel_lines.append(f"[bold]Status:[/bold] [{status_color}]{repo_status}[/{status_color}]")
+            panel_lines.append(f"[bold]Last Validated:[/bold] {last_validated}")
+            
+            # Show validation results if available
+            if validation_result:
+                if isinstance(validation_result, dict):
+                    val_success = validation_result.get("success", False)
+                    connectivity = validation_result.get("connectivity_status", "unknown")
+                    integrity = validation_result.get("integrity_status", "unknown")
+                else:
+                    val_success = getattr(validation_result, "success", False)
+                    connectivity = getattr(validation_result, "connectivity_status", "unknown")
+                    integrity = getattr(validation_result, "integrity_status", "unknown")
+                
+                val_color = "green" if val_success else "red"
+                panel_lines.append(f"[bold]Validation:[/bold] [{val_color}]{'Passed' if val_success else 'Failed'}[/{val_color}]")
+                panel_lines.append(f"  Connectivity: {connectivity}")
+                panel_lines.append(f"  Integrity: {integrity}")
+        
+        # Timestamps
+        panel_lines.append("\n[bold cyan]Timestamps[/bold cyan]")
         panel_lines.append(f"[bold]Created:[/bold] {created_at}")
         panel_lines.append(f"[bold]Updated:[/bold] {updated_at}")
         
-        # Display custom metadata if present
-        if repo_metadata and isinstance(repo_metadata, dict):
-            panel_lines.append("\n[bold]Custom Metadata:[/bold]")
+        # Performance metrics
+        if show_performance and validation_result:
+            if isinstance(validation_result, dict):
+                perf_metrics = validation_result.get("performance_metrics", {})
+            else:
+                perf_metrics = getattr(validation_result, "performance_metrics", {})
+            
+            if perf_metrics:
+                panel_lines.append("\n[bold cyan]Performance Metrics[/bold cyan]")
+                for metric, value in perf_metrics.items():
+                    if isinstance(value, float):
+                        panel_lines.append(f"[bold]{metric}:[/bold] {value:.2f}s")
+                    else:
+                        panel_lines.append(f"[bold]{metric}:[/bold] {value}")
+        
+        # Usage statistics
+        if usage_stats and isinstance(usage_stats, dict) and usage_stats:
+            panel_lines.append("\n[bold cyan]Usage Statistics[/bold cyan]")
+            for key, value in usage_stats.items():
+                panel_lines.append(f"[bold]{key}:[/bold] {value}")
+        
+        # Custom metadata
+        if repo_metadata and isinstance(repo_metadata, dict) and repo_metadata:
+            panel_lines.append("\n[bold cyan]Custom Metadata[/bold cyan]")
             for key, value in repo_metadata.items():
-                panel_lines.append(f"  [cyan]{key}:[/cyan] {value}")
+                panel_lines.append(f"[bold]{key}:[/bold] {value}")
         
         console.print(Panel("\n".join(panel_lines), title=f"Repository: {name}", border_style="blue"))
+        
     except ConfigurationError as e:
         show_error_panel("Repository Not Found", str(e))
         raise typer.Exit(1)
@@ -538,14 +1039,50 @@ def repos_update(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         description: Annotated[Optional[str], typer.Option("--description", "-d", help="Update repository description")] = None,
         metadata: Annotated[Optional[List[str]], typer.Option("--metadata", "-m", help="Add/update metadata (format: key=value)")] = None,
+        remove_metadata: Annotated[Optional[List[str]], typer.Option("--remove-metadata", help="Remove specific metadata keys")] = None,
         clear_metadata: Annotated[bool, typer.Option("--clear-metadata", help="Clear all custom metadata")] = False,
+        set_default: Annotated[bool, typer.Option("--set-default", help="Set as default repository")] = False,
+        unset_default: Annotated[bool, typer.Option("--unset-default", help="Remove default repository status")] = False,
         verbose: VerboseOption = False,
         config_dir: ConfigDirOption = None,
 ) -> None:
-    """Update repository metadata and configuration."""
+    """
+    Update repository metadata and configuration.
+    
+    Allows updating various repository properties including:
+    - Description
+    - Custom metadata (add, update, or remove)
+    - Default repository status
+    
+    Examples:
+        # Update description
+        tl repos update myrepo --description "Production backup repository"
+        
+        # Add/update metadata
+        tl repos update myrepo --metadata owner=admin --metadata env=production
+        
+        # Remove specific metadata
+        tl repos update myrepo --remove-metadata owner --remove-metadata env
+        
+        # Clear all metadata
+        tl repos update myrepo --clear-metadata
+        
+        # Set as default repository
+        tl repos update myrepo --set-default
+        
+        # Remove default status
+        tl repos update myrepo --unset-default
+    """
     setup_logging(verbose, config_dir)
     try:
+        # Validate conflicting options
+        if set_default and unset_default:
+            show_error_panel("Conflicting Options", 
+                           "Cannot use both --set-default and --unset-default. Choose one.")
+            raise typer.Exit(1)
+        
         config_manager = ConfigurationManager(config_dir=config_dir)
+        manager = _get_service_manager_for_command(config_dir)
         
         # Get existing repository configuration
         try:
@@ -563,7 +1100,7 @@ def repos_update(
                 repo_config.description = description
             elif isinstance(repo_config, dict):
                 repo_config['description'] = description
-            updates.append(f"description")
+            updates.append("description")
         
         # Handle metadata updates
         if clear_metadata:
@@ -571,8 +1108,25 @@ def repos_update(
                 repo_config.metadata = {}
             elif isinstance(repo_config, dict):
                 repo_config['metadata'] = {}
-            updates.append("cleared metadata")
+            updates.append("cleared all metadata")
         
+        # Remove specific metadata keys
+        if remove_metadata:
+            removed_keys = []
+            for key in remove_metadata:
+                if hasattr(repo_config, 'metadata') and repo_config.metadata:
+                    if key in repo_config.metadata:
+                        del repo_config.metadata[key]
+                        removed_keys.append(key)
+                elif isinstance(repo_config, dict) and 'metadata' in repo_config:
+                    if key in repo_config['metadata']:
+                        del repo_config['metadata'][key]
+                        removed_keys.append(key)
+            
+            if removed_keys:
+                updates.append(f"removed metadata keys: {', '.join(removed_keys)}")
+        
+        # Add/update metadata
         if metadata:
             # Parse metadata key=value pairs
             metadata_dict = {}
@@ -594,10 +1148,42 @@ def repos_update(
                     repo_config['metadata'] = {}
                 repo_config['metadata'].update(metadata_dict)
             
-            updates.append(f"metadata ({len(metadata_dict)} items)")
+            updates.append(f"added/updated metadata ({len(metadata_dict)} items)")
+        
+        # Handle default repository status
+        if set_default:
+            default_method = _get_service_method(manager, "set_default_repository")
+            if default_method:
+                _call_service_method(default_method, name=name, repository=name, repository_name=name)
+            else:
+                config_manager.set_default_repository(name)
+            updates.append("set as default repository")
+        
+        if unset_default:
+            # Check if this is the default repository
+            is_default = False
+            if hasattr(repo_config, 'is_default'):
+                is_default = repo_config.is_default
+            elif isinstance(repo_config, dict):
+                is_default = repo_config.get('is_default', False)
+            
+            if is_default:
+                clear_default_method = _get_service_method(manager, "clear_default_repository")
+                if clear_default_method:
+                    _call_service_method(clear_default_method)
+                else:
+                    # Clear default flag
+                    if hasattr(repo_config, 'is_default'):
+                        repo_config.is_default = False
+                    elif isinstance(repo_config, dict):
+                        repo_config['is_default'] = False
+                updates.append("removed default repository status")
+            else:
+                console.print(f"[yellow]Repository '{name}' is not the default repository.[/yellow]")
         
         if not updates:
-            show_info_panel("No Updates", "No updates specified. Use --description or --metadata to update repository.")
+            show_info_panel("No Updates", 
+                          "No updates specified. Use --description, --metadata, --set-default, or other options to update repository.")
             raise typer.Exit(0)
         
         # Save updated configuration
@@ -606,9 +1192,10 @@ def repos_update(
             config.repositories[name] = repo_config
             config_manager.save_config(config)
         
-        updates_str = ", ".join(updates)
+        # Display update summary
+        updates_str = "\n  • ".join(updates)
         show_success_panel("Repository Updated", 
-                         f"Repository '{name}' updated successfully.\nUpdated: {updates_str}")
+                         f"Repository '{name}' updated successfully.\n\nUpdates:\n  • {updates_str}")
         
     except ConfigurationError as e:
         show_error_panel("Configuration Error", str(e))
@@ -1170,6 +1757,335 @@ def repos_stats(
         raise typer.Exit(130)
     except Exception as e:
         show_error_panel("Stats Error", f"Failed to get repository stats: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("validate")
+@with_error_handling("Validation Error")
+@with_logging
+def repos_validate(
+        name: Annotated[str, typer.Argument(help="Repository name to validate", autocompletion=repository_name_completer)],
+        check_connectivity: Annotated[bool, typer.Option("--connectivity/--no-connectivity", help="Check repository connectivity")] = True,
+        check_integrity: Annotated[bool, typer.Option("--integrity/--no-integrity", help="Check repository integrity")] = True,
+        show_metrics: Annotated[bool, typer.Option("--metrics", help="Show performance metrics")] = False,
+        verbose: VerboseOption = False,
+        config_dir: ConfigDirOption = None,
+) -> None:
+    """
+    Validate repository connectivity and integrity.
+    
+    This command performs comprehensive validation of a repository including:
+    - Connectivity testing (network/local access)
+    - Integrity verification (repository structure and data)
+    - Performance metrics (validation duration, response times)
+    - Recommendations for improvements
+    
+    Examples:
+        # Full validation with all checks
+        tl repos validate myrepo
+        
+        # Connectivity check only
+        tl repos validate myrepo --no-integrity
+        
+        # Show detailed performance metrics
+        tl repos validate myrepo --metrics --verbose
+    """
+    setup_logging(verbose, config_dir)
+    try:
+        manager = _get_service_manager_for_command(config_dir)
+        validate_method = _get_service_method(manager, "validate_repository")
+        
+        if not validate_method:
+            show_error_panel("Not Implemented", "Repository validation is not available in this build.")
+            raise typer.Exit(1)
+        
+        console.print(f"[cyan]Validating repository '{name}'...[/cyan]")
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TimeElapsedColumn(),
+            console=console
+        ) as progress:
+            task = progress.add_task("Validating...", total=None)
+            
+            # Call validation method
+            result = _call_service_method(
+                validate_method,
+                name=name,
+                repository=name,
+                repository_name=name,
+                check_connectivity=check_connectivity,
+                check_integrity=check_integrity
+            )
+            
+            progress.update(task, completed=True)
+        
+        # Parse validation result
+        if isinstance(result, dict):
+            success = result.get("success", False)
+            connectivity_status = result.get("connectivity_status", "unknown")
+            integrity_status = result.get("integrity_status", "unknown")
+            error_details = result.get("error_details", [])
+            performance_metrics = result.get("performance_metrics", {})
+            recommendations = result.get("recommendations", [])
+        else:
+            success = getattr(result, "success", False)
+            connectivity_status = getattr(result, "connectivity_status", "unknown")
+            integrity_status = getattr(result, "integrity_status", "unknown")
+            error_details = getattr(result, "error_details", [])
+            performance_metrics = getattr(result, "performance_metrics", {})
+            recommendations = getattr(result, "recommendations", [])
+        
+        # Display results
+        if success:
+            # Build success message
+            status_lines = []
+            status_lines.append(f"[bold]Repository:[/bold] {name}")
+            status_lines.append(f"[bold]Status:[/bold] [green]Valid[/green]")
+            
+            if check_connectivity:
+                status_lines.append(f"[bold]Connectivity:[/bold] [green]{connectivity_status}[/green]")
+            
+            if check_integrity:
+                status_lines.append(f"[bold]Integrity:[/bold] [green]{integrity_status}[/green]")
+            
+            # Show performance metrics if requested
+            if show_metrics and performance_metrics:
+                status_lines.append("\n[bold]Performance Metrics:[/bold]")
+                for metric, value in performance_metrics.items():
+                    if isinstance(value, float):
+                        status_lines.append(f"  {metric}: {value:.2f}s")
+                    else:
+                        status_lines.append(f"  {metric}: {value}")
+            
+            # Show recommendations if any
+            if recommendations:
+                status_lines.append("\n[bold yellow]Recommendations:[/bold yellow]")
+                for rec in recommendations:
+                    status_lines.append(f"  • {rec}")
+            
+            show_success_panel("Validation Successful", "\n".join(status_lines))
+        else:
+            # Build error message
+            error_lines = []
+            error_lines.append(f"[bold]Repository:[/bold] {name}")
+            error_lines.append(f"[bold]Status:[/bold] [red]Invalid[/red]")
+            
+            if check_connectivity:
+                status_color = "red" if connectivity_status.lower() in ["disconnected", "failed", "error"] else "yellow"
+                error_lines.append(f"[bold]Connectivity:[/bold] [{status_color}]{connectivity_status}[/{status_color}]")
+            
+            if check_integrity:
+                status_color = "red" if integrity_status.lower() in ["corrupted", "failed", "error"] else "yellow"
+                error_lines.append(f"[bold]Integrity:[/bold] [{status_color}]{integrity_status}[/{status_color}]")
+            
+            if error_details:
+                error_lines.append("\n[bold]Issues Found:[/bold]")
+                for error in error_details:
+                    error_lines.append(f"  • {error}")
+            
+            if recommendations:
+                error_lines.append("\n[bold yellow]Recommendations:[/bold yellow]")
+                for rec in recommendations:
+                    error_lines.append(f"  • {rec}")
+            
+            show_error_panel("Validation Failed", "\n".join(error_lines))
+            raise typer.Exit(1)
+            
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Validation cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Validation Error", f"Failed to validate repository '{name}': {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("validate-all")
+@with_error_handling("Validation Error")
+@with_logging
+def repos_validate_all(
+        check_connectivity: Annotated[bool, typer.Option("--connectivity/--no-connectivity", help="Check repository connectivity")] = True,
+        check_integrity: Annotated[bool, typer.Option("--integrity/--no-integrity", help="Check repository integrity")] = True,
+        show_metrics: Annotated[bool, typer.Option("--metrics", help="Show performance metrics")] = False,
+        continue_on_error: Annotated[bool, typer.Option("--continue-on-error", help="Continue validation even if some repositories fail")] = True,
+        verbose: VerboseOption = False,
+        config_dir: ConfigDirOption = None,
+) -> None:
+    """
+    Validate all configured repositories with batch processing and progress reporting.
+    
+    This command validates all repositories concurrently (up to 3 parallel validations)
+    and provides a comprehensive report of validation results.
+    
+    Examples:
+        # Validate all repositories
+        tl repos validate-all
+        
+        # Validate connectivity only for all repositories
+        tl repos validate-all --no-integrity
+        
+        # Show detailed metrics for all repositories
+        tl repos validate-all --metrics --verbose
+        
+        # Stop on first failure
+        tl repos validate-all --no-continue-on-error
+    """
+    setup_logging(verbose, config_dir)
+    try:
+        manager = _get_service_manager_for_command(config_dir)
+        
+        # Get list of repositories
+        list_method = _get_service_method(manager, "list_repositories")
+        if not list_method:
+            show_error_panel("Not Implemented", "Repository listing is not available in this build.")
+            raise typer.Exit(1)
+        
+        repositories = list_method() or []
+        
+        if not repositories:
+            show_info_panel("No Repositories", "No repositories configured to validate.")
+            return
+        
+        console.print(f"[cyan]Validating {len(repositories)} repositories...[/cyan]\n")
+        
+        # Validate repositories with progress tracking
+        validate_method = _get_service_method(manager, "batch_validate_repositories")
+        
+        results = {}
+        failed_count = 0
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+            TimeElapsedColumn(),
+            console=console
+        ) as progress:
+            if validate_method:
+                # Use batch validation if available
+                task = progress.add_task("Validating repositories...", total=len(repositories))
+                
+                repo_names = [r.get("name") if isinstance(r, dict) else getattr(r, "name") for r in repositories]
+                batch_results = _call_service_method(
+                    validate_method,
+                    repository_names=repo_names,
+                    check_connectivity=check_connectivity,
+                    check_integrity=check_integrity
+                )
+                
+                if isinstance(batch_results, dict):
+                    results = batch_results
+                
+                progress.update(task, completed=len(repositories))
+            else:
+                # Fall back to individual validation
+                validate_single = _get_service_method(manager, "validate_repository")
+                if not validate_single:
+                    show_error_panel("Not Implemented", "Repository validation is not available in this build.")
+                    raise typer.Exit(1)
+                
+                task = progress.add_task("Validating repositories...", total=len(repositories))
+                
+                for repo in repositories:
+                    repo_name = repo.get("name") if isinstance(repo, dict) else getattr(repo, "name")
+                    
+                    try:
+                        result = _call_service_method(
+                            validate_single,
+                            name=repo_name,
+                            repository=repo_name,
+                            repository_name=repo_name,
+                            check_connectivity=check_connectivity,
+                            check_integrity=check_integrity
+                        )
+                        results[repo_name] = result
+                        
+                        if isinstance(result, dict):
+                            success = result.get("success", False)
+                        else:
+                            success = getattr(result, "success", False)
+                        
+                        if not success:
+                            failed_count += 1
+                            if not continue_on_error:
+                                break
+                    except Exception as e:
+                        logging.getLogger(__name__).error(f"Validation failed for {repo_name}: {e}")
+                        results[repo_name] = {"success": False, "error_details": [str(e)]}
+                        failed_count += 1
+                        if not continue_on_error:
+                            break
+                    
+                    progress.update(task, advance=1)
+        
+        # Display results summary
+        console.print("\n[bold]Validation Results:[/bold]\n")
+        
+        table = Table(title="Repository Validation Summary")
+        table.add_column("Repository", style="cyan")
+        table.add_column("Status", justify="center")
+        table.add_column("Connectivity", justify="center")
+        table.add_column("Integrity", justify="center")
+        if show_metrics:
+            table.add_column("Duration", justify="right")
+        
+        for repo_name, result in results.items():
+            if isinstance(result, dict):
+                success = result.get("success", False)
+                connectivity = result.get("connectivity_status", "unknown")
+                integrity = result.get("integrity_status", "unknown")
+                metrics = result.get("performance_metrics", {})
+            else:
+                success = getattr(result, "success", False)
+                connectivity = getattr(result, "connectivity_status", "unknown")
+                integrity = getattr(result, "integrity_status", "unknown")
+                metrics = getattr(result, "performance_metrics", {})
+            
+            status_icon = "✓" if success else "✗"
+            status_color = "green" if success else "red"
+            
+            row_data = [
+                repo_name,
+                f"[{status_color}]{status_icon}[/{status_color}]",
+                connectivity,
+                integrity
+            ]
+            
+            if show_metrics:
+                duration = metrics.get("validation_duration", 0)
+                row_data.append(f"{duration:.2f}s" if isinstance(duration, (int, float)) else str(duration))
+            
+            table.add_row(*row_data)
+        
+        console.print(table)
+        
+        # Summary statistics
+        total = len(results)
+        passed = total - failed_count
+        
+        console.print(f"\n[bold]Summary:[/bold]")
+        console.print(f"  Total: {total}")
+        console.print(f"  [green]Passed: {passed}[/green]")
+        if failed_count > 0:
+            console.print(f"  [red]Failed: {failed_count}[/red]")
+        
+        if failed_count > 0:
+            raise typer.Exit(1)
+        else:
+            show_success_panel("All Validations Passed", f"Successfully validated {total} repositories.")
+            
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Batch validation cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Validation Error", f"Failed to validate repositories: {e}")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
