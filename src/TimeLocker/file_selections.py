@@ -30,6 +30,15 @@ from .utils import (
     update_operation_tracking,
     complete_operation_tracking
 )
+from .selection_models import (
+    PatternRule,
+    PatternSyntax,
+    PathComponent,
+    SelectionConfig,
+    PrecedenceConfig,
+    PrecedenceStrategy,
+    ConflictResolution
+)
 
 
 class SelectionType(Enum):
@@ -110,18 +119,33 @@ class FileSelection:
     Optimized for performance with pattern caching and efficient algorithms.
     """
 
-    def __init__(self):
-        """Initialize empty file selection"""
+    def __init__(self, selection_config: Optional[SelectionConfig] = None):
+        """
+        Initialize file selection
+        
+        Args:
+            selection_config: Optional SelectionConfig to initialize from
+        """
         self._pattern_groups: Dict[str, PatternGroup] = {}  # Named pattern groups
         self._includes: Set[Path] = set()  # Explicit path includes
         self._excludes: Set[Path] = set()  # Explicit path excludes
         self._include_patterns: Set[str] = set()  # Pattern includes
         self._exclude_patterns: Set[str] = set()  # Pattern excludes
 
+        # New data model support
+        self._include_pattern_rules: List[PatternRule] = []  # Advanced pattern rules for inclusion
+        self._exclude_pattern_rules: List[PatternRule] = []  # Advanced pattern rules for exclusion
+        self._precedence_config: PrecedenceConfig = PrecedenceConfig()  # Precedence configuration
+        self._selection_config: Optional[SelectionConfig] = selection_config  # Full selection config
+
         # Performance optimization: cache compiled regex patterns
         self._compiled_include_patterns: Optional[List[re.Pattern]] = None
         self._compiled_exclude_patterns: Optional[List[re.Pattern]] = None
         self._patterns_dirty = True
+        
+        # Initialize from config if provided
+        if selection_config:
+            self._initialize_from_config(selection_config)
 
     def add_path(self, path: Union[str, Path], selection_type: SelectionType = SelectionType.INCLUDE):
         """
@@ -636,8 +660,166 @@ class FileSelection:
 
         return sensitive_count
 
+    def _initialize_from_config(self, config: SelectionConfig) -> None:
+        """
+        Initialize file selection from a SelectionConfig
+        
+        Args:
+            config: SelectionConfig to initialize from
+        """
+        # Set paths
+        for path in config.include_paths:
+            self.add_path(path, SelectionType.INCLUDE)
+        for path in config.exclude_paths:
+            self.add_path(path, SelectionType.EXCLUDE)
+        
+        # Set pattern rules
+        self._include_pattern_rules = config.include_patterns.copy()
+        self._exclude_pattern_rules = config.exclude_patterns.copy()
+        
+        # Convert pattern rules to legacy patterns for backward compatibility
+        for rule in config.include_patterns:
+            if rule.syntax == PatternSyntax.GLOB:
+                self._include_patterns.add(rule.pattern)
+        for rule in config.exclude_patterns:
+            if rule.syntax == PatternSyntax.GLOB:
+                self._exclude_patterns.add(rule.pattern)
+        
+        # Set precedence config
+        self._precedence_config = config.precedence_config
+        
+        # Apply pattern groups
+        for group_name in config.pattern_groups:
+            try:
+                self.add_pattern_group(group_name, SelectionType.INCLUDE)
+            except KeyError:
+                # Skip unknown pattern groups
+                pass
+        
+        self._patterns_dirty = True
+
+    def add_pattern_rule(self, rule: PatternRule, selection_type: SelectionType = SelectionType.INCLUDE) -> None:
+        """
+        Add a PatternRule to the selection
+        
+        Args:
+            rule: PatternRule to add
+            selection_type: Whether to include or exclude
+        """
+        target_list = self._include_pattern_rules if selection_type == SelectionType.INCLUDE else self._exclude_pattern_rules
+        target_list.append(rule)
+        
+        # Also add to legacy patterns if it's a GLOB pattern for backward compatibility
+        if rule.syntax == PatternSyntax.GLOB:
+            self.add_pattern(rule.pattern, selection_type)
+        else:
+            self._patterns_dirty = True
+
+    def remove_pattern_rule(self, rule: PatternRule, selection_type: SelectionType = SelectionType.INCLUDE) -> None:
+        """
+        Remove a PatternRule from the selection
+        
+        Args:
+            rule: PatternRule to remove
+            selection_type: Whether to remove from includes or excludes
+        """
+        target_list = self._include_pattern_rules if selection_type == SelectionType.INCLUDE else self._exclude_pattern_rules
+        if rule in target_list:
+            target_list.remove(rule)
+            
+            # Also remove from legacy patterns if it's a GLOB pattern
+            if rule.syntax == PatternSyntax.GLOB:
+                self.remove_pattern(rule.pattern, selection_type)
+            else:
+                self._patterns_dirty = True
+
+    def get_pattern_rules(self, selection_type: SelectionType = SelectionType.INCLUDE) -> List[PatternRule]:
+        """
+        Get the list of PatternRules
+        
+        Args:
+            selection_type: Whether to get include or exclude rules
+            
+        Returns:
+            List of PatternRules
+        """
+        return (self._include_pattern_rules if selection_type == SelectionType.INCLUDE 
+                else self._exclude_pattern_rules).copy()
+
+    def set_precedence_config(self, config: PrecedenceConfig) -> None:
+        """
+        Set the precedence configuration
+        
+        Args:
+            config: PrecedenceConfig to set
+        """
+        self._precedence_config = config
+
+    def get_precedence_config(self) -> PrecedenceConfig:
+        """
+        Get the current precedence configuration
+        
+        Returns:
+            Current PrecedenceConfig
+        """
+        return self._precedence_config
+
+    def to_selection_config(self) -> SelectionConfig:
+        """
+        Convert the current FileSelection to a SelectionConfig
+        
+        Returns:
+            SelectionConfig representing the current selection
+        """
+        return SelectionConfig(
+            include_paths=list(self._includes),
+            exclude_paths=list(self._excludes),
+            include_patterns=self._include_pattern_rules.copy(),
+            exclude_patterns=self._exclude_pattern_rules.copy(),
+            pattern_groups=list(self._pattern_groups.keys()),
+            precedence_config=self._precedence_config,
+            case_sensitive=False,  # Default value
+            performance_hints={}
+        )
+
+    @classmethod
+    def from_selection_config(cls, config: SelectionConfig) -> 'FileSelection':
+        """
+        Create a FileSelection from a SelectionConfig
+        
+        Args:
+            config: SelectionConfig to create from
+            
+        Returns:
+            New FileSelection instance
+        """
+        return cls(selection_config=config)
+
+    def supports_pattern_syntax(self, syntax: PatternSyntax) -> bool:
+        """
+        Check if a pattern syntax is supported
+        
+        Args:
+            syntax: PatternSyntax to check
+            
+        Returns:
+            True if syntax is supported
+        """
+        # Currently support GLOB and LITERAL, REGEX support can be added later
+        return syntax in (PatternSyntax.GLOB, PatternSyntax.LITERAL)
+
+    def get_supported_pattern_syntaxes(self) -> List[PatternSyntax]:
+        """
+        Get list of supported pattern syntaxes
+        
+        Returns:
+            List of supported PatternSyntax values
+        """
+        return [PatternSyntax.GLOB, PatternSyntax.LITERAL]
+
     def __repr__(self) -> str:
         return (f"<FileSelection includes={self._includes}, "
                 f"excludes={self._excludes}, "
                 f"include_patterns={self._include_patterns}, "
-                f"exclude_patterns={self._exclude_patterns}>")
+                f"exclude_patterns={self._exclude_patterns}, "
+                f"pattern_rules={len(self._include_pattern_rules) + len(self._exclude_pattern_rules)}>")
