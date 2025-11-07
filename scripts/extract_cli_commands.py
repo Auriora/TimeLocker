@@ -157,8 +157,113 @@ def find_commands_in_cli(cli_file: Path, app_name: str) -> List[CommandInfo]:
     return commands
 
 
+def get_module_specific_imports(module_name: str) -> str:
+    """Get module-specific imports based on module name."""
+    imports = {
+        "security": '''# Security-specific imports
+from TimeLocker.security import (
+    SecurityService,
+    CredentialManager,
+    AccessManager,
+    RepositoryInfo,
+    RepositoryMode,
+    ConfirmationDialogs
+)
+from TimeLocker.completion import repository_completer
+from datetime import datetime, timedelta''',
+        
+        "credentials": '''# Credential management
+from TimeLocker.security.credential_manager import (
+    CredentialManager,
+    CredentialManagerError
+)
+from TimeLocker.config.configuration_manager import ConfigurationManager
+from TimeLocker.completion import repository_name_completer
+from getpass import getpass''',
+        
+        "snapshots": '''# Snapshot management
+from TimeLocker.snapshot_manager import SnapshotManager
+from TimeLocker.restore_manager import RestoreManager
+from TimeLocker.backup_manager import BackupManager
+from TimeLocker.config.configuration_manager import (
+    ConfigurationManager,
+    RepositoryNotFoundError
+)
+from TimeLocker.interfaces.exceptions import ConfigurationError
+from TimeLocker.completion import (
+    snapshot_id_completer,
+    repository_completer,
+    file_path_completer
+)
+from TimeLocker.utils.repository_resolver import (
+    validate_repository_name_or_uri,
+    resolve_repository_uri,
+    get_default_repository
+)
+from TimeLocker.utils.snapshot_validation import validate_snapshot_id_format
+from datetime import datetime
+import subprocess''',
+        
+        "repositories": '''# Repository management
+from TimeLocker.services.repository_manager import RepositoryManager
+from TimeLocker.services.repository_service import RepositoryService
+from TimeLocker.services.repository_factory import RepositoryFactory
+from TimeLocker.config.configuration_manager import (
+    ConfigurationManager,
+    RepositoryNotFoundError
+)
+from TimeLocker.config import ConfigurationModule
+from TimeLocker.security import (
+    SecurityService,
+    CredentialManager,
+    RepositoryInfo,
+    RepositoryMode
+)
+from TimeLocker.backup_manager import BackupManager
+from TimeLocker.completion import (
+    repository_name_completer,
+    repository_completer,
+    repository_uri_completer
+)
+from TimeLocker.utils.repository_resolver import (
+    validate_repository_name_or_uri,
+    resolve_repository_uri
+)
+from TimeLocker.cli_helpers import store_backend_credentials as store_backend_credentials_helper
+from urllib.parse import urlparse
+import re''',
+        
+        "config": '''# Configuration management
+from TimeLocker.config import (
+    ConfigurationModule,
+    ConfigurationValidator
+)
+from TimeLocker.config.configuration_manager import (
+    ConfigurationManager,
+    RepositoryNotFoundError
+)
+from TimeLocker.config.configuration_backup_manager import (
+    ConfigurationBackupManager,
+    BackupReason
+)
+from TimeLocker.config.configuration_path_resolver import ConfigurationPathResolver
+from TimeLocker.importers.timeshift_importer import (
+    TimeshiftConfigParser,
+    TimeshiftToTimeLockerMapper
+)
+from TimeLocker.interfaces.exceptions import ConfigurationError
+from datetime import datetime
+import json
+from difflib import unified_diff'''
+    }
+    
+    return imports.get(module_name, "# TODO: Add module-specific imports")
+
+
 def generate_module_header(module_info: ModuleInfo) -> str:
     """Generate the header for a command module."""
+    module_imports = get_module_specific_imports(module_info.name)
+    
     return f'''"""
 {module_info.description.capitalize()}.
 
@@ -203,8 +308,8 @@ from .base import (
 from TimeLocker import cli as _cli_module
 from TimeLocker.cli_services import get_cli_service_manager
 
-# Module-specific imports will be added as needed
-# TODO: Review and add specific imports for this module
+# Module-specific imports
+{module_imports}
 
 # Create Typer app
 {module_info.app_name} = create_typer_app(
