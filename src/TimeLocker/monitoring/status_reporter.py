@@ -334,6 +334,77 @@ class StatusReporter:
 
         return dict(summary)
 
+    def report_policy_status(self, policy_id: str, target_id: str, 
+                            compliance_status: str, details: Optional[Dict[str, Any]] = None) -> None:
+        """
+        Report policy compliance status for monitoring.
+        
+        Args:
+            policy_id: Policy identifier
+            target_id: Target identifier (repository, backup job, etc.)
+            compliance_status: Compliance status (compliant, warning, violation)
+            details: Optional additional details about compliance status
+        """
+        operation_id = f"policy-status-{policy_id}-{target_id}-{int(time.time())}"
+        
+        # Map compliance status to status level
+        status_map = {
+            'compliant': StatusLevel.SUCCESS,
+            'warning': StatusLevel.WARNING,
+            'violation': StatusLevel.ERROR,
+            'error': StatusLevel.CRITICAL,
+        }
+        status_level = status_map.get(compliance_status.lower(), StatusLevel.INFO)
+        
+        # Create operation status for policy compliance
+        status = OperationStatus(
+            operation_id=operation_id,
+            operation_type="policy_compliance",
+            status=status_level,
+            message=f"Policy {policy_id} compliance: {compliance_status}",
+            timestamp=datetime.now(),
+            repository_id=target_id,
+            metadata={
+                'policy_id': policy_id,
+                'compliance_status': compliance_status,
+                'details': details or {},
+            }
+        )
+        
+        self._notify_handlers(status)
+        self._log_status(status)
+        
+        logger.info(f"Policy compliance reported: {policy_id} on {target_id} - {compliance_status}")
+
+    def get_policy_compliance_history(self, policy_id: Optional[str] = None,
+                                     target_id: Optional[str] = None,
+                                     days: int = 7) -> List[OperationStatus]:
+        """
+        Get policy compliance history for the specified period.
+        
+        Args:
+            policy_id: Optional filter by policy ID
+            target_id: Optional filter by target ID
+            days: Number of days to look back
+            
+        Returns:
+            List of policy compliance operations
+        """
+        operations = self.get_operation_history(
+            days=days,
+            operation_type="policy_compliance",
+            repository_id=target_id
+        )
+        
+        # Further filter by policy_id if specified
+        if policy_id:
+            operations = [
+                op for op in operations
+                if op.metadata and op.metadata.get('policy_id') == policy_id
+            ]
+        
+        return operations
+
     def _notify_handlers(self, status: OperationStatus):
         """Notify all registered status handlers (optimized for performance)"""
         # Only copy handlers if we have any to avoid unnecessary work

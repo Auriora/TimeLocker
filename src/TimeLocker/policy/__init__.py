@@ -59,6 +59,7 @@ from .storage import (
     PolicySerializer,
     FileSystemPolicyStore,
 )
+from .integration import PolicyIntegrationService
 
 __all__ = [
     # Exceptions
@@ -111,4 +112,6 @@ __all__ = [
     'IPolicyStore',
     'PolicySerializer',
     'FileSystemPolicyStore',
+    # Integration
+    'PolicyIntegrationService',
 ]

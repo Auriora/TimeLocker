@@ -26,9 +26,10 @@ logger = logging.getLogger(__name__)
 class RepositoryService(IRepositoryService, ServiceInterface):
     """Advanced repository management service"""
 
-    def __init__(self, validation_service: ValidationService, performance_module: PerformanceModule):
+    def __init__(self, validation_service: ValidationService, performance_module: PerformanceModule, policy_integration_service=None):
         self.validation_service = validation_service
         self.performance_module = performance_module
+        self.policy_integration_service = policy_integration_service
         self._context: Optional[ServiceContext] = None
         self._initialized = False
 
@@ -105,7 +106,7 @@ class RepositoryService(IRepositoryService, ServiceInterface):
         Returns:
             List[str]: List of capability identifiers
         """
-        return [
+        capabilities = [
             'repository_check',
             'repository_stats',
             'repository_unlock',
@@ -113,6 +114,12 @@ class RepositoryService(IRepositoryService, ServiceInterface):
             'retention_policy',
             'repository_prune'
         ]
+        
+        # Add policy enforcement capability if policy integration is available
+        if self.policy_integration_service:
+            capabilities.append('policy_enforcement')
+        
+        return capabilities
 
     def _parse_restic_error(self, error_output: str) -> str:
         """
@@ -546,3 +553,45 @@ class RepositoryService(IRepositoryService, ServiceInterface):
             except Exception as e:
                 logger.error(f"Failed to prune repository: {e}")
                 raise RepositoryFactoryError(f"Failed to prune repository: {e}")
+
+    def enforce_policy(self, repository: BackupRepository, policy_id: Optional[str] = None, dry_run: bool = False) -> Dict[str, Any]:
+        """
+        Enforce retention policy on repository using policy management system
+        
+        Args:
+            repository: Repository to enforce policy on
+            policy_id: Optional specific policy ID (otherwise uses assigned policy)
+            dry_run: If True, simulate without actually removing snapshots
+            
+        Returns:
+            Dictionary with enforcement results
+        """
+        with self.performance_module.track_operation("enforce_policy"):
+            try:
+                if not self.policy_integration_service:
+                    raise RepositoryFactoryError(
+                        "Policy enforcement not available: policy integration service not configured"
+                    )
+                
+                logger.info(
+                    f"{'[DRY RUN] ' if dry_run else ''}Enforcing policy on repository "
+                    f"'{repository.name}'"
+                )
+                
+                # Delegate to policy integration service
+                result = self.policy_integration_service.enforce_retention_policy_on_repository(
+                    repository=repository,
+                    policy_id=policy_id,
+                    dry_run=dry_run,
+                )
+                
+                logger.info(
+                    f"Policy enforcement completed on repository '{repository.name}': "
+                    f"{result.get('snapshots_removed', 0)} snapshots removed"
+                )
+                
+                return result
+                
+            except Exception as e:
+                logger.error(f"Failed to enforce policy on repository: {e}")
+                raise RepositoryFactoryError(f"Failed to enforce policy: {e}")

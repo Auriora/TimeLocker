@@ -56,7 +56,8 @@ class BackupOrchestrator(IBackupOrchestrator):
     def __init__(self,
                  repository_factory: IRepositoryFactory,
                  configuration_provider: IConfigurationProvider,
-                 max_concurrent_backups: int = 2):
+                 max_concurrent_backups: int = 2,
+                 policy_integration_service=None):
         """
         Initialize backup orchestrator.
         
@@ -64,10 +65,12 @@ class BackupOrchestrator(IBackupOrchestrator):
             repository_factory: Factory for creating repository instances
             configuration_provider: Provider for configuration access
             max_concurrent_backups: Maximum number of concurrent backup operations
+            policy_integration_service: Optional policy integration service for policy-driven backups
         """
         self._repository_factory = repository_factory
         self._configuration_provider = configuration_provider
         self._max_concurrent_backups = max_concurrent_backups
+        self._policy_integration_service = policy_integration_service
 
         # Track active backup operations
         self._active_backups: Dict[str, BackupResult] = {}
@@ -516,3 +519,48 @@ class BackupOrchestrator(IBackupOrchestrator):
         except Exception as e:
             logger.error(f"Backup verification failed: {e}")
             raise BackupOrchestratorError(f"Backup verification failed: {e}") from e
+
+    def execute_policy_driven_backup(self, policy_id: str, dry_run: bool = False) -> Dict[str, Any]:
+        """
+        Execute a backup operation driven by a backup policy.
+        
+        This method integrates with the policy management system to execute
+        backups according to backup policy configuration.
+        
+        Args:
+            policy_id: Backup policy ID to execute
+            dry_run: If True, simulate without actually performing backup
+            
+        Returns:
+            Dictionary with backup results
+            
+        Raises:
+            BackupOrchestratorError: If policy-driven backup execution fails
+        """
+        try:
+            if not self._policy_integration_service:
+                raise BackupOrchestratorError(
+                    "Policy-driven backups not available: policy integration service not configured"
+                )
+            
+            logger.info(
+                f"{'[DRY RUN] ' if dry_run else ''}Executing policy-driven backup "
+                f"for policy ID: {policy_id}"
+            )
+            
+            # Delegate to policy integration service
+            result = self._policy_integration_service.execute_policy_driven_backup(
+                policy_id=policy_id,
+                dry_run=dry_run,
+            )
+            
+            logger.info(
+                f"Policy-driven backup {'completed' if result.get('success') else 'failed'} "
+                f"for policy ID: {policy_id}"
+            )
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Policy-driven backup execution failed: {e}")
+            raise BackupOrchestratorError(f"Policy-driven backup execution failed: {e}") from e
