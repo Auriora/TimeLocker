@@ -38,6 +38,15 @@ from .plugin_initializer import (
     get_engines_for_storage,
     print_plugin_status
 )
+from .job_executor import (
+    JobExecutor,
+    ErrorClassifier,
+    ErrorCategory,
+    RetryStrategy,
+    ErrorClassification,
+    RetryDecision,
+    ExecutionResult
+)
 
 __all__ = [
     'RepositoryManager',
@@ -65,5 +74,12 @@ __all__ = [
     'get_available_engines_info',
     'check_engine_availability',
     'get_engines_for_storage',
-    'print_plugin_status'
+    'print_plugin_status',
+    'JobExecutor',
+    'ErrorClassifier',
+    'ErrorCategory',
+    'RetryStrategy',
+    'ErrorClassification',
+    'RetryDecision',
+    'ExecutionResult'
 ]

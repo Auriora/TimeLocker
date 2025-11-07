@@ -53,6 +53,7 @@ from ..utils import (
     update_operation_tracking,
     complete_operation_tracking
 )
+from .job_executor import JobExecutor, ErrorClassifier
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,8 @@ class BackupOrchestrator(IBackupOrchestrator):
                  configuration_provider: IConfigurationProvider,
                  max_concurrent_backups: int = 2,
                  policy_integration_service=None,
-                 selection_service: Optional[SelectionServiceInterface] = None):
+                 selection_service: Optional[SelectionServiceInterface] = None,
+                 job_executor: Optional[JobExecutor] = None):
         """
         Initialize backup orchestrator.
         
@@ -80,12 +82,14 @@ class BackupOrchestrator(IBackupOrchestrator):
             max_concurrent_backups: Maximum number of concurrent backup operations
             policy_integration_service: Optional policy integration service for policy-driven backups
             selection_service: Optional selection service for data selection integration
+            job_executor: Optional job executor for advanced retry logic
         """
         self._repository_factory = repository_factory
         self._configuration_provider = configuration_provider
         self._max_concurrent_backups = max_concurrent_backups
         self._policy_integration_service = policy_integration_service
         self._selection_service = selection_service or SelectionServiceInterface()
+        self._job_executor = job_executor or JobExecutor()
 
         # Track active backup operations
         self._active_backups: Dict[str, BackupResult] = {}
@@ -452,7 +456,10 @@ class BackupOrchestrator(IBackupOrchestrator):
 
     def _execute_job_with_retry(self, backup_job: BackupJob) -> BackupResult:
         """
-        Execute a backup job with retry logic.
+        Execute a backup job with advanced retry logic.
+        
+        This method uses the JobExecutor for sophisticated retry handling
+        with error classification and exponential backoff.
         
         Args:
             backup_job: Backup job to execute
@@ -460,71 +467,30 @@ class BackupOrchestrator(IBackupOrchestrator):
         Returns:
             BackupResult with execution details
         """
-        logger.info(f"Executing job with retry: {backup_job.config.job_id}")
+        logger.info(f"Executing job with advanced retry: {backup_job.config.job_id}")
         
-        retry_config = backup_job.config.retry_config
-        max_attempts = retry_config.max_retries + 1
-        
-        for attempt in range(1, max_attempts + 1):
-            backup_job.execution_context.attempt_number = attempt
-            
-            if attempt > 1:
-                # Calculate delay with exponential backoff
-                delay = min(
-                    retry_config.base_delay_seconds * (retry_config.backoff_multiplier ** (attempt - 2)),
-                    retry_config.max_delay_seconds
-                )
-                logger.info(f"Retry attempt {attempt}/{max_attempts} after {delay}s delay")
-                time.sleep(delay)
-            
-            try:
-                # Execute the backup
-                result = self._execute_backup_job_internal(backup_job)
-                
-                if result.status == BackupStatus.COMPLETED:
-                    logger.info(f"Job completed successfully on attempt {attempt}")
-                    return result
-                
-                # Check if we should retry
-                if attempt < max_attempts:
-                    logger.warning(
-                        f"Job failed on attempt {attempt}, will retry. "
-                        f"Errors: {'; '.join(result.errors)}"
-                    )
-                    backup_job.execution_context.previous_errors.extend(result.errors)
-                else:
-                    logger.error(f"Job failed after {max_attempts} attempts")
-                    result.metadata['retry_attempts'] = attempt
-                    return result
-                    
-            except Exception as e:
-                logger.error(f"Job execution error on attempt {attempt}: {e}")
-                
-                if attempt < max_attempts:
-                    backup_job.execution_context.previous_errors.append(str(e))
-                else:
-                    # Final attempt failed
-                    return BackupResult(
-                        status=BackupStatus.FAILED,
-                        repository_name=backup_job.config.repository_id,
-                        target_names=backup_job.config.target_names,
-                        start_time=backup_job.execution_context.start_time,
-                        end_time=time.time(),
-                        errors=[f"Failed after {max_attempts} attempts: {e}"],
-                        metadata={
-                            'job_id': backup_job.config.job_id,
-                            'retry_attempts': attempt
-                        }
-                    )
-        
-        # Should not reach here, but return failure just in case
-        return BackupResult(
-            status=BackupStatus.FAILED,
-            repository_name=backup_job.config.repository_id,
-            target_names=backup_job.config.target_names,
-            errors=["Unexpected retry loop exit"],
-            metadata={'job_id': backup_job.config.job_id}
+        # Use JobExecutor for advanced retry logic
+        execution_result = self._job_executor.execute_with_retry(
+            job=backup_job,
+            execution_func=self._execute_backup_job_internal,
+            retry_config=backup_job.config.retry_config
         )
+        
+        # Add retry information to result metadata
+        result = execution_result.backup_result
+        result.metadata['total_attempts'] = execution_result.total_attempts
+        result.metadata['retry_history'] = execution_result.retry_history
+        
+        if execution_result.final_error_classification:
+            result.metadata['final_error_category'] = execution_result.final_error_classification.category.value
+            result.metadata['suggested_action'] = execution_result.final_error_classification.suggested_action
+        
+        logger.info(
+            f"Job execution completed: {backup_job.config.job_id}, "
+            f"status={result.status.value}, attempts={execution_result.total_attempts}"
+        )
+        
+        return result
 
     def _execute_backup_job_internal(self, backup_job: BackupJob) -> BackupResult:
         """
