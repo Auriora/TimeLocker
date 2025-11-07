@@ -28,7 +28,8 @@ contributors and operators can navigate the knowledge base quickly.
 - **Processes** – [./processes/README.md](./processes/README.md) and [version-management.md](./processes/version-management.md) for release governance.
 - **Reference** – [./reference/README.md](./reference/README.md) and supporting specs such
   as [timelocker-cli-command-hierarchy.md](./reference/timelocker-cli-command-hierarchy.md) and [repository-uri-guide.md](./reference/repository-uri-guide.md).
-- **Reports & Updates** – Generated analyses and change logs under [./reports/](./reports/READM[./updates/](./updates/index.md)./updates).
+- **Reports & Updates** – Generated analyses and change logs under [./reports/](./reports/README.md) and [./updates/](./updates/index.md).
+- **Archive** – [./archive/README.md](./archive/README.md) – Historical documentation preserved for reference.
 
 ## 🚀 Quick Start
 
@@ -96,6 +97,7 @@ traceability intact.
 | Operational processes           | `./processes/`        |
 | Formal reports                  | `./reports/`          |
 | Updates & changelog supplements | `./updates/`          |
+| Historical documentation        | `./archive/`          |
 
 ## 🔮 Roadmap
 
@@ -118,4 +120,4 @@ traceability intact.
 3. Ensure new documents include metadata consistent with their directory’s README and templates (e.g., `docs/_template/`).
 4. Align ongoing work with the authoritative mappings in [tasks-to-issues-map.md](./0-project-management/tasks-to-issues-map.md) to preserve traceability.
 
-*Last Updated: 2025-11-01*
+*Last Updated: 2025-11-07*

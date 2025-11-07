@@ -1,5 +1,15 @@
 # Update Index
 
+- [2025-11-07-docs-cleanup](./2025-11-07-docs-cleanup.md)
+- [2025-11-07-named-repository-management](./2025-11-07-named-repository-management.md)
+- [2025-11-07-cli-repository-commands-enhancement](./2025-11-07-cli-repository-commands-enhancement.md)
+- [2025-11-07-configuration-integration-backup-support](./2025-11-07-configuration-integration-backup-support.md)
+- [2025-11-07-performance-monitoring-implementation](./2025-11-07-performance-monitoring-implementation.md)
+- [2025-11-07-plugin-architecture-implementation](./2025-11-07-plugin-architecture-implementation.md)
+- [2025-11-07-cli-refactoring-phase1](./2025-11-07-cli-refactoring-phase1.md)
+- [2025-11-07-cli-refactoring-phase2-progress](./2025-11-07-cli-refactoring-phase2-progress.md)
+- [2025-11-07-cli-refactoring-phase2-summary](./2025-11-07-cli-refactoring-phase2-summary.md)
+- [2025-11-07-cli-refactoring-phase3](./2025-11-07-cli-refactoring-phase3.md)
 - [2025-11-01-docs-user-guides-standardization](./2025-11-01-docs-user-guides-standardization.md)
 - [2025-11-01-docs-developer-guides-standardization](./2025-11-01-docs-developer-guides-standardization.md)
 - [2025-11-01-docs-plans-standardization](./2025-11-01-docs-plans-standardization.md)

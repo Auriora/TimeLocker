@@ -15,7 +15,7 @@ links:
 - **Owner**: Auriora Team
 - **Status**: Approved
 - **Created Date**: 27-10-2023
-- **Last Updated**: 27-10-2023
+- **Last Updated**: 2025-11-07
 
 ## 1. Purpose
 
@@ -44,10 +44,20 @@ source for diagrams, Architecture Decision Records (ADRs), and infrastructure la
 
 - **Naming Convention**: `<type>-<description>.md` (e.g., `ADR-001-Database-Choice.md`, `HLD-System-Overview.md`).
 
+## 4. Available Documents
+
+See [README.design.md](./README.design.md) for a complete index of architecture documents including:
+- Design overview and technical architecture
+- Component breakdown and data models
+- Security considerations and scalability
+- API specifications and references
+
 ## 5. Available Templates
 
 - `_template.md`: A generic template for architecture-related documents.
 
-# References
+## 6. References
 
-- Link to additional resources, specs, or tickets
+- [Design Index](./README.design.md) - Complete architecture document index
+- [Implementation](../3-implementation/) - Implementation details
+- [Updates](../updates/) - Architecture change notes

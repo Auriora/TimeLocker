@@ -15,7 +15,7 @@ links:
 - **Owner**: Auriora Team
 - **Status**: Approved
 - **Created Date**: 27-10-2023
-- **Last Updated**: 27-10-2023
+- **Last Updated**: 2025-11-07
 
 ## 1. Purpose
 
@@ -34,20 +34,32 @@ links:
 - Implementation details (see `../3-implementation/`).
 - Operational runbooks (see `../guides/`).
 
-## 4. Usage Notes
+## 4. Available Documents
 
-- **Checklist for Authors**:
-    - [ ] Fill in all placeholder values (e.g., `[Name or Team]`).
-    - [ ] Delete this `Usage Notes` section before publishing.
-    - [ ] Ensure the document is linked from the relevant `README.md` file.
+### Quick Start
+- **[quickstart-testing.md](./quickstart-testing.md)** - Fast path for verifying environments and running tests
 
-- **Naming Convention**: `<type>-<description>.md` (e.g., `PLAN-Release-1.0-Test-Plan.md`, `STRAT-Performance-Testing.md`, `CASE-Login-Functionality.md`).
+### MinIO Testing
+- **[guide-minio-testing.md](./guide-minio-testing.md)** - Complete MinIO testing guide
+- **[checklist-minio-testing.md](./checklist-minio-testing.md)** - MinIO testing checklist
+- **[summary-minio-setup.md](./summary-minio-setup.md)** - MinIO setup summary
+
+### Repository CLI Testing
+- **[repository-cli-commands-test.md](./repository-cli-commands-test.md)** - Repository command testing
+- **[repository-cli-working-summary.md](./repository-cli-working-summary.md)** - Working summary of repository CLI
+
+### Test Planning
+- **[test-plan.md](./test-plan.md)** - Comprehensive test plan
+- **[testing-overview.md](./testing-overview.md)** - Testing approach overview
+- **[test-results.md](./test-results.md)** - Test execution results
 
 ## 5. Available Templates
 
-- `_template.md`: A generic template, best suited for **STRAT** (Test Strategy) documents.
-- `_template.plan.md`: A template specifically for **PLAN** (Test Plan) documents.
+- `_template.md`: Generic template for test strategy documents
+- `_template.plan.md`: Template for test plan documents
 
-# References
+## 6. References
 
-- Link to additional resources, specs, or tickets
+- [Testing Quick Start](./quickstart-testing.md) - Start here for testing
+- [Reports](../reports/) - Test coverage and quality reports
+- [Updates](../updates/) - Implementation notes with testing details
