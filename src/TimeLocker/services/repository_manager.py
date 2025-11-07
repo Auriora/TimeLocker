@@ -28,6 +28,9 @@ from .repository_factory import RepositoryFactory
 from .validation_service import ValidationService
 from .repository_state_manager import RepositoryStateManager
 from .existing_repository_handler import ExistingRepositoryHandler
+from .repository_performance_monitor import RepositoryPerformanceMonitor, PerformanceThresholds
+from .repository_concurrency_manager import RepositoryConcurrencyManager
+from .repository_cache_manager import RepositoryCacheManager, LazyRepositoryLoader
 from ..security.credential_manager import CredentialManager
 from ..config.configuration_manager import ConfigurationManager
 
@@ -48,7 +51,10 @@ class RepositoryManager(ServiceInterface):
                  credential_manager: Optional[CredentialManager] = None,
                  config_manager: Optional[ConfigurationManager] = None,
                  state_manager: Optional[RepositoryStateManager] = None,
-                 existing_repo_handler: Optional[ExistingRepositoryHandler] = None):
+                 existing_repo_handler: Optional[ExistingRepositoryHandler] = None,
+                 performance_monitor: Optional[RepositoryPerformanceMonitor] = None,
+                 concurrency_manager: Optional[RepositoryConcurrencyManager] = None,
+                 cache_manager: Optional[RepositoryCacheManager] = None):
         """
         Initialize Repository Manager.
         
@@ -59,6 +65,9 @@ class RepositoryManager(ServiceInterface):
             config_manager: Configuration manager for persistence
             state_manager: Manager for repository state transitions
             existing_repo_handler: Handler for existing repository operations
+            performance_monitor: Monitor for repository operation performance
+            concurrency_manager: Manager for concurrent operations
+            cache_manager: Manager for repository metadata caching
         """
         self._repository_factory = repository_factory or RepositoryFactory()
         self._validation_service = validation_service or ValidationService()
@@ -67,13 +76,18 @@ class RepositoryManager(ServiceInterface):
         self._state_manager = state_manager or RepositoryStateManager()
         self._existing_repo_handler = existing_repo_handler or ExistingRepositoryHandler(self._repository_factory)
         
+        # Performance and optimization components
+        self._performance_monitor = performance_monitor or RepositoryPerformanceMonitor()
+        self._concurrency_manager = concurrency_manager or RepositoryConcurrencyManager(max_concurrent_validations=3)
+        self._cache_manager = cache_manager or RepositoryCacheManager(default_ttl=300.0, max_cache_size=1000)
+        self._lazy_loader = LazyRepositoryLoader(self._cache_manager)
+        
         # Runtime state
         self._repositories: Dict[str, Repository] = {}
-        self._operation_locks: Dict[str, asyncio.Lock] = {}
         self._context: Optional[ServiceContext] = None
         self._initialized = False
         
-        # Performance monitoring
+        # Legacy performance thresholds (kept for compatibility)
         self._performance_thresholds = {
             'validation_network': 15.0,  # seconds
             'validation_local': 3.0,     # seconds
@@ -81,7 +95,7 @@ class RepositoryManager(ServiceInterface):
             'configuration_update': 1.0   # seconds
         }
         
-        logger.debug("RepositoryManager initialized")
+        logger.debug("RepositoryManager initialized with performance monitoring and caching")
     
     # ServiceInterface implementation
     def initialize(self, context: ServiceContext) -> bool:
@@ -112,7 +126,10 @@ class RepositoryManager(ServiceInterface):
             # Load existing repositories from configuration
             self._load_repositories()
             
-            logger.info("RepositoryManager initialized successfully")
+            # Start cache cleanup task
+            asyncio.create_task(self._cache_manager.start_cleanup_task())
+            
+            logger.info("RepositoryManager initialized successfully with performance monitoring")
             self._initialized = True
             return True
             
@@ -126,9 +143,11 @@ class RepositoryManager(ServiceInterface):
             # Save any pending changes
             self._save_repositories()
             
+            # Stop cache cleanup task
+            asyncio.create_task(self._cache_manager.stop_cleanup_task())
+            
             # Clear runtime state
             self._repositories.clear()
-            self._operation_locks.clear()
             self._context = None
             self._initialized = False
             
@@ -178,22 +197,25 @@ class RepositoryManager(ServiceInterface):
             'existing_repository_detection',
             'repository_state_management',
             'configuration_backup',
-            'exclusive_locking'
+            'exclusive_locking',
+            'performance_monitoring',
+            'concurrent_operations',
+            'metadata_caching',
+            'lazy_loading'
         ]
     
-    async def _acquire_repository_lock(self, repo_name: str) -> asyncio.Lock:
+    async def _acquire_repository_lock(self, repo_name: str, operation: str = "unknown"):
         """
         Acquire exclusive lock for repository operations.
         
         Args:
             repo_name: Name of the repository to lock
+            operation: Name of the operation acquiring the lock
             
         Returns:
-            asyncio.Lock: Lock object for the repository
+            Context manager for the lock
         """
-        if repo_name not in self._operation_locks:
-            self._operation_locks[repo_name] = asyncio.Lock()
-        return self._operation_locks[repo_name]
+        return self._concurrency_manager.acquire_repository_lock(repo_name, operation)
     
     def validate_repository_name(self, name: str) -> ConfigValidationResult:
         """
@@ -479,7 +501,7 @@ class RepositoryManager(ServiceInterface):
         if not options:
             options = RepositoryCreationOptions()
         
-        async with await self._acquire_repository_lock(config.name):
+        async with await self._acquire_repository_lock(config.name, "create_repository"):
             # Validate repository name
             name_validation = self.validate_repository_name(config.name)
             if not name_validation.is_valid:
@@ -684,29 +706,39 @@ class RepositoryManager(ServiceInterface):
         """
         List all repositories with optional filtering.
         
+        Optimized for desktop usage with caching and performance monitoring.
+        Target: <2s for typical desktop repository counts (up to 20 repositories)
+        
         Args:
             filters: Optional filters to apply
             
         Returns:
             List[Repository]: List of repositories
         """
-        repositories = list(self._repositories.values())
-        
-        if filters:
-            # Apply filters
-            if 'status' in filters:
-                status_filter = RepositoryStatus(filters['status'])
-                repositories = [r for r in repositories if r.status == status_filter]
+        async def _list_operation():
+            repositories = list(self._repositories.values())
             
-            if 'engine' in filters:
-                engine_filter = BackupEngine(filters['engine'])
-                repositories = [r for r in repositories if r.config.engine == engine_filter]
+            if filters:
+                # Apply filters
+                if 'status' in filters:
+                    status_filter = RepositoryStatus(filters['status'])
+                    repositories = [r for r in repositories if r.status == status_filter]
+                
+                if 'engine' in filters:
+                    engine_filter = BackupEngine(filters['engine'])
+                    repositories = [r for r in repositories if r.config.engine == engine_filter]
+                
+                if 'type' in filters:
+                    type_filter = RepositoryType(filters['type'])
+                    repositories = [r for r in repositories if r.config.type == type_filter]
             
-            if 'type' in filters:
-                type_filter = RepositoryType(filters['type'])
-                repositories = [r for r in repositories if r.config.type == type_filter]
+            return repositories
         
-        return repositories
+        # Monitor performance of listing operation
+        return await self._performance_monitor.monitor_operation(
+            'listing',
+            _list_operation
+        )
     
     async def update_repository(self, name: str, updates: Dict[str, Any]) -> Repository:
         """
@@ -722,7 +754,7 @@ class RepositoryManager(ServiceInterface):
         Raises:
             RepositoryNotFoundError: If repository is not found
         """
-        async with await self._acquire_repository_lock(name):
+        async with await self._acquire_repository_lock(name, "update_repository"):
             repository = await self.get_repository(name)
             
             # Backup configuration before risky operations
@@ -762,7 +794,7 @@ class RepositoryManager(ServiceInterface):
         Raises:
             RepositoryNotFoundError: If repository is not found
         """
-        async with await self._acquire_repository_lock(name):
+        async with await self._acquire_repository_lock(name, "delete_repository"):
             repository = await self.get_repository(name)
             
             # Backup configuration before deletion
@@ -781,77 +813,89 @@ class RepositoryManager(ServiceInterface):
         """
         Validate repository connectivity and integrity.
         
+        Uses concurrency limiting and performance monitoring for desktop optimization.
+        
         Args:
             repository: Repository to validate
             
         Returns:
             ValidationResult: Validation results
         """
-        start_time = datetime.utcnow()
+        async def _validate_operation():
+            start_time = datetime.utcnow()
+            
+            try:
+                # Create repository instance for validation
+                repo_instance = self._repository_factory.create_repository(
+                    repository.config.uri,
+                    repository_name=repository.config.name
+                )
+                
+                # Test connectivity
+                connectivity_result = await self._test_connectivity(repo_instance)
+                
+                # Test integrity if connectivity succeeds
+                integrity_result = None
+                if connectivity_result.success:
+                    integrity_result = await self._test_integrity(repo_instance)
+                
+                # Calculate performance metrics
+                duration = (datetime.utcnow() - start_time).total_seconds()
+                performance_metrics = {'validation_duration': duration}
+                
+                # Check performance thresholds
+                threshold_key = 'validation_network' if repository.config.type != RepositoryType.LOCAL else 'validation_local'
+                threshold = self._performance_thresholds[threshold_key]
+                
+                recommendations = []
+                if duration > threshold:
+                    recommendations.append(f"Validation took {duration:.2f}s (threshold: {threshold:.2f}s). Consider checking connectivity.")
+                
+                # Create validation result
+                validation_result = ValidationResult(
+                    success=connectivity_result.success and (integrity_result is None or integrity_result.success),
+                    timestamp=datetime.utcnow(),
+                    connectivity_status=connectivity_result.status,
+                    integrity_status=integrity_result.status if integrity_result else IntegrityStatus.UNKNOWN,
+                    performance_metrics=performance_metrics,
+                    recommendations=recommendations
+                )
+                
+                if not connectivity_result.success:
+                    validation_result.add_error(connectivity_result.error_message or "Connectivity test failed")
+                
+                if integrity_result and not integrity_result.success:
+                    validation_result.error_details.extend(integrity_result.issues_found)
+                
+                # Update repository validation state
+                repository.last_validated = datetime.utcnow()
+                repository.validation_result = validation_result
+                
+                # Transition state based on validation result
+                if validation_result.success:
+                    await self._state_manager.transition_state(repository, RepositoryStatus.ACTIVE)
+                else:
+                    await self._state_manager.transition_state(repository, RepositoryStatus.ERROR)
+                
+                return validation_result
+                
+            except Exception as e:
+                logger.error(f"Repository validation failed for {repository.name}: {e}")
+                return ValidationResult(
+                    success=False,
+                    timestamp=datetime.utcnow(),
+                    connectivity_status=ConnectivityStatus.UNKNOWN,
+                    integrity_status=IntegrityStatus.UNKNOWN,
+                    error_details=[str(e)]
+                )
         
-        try:
-            # Create repository instance for validation
-            repo_instance = self._repository_factory.create_repository(
-                repository.config.uri,
-                repository_name=repository.config.name
-            )
-            
-            # Test connectivity
-            connectivity_result = await self._test_connectivity(repo_instance)
-            
-            # Test integrity if connectivity succeeds
-            integrity_result = None
-            if connectivity_result.success:
-                integrity_result = await self._test_integrity(repo_instance)
-            
-            # Calculate performance metrics
-            duration = (datetime.utcnow() - start_time).total_seconds()
-            performance_metrics = {'validation_duration': duration}
-            
-            # Check performance thresholds
-            threshold_key = 'validation_network' if repository.config.type != RepositoryType.LOCAL else 'validation_local'
-            threshold = self._performance_thresholds[threshold_key]
-            
-            recommendations = []
-            if duration > threshold:
-                recommendations.append(f"Validation took {duration:.2f}s (threshold: {threshold:.2f}s). Consider checking connectivity.")
-            
-            # Create validation result
-            validation_result = ValidationResult(
-                success=connectivity_result.success and (integrity_result is None or integrity_result.success),
-                timestamp=datetime.utcnow(),
-                connectivity_status=connectivity_result.status,
-                integrity_status=integrity_result.status if integrity_result else IntegrityStatus.UNKNOWN,
-                performance_metrics=performance_metrics,
-                recommendations=recommendations
-            )
-            
-            if not connectivity_result.success:
-                validation_result.add_error(connectivity_result.error_message or "Connectivity test failed")
-            
-            if integrity_result and not integrity_result.success:
-                validation_result.error_details.extend(integrity_result.issues_found)
-            
-            # Update repository validation state
-            repository.last_validated = datetime.utcnow()
-            repository.validation_result = validation_result
-            
-            # Transition state based on validation result
-            if validation_result.success:
-                await self._state_manager.transition_state(repository, RepositoryStatus.ACTIVE)
-            else:
-                await self._state_manager.transition_state(repository, RepositoryStatus.ERROR)
-            
-            return validation_result
-            
-        except Exception as e:
-            logger.error(f"Repository validation failed for {repository.name}: {e}")
-            return ValidationResult(
-                success=False,
-                timestamp=datetime.utcnow(),
-                connectivity_status=ConnectivityStatus.UNKNOWN,
-                integrity_status=IntegrityStatus.UNKNOWN,
-                error_details=[str(e)]
+        # Use concurrency limiting for validation
+        async with self._concurrency_manager.limit_concurrent_validations(repository.name):
+            # Monitor performance
+            return await self._performance_monitor.monitor_operation(
+                'validation',
+                _validate_operation,
+                repository=repository
             )
     
     async def _test_connectivity(self, repository) -> ConnectivityResult:
@@ -1026,7 +1070,7 @@ class RepositoryManager(ServiceInterface):
             RepositoryNotFoundError: If no repository exists at the URI
             CredentialError: If credentials are required but not provided
         """
-        async with await self._acquire_repository_lock(config.name):
+        async with await self._acquire_repository_lock(config.name, "connect_to_existing"):
             # Detect existing repository
             existing_info = await self.detect_existing_repository(config.uri)
             if not existing_info:
@@ -1053,7 +1097,7 @@ class RepositoryManager(ServiceInterface):
             RepositoryNotFoundError: If no repository exists at the URI
             DataLossConfirmationError: If confirmation is required but not provided
         """
-        async with await self._acquire_repository_lock(config.name):
+        async with await self._acquire_repository_lock(config.name, "reinitialize_repository"):
             # Detect existing repository
             existing_info = await self.detect_existing_repository(config.uri)
             if not existing_info:
@@ -1089,6 +1133,54 @@ class RepositoryManager(ServiceInterface):
         """
         return self._state_manager.get_state_history(repository_name, limit)
     
+    async def batch_validate_repositories(
+        self,
+        repository_names: Optional[List[str]] = None
+    ) -> Dict[str, ValidationResult]:
+        """
+        Validate multiple repositories concurrently with desktop-appropriate limits.
+        
+        Uses concurrency manager to limit parallel validations (up to 3).
+        
+        Args:
+            repository_names: Optional list of repository names to validate (validates all if not provided)
+            
+        Returns:
+            Dict[str, ValidationResult]: Dictionary of repository name to validation result
+        """
+        # Get repositories to validate
+        if repository_names:
+            repositories = [
+                await self.get_repository(name)
+                for name in repository_names
+                if name in self._repositories
+            ]
+        else:
+            repositories = list(self._repositories.values())
+        
+        # Validate with concurrency limit
+        results = await self._concurrency_manager.validate_with_concurrency_limit(
+            repositories,
+            self.validate_repository
+        )
+        
+        # Build result dictionary
+        result_dict = {}
+        for repo, result in zip(repositories, results):
+            if isinstance(result, Exception):
+                logger.error(f"Validation failed for {repo.name}: {result}")
+                result_dict[repo.name] = ValidationResult(
+                    success=False,
+                    timestamp=datetime.utcnow(),
+                    connectivity_status=ConnectivityStatus.UNKNOWN,
+                    integrity_status=IntegrityStatus.UNKNOWN,
+                    error_details=[str(result)]
+                )
+            else:
+                result_dict[repo.name] = result
+        
+        return result_dict
+    
     def get_repository_statistics(self) -> Dict[str, Any]:
         """
         Get statistics about repository management operations.
@@ -1109,5 +1201,8 @@ class RepositoryManager(ServiceInterface):
             'total_repositories': total_repos,
             'status_distribution': status_counts,
             'state_management': state_stats,
-            'performance_thresholds': self._performance_thresholds
+            'performance_thresholds': self._performance_thresholds,
+            'performance_monitoring': self._performance_monitor.get_statistics(),
+            'concurrency_management': self._concurrency_manager.get_statistics(),
+            'cache_statistics': self._cache_manager.get_statistics()
         }

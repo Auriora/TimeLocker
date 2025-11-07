@@ -13,6 +13,23 @@ from .existing_repository_handler import ExistingRepositoryHandler
 from .validation_service import ValidationService
 from .repository_credential_manager import RepositoryCredentialManager
 from .s3_service_manager import S3ServiceManager
+from .repository_performance_monitor import (
+    RepositoryPerformanceMonitor,
+    PerformanceThresholds,
+    PerformanceMetric,
+    PerformanceWarning
+)
+from .repository_concurrency_manager import (
+    RepositoryConcurrencyManager,
+    LockInfo,
+    ConcurrencyStats
+)
+from .repository_cache_manager import (
+    RepositoryCacheManager,
+    LazyRepositoryLoader,
+    CacheEntry,
+    CacheStatistics
+)
 from .plugin_registry import PluginRegistry, get_plugin_registry
 from .plugin_initializer import (
     initialize_plugins,
@@ -31,6 +48,17 @@ __all__ = [
     'ValidationService',
     'RepositoryCredentialManager',
     'S3ServiceManager',
+    'RepositoryPerformanceMonitor',
+    'PerformanceThresholds',
+    'PerformanceMetric',
+    'PerformanceWarning',
+    'RepositoryConcurrencyManager',
+    'LockInfo',
+    'ConcurrencyStats',
+    'RepositoryCacheManager',
+    'LazyRepositoryLoader',
+    'CacheEntry',
+    'CacheStatistics',
     'PluginRegistry',
     'get_plugin_registry',
     'initialize_plugins',
