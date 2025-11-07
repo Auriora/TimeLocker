@@ -2385,16 +2385,34 @@ def repos_list(
         table.add_column("Name", style="cyan")
         table.add_column("URI", style="magenta")
         table.add_column("Description", overflow="fold")
+        if verbose:
+            table.add_column("Type", style="yellow")
+            table.add_column("Engine", style="green")
+        table.add_column("Default", justify="center")
+        
         for repo in repositories:
             if isinstance(repo, dict):
                 name = str(repo.get("name", "unknown"))
                 uri = str(repo.get("uri", repo.get("location", "unknown")))
                 description = str(repo.get("description", ""))
+                is_default = repo.get("is_default", False)
+                repo_type = str(repo.get("type", "N/A"))
+                repo_engine = str(repo.get("engine", "N/A"))
             else:
                 name = str(getattr(repo, "name", "unknown"))
                 uri = str(getattr(repo, "uri", getattr(repo, "location", "unknown")))
                 description = str(getattr(repo, "description", ""))
-            table.add_row(name, uri, description)
+                is_default = getattr(repo, "is_default", False)
+                repo_type = str(getattr(repo, "type", "N/A"))
+                repo_engine = str(getattr(repo, "engine", "N/A"))
+            
+            # Add default indicator
+            default_indicator = "✓" if is_default else ""
+            
+            if verbose:
+                table.add_row(name, uri, description, repo_type, repo_engine, default_indicator)
+            else:
+                table.add_row(name, uri, description, default_indicator)
         console.print(table)
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "List operation was cancelled by user")
@@ -2634,12 +2652,47 @@ def repos_show(
         if repository_info is None:
             config_manager = ConfigurationManager(config_dir=config_dir)
             repository_info = config_manager.get_repository(name)
+        # Extract repository information
         if isinstance(repository_info, dict):
-            info_items = repository_info.items()
+            repo_name = repository_info.get("name", name)
+            repo_uri = repository_info.get("uri", repository_info.get("location", "N/A"))
+            repo_description = repository_info.get("description", "")
+            repo_metadata = repository_info.get("metadata", {})
+            is_default = repository_info.get("is_default", False)
+            repo_type = repository_info.get("type", "N/A")
+            repo_engine = repository_info.get("engine", "N/A")
+            created_at = repository_info.get("created_at", "N/A")
+            updated_at = repository_info.get("updated_at", "N/A")
         else:
-            info_items = [(attr, getattr(repository_info, attr)) for attr in dir(repository_info) if not attr.startswith('_')]
-        panel_lines = "\n".join(f"[bold]{key}:[/bold] {value}" for key, value in info_items)
-        console.print(Panel(panel_lines, title=f"Repository: {name}", border_style="blue"))
+            repo_name = getattr(repository_info, "name", name)
+            repo_uri = getattr(repository_info, "uri", getattr(repository_info, "location", "N/A"))
+            repo_description = getattr(repository_info, "description", "")
+            repo_metadata = getattr(repository_info, "metadata", {})
+            is_default = getattr(repository_info, "is_default", False)
+            repo_type = getattr(repository_info, "type", "N/A")
+            repo_engine = getattr(repository_info, "engine", "N/A")
+            created_at = getattr(repository_info, "created_at", "N/A")
+            updated_at = getattr(repository_info, "updated_at", "N/A")
+        
+        # Build display content
+        panel_lines = []
+        panel_lines.append(f"[bold]Name:[/bold] {repo_name}")
+        panel_lines.append(f"[bold]URI:[/bold] {repo_uri}")
+        if repo_description:
+            panel_lines.append(f"[bold]Description:[/bold] {repo_description}")
+        panel_lines.append(f"[bold]Type:[/bold] {repo_type}")
+        panel_lines.append(f"[bold]Engine:[/bold] {repo_engine}")
+        panel_lines.append(f"[bold]Default:[/bold] {'Yes' if is_default else 'No'}")
+        panel_lines.append(f"[bold]Created:[/bold] {created_at}")
+        panel_lines.append(f"[bold]Updated:[/bold] {updated_at}")
+        
+        # Display custom metadata if present
+        if repo_metadata and isinstance(repo_metadata, dict):
+            panel_lines.append("\n[bold]Custom Metadata:[/bold]")
+            for key, value in repo_metadata.items():
+                panel_lines.append(f"  [cyan]{key}:[/cyan] {value}")
+        
+        console.print(Panel("\n".join(panel_lines), title=f"Repository: {name}", border_style="blue"))
     except ConfigurationError as e:
         show_error_panel("Repository Not Found", str(e))
         raise typer.Exit(1)
@@ -2737,6 +2790,96 @@ def repos_remove(
         raise typer.Exit(1)
 
 
+@repos_app.command("update")
+def repos_update(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        description: Annotated[Optional[str], typer.Option("--description", "-d", help="Update repository description")] = None,
+        metadata: Annotated[Optional[List[str]], typer.Option("--metadata", "-m", help="Add/update metadata (format: key=value)")] = None,
+        clear_metadata: Annotated[bool, typer.Option("--clear-metadata", help="Clear all custom metadata")] = False,
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Update repository metadata and configuration."""
+    setup_logging(verbose, config_dir)
+    try:
+        config_manager = ConfigurationManager(config_dir=config_dir)
+        
+        # Get existing repository configuration
+        try:
+            repo_config = config_manager.get_repository(name)
+        except ConfigurationError:
+            show_error_panel("Repository Not Found", f"Repository '{name}' not found in configuration.")
+            raise typer.Exit(1)
+        
+        # Track what was updated
+        updates = []
+        
+        # Update description if provided
+        if description is not None:
+            if hasattr(repo_config, 'description'):
+                repo_config.description = description
+            elif isinstance(repo_config, dict):
+                repo_config['description'] = description
+            updates.append(f"description")
+        
+        # Handle metadata updates
+        if clear_metadata:
+            if hasattr(repo_config, 'metadata'):
+                repo_config.metadata = {}
+            elif isinstance(repo_config, dict):
+                repo_config['metadata'] = {}
+            updates.append("cleared metadata")
+        
+        if metadata:
+            # Parse metadata key=value pairs
+            metadata_dict = {}
+            for item in metadata:
+                if '=' not in item:
+                    show_error_panel("Invalid Metadata Format", 
+                                   f"Metadata must be in format 'key=value', got: {item}")
+                    raise typer.Exit(1)
+                key, value = item.split('=', 1)
+                metadata_dict[key.strip()] = value.strip()
+            
+            # Update metadata
+            if hasattr(repo_config, 'metadata'):
+                if not repo_config.metadata:
+                    repo_config.metadata = {}
+                repo_config.metadata.update(metadata_dict)
+            elif isinstance(repo_config, dict):
+                if 'metadata' not in repo_config:
+                    repo_config['metadata'] = {}
+                repo_config['metadata'].update(metadata_dict)
+            
+            updates.append(f"metadata ({len(metadata_dict)} items)")
+        
+        if not updates:
+            show_info_panel("No Updates", "No updates specified. Use --description or --metadata to update repository.")
+            raise typer.Exit(0)
+        
+        # Save updated configuration
+        config = config_manager.get_config()
+        if config and hasattr(config, 'repositories'):
+            config.repositories[name] = repo_config
+            config_manager.save_config(config)
+        
+        updates_str = ", ".join(updates)
+        show_success_panel("Repository Updated", 
+                         f"Repository '{name}' updated successfully.\nUpdated: {updates_str}")
+        
+    except ConfigurationError as e:
+        show_error_panel("Configuration Error", str(e))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Update cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Update Error", f"Failed to update repository '{name}': {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
 @repos_app.command("default")
 def repos_default(
         name: Annotated[str, typer.Argument(help="Repository name to set as default", autocompletion=repository_name_completer)],
@@ -2761,6 +2904,42 @@ def repos_default(
         raise typer.Exit(130)
     except Exception as e:
         show_error_panel("Default Error", f"Failed to set default repository: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("clear-default")
+def repos_clear_default(
+        verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+) -> None:
+    """Clear the default repository setting."""
+    setup_logging(verbose, config_dir)
+    try:
+        manager = _get_service_manager_for_command(config_dir)
+        clear_method = _get_service_method(manager, "clear_default_repository")
+        if clear_method:
+            _call_service_method(clear_method)
+        else:
+            config_manager = ConfigurationManager(config_dir=config_dir)
+            # Clear default by setting all repositories to non-default
+            config = config_manager.get_config()
+            if config and hasattr(config, 'repositories'):
+                for repo_name in config.repositories:
+                    repo_config = config.repositories[repo_name]
+                    if hasattr(repo_config, 'is_default'):
+                        repo_config.is_default = False
+                config_manager.save_config(config)
+        show_success_panel("Default Cleared", "Default repository setting has been cleared.")
+    except ConfigurationError as e:
+        show_error_panel("Configuration Error", str(e))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Operation cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Clear Default Error", f"Failed to clear default repository: {e}")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)

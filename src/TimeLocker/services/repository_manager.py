@@ -195,6 +195,118 @@ class RepositoryManager(ServiceInterface):
             self._operation_locks[repo_name] = asyncio.Lock()
         return self._operation_locks[repo_name]
     
+    def validate_repository_name(self, name: str) -> ConfigValidationResult:
+        """
+        Validate repository name for alias system.
+        
+        Repository names must:
+        - Not be empty
+        - Be between 1 and 64 characters
+        - Contain only alphanumeric characters, hyphens, underscores, and dots
+        - Not start or end with special characters
+        - Not contain consecutive special characters
+        
+        Args:
+            name: Repository name to validate
+            
+        Returns:
+            ConfigValidationResult: Validation result with errors if invalid
+        """
+        result = ConfigValidationResult(is_valid=True)
+        
+        if not name:
+            result.errors.append("Repository name cannot be empty")
+            result.is_valid = False
+            return result
+        
+        if len(name) > 64:
+            result.errors.append("Repository name must be 64 characters or less")
+            result.is_valid = False
+        
+        if len(name) < 1:
+            result.errors.append("Repository name must be at least 1 character")
+            result.is_valid = False
+        
+        # Check for valid characters (alphanumeric, hyphen, underscore, dot)
+        import re
+        if not re.match(r'^[a-zA-Z0-9][a-zA-Z0-9._-]*[a-zA-Z0-9]$|^[a-zA-Z0-9]$', name):
+            result.errors.append(
+                "Repository name must contain only alphanumeric characters, hyphens, "
+                "underscores, and dots. It must start and end with an alphanumeric character."
+            )
+            result.is_valid = False
+        
+        # Check for consecutive special characters
+        if re.search(r'[._-]{2,}', name):
+            result.errors.append("Repository name cannot contain consecutive special characters")
+            result.is_valid = False
+        
+        # Reserved names
+        reserved_names = ['default', 'all', 'none', 'null', 'system', 'config']
+        if name.lower() in reserved_names:
+            result.errors.append(f"Repository name '{name}' is reserved and cannot be used")
+            result.is_valid = False
+        
+        return result
+    
+    def check_repository_name_uniqueness(self, name: str) -> bool:
+        """
+        Check if repository name is unique (not already in use).
+        
+        Args:
+            name: Repository name to check
+            
+        Returns:
+            bool: True if name is unique, False if already exists
+        """
+        return name not in self._repositories
+    
+    def get_repository_by_uri(self, uri: str) -> Optional[Repository]:
+        """
+        Find repository by URI.
+        
+        Args:
+            uri: Repository URI to search for
+            
+        Returns:
+            Optional[Repository]: Repository with matching URI, or None if not found
+        """
+        for repository in self._repositories.values():
+            if repository.config.uri == uri:
+                return repository
+        return None
+    
+    def resolve_repository_name(self, name_or_uri: str) -> Optional[str]:
+        """
+        Resolve a repository name or URI to a repository name.
+        
+        This method supports:
+        - Direct repository name lookup
+        - URI-based lookup (finds repository with matching URI)
+        - Default repository (if name_or_uri is empty or 'default')
+        
+        Args:
+            name_or_uri: Repository name, URI, or 'default'
+            
+        Returns:
+            Optional[str]: Resolved repository name, or None if not found
+        """
+        # Handle empty or 'default' keyword
+        if not name_or_uri or name_or_uri.lower() == 'default':
+            default_repo = self.get_default_repository()
+            return default_repo.name if default_repo else None
+        
+        # Check if it's a direct name match
+        if name_or_uri in self._repositories:
+            return name_or_uri
+        
+        # Try to find by URI
+        repository = self.get_repository_by_uri(name_or_uri)
+        if repository:
+            return repository.name
+        
+        return None
+    
     def _load_repositories(self) -> None:
         """Load repositories from configuration storage."""
         try:
@@ -259,7 +371,15 @@ class RepositoryManager(ServiceInterface):
     
     def _detect_repository_type(self, uri: str) -> RepositoryType:
         """
-        Detect repository type from URI.
+        Detect repository type from URI pattern.
+        
+        Automatically detects repository type from URI patterns:
+        - s3://... or s3:https://... -> S3
+        - b2:... -> B2
+        - sftp://... -> SFTP
+        - smb://... -> SMB
+        - nfs://... -> NFS
+        - file://... or local paths -> LOCAL
         
         Args:
             uri: Repository URI
@@ -271,8 +391,15 @@ class RepositoryManager(ServiceInterface):
             return RepositoryType.LOCAL
         
         parsed = urlparse(uri)
-        scheme = parsed.scheme.lower() if parsed.scheme else 'local'
+        scheme = parsed.scheme.lower() if parsed.scheme else ''
         
+        # Handle special cases for S3 and B2
+        if uri.startswith('s3:'):
+            return RepositoryType.S3
+        if uri.startswith('b2:'):
+            return RepositoryType.B2
+        
+        # Standard URI scheme mapping
         type_mapping = {
             'file': RepositoryType.LOCAL,
             'local': RepositoryType.LOCAL,
@@ -282,6 +409,13 @@ class RepositoryManager(ServiceInterface):
             'smb': RepositoryType.SMB,
             'nfs': RepositoryType.NFS
         }
+        
+        # If no scheme or unknown scheme, check if it's a local path
+        if not scheme or scheme not in type_mapping:
+            # Check if it looks like a local path
+            if uri.startswith('/') or uri.startswith('~') or (len(uri) > 1 and uri[1] == ':'):
+                return RepositoryType.LOCAL
+            return RepositoryType.LOCAL  # Default to local
         
         return type_mapping.get(scheme, RepositoryType.LOCAL)
     
@@ -346,8 +480,15 @@ class RepositoryManager(ServiceInterface):
             options = RepositoryCreationOptions()
         
         async with await self._acquire_repository_lock(config.name):
-            # Check if repository name already exists
-            if config.name in self._repositories:
+            # Validate repository name
+            name_validation = self.validate_repository_name(config.name)
+            if not name_validation.is_valid:
+                raise RepositoryValidationError(
+                    f"Invalid repository name: {', '.join(name_validation.errors)}"
+                )
+            
+            # Check if repository name already exists (uniqueness check)
+            if not self.check_repository_name_uniqueness(config.name):
                 raise RepositoryAlreadyExistsError(
                     config.uri, 
                     ExistingRepositoryInfo(
@@ -356,6 +497,13 @@ class RepositoryManager(ServiceInterface):
                         requires_credentials=True
                     )
                 )
+            
+            # Auto-detect repository type from URI if not explicitly set
+            if config.type == RepositoryType.LOCAL and config.uri:
+                detected_type = self._detect_repository_type(config.uri)
+                if detected_type != RepositoryType.LOCAL:
+                    config.type = detected_type
+                    logger.debug(f"Auto-detected repository type: {detected_type.value}")
             
             # Validate configuration
             validation_result = await self._validate_configuration(config)
@@ -802,6 +950,18 @@ class RepositoryManager(ServiceInterface):
             logger.error(f"Failed to backup configuration for {repo_name}: {e}")
             return ""
     
+    def get_default_repository(self) -> Optional[Repository]:
+        """
+        Get the default repository.
+        
+        Returns:
+            Optional[Repository]: Default repository, or None if no default is set
+        """
+        for repository in self._repositories.values():
+            if repository.config.is_default:
+                return repository
+        return None
+    
     async def set_default_repository(self, name: str) -> bool:
         """
         Set a repository as the default.
@@ -829,6 +989,25 @@ class RepositoryManager(ServiceInterface):
         self._save_repositories()
         
         logger.info(f"Set default repository: {name}")
+        return True
+    
+    async def clear_default_repository(self) -> bool:
+        """
+        Clear the default repository setting.
+        
+        Returns:
+            bool: True if successful
+        """
+        # Clear all default flags
+        for repo in self._repositories.values():
+            if repo.config.is_default:
+                repo.config.is_default = False
+                repo.config.updated_at = datetime.utcnow()
+        
+        # Save changes
+        self._save_repositories()
+        
+        logger.info("Cleared default repository")
         return True
     
     async def connect_to_existing_repository(self, config: RepositoryConfig,
