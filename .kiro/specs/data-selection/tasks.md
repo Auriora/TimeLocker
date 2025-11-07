@@ -32,14 +32,14 @@
     - Implement verbose logging for rule evaluation
     - _Requirements: 11.1, 11.2, 11.5_
 
-- [ ] 4. Implement selection template management
-  - [ ] 4.1 Create SelectionTemplateManager class
+- [x] 4. Implement selection template management
+  - [x] 4.1 Create SelectionTemplateManager class
     - Implement template CRUD operations (create, read, update, delete)
     - Add template persistence using existing configuration infrastructure
     - Create template listing and filtering functionality
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-  - [ ] 4.2 Add template import/export functionality
+  - [x] 4.2 Add template import/export functionality
     - Implement JSON and YAML export formats
     - Add import validation and compatibility checking
     - Create bulk import/export operations with merge strategies
