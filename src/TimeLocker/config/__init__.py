@@ -97,6 +97,13 @@ from .configuration_lock_manager import ConfigurationLockManager
 # Enhanced backup support
 from .configuration_backup_manager import ConfigurationBackupManager, BackupReason
 
+# Repository configuration backup and restore
+from .repository_configuration_backup import RepositoryConfigurationBackup
+from .repository_configuration_restore import (
+    RepositoryConfigurationRestore,
+    CredentialPromptHandler
+)
+
 # Configuration watching support
 from .configuration_watcher import ConfigurationWatcher
 
@@ -263,6 +270,9 @@ __all__ = [
         'ConfigurationLockManager',
         'ConfigurationBackupManager',
         'BackupReason',
+        'RepositoryConfigurationBackup',
+        'RepositoryConfigurationRestore',
+        'CredentialPromptHandler',
         'ConfigurationWatcher',
         'ConfigurationTransactionManager',
         'FileSystemConfigurationStore',
