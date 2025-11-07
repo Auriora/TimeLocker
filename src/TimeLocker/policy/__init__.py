@@ -51,6 +51,7 @@ from .engine import (
     PruneResult,
 )
 from .manager import PolicyManager
+from .simulator import PolicySimulator
 
 __all__ = [
     # Exceptions
@@ -95,4 +96,6 @@ __all__ = [
     'PruneResult',
     # Manager
     'PolicyManager',
+    # Simulator
+    'PolicySimulator',
 ]

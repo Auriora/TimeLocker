@@ -30,7 +30,7 @@
   - Add default policy application logic
   - _Requirements: 1.1, 1.4, 1.5, 2.1, 2.2_
 
-- [ ] 5. Implement policy simulation and preview capabilities
+- [x] 5. Implement policy simulation and preview capabilities
   - Create PolicySimulator class for dry-run operations
   - Add simulation result models showing affected snapshots and storage impact
   - Implement preview functionality for policy effects before enforcement
