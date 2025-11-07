@@ -1,13 +1,13 @@
 # Implementation Plan
 
-- [ ] 1. Create policy management foundation and data models
+- [x] 1. Create policy management foundation and data models
   - Create policy management directory structure under src/TimeLocker/policy/
   - Implement core policy data models (BackupPolicy, RetentionPolicy, PolicyAssignment)
   - Create policy-specific enums and types (PolicyType, TargetType, EnforcementType)
   - Add policy validation exceptions and error classes
   - _Requirements: 1.1, 1.2, 2.1, 3.4, 4.1_
 
-- [ ] 2. Implement Policy Validator component
+- [x] 2. Implement Policy Validator component
   - Create PolicyValidator class with validation methods for backup and retention policies
   - Implement repository compatibility checking with backup tools
   - Add policy configuration validation (completeness, consistency)
