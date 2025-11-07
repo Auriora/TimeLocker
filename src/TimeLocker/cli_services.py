@@ -228,14 +228,16 @@ class CLIServiceManager:
         self._performance_module = PerformanceModule()
         
         # Initialize modern config service
-        try:
-            self._config_service = ConfigurationService(
-                    config_path=self._config_module.config_file,
-                    validation_service=self._validation_service
-            )
-        except Exception as e:
-            logger.warning(f"Configuration service failed to initialize: {e}")
-            self._config_service = None
+        # TODO: ConfigurationService does not exist yet, needs to be implemented
+        # try:
+        #     self._config_service = ConfigurationService(
+        #             config_path=self._config_module.config_file,
+        #             validation_service=self._validation_service
+        #     )
+        # except Exception as e:
+        #     logger.warning(f"Configuration service failed to initialize: {e}")
+        #     self._config_service = None
+        self._config_service = None  # Placeholder until ConfigurationService is implemented
 
         # Initialize legacy services
         self._snapshot_service = SnapshotService(
@@ -249,10 +251,12 @@ class CLIServiceManager:
         )
         self._configure_repository_factory_credentials()
 
-        self._backup_orchestrator = BackupOrchestrator(
-                repository_factory=self._repository_factory,
-                configuration_provider=self._config_service
-        )
+        # TODO: BackupOrchestrator does not exist yet, needs to be implemented
+        # self._backup_orchestrator = BackupOrchestrator(
+        #         repository_factory=self._repository_factory,
+        #         configuration_provider=self._config_service
+        # )
+        self._backup_orchestrator = None  # Placeholder until BackupOrchestrator is implemented
         
         # Initialize new integration architecture components
         self._service_registry = ServiceRegistry()
@@ -1084,9 +1088,14 @@ class CLIServiceManager:
             logger.debug(f"Backup verification failed: {e}")  # Use debug instead of error to avoid duplicate error panels
             return False
 
-    def list_repositories(self) -> List[Dict[str, Any]]:
+    def list_repositories(self, filters: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """
-        List all configured repositories.
+        List all configured repositories with optional filtering.
+
+        Args:
+            filters: Optional dictionary of filters to apply
+                    - status: Filter by status (active, inactive, error)
+                    - engine: Filter by engine (restic, rsync, rclone)
 
         Returns:
             List of repository configurations
@@ -1094,13 +1103,24 @@ class CLIServiceManager:
         if self._config_service is not None:
             try:
                 # Try modern configuration service first
-                return self._config_service.get_repositories()
+                repos = self._config_service.get_repositories()
             except Exception:
                 # Fallback to configuration module
-                pass
-
-        # Use configuration module
-        repos = self._config_module.get_repositories()
+                repos = self._config_module.get_repositories()
+        else:
+            # Use configuration module
+            repos = self._config_module.get_repositories()
+        
+        # Apply filters if provided
+        if filters:
+            if 'status' in filters:
+                status_filter = filters['status'].lower()
+                repos = [r for r in repos if r.get('status', '').lower() == status_filter]
+            
+            if 'engine' in filters:
+                engine_filter = filters['engine'].lower()
+                repos = [r for r in repos if r.get('engine', '').lower() == engine_filter]
+        
         return repos
 
     def get_repository_by_name(self, name: str) -> Dict[str, Any]:

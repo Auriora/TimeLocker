@@ -1220,3 +1220,17 @@ def _ensure_manager_unlocked(manager, master_password: Optional[str], interactiv
         raise typer.Exit(1)
 
 
+
+
+# Import command modules to register their commands with the apps
+# This must be done after all the apps are created and helper functions are defined
+# to avoid circular import issues
+try:
+    from .cli_modules.commands.repositories import repos_app as _repos_commands_app
+    # Copy commands from the repositories module's app to our repos_app
+    for command in _repos_commands_app.registered_commands:
+        repos_app.registered_commands.append(command)
+    for group in _repos_commands_app.registered_groups:
+        repos_app.registered_groups.append(group)
+except ImportError as e:
+    logging.getLogger(__name__).debug(f"Could not import repository commands: {e}")

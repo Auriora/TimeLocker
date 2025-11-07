@@ -8,6 +8,7 @@ Extracted from cli.py using automation script.
 import sys
 import os
 import logging
+import logging.handlers
 from typing import Optional, List, Annotated, Dict, Any
 from pathlib import Path
 
@@ -228,7 +229,6 @@ def setup_logging(verbose: bool = False, config_dir: Optional[Path] = None) -> N
     # Set up file logging
     log_file = log_dir / "timelocker.log"
     try:
-        import logging.handlers
         file_handler = logging.handlers.RotatingFileHandler(
             log_file,
             maxBytes=10 * 1024 * 1024,  # 10MB
