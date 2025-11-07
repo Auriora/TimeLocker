@@ -13,6 +13,8 @@ from .exceptions import (
     ComplianceViolationError,
     PolicyNotFoundError,
     PolicyAssignmentError,
+    PolicyStorageError,
+    PolicySerializationError,
 )
 from .models import (
     BackupPolicy,
@@ -52,6 +54,11 @@ from .engine import (
 )
 from .manager import PolicyManager
 from .simulator import PolicySimulator
+from .storage import (
+    IPolicyStore,
+    PolicySerializer,
+    FileSystemPolicyStore,
+)
 
 __all__ = [
     # Exceptions
@@ -62,6 +69,8 @@ __all__ = [
     'ComplianceViolationError',
     'PolicyNotFoundError',
     'PolicyAssignmentError',
+    'PolicyStorageError',
+    'PolicySerializationError',
     # Models
     'BackupPolicy',
     'RetentionPolicy',
@@ -98,4 +107,8 @@ __all__ = [
     'PolicyManager',
     # Simulator
     'PolicySimulator',
+    # Storage
+    'IPolicyStore',
+    'PolicySerializer',
+    'FileSystemPolicyStore',
 ]

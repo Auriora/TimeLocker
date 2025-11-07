@@ -167,3 +167,47 @@ class PolicyAssignmentError(PolicyError):
         super().__init__(message, policy_id, **context)
         self.target_id = target_id
         self.assignment_conflicts = assignment_conflicts or []
+
+
+class PolicyStorageError(PolicyError):
+    """
+    Raised when policy storage operations fail.
+    
+    This exception indicates that reading from or writing to policy storage
+    failed, such as file system errors or database connection issues.
+    """
+    
+    def __init__(self, message: str, policy_id: str = None, operation: str = None, **context):
+        """
+        Initialize storage error with operation details.
+        
+        Args:
+            message: Error message
+            policy_id: Optional policy identifier
+            operation: Storage operation that failed (e.g., 'save', 'load', 'delete')
+            **context: Additional context information
+        """
+        super().__init__(message, policy_id, **context)
+        self.operation = operation
+
+
+class PolicySerializationError(PolicyError):
+    """
+    Raised when policy serialization or deserialization fails.
+    
+    This exception indicates that converting a policy to or from its
+    storage format failed, such as due to invalid data or schema changes.
+    """
+    
+    def __init__(self, message: str, policy_id: str = None, data_format: str = None, **context):
+        """
+        Initialize serialization error with format details.
+        
+        Args:
+            message: Error message
+            policy_id: Optional policy identifier
+            data_format: Data format being used (e.g., 'json', 'yaml')
+            **context: Additional context information
+        """
+        super().__init__(message, policy_id, **context)
+        self.data_format = data_format

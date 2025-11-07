@@ -39,6 +39,7 @@ from .exceptions import (
 )
 from .validator import PolicyValidator
 from .engine import PolicyEngine
+from .storage import IPolicyStore, FileSystemPolicyStore
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,7 @@ class PolicyManager:
         engine: Optional[PolicyEngine] = None,
         repository_manager=None,
         config_manager=None,
+        policy_store: Optional[IPolicyStore] = None,
     ):
         """
         Initialize the policy manager.
@@ -89,33 +91,75 @@ class PolicyManager:
             engine: Optional PolicyEngine instance
             repository_manager: Optional repository manager for repository operations
             config_manager: Optional configuration manager for system configuration
+            policy_store: Optional policy storage implementation
         """
+        # Initialize policy storage
+        self.policy_store = policy_store or FileSystemPolicyStore()
+        
         self.validator = validator or PolicyValidator(
             repository_manager=repository_manager,
             config_manager=config_manager,
         )
-        self.engine = engine or PolicyEngine(repository_service=None)
+        self.engine = engine or PolicyEngine(
+            repository_service=None,
+            policy_store=self.policy_store
+        )
         self.repository_manager = repository_manager
         self.config_manager = config_manager
         
-        # In-memory storage for policies and assignments
-        # In production, these would be persisted to a database
+        # Load existing policies from storage
         self._backup_policies: Dict[str, BackupPolicy] = {}
         self._retention_policies: Dict[str, RetentionPolicy] = {}
         self._policy_assignments: Dict[str, PolicyAssignment] = {}
         
-        # Initialize default retention policy
+        self._load_policies_from_storage()
+        
+        # Initialize default retention policy if not already present
         self._initialize_default_retention_policy()
         
         logger.info("PolicyManager initialized")
     
-    def _initialize_default_retention_policy(self):
-        """Initialize the default retention policy."""
+    def _load_policies_from_storage(self):
+        """Load existing policies from storage."""
         try:
+            # Load backup policies
+            backup_policies = self.policy_store.list_backup_policies()
+            for policy in backup_policies:
+                self._backup_policies[policy.id] = policy
+            logger.info(f"Loaded {len(backup_policies)} backup policies from storage")
+            
+            # Load retention policies
+            retention_policies = self.policy_store.list_retention_policies()
+            for policy in retention_policies:
+                self._retention_policies[policy.id] = policy
+            logger.info(f"Loaded {len(retention_policies)} retention policies from storage")
+            
+            # Load assignments
+            assignments = self.policy_store.list_assignments()
+            for assignment in assignments:
+                self._policy_assignments[assignment.id] = assignment
+            logger.info(f"Loaded {len(assignments)} policy assignments from storage")
+            
+        except Exception as e:
+            logger.error(f"Failed to load policies from storage: {e}")
+            # Continue with empty storage - don't fail initialization
+    
+    def _initialize_default_retention_policy(self):
+        """Initialize the default retention policy if not already present."""
+        try:
+            # Check if default policy already exists
+            if self.DEFAULT_RETENTION_POLICY['id'] in self._retention_policies:
+                logger.info("Default retention policy already exists")
+                return
+            
             default_policy = self._create_retention_policy_from_dict(
                 self.DEFAULT_RETENTION_POLICY
             )
             self._retention_policies[default_policy.id] = default_policy
+            
+            # Persist to storage
+            self.policy_store.save_retention_policy(default_policy)
+            
             logger.info(f"Initialized default retention policy: {default_policy.id}")
         except Exception as e:
             logger.error(f"Failed to initialize default retention policy: {e}")
@@ -195,8 +239,11 @@ class PolicyManager:
             # Validate policy
             validation_result = self.validator.validate_backup_policy(policy)
             
-            # Store policy
+            # Store policy in memory
             self._backup_policies[policy_id] = policy
+            
+            # Persist to storage
+            self.policy_store.save_backup_policy(policy)
             
             logger.info(
                 f"Created backup policy '{name}' (ID: {policy_id}) with status {status.value}"
@@ -266,8 +313,11 @@ class PolicyManager:
             # Validate updated policy
             validation_result = self.validator.validate_backup_policy(updated_policy)
             
-            # Store updated policy
+            # Store updated policy in memory
             self._backup_policies[policy_id] = updated_policy
+            
+            # Persist to storage
+            self.policy_store.save_backup_policy(updated_policy)
             
             logger.info(f"Updated backup policy {policy_id}")
             
@@ -310,8 +360,11 @@ class PolicyManager:
                         policy_id=policy_id,
                     )
             
-            # Delete policy
+            # Delete policy from memory
             del self._backup_policies[policy_id]
+            
+            # Delete from storage
+            self.policy_store.delete_backup_policy(policy_id)
             
             # Remove all assignments
             assignments_to_remove = [
@@ -320,6 +373,8 @@ class PolicyManager:
             ]
             for aid in assignments_to_remove:
                 del self._policy_assignments[aid]
+                # Delete from storage
+                self.policy_store.delete_assignment(aid)
             
             logger.info(
                 f"Deleted backup policy {policy_id} and {len(assignments_to_remove)} assignments"
@@ -404,8 +459,11 @@ class PolicyManager:
             # Validate policy
             validation_result = self.validator.validate_retention_policy(policy)
             
-            # Store policy
+            # Store policy in memory
             self._retention_policies[policy_id] = policy
+            
+            # Persist to storage
+            self.policy_store.save_retention_policy(policy)
             
             logger.info(
                 f"Created retention policy '{name}' (ID: {policy_id}) with {len(rules)} rules"
@@ -475,8 +533,11 @@ class PolicyManager:
             # Validate updated policy
             validation_result = self.validator.validate_retention_policy(updated_policy)
             
-            # Store updated policy
+            # Store updated policy in memory
             self._retention_policies[policy_id] = updated_policy
+            
+            # Persist to storage
+            self.policy_store.save_retention_policy(updated_policy)
             
             logger.info(f"Updated retention policy {policy_id}")
             
@@ -528,8 +589,11 @@ class PolicyManager:
                         policy_id=policy_id,
                     )
             
-            # Delete policy
+            # Delete policy from memory
             del self._retention_policies[policy_id]
+            
+            # Delete from storage
+            self.policy_store.delete_retention_policy(policy_id)
             
             logger.info(f"Deleted retention policy {policy_id}")
             
@@ -638,8 +702,11 @@ class PolicyManager:
                     f"using resolution strategy: {conflict_resolution.value}"
                 )
             
-            # Store assignment
+            # Store assignment in memory
             self._policy_assignments[assignment_id] = assignment
+            
+            # Persist to storage
+            self.policy_store.save_assignment(assignment)
             
             logger.info(
                 f"Assigned {policy_type.value} policy {policy_id} to "
@@ -679,7 +746,12 @@ class PolicyManager:
             )
         
         assignment = self._policy_assignments[assignment_id]
+        
+        # Delete from memory
         del self._policy_assignments[assignment_id]
+        
+        # Delete from storage
+        self.policy_store.delete_assignment(assignment_id)
         
         logger.info(
             f"Unassigned policy {assignment.policy_id} from "

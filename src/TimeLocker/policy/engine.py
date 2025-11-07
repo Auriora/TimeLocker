@@ -121,14 +121,16 @@ class PolicyEngine:
     - Validating compliance requirements
     """
     
-    def __init__(self, repository_service=None):
+    def __init__(self, repository_service=None, policy_store=None):
         """
         Initialize the policy engine.
         
         Args:
             repository_service: Optional repository service for advanced operations
+            policy_store: Optional policy storage for persisting enforcement records
         """
         self.repository_service = repository_service
+        self.policy_store = policy_store
         self._enforcement_history: List[EnforcementRecord] = []
     
     def evaluate_retention_rules(
@@ -533,6 +535,13 @@ class PolicyEngine:
         
         # Store in history
         self._enforcement_history.append(record)
+        
+        # Persist to storage if available
+        if self.policy_store:
+            try:
+                self.policy_store.save_enforcement_record(record)
+            except Exception as e:
+                logger.error(f"Failed to persist enforcement record to storage: {e}")
         
         logger.info(
             f"Created enforcement record {record.id} for policy {policy_id}: "
