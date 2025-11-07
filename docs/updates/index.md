@@ -1,5 +1,6 @@
 # Update Index
 
+- [2025-11-07-text-case-cleanup](./2025-11-07-text-case-cleanup.md)
 - [2025-11-07-docs-cleanup](./2025-11-07-docs-cleanup.md)
 - [2025-11-07-named-repository-management](./2025-11-07-named-repository-management.md)
 - [2025-11-07-cli-repository-commands-enhancement](./2025-11-07-cli-repository-commands-enhancement.md)

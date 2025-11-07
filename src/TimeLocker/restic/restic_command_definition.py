@@ -50,7 +50,7 @@ restic_command_def = CommandDefinition(
                 "http-user-agent":       CommandParameter(
                         name="http-user-agent",
                         style=ParameterStyle.DOUBLE_DASH,
-                        description='set a http user agent for outgoing http requests',
+                        description='set a HTTP user agent for outgoing HTTP requests',
                 ),
                 "insecure-no-password":  CommandParameter(
                         name="insecure-no-password",

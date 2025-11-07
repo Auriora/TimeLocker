@@ -1623,7 +1623,7 @@ def repos_forget(
         success = True
         removed = []
         if isinstance(result, dict):
-            success = result.get("status") in (None, "success", "ok", True)
+            success = result.get("status") in (None, "success", "OK", True)
             errors = result.get("errors")
             removed = result.get("removed_snapshots", [])
         else:
@@ -1655,7 +1655,7 @@ def repos_forget(
                 prune_success = True
                 prune_errors = None
                 if isinstance(prune_result, dict):
-                    prune_success = prune_result.get("status") in (None, "success", "ok", True)
+                    prune_success = prune_result.get("status") in (None, "success", "OK", True)
                     prune_errors = prune_result.get("errors")
                 else:
                     prune_success = getattr(prune_result, "success", True)
@@ -1704,7 +1704,7 @@ def repos_check(
         success = True
         if isinstance(result, dict):
             status = result.get("status")
-            success = status in (None, "success", "ok", True)
+            success = status in (None, "success", "OK", True)
             errors = result.get("errors")
         else:
             success = getattr(result, "success", True)

@@ -938,7 +938,7 @@ class CLIServiceManager:
                     status = check_result.get('status')
                 elif hasattr(check_result, 'success'):
                     status = 'success' if getattr(check_result, 'success', False) else 'failed'
-                if status not in (None, 'success', 'ok', True):
+                if status not in (None, 'success', 'OK', True):
                     overall_success = False
             except Exception as exc:
                 results[repo_name] = {'status': 'failed', 'errors': [str(exc)]}
