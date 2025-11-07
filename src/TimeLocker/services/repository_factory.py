@@ -20,8 +20,10 @@ from typing import Dict, List, Type, Optional
 from urllib.parse import urlparse
 
 from ..interfaces import IRepositoryFactory, RepositoryFactoryError, UnsupportedSchemeError
+from ..interfaces.backup_engine_plugin import BackupEngine, EngineNotAvailableError
 from ..backup_repository import BackupRepository
 from .validation_service import ValidationService
+from .plugin_registry import get_plugin_registry
 from ..utils import with_error_handling, ErrorContext
 
 logger = logging.getLogger(__name__)
@@ -46,7 +48,9 @@ class RepositoryFactory(IRepositoryFactory):
         self._repository_types: Dict[str, Type[BackupRepository]] = {}
         self._validation_service = validation_service or ValidationService()
         self._credential_manager = None  # Lazy-loaded credential manager
+        self._plugin_registry = get_plugin_registry()
         self._register_default_types()
+        self._register_default_plugins()
         logger.debug("RepositoryFactory initialized")
 
     def _get_credential_manager(self):
@@ -97,6 +101,22 @@ class RepositoryFactory(IRepositoryFactory):
             logger.debug("Registered default repository types (local, file, s3, b2)")
         except ImportError as e:
             logger.warning(f"Could not register default repository types: {e}")
+    
+    def _register_default_plugins(self) -> None:
+        """Register default backup engine plugins"""
+        try:
+            from .plugins import ResticEnginePlugin, RsyncEnginePlugin, RcloneEnginePlugin
+            
+            # Register built-in plugins
+            self._plugin_registry.register_plugin(ResticEnginePlugin)
+            self._plugin_registry.register_plugin(RsyncEnginePlugin)
+            self._plugin_registry.register_plugin(RcloneEnginePlugin)
+            
+            logger.debug("Registered default backup engine plugins (restic, rsync, rclone)")
+        except ImportError as e:
+            logger.warning(f"Could not register default plugins: {e}")
+        except Exception as e:
+            logger.warning(f"Error registering default plugins: {e}")
 
     @with_error_handling("register_repository_type", "RepositoryFactory")
     def register_repository_type(self,
@@ -259,6 +279,104 @@ class RepositoryFactory(IRepositoryFactory):
                 scheme: repo_class.__name__
                 for scheme, repo_class in self._repository_types.items()
         }
+    
+    def create_repository_with_engine(self,
+                                     uri: str,
+                                     engine: BackupEngine,
+                                     password: Optional[str] = None,
+                                     **kwargs) -> BackupRepository:
+        """
+        Create a repository instance using a specific backup engine.
+        
+        Args:
+            uri: Repository URI
+            engine: Backup engine to use
+            password: Optional password for repository
+            **kwargs: Additional repository-specific parameters
+            
+        Returns:
+            BackupRepository instance
+            
+        Raises:
+            EngineNotAvailableError: If engine is not available
+            RepositoryFactoryError: If repository creation fails
+        """
+        try:
+            # Get plugin for the specified engine
+            plugin = self._plugin_registry.get_plugin(engine)
+            
+            # Validate URI for this engine
+            validation = plugin.validate_uri(uri)
+            if not validation.is_valid:
+                raise RepositoryFactoryError(
+                    f"Invalid URI for {engine.value}: {', '.join(validation.errors)}"
+                )
+            
+            # Validate engine configuration if provided
+            if 'engine_config' in kwargs:
+                config_validation = plugin.validate_configuration(kwargs['engine_config'])
+                if not config_validation.is_valid:
+                    raise RepositoryFactoryError(
+                        f"Invalid engine configuration: {', '.join(config_validation.errors)}"
+                    )
+            
+            # Provide credential manager
+            kwargs['credential_manager'] = self._get_credential_manager()
+            
+            # Create repository using plugin
+            repository = plugin.create_repository(uri, password, **kwargs)
+            
+            logger.info(f"Created repository using {engine.value} engine for URI: {uri}")
+            return repository
+            
+        except EngineNotAvailableError:
+            raise
+        except Exception as e:
+            raise RepositoryFactoryError(
+                f"Failed to create repository with {engine.value} engine: {e}"
+            ) from e
+    
+    def is_engine_available(self, engine: BackupEngine) -> bool:
+        """
+        Check if a backup engine is available.
+        
+        Args:
+            engine: Backup engine to check
+            
+        Returns:
+            True if engine is available, False otherwise
+        """
+        return self._plugin_registry.is_engine_available(engine)
+    
+    def get_available_engines(self) -> List[BackupEngine]:
+        """
+        Get list of available backup engines.
+        
+        Returns:
+            List of available BackupEngine types
+        """
+        return self._plugin_registry.get_available_engines()
+    
+    def get_engines_for_storage_type(self, storage_type: str) -> List[BackupEngine]:
+        """
+        Get list of engines that support a specific storage type.
+        
+        Args:
+            storage_type: Storage type (e.g., 's3', 'local')
+            
+        Returns:
+            List of BackupEngine types supporting the storage type
+        """
+        return self._plugin_registry.get_engines_supporting_storage(storage_type)
+    
+    def get_plugin_info(self) -> Dict[str, Dict[str, any]]:
+        """
+        Get information about registered plugins.
+        
+        Returns:
+            Dictionary with plugin information
+        """
+        return self._plugin_registry.get_plugin_info()
 
 
 # Global factory instance for convenience

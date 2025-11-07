@@ -65,26 +65,26 @@
   - Test configuration backup and recovery functionality
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 3.1, 3.2, 3.3, 3.4, 3.5_
 
-- [ ] 3. Implement Plugin Architecture for Backup Engines
+- [x] 3. Implement Plugin Architecture for Backup Engines
   - Create plugin registry system for extensible backup engine support
   - Implement BackupEnginePlugin interface for consistent engine operations
   - Add built-in engine plugins for Restic, Rsync, and Rclone
   - Integrate plugin system with repository creation and management
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-- [ ] 3.1 Create plugin registry and interface
+- [x] 3.1 Create plugin registry and interface
   - Implement PluginRegistry for backup engine discovery and management
   - Create BackupEnginePlugin abstract interface with required methods
   - Add plugin validation and feature capability reporting
   - _Requirements: 4.1, 4.2, 4.4, 4.5_
 
-- [ ] 3.2 Implement built-in engine plugins
+- [x] 3.2 Implement built-in engine plugins
   - Create ResticEnginePlugin wrapping existing Restic functionality
   - Implement RsyncEnginePlugin for simple file synchronization
   - Add RcloneEnginePlugin for cloud storage synchronization
   - _Requirements: 4.1, 4.2, 4.3_
 
-- [ ] 3.3 Integrate plugins with repository management
+- [x] 3.3 Integrate plugins with repository management
   - Update RepositoryFactory to use plugin system for engine selection
   - Add engine availability checking during repository creation
   - Implement engine-specific configuration validation

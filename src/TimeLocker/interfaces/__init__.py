@@ -16,6 +16,19 @@ from .configuration_lock import IConfigurationLock, ConfigurationLock
 # Integration Architecture Interfaces
 from .service_interface import ServiceInterface
 
+# Backup Engine Plugin Interface
+from .backup_engine_plugin import (
+    BackupEnginePlugin,
+    BackupEngine,
+    RepositoryType,
+    ValidationResult,
+    EngineCapabilities,
+    PluginError,
+    EngineNotAvailableError,
+    EngineConfigurationError,
+    UnsupportedStorageTypeError
+)
+
 # Exception classes
 from .exceptions import (
     TimeLockerInterfaceError,
@@ -107,6 +120,17 @@ __all__ = [
         
         # Integration Architecture Interfaces
         'ServiceInterface',
+        
+        # Backup Engine Plugin Interface
+        'BackupEnginePlugin',
+        'BackupEngine',
+        'RepositoryType',
+        'ValidationResult',
+        'EngineCapabilities',
+        'PluginError',
+        'EngineNotAvailableError',
+        'EngineConfigurationError',
+        'UnsupportedStorageTypeError',
 
         # Configuration Data Models
         'ConfigurationChangeEvent',
