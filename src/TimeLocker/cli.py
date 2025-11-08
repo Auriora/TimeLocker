@@ -1266,3 +1266,10 @@ try:
     app.add_typer(_reports_commands_app, name="reports")
 except ImportError as e:
     logging.getLogger(__name__).debug(f"Could not import monitoring commands: {e}")
+
+try:
+    from .cli_modules.commands.restore import restore_app as _restore_commands_app
+    # Add restore app to main app
+    app.add_typer(_restore_commands_app, name="restore")
+except ImportError as e:
+    logging.getLogger(__name__).debug(f"Could not import restore commands: {e}")

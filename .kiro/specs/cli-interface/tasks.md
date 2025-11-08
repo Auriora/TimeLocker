@@ -78,25 +78,25 @@ This implementation plan transforms the CLI Interface design into actionable cod
   - Provide migration progress and validation
   - _Requirements: 9.4_
 
-- [ ] 3. Enhance restore operations with comprehensive recovery commands
+- [x] 3. Enhance restore operations with comprehensive recovery commands
   - Reorganize restore commands under dedicated restore app
   - Add missing restore operations (browse, files, full, mount, find, diff, verify)
   - Implement interactive file selection and restoration workflows
   - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7, 13.8_
 
-- [ ] 3.1 Create restore command hierarchy
+- [x] 3.1 Create restore command hierarchy
   - Move existing snapshot restore functionality to new `restore_app`
   - Implement `restore browse`, `restore files`, `restore full` commands
   - Add interactive file browser for snapshot contents
   - _Requirements: 13.1, 13.2, 13.3_
 
-- [ ] 3.2 Implement restore mount and filesystem operations
+- [x] 3.2 Implement restore mount and filesystem operations
   - Add `restore mount` and `restore umount` commands for FUSE mounting
   - Implement mount point management and cleanup
   - Support read-only snapshot mounting for browsing
   - _Requirements: 13.4_
 
-- [ ] 3.3 Implement restore search and comparison
+- [x] 3.3 Implement restore search and comparison
   - Add `restore find` command for cross-snapshot file search
   - Implement `restore diff` command for snapshot comparison
   - Add `restore verify` command for restored data integrity checking

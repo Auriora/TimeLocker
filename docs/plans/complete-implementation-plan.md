@@ -117,7 +117,7 @@ CLI Refactoring:          ████████████░░░░░░
      - Task 2.4: Implement repository migrate command
 
 6. **Restore Operations Reorganization**
-   - [ ] Task 3: Enhance restore operations
+   - [x] Task 3: Enhance restore operations
      - Task 3.1: Create restore command hierarchy
      - Task 3.2: Implement restore mount and filesystem operations
      - Task 3.3: Implement restore search and comparison
