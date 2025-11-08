@@ -21,6 +21,33 @@ from .repository_helpers import (
     _backend_display_name,
     _repository_config_to_dict,
 )
+from .interactive import (
+    is_interactive,
+    prompt_for_value,
+    prompt_for_int,
+    prompt_for_bool,
+    prompt_for_path,
+    prompt_for_list,
+    display_current_config,
+    prompt_to_keep_or_change,
+    validate_repository_name,
+    validate_uri,
+    show_help_text,
+    ValidationError,
+)
+from .wizards import (
+    repository_creation_wizard,
+    policy_creation_wizard,
+    schedule_creation_wizard,
+    WizardCancelled,
+)
+from .command_integration import (
+    with_interactive_fallback,
+    ensure_repository_exists,
+    ensure_policy_exists,
+    validate_configuration_dependencies,
+    prompt_for_missing_parameters,
+)
 
 __all__ = [
     # Display
@@ -48,4 +75,28 @@ __all__ = [
     "_determine_backend_from_uri",
     "_backend_display_name",
     "_repository_config_to_dict",
+    # Interactive prompts
+    "is_interactive",
+    "prompt_for_value",
+    "prompt_for_int",
+    "prompt_for_bool",
+    "prompt_for_path",
+    "prompt_for_list",
+    "display_current_config",
+    "prompt_to_keep_or_change",
+    "validate_repository_name",
+    "validate_uri",
+    "show_help_text",
+    "ValidationError",
+    # Wizards
+    "repository_creation_wizard",
+    "policy_creation_wizard",
+    "schedule_creation_wizard",
+    "WizardCancelled",
+    # Command integration
+    "with_interactive_fallback",
+    "ensure_repository_exists",
+    "ensure_policy_exists",
+    "validate_configuration_dependencies",
+    "prompt_for_missing_parameters",
 ]
