@@ -55,6 +55,11 @@ from ..utils import (
 )
 from .job_executor import JobExecutor, ErrorClassifier
 from .integrity_validation_service import IntegrityValidationService
+from .data_selection_integration_service import DataSelectionIntegrationService
+from .backup_error_reporter import BackupErrorReporter, BackupError, BackupWarning
+from .backup_notification_service import BackupNotificationService, BackupEventType
+from ..monitoring.notification_service import NotificationService
+from ..monitoring.status_reporter import StatusReporter
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +79,10 @@ class BackupOrchestrator(IBackupOrchestrator):
                  policy_integration_service=None,
                  selection_service: Optional[SelectionServiceInterface] = None,
                  job_executor: Optional[JobExecutor] = None,
-                 integrity_validation_service: Optional[IntegrityValidationService] = None):
+                 integrity_validation_service: Optional[IntegrityValidationService] = None,
+                 data_selection_integration_service: Optional[DataSelectionIntegrationService] = None,
+                 notification_service: Optional[NotificationService] = None,
+                 status_reporter: Optional[StatusReporter] = None):
         """
         Initialize backup orchestrator.
         
@@ -86,6 +94,9 @@ class BackupOrchestrator(IBackupOrchestrator):
             selection_service: Optional selection service for data selection integration
             job_executor: Optional job executor for advanced retry logic
             integrity_validation_service: Optional integrity validation service
+            data_selection_integration_service: Optional data selection integration service
+            notification_service: Optional notification service for sending notifications
+            status_reporter: Optional status reporter for operation tracking
         """
         self._repository_factory = repository_factory
         self._configuration_provider = configuration_provider
@@ -94,6 +105,16 @@ class BackupOrchestrator(IBackupOrchestrator):
         self._selection_service = selection_service or SelectionServiceInterface()
         self._job_executor = job_executor or JobExecutor()
         self._integrity_validation_service = integrity_validation_service or IntegrityValidationService()
+        self._data_selection_integration_service = data_selection_integration_service or DataSelectionIntegrationService()
+        
+        # Initialize notification and error reporting services
+        self._notification_service = notification_service or NotificationService()
+        self._status_reporter = status_reporter or StatusReporter()
+        self._backup_notification_service = BackupNotificationService(
+            self._notification_service,
+            self._status_reporter
+        )
+        self._error_reporter = BackupErrorReporter()
 
         # Track active backup operations
         self._active_backups: Dict[str, BackupResult] = {}
@@ -196,9 +217,40 @@ class BackupOrchestrator(IBackupOrchestrator):
             
             # Validate data selection if specified
             if job_config.data_selection_id:
-                # Data selection validation would go here
                 logger.debug(f"Data selection validation for: {job_config.data_selection_id}")
-                result.add_warning("Data selection validation not fully implemented")
+                try:
+                    # Retrieve and validate selection configuration
+                    selection_config = self._data_selection_integration_service.retrieve_selection_config(
+                        job_config.data_selection_id
+                    )
+                    
+                    if selection_config:
+                        # Validate compatibility with tool
+                        compatibility_result = self._data_selection_integration_service.validate_selection_compatibility(
+                            selection_config,
+                            job_config.tool_type
+                        )
+                        
+                        if not compatibility_result.is_compatible:
+                            result.add_error(
+                                f"Data selection '{job_config.data_selection_id}' is not compatible "
+                                f"with tool '{job_config.tool_type}'"
+                            )
+                            for feature in compatibility_result.unsupported_features:
+                                result.add_error(f"Unsupported feature: {feature}")
+                        
+                        # Add warnings
+                        for warning in compatibility_result.warnings:
+                            result.add_warning(f"Data selection: {warning}")
+                        
+                        result.validation_details['data_selection_compatible'] = compatibility_result.is_compatible
+                    else:
+                        result.add_error(f"Data selection '{job_config.data_selection_id}' not found")
+                        result.validation_details['data_selection_compatible'] = False
+                        
+                except Exception as e:
+                    result.add_warning(f"Could not validate data selection: {e}")
+                    result.validation_details['data_selection_compatible'] = False
             
             # Validate retry configuration
             if job_config.retry_config.max_retries < 0:
@@ -279,14 +331,55 @@ class BackupOrchestrator(IBackupOrchestrator):
             if job_config.data_selection_id:
                 logger.debug(f"Integrating with data selection: {job_config.data_selection_id}")
                 try:
-                    # Get data selection configuration
-                    # This would use the selection service to get selection details
+                    # Retrieve data selection configuration
+                    selection_config = self._data_selection_integration_service.retrieve_selection_config(
+                        job_config.data_selection_id
+                    )
+                    
+                    if selection_config:
+                        # Validate compatibility with backup tool
+                        compatibility_result = self._data_selection_integration_service.validate_selection_compatibility(
+                            selection_config,
+                            job_config.tool_type
+                        )
+                        
+                        # Log warnings
+                        for warning in compatibility_result.warnings:
+                            logger.warning(f"Selection compatibility warning: {warning}")
+                        
+                        # Apply selection to job
+                        backup_job = self._data_selection_integration_service.apply_selection_to_job(
+                            backup_job,
+                            selection_config
+                        )
+                        
+                        # Store selection config in job metadata
+                        backup_job.data_selection_config = {
+                            'selection_id': job_config.data_selection_id,
+                            'integrated': True,
+                            'is_compatible': compatibility_result.is_compatible,
+                            'warnings': compatibility_result.warnings,
+                            'unsupported_features': compatibility_result.unsupported_features
+                        }
+                        
+                        logger.info(
+                            f"Data selection integrated: compatible={compatibility_result.is_compatible}, "
+                            f"warnings={len(compatibility_result.warnings)}"
+                        )
+                    else:
+                        logger.warning(f"Data selection config not found: {job_config.data_selection_id}")
+                        backup_job.data_selection_config = {
+                            'selection_id': job_config.data_selection_id,
+                            'integrated': False,
+                            'error': 'Selection configuration not found'
+                        }
+                except Exception as e:
+                    logger.error(f"Could not integrate with data selection: {e}")
                     backup_job.data_selection_config = {
                         'selection_id': job_config.data_selection_id,
-                        'integrated': True
+                        'integrated': False,
+                        'error': str(e)
                     }
-                except Exception as e:
-                    logger.warning(f"Could not integrate with data selection: {e}")
             
             # Get source paths from targets
             if job_config.target_names:
@@ -527,6 +620,14 @@ class BackupOrchestrator(IBackupOrchestrator):
         """
         logger.debug(f"Internal execution for job: {backup_job.config.job_id}")
         
+        # Send backup started notification
+        self._backup_notification_service.notify_backup_event(
+            event_type=BackupEventType.BACKUP_STARTED,
+            operation_id=backup_job.config.job_id,
+            repository_id=backup_job.config.repository_id,
+            message=f"Starting backup for repository {backup_job.config.repository_id}"
+        )
+        
         backup_result = BackupResult(
             status=BackupStatus.RUNNING,
             repository_name=backup_job.config.repository_id,
@@ -582,9 +683,39 @@ class BackupOrchestrator(IBackupOrchestrator):
                     f"Job completed: {backup_result.snapshot_id}, "
                     f"{backup_result.files_processed} files"
                 )
+                
+                # Send backup completed notification
+                duration = time.time() - backup_result.start_time
+                self._backup_notification_service.notify_backup_event(
+                    event_type=BackupEventType.BACKUP_COMPLETED,
+                    operation_id=backup_job.config.job_id,
+                    repository_id=backup_job.config.repository_id,
+                    message=f"Backup completed successfully",
+                    statistics={
+                        'files_processed': backup_result.files_processed,
+                        'bytes_processed': backup_result.bytes_processed,
+                        'duration': duration,
+                        'snapshot_id': backup_result.snapshot_id
+                    }
+                )
             else:
                 backup_result.errors.append("Backup completed but no snapshot ID returned")
                 backup_result.status = BackupStatus.FAILED
+                
+                # Create and report error
+                error = self._error_reporter.classify_error(
+                    Exception("No snapshot ID returned"),
+                    context={
+                        'operation_id': backup_job.config.job_id,
+                        'repository_id': backup_job.config.repository_id,
+                        'tool_name': backup_job.config.tool_type
+                    }
+                )
+                self._backup_notification_service.notify_backup_error(
+                    operation_id=backup_job.config.job_id,
+                    error=error,
+                    repository_id=backup_job.config.repository_id
+                )
             
             backup_result.end_time = time.time()
             
@@ -593,6 +724,25 @@ class BackupOrchestrator(IBackupOrchestrator):
             backup_result.status = BackupStatus.FAILED
             backup_result.end_time = time.time()
             logger.error(f"Job execution failed: {e}")
+            
+            # Classify and report error with remediation steps
+            error = self._error_reporter.classify_error(
+                e,
+                context={
+                    'operation_id': backup_job.config.job_id,
+                    'repository_id': backup_job.config.repository_id,
+                    'tool_name': backup_job.config.tool_type,
+                    'attempt': backup_job.execution_context.attempt_number
+                }
+            )
+            backup_result.metadata['error_details'] = error.to_dict()
+            
+            # Send error notification with remediation steps
+            self._backup_notification_service.notify_backup_error(
+                operation_id=backup_job.config.job_id,
+                error=error,
+                repository_id=backup_job.config.repository_id
+            )
         
         return backup_result
 

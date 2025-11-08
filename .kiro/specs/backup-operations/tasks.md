@@ -48,14 +48,14 @@
   - Integrate with existing performance monitoring for parallel operation metrics
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 9.1, 9.2_
 
-- [ ] 8. Integrate with data selection system
+- [x] 8. Integrate with data selection system
   - Enhance backup job execution to retrieve and apply data selection configurations
   - Implement selection rule translation for different backup tool syntax requirements
   - Add validation to ensure data selection compatibility with target backup tools
   - Create warning system for unsupported selection rules with plugin wrapper alternatives
   - _Requirements: 1.3, 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 9. Enhance notification and error reporting
+- [x] 9. Enhance notification and error reporting
   - Extend existing NotificationService integration for backup operation events
   - Add detailed error reporting with suggested remediation steps
   - Implement notification filtering based on operation duration and significance
