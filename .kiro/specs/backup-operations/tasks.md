@@ -13,14 +13,14 @@
   - Integrate with existing error handling utilities while extending capabilities
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 6.1, 6.2, 6.3, 6.4, 6.5_
 
-- [ ] 3. Create tool management and capability system
+- [x] 3. Create tool management and capability system
   - Implement ToolManager class for backup tool integration and capability detection
   - Create ToolCapabilities data model to represent tool features and limitations
   - Build capability detection system that can identify native vs wrapper-provided features
   - Add tool configuration optimization based on detected capabilities
   - _Requirements: 1.4, 1.5, 4.1, 4.2, 4.3, 4.4, 4.5, 8.1, 8.2, 8.3, 8.4, 8.5, 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 4. Develop plugin wrapper system for backup tools
+- [x] 4. Develop plugin wrapper system for backup tools
   - Create base PluginWrapper class with standardized interfaces for backup tools
   - Implement ResticPluginWrapper to wrap existing Restic functionality with enhanced capabilities
   - Add capability gap filling for features not natively supported by backup tools

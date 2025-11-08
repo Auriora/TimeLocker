@@ -47,6 +47,26 @@ from .job_executor import (
     RetryDecision,
     ExecutionResult
 )
+from .tool_manager import (
+    ToolManager,
+    ToolCapabilities,
+    ToolInfo,
+    Feature,
+    Limitation,
+    PerformanceProfile
+)
+from .plugin_wrapper import (
+    PluginWrapper,
+    BackupConfig,
+    PluginWrapperError,
+    CapabilityNotSupportedError
+)
+from .restic_plugin_wrapper import ResticPluginWrapper
+from .wrapper_registry import (
+    WrapperRegistry,
+    get_wrapper_registry,
+    initialize_wrappers
+)
 
 __all__ = [
     'RepositoryManager',
@@ -81,5 +101,19 @@ __all__ = [
     'RetryStrategy',
     'ErrorClassification',
     'RetryDecision',
-    'ExecutionResult'
+    'ExecutionResult',
+    'ToolManager',
+    'ToolCapabilities',
+    'ToolInfo',
+    'Feature',
+    'Limitation',
+    'PerformanceProfile',
+    'PluginWrapper',
+    'BackupConfig',
+    'PluginWrapperError',
+    'CapabilityNotSupportedError',
+    'ResticPluginWrapper',
+    'WrapperRegistry',
+    'get_wrapper_registry',
+    'initialize_wrappers'
 ]
