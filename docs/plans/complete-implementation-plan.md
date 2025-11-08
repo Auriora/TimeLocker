@@ -88,26 +88,26 @@ CLI Refactoring:          ████████████░░░░░░
 #### Task Order
 
 1. **Core CLI Infrastructure**
-   - [ ] Task 1: Complete core CLI infrastructure
+   - [x] Task 1: Complete core CLI infrastructure
      - Implement selections, policies, retention, schedule, security, monitoring command groups
      - Add global options (--format json, --non-interactive, --quiet)
      - Consistent JSON output formatting
 
 2. **Data Selection Commands**
-   - [ ] Task 1.1: Data selection management commands
+   - [x] Task 1.1: Data selection management commands
      - selections create/list/edit/test/export/import/delete
      - Interactive pattern configuration
 
 3. **Policy Commands**
-   - [ ] Task 1.2: Policy management commands
+   - [x] Task 1.2: Policy management commands
      - policies create/list/edit/assign/simulate
      - Interactive policy configuration
 
 4. **Additional Command Groups**
-   - [ ] Task 1.3: Retention policy management commands
-   - [ ] Task 1.4: Scheduling automation commands
-   - [ ] Task 1.5: Security services commands
-   - [ ] Task 1.6: Monitoring and reporting commands
+   - [x] Task 1.3: Retention policy management commands
+   - [x] Task 1.4: Scheduling automation commands
+   - [x] Task 1.5: Security services commands
+   - [x] Task 1.6: Monitoring and reporting commands
 
 5. **Enhanced Repository Operations**
    - [ ] Task 2: Enhance repository management

@@ -6,43 +6,43 @@ This implementation plan transforms the CLI Interface design into actionable cod
 
 ## Tasks
 
-- [ ] 1. Complete core CLI infrastructure and missing command groups
+- [x] 1. Complete core CLI infrastructure and missing command groups
   - Implement missing CLI command groups (selections, policies, retention, schedule, security, monitoring)
   - Add comprehensive global options support (--format json, --non-interactive, --quiet)
   - Implement consistent JSON output formatting across all commands
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 2.1, 2.2, 2.3, 2.4, 2.5, 19.5_
 
-- [ ] 1.1 Create data selection management commands
+- [x] 1.1 Create data selection management commands
   - Implement `selections_app` Typer application with create, list, edit, test, export, import, delete commands
   - Add interactive selection pattern configuration with include/exclude rules
   - Implement selection template testing and preview functionality
   - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5, 10.6_
 
-- [ ] 1.2 Create policy management commands
+- [x] 1.2 Create policy management commands
   - Implement `policies_app` Typer application with create, list, edit, assign, simulate commands
   - Add interactive policy configuration with repository and selection branching
   - Implement policy simulation and validation functionality
   - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
 
-- [ ] 1.3 Create retention policy management commands
+- [x] 1.3 Create retention policy management commands
   - Implement `retention_app` Typer application with create and edit commands
   - Add retention rule configuration (keep daily, weekly, monthly, yearly)
   - Integrate with existing repos forget command for retention enforcement
   - _Requirements: 11.6_
 
-- [ ] 1.4 Create scheduling automation commands
+- [x] 1.4 Create scheduling automation commands
   - Implement `schedule_app` Typer application with create, list, edit, enable, disable, generate-scripts, test commands
   - Add interactive schedule configuration with policy selection/creation
   - Implement platform-specific script generation for cron, systemd, Task Scheduler
   - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6_
 
-- [ ] 1.5 Create security services commands
+- [x] 1.5 Create security services commands
   - Implement `security_app` Typer application with status and audit commands
   - Enhance existing credentials commands with show functionality
   - Add security configuration overview and audit logging display
   - _Requirements: 15.1, 15.2, 15.3, 15.4, 15.5_
 
-- [ ] 1.6 Create monitoring and reporting commands
+- [x] 1.6 Create monitoring and reporting commands
   - Implement `monitor_app` Typer application with health and stats commands
   - Implement `logs_app` and `reports_app` Typer applications
   - Add system status overview, log viewing with filtering, and report generation
@@ -216,25 +216,25 @@ This implementation plan transforms the CLI Interface design into actionable cod
   - Add platform-appropriate error messages and help
   - _Requirements: 21.1, 21.2, 21.3, 21.4_
 
-- [ ]* 9. Comprehensive testing and validation
+- [ ] 9. Comprehensive testing and validation
   - Create unit tests for all new CLI commands and functionality
   - Implement integration tests for interactive flows and service integration
   - Add performance and cross-platform testing
   - _Requirements: All requirements validation_
 
-- [ ]* 9.1 Unit testing for CLI commands
+- [ ] 9.1 Unit testing for CLI commands
   - Test all command functions with mocked service dependencies
   - Test interactive flows using Typer's CliRunner with input simulation
   - Test output formats for both human-readable and JSON responses
   - _Requirements: All command requirements_
 
-- [ ]* 9.2 Integration testing
+- [ ] 9.2 Integration testing
   - Test service integration with real service implementations
   - Test configuration integration with actual configuration files
   - Test end-to-end workflows for complex multi-step operations
   - _Requirements: Service integration requirements_
 
-- [ ]* 9.3 Performance and compatibility testing
+- [ ] 9.3 Performance and compatibility testing
   - Test command startup times and memory usage
   - Test shell completion across different shells
   - Test cross-platform behavior and error handling

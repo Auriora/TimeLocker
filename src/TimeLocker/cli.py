@@ -1241,3 +1241,28 @@ try:
     app.add_typer(_policy_commands_app, name="policy")
 except ImportError as e:
     logging.getLogger(__name__).debug(f"Could not import policy commands: {e}")
+
+try:
+    from .cli_modules.commands.selections import selections_app as _selections_commands_app
+    # Add selections app to main app
+    app.add_typer(_selections_commands_app, name="selections")
+except ImportError as e:
+    logging.getLogger(__name__).debug(f"Could not import selections commands: {e}")
+
+try:
+    from .cli_modules.commands.schedule import schedule_app as _schedule_commands_app
+    # Add schedule app to main app
+    app.add_typer(_schedule_commands_app, name="schedule")
+except ImportError as e:
+    logging.getLogger(__name__).debug(f"Could not import schedule commands: {e}")
+
+try:
+    from .cli_modules.commands.monitoring import monitor_app as _monitor_commands_app
+    from .cli_modules.commands.monitoring import logs_app as _logs_commands_app
+    from .cli_modules.commands.monitoring import reports_app as _reports_commands_app
+    # Add monitoring apps to main app
+    app.add_typer(_monitor_commands_app, name="monitor")
+    app.add_typer(_logs_commands_app, name="logs")
+    app.add_typer(_reports_commands_app, name="reports")
+except ImportError as e:
+    logging.getLogger(__name__).debug(f"Could not import monitoring commands: {e}")

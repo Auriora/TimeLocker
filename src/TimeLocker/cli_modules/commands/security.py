@@ -64,6 +64,72 @@ security_app = create_typer_app(
 
 # Commands
 
+@security_app.command("audit")
+@with_error_handling("Audit Error")
+@with_logging
+def security_audit(
+        days: Annotated[int, typer.Option("--days", "-d", help="Number of days to audit")] = 30,
+        repository: Annotated[Optional[str], typer.Option("--repository", "-r", help="Filter by repository")] = None,
+        event_type: Annotated[Optional[str], typer.Option("--type", "-t", help="Filter by event type")] = None,
+        json_output: JsonOption = False,
+        config_dir: ConfigDirOption = None,
+        verbose: VerboseOption = False,
+) -> None:
+    """Show security audit trail and compliance information."""
+    try:
+        # Initialize security service
+        from TimeLocker.security import CredentialManager
+        credential_manager = CredentialManager(config_dir=config_dir)
+        security_service = SecurityService(credential_manager, config_dir=config_dir)
+
+        # Get audit data
+        audit_data = security_service.get_security_audit(
+            days=days,
+            repository_id=repository,
+            event_type=event_type
+        )
+
+        if json_output:
+            import json
+            console.print(json.dumps(audit_data, indent=2, default=str))
+        else:
+            # Display audit summary
+            console.print(Panel(
+                f"[bold]Audit Period:[/bold] Last {days} days\n"
+                f"[bold]Total Events:[/bold] {audit_data.get('total_events', 0)}\n"
+                f"[bold]Critical Events:[/bold] {audit_data.get('critical_events', 0)}\n"
+                f"[bold]Failed Access Attempts:[/bold] {audit_data.get('failed_access_attempts', 0)}\n"
+                f"[bold]Repositories Accessed:[/bold] {audit_data.get('repositories_accessed', 0)}",
+                title="[bold green]Security Audit Summary[/bold green]",
+                border_style="green"
+            ))
+
+            # Display event breakdown
+            events_by_type = audit_data.get('events_by_type', {})
+            if events_by_type:
+                console.print("\n[bold]Events by Type:[/bold]")
+                table = Table()
+                table.add_column("Event Type", style="cyan")
+                table.add_column("Count", style="green")
+                
+                for event_type, count in sorted(events_by_type.items(), key=lambda x: x[1], reverse=True):
+                    table.add_row(event_type.replace('_', ' ').title(), str(count))
+                
+                console.print(table)
+
+            # Display compliance status
+            compliance = audit_data.get('compliance_status', {})
+            if compliance:
+                console.print("\n[bold]Compliance Status:[/bold]")
+                for check, status in compliance.items():
+                    status_icon = "✓" if status else "✗"
+                    status_color = "green" if status else "red"
+                    console.print(f"  [{status_color}]{status_icon}[/{status_color}] {check.replace('_', ' ').title()}")
+
+    except Exception as e:
+        CommandBase.handle_error(e, verbose, "Security Audit Error")
+
+
 @security_app.command("status")
 @with_error_handling("Status Error")
 @with_logging
