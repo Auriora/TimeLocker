@@ -52,6 +52,7 @@ from TimeLocker.config.configuration_manager import (
     ConfigurationManager,
     RepositoryNotFoundError
 )
+from TimeLocker.interfaces.exceptions import ConfigurationError
 from TimeLocker.config import ConfigurationModule
 from TimeLocker.security import (
     SecurityService,

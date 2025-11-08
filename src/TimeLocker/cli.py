@@ -2188,6 +2188,26 @@ except ImportError as e:
     logging.getLogger(__name__).debug(f"Could not import repository commands: {e}")
 
 try:
+    from .cli_modules.commands.backup import backup_app as _backup_commands_app
+    # Copy commands from the backup module's app to our backup_app
+    for command in _backup_commands_app.registered_commands:
+        backup_app.registered_commands.append(command)
+    for group in _backup_commands_app.registered_groups:
+        backup_app.registered_groups.append(group)
+except ImportError as e:
+    logging.getLogger(__name__).debug(f"Could not import backup commands: {e}")
+
+try:
+    from .cli_modules.commands.snapshots import snapshots_app as _snapshots_commands_app
+    # Copy commands from the snapshots module's app to our snapshots_app
+    for command in _snapshots_commands_app.registered_commands:
+        snapshots_app.registered_commands.append(command)
+    for group in _snapshots_commands_app.registered_groups:
+        snapshots_app.registered_groups.append(group)
+except ImportError as e:
+    logging.getLogger(__name__).debug(f"Could not import snapshots commands: {e}")
+
+try:
     from .cli_modules.commands.policy import policy_app as _policy_commands_app
     # Add policy app to main app
     app.add_typer(_policy_commands_app, name="policy")

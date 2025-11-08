@@ -42,6 +42,9 @@ from .base import (
 from TimeLocker import cli as _cli_module
 from TimeLocker.cli_services import get_cli_service_manager
 
+# Import setup_logging from cli module
+setup_logging = _cli_module.setup_logging
+
 # Module-specific imports
 from TimeLocker.snapshot_manager import SnapshotManager
 from TimeLocker.restore_manager import RestoreManager

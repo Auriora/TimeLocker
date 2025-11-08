@@ -6,7 +6,7 @@ validation, and other core functionality.
 """
 
 from .repository_manager import RepositoryManager
-from .repository_factory import RepositoryFactory
+from .repository_factory import RepositoryFactory, repository_factory
 from .repository_service import RepositoryService
 from .repository_state_manager import RepositoryStateManager
 from .existing_repository_handler import ExistingRepositoryHandler
@@ -77,7 +77,8 @@ from .integrity_validation_service import (
 
 __all__ = [
     'RepositoryManager',
-    'RepositoryFactory', 
+    'RepositoryFactory',
+    'repository_factory',
     'RepositoryService',
     'RepositoryStateManager',
     'ExistingRepositoryHandler',
