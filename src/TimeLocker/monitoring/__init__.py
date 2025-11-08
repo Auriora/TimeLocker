@@ -17,8 +17,16 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from .status_reporter import StatusReporter, OperationStatus, StatusLevel
 from .notification_service import NotificationService, NotificationError, NotificationType
+from .progress_monitor import (
+    ProgressMonitor,
+    ProgressData,
+    ProgressReport,
+    ProgressState,
+    PerformanceMetrics
+)
 
 __all__ = [
         'StatusReporter', 'OperationStatus', 'StatusLevel',
-        'NotificationService', 'NotificationError', 'NotificationType'
+        'NotificationService', 'NotificationError', 'NotificationType',
+        'ProgressMonitor', 'ProgressData', 'ProgressReport', 'ProgressState', 'PerformanceMetrics'
 ]
