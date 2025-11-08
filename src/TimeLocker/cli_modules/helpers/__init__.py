@@ -2,6 +2,33 @@
 
 from .display import show_success_panel, show_error_panel, show_info_panel, format_file_size
 from .logging_setup import setup_logging, UserFacingLogFilter, CLILogHandler
+from .output_formatter import (
+    OutputFormatter,
+    OutputFormat,
+    ExitCode,
+    create_formatter,
+    format_success_json,
+    format_error_json,
+)
+from .non_interactive import (
+    require_parameter,
+    validate_parameters,
+    with_non_interactive_check,
+    exit_with_code,
+    handle_operation_result,
+    NonInteractiveError,
+    ensure_interactive_or_fail,
+)
+from .output_filtering import (
+    OutputFilter,
+    Paginator,
+    PaginationInfo,
+    QuietMode,
+    create_filter,
+    create_paginator,
+    apply_filters_and_pagination,
+    filter_sensitive_fields,
+)
 from .service_helpers import (
     _get_service_method,
     _call_service_method,
@@ -59,6 +86,30 @@ __all__ = [
     "setup_logging",
     "UserFacingLogFilter",
     "CLILogHandler",
+    # Output formatting
+    "OutputFormatter",
+    "OutputFormat",
+    "ExitCode",
+    "create_formatter",
+    "format_success_json",
+    "format_error_json",
+    # Non-interactive mode
+    "require_parameter",
+    "validate_parameters",
+    "with_non_interactive_check",
+    "exit_with_code",
+    "handle_operation_result",
+    "NonInteractiveError",
+    "ensure_interactive_or_fail",
+    # Output filtering and pagination
+    "OutputFilter",
+    "Paginator",
+    "PaginationInfo",
+    "QuietMode",
+    "create_filter",
+    "create_paginator",
+    "apply_filters_and_pagination",
+    "filter_sensitive_fields",
     # Service helpers
     "_get_service_method",
     "_call_service_method",

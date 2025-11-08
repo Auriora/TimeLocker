@@ -239,14 +239,75 @@ def create_typer_app(
     return app
 
 
+# Import output formatting utilities
+try:
+    from ..helpers.output_formatter import (
+        OutputFormatter,
+        OutputFormat,
+        ExitCode,
+        create_formatter,
+        format_success_json,
+        format_error_json,
+    )
+    from ..helpers.non_interactive import (
+        require_parameter,
+        validate_parameters,
+        with_non_interactive_check,
+        exit_with_code,
+        handle_operation_result,
+        NonInteractiveError,
+        ensure_interactive_or_fail,
+    )
+    from ..helpers.output_filtering import (
+        OutputFilter,
+        Paginator,
+        PaginationInfo,
+        QuietMode,
+        create_filter,
+        create_paginator,
+        apply_filters_and_pagination,
+        filter_sensitive_fields,
+    )
+except ImportError:
+    # Fallback if modules are not available
+    OutputFormatter = None
+    OutputFormat = None
+    ExitCode = None
+    create_formatter = None
+    format_success_json = None
+    format_error_json = None
+    require_parameter = None
+    validate_parameters = None
+    with_non_interactive_check = None
+    exit_with_code = None
+    handle_operation_result = None
+    NonInteractiveError = None
+    ensure_interactive_or_fail = None
+    OutputFilter = None
+    Paginator = None
+    PaginationInfo = None
+    QuietMode = None
+    create_filter = None
+    create_paginator = None
+    apply_filters_and_pagination = None
+    filter_sensitive_fields = None
+
+
 # Common type annotations for reuse
 from typing import Annotated
 
 VerboseOption = Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")]
 JsonOption = Annotated[bool, typer.Option("--json", help="Output in JSON format")]
+FormatOption = Annotated[Optional[str], typer.Option("--format", help="Output format (json)")]
+QuietOption = Annotated[bool, typer.Option("--quiet", "-q", help="Suppress non-essential output")]
+NonInteractiveOption = Annotated[bool, typer.Option("--non-interactive", help="Run in non-interactive mode")]
 YesOption = Annotated[bool, typer.Option("--yes", "-y", help="Confirm without prompt")]
 ConfigDirOption = Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")]
 DryRunOption = Annotated[bool, typer.Option("--dry-run", help="Preview without executing")]
+FieldsOption = Annotated[Optional[str], typer.Option("--fields", help="Comma-separated list of fields to include")]
+ExcludeFieldsOption = Annotated[Optional[str], typer.Option("--exclude", help="Comma-separated list of fields to exclude")]
+PageOption = Annotated[int, typer.Option("--page", help="Page number for pagination")]
+PageSizeOption = Annotated[int, typer.Option("--page-size", help="Number of items per page")]
 
 
 __all__ = [
@@ -270,7 +331,35 @@ __all__ = [
     '_create_configuration_module',
     'VerboseOption',
     'JsonOption',
+    'FormatOption',
+    'QuietOption',
+    'NonInteractiveOption',
     'YesOption',
     'ConfigDirOption',
     'DryRunOption',
+    'FieldsOption',
+    'ExcludeFieldsOption',
+    'PageOption',
+    'PageSizeOption',
+    'OutputFormatter',
+    'OutputFormat',
+    'ExitCode',
+    'create_formatter',
+    'format_success_json',
+    'format_error_json',
+    'require_parameter',
+    'validate_parameters',
+    'with_non_interactive_check',
+    'exit_with_code',
+    'handle_operation_result',
+    'NonInteractiveError',
+    'ensure_interactive_or_fail',
+    'OutputFilter',
+    'Paginator',
+    'PaginationInfo',
+    'QuietMode',
+    'create_filter',
+    'create_paginator',
+    'apply_filters_and_pagination',
+    'filter_sensitive_fields',
 ]

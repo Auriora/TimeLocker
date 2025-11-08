@@ -123,13 +123,13 @@ CLI Refactoring:          ████████████░░░░░░
      - Task 3.3: Implement restore search and comparison
 
 7. **Interactive Mode**
-   - [x Task 4: Interactive mode and configuration branching
+   - [x] Task 4: Interactive mode and configuration branching
      - Task 4.1: Implement interactive parameter collection
      - Task 4.2: Implement configuration wizards
      - Task 4.3: Implement configuration branching
 
 8. **Output Formats**
-   - [ ] Task 5: JSON output and non-interactive mode
+   - [x] Task 5: JSON output and non-interactive mode
      - Task 5.1: Implement JSON output formatting
      - Task 5.2: Implement non-interactive mode
      - Task 5.3: Implement quiet mode and filtering

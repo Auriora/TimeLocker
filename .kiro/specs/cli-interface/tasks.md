@@ -126,25 +126,25 @@ This implementation plan transforms the CLI Interface design into actionable cod
   - Allow creating policies during schedule configuration
   - _Requirements: 18.1, 18.2, 18.4, 18.5_
 
-- [ ] 5. Implement comprehensive JSON output and non-interactive mode
+- [x] 5. Implement comprehensive JSON output and non-interactive mode
   - Add consistent JSON output schema across all commands
   - Implement non-interactive mode with proper exit codes
   - Add quiet mode and structured error reporting
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 3.4, 19.5_
 
-- [ ] 5.1 Implement JSON output formatting
+- [x] 5.1 Implement JSON output formatting
   - Create consistent JSON response schemas for all command types
   - Add `--format json` support to all existing and new commands
   - Implement structured error responses in JSON format
   - _Requirements: 2.1, 2.2_
 
-- [ ] 5.2 Implement non-interactive mode
+- [x] 5.2 Implement non-interactive mode
   - Add `--non-interactive` flag support across all commands
   - Implement proper exit codes (0=success, 1=warnings, 2+=errors)
   - Add parameter validation for batch mode operations
   - _Requirements: 3.4_
 
-- [ ] 5.3 Implement quiet mode and filtering
+- [x] 5.3 Implement quiet mode and filtering
   - Add `--quiet` flag to suppress human-readable output
   - Implement output filtering and field selection for JSON responses
   - Add pagination support for large dataset commands
