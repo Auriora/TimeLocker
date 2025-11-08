@@ -75,6 +75,35 @@ from .command_integration import (
     validate_configuration_dependencies,
     prompt_for_missing_parameters,
 )
+from .aliases import (
+    CommandAliasResolver,
+    resolve_command_alias,
+    is_command_ambiguous,
+    suggest_similar_commands,
+    get_all_shortcuts,
+)
+from .performance import (
+    PerformanceMetrics,
+    PerformanceMonitor,
+    ProgressIndicator,
+    CancellationHandler,
+    get_performance_monitor,
+    get_cancellation_handler,
+    track_command_performance,
+)
+from .platform_compat import (
+    Platform,
+    PlatformInfo,
+    PathHandler,
+    CredentialHandler,
+    ErrorMessageFormatter,
+    PlatformCapabilities,
+    get_platform_name,
+    normalize_path,
+    format_error_message,
+    get_platform_capabilities,
+    check_platform_compatibility,
+)
 
 __all__ = [
     # Display
@@ -150,4 +179,30 @@ __all__ = [
     "ensure_policy_exists",
     "validate_configuration_dependencies",
     "prompt_for_missing_parameters",
+    # Aliases
+    "CommandAliasResolver",
+    "resolve_command_alias",
+    "is_command_ambiguous",
+    "suggest_similar_commands",
+    "get_all_shortcuts",
+    # Performance
+    "PerformanceMetrics",
+    "PerformanceMonitor",
+    "ProgressIndicator",
+    "CancellationHandler",
+    "get_performance_monitor",
+    "get_cancellation_handler",
+    "track_command_performance",
+    # Platform compatibility
+    "Platform",
+    "PlatformInfo",
+    "PathHandler",
+    "CredentialHandler",
+    "ErrorMessageFormatter",
+    "PlatformCapabilities",
+    "get_platform_name",
+    "normalize_path",
+    "format_error_message",
+    "get_platform_capabilities",
+    "check_platform_compatibility",
 ]
