@@ -67,6 +67,13 @@ from .wrapper_registry import (
     get_wrapper_registry,
     initialize_wrappers
 )
+from .integrity_validation_service import (
+    IntegrityValidationService,
+    IntegrityValidationResult,
+    ValidationStatus,
+    ValidationMethod,
+    ValidationIssue
+)
 
 __all__ = [
     'RepositoryManager',
@@ -115,5 +122,10 @@ __all__ = [
     'ResticPluginWrapper',
     'WrapperRegistry',
     'get_wrapper_registry',
-    'initialize_wrappers'
+    'initialize_wrappers',
+    'IntegrityValidationService',
+    'IntegrityValidationResult',
+    'ValidationStatus',
+    'ValidationMethod',
+    'ValidationIssue'
 ]

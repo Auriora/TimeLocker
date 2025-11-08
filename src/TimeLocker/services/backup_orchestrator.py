@@ -54,6 +54,7 @@ from ..utils import (
     complete_operation_tracking
 )
 from .job_executor import JobExecutor, ErrorClassifier
+from .integrity_validation_service import IntegrityValidationService
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +73,8 @@ class BackupOrchestrator(IBackupOrchestrator):
                  max_concurrent_backups: int = 2,
                  policy_integration_service=None,
                  selection_service: Optional[SelectionServiceInterface] = None,
-                 job_executor: Optional[JobExecutor] = None):
+                 job_executor: Optional[JobExecutor] = None,
+                 integrity_validation_service: Optional[IntegrityValidationService] = None):
         """
         Initialize backup orchestrator.
         
@@ -83,6 +85,7 @@ class BackupOrchestrator(IBackupOrchestrator):
             policy_integration_service: Optional policy integration service for policy-driven backups
             selection_service: Optional selection service for data selection integration
             job_executor: Optional job executor for advanced retry logic
+            integrity_validation_service: Optional integrity validation service
         """
         self._repository_factory = repository_factory
         self._configuration_provider = configuration_provider
@@ -90,6 +93,7 @@ class BackupOrchestrator(IBackupOrchestrator):
         self._policy_integration_service = policy_integration_service
         self._selection_service = selection_service or SelectionServiceInterface()
         self._job_executor = job_executor or JobExecutor()
+        self._integrity_validation_service = integrity_validation_service or IntegrityValidationService()
 
         # Track active backup operations
         self._active_backups: Dict[str, BackupResult] = {}
@@ -484,6 +488,25 @@ class BackupOrchestrator(IBackupOrchestrator):
         if execution_result.final_error_classification:
             result.metadata['final_error_category'] = execution_result.final_error_classification.category.value
             result.metadata['suggested_action'] = execution_result.final_error_classification.suggested_action
+        
+        # Perform integrity validation if backup completed
+        if result.status == BackupStatus.COMPLETED:
+            logger.info(f"Performing integrity validation for job: {backup_job.config.job_id}")
+            validation_result = self._integrity_validation_service.validate_backup_integrity(
+                backup_job,
+                result
+            )
+            
+            # Integrate validation results with backup result
+            result = self._integrity_validation_service.integrate_validation_with_backup_result(
+                result,
+                validation_result
+            )
+            
+            logger.info(
+                f"Integrity validation complete: status={validation_result.status.value}, "
+                f"issues={len(validation_result.issues)}"
+            )
         
         logger.info(
             f"Job execution completed: {backup_job.config.job_id}, "
