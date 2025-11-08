@@ -1,0 +1,14 @@
+[Unit]
+Description=TimeLocker Backup - test-schedule
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/bcherrington/Projects/Auriora/TimeLocker/.venv/bin/timelocker backup run test-policy --non-interactive
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=timelocker-test-schedule
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,10 @@
+[Unit]
+Description=TimeLocker Backup Timer - test-schedule
+Requires=timelocker-test-schedule.service
+
+[Timer]
+OnCalendar=*-*-* 2:0:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
