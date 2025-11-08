@@ -1,5 +1,6 @@
 # Update Index
 
+- [2025-11-08-documentation-policy-enforcement](./2025-11-08-documentation-policy-enforcement.md)
 - [2025-11-08-082339-repository-manager-implementation](./2025-11-08-082339-repository-manager-implementation.md)
 - [2025-11-08-082339-documentation-structure-clarification](./2025-11-08-082339-documentation-structure-clarification.md)
 - [2025-11-08-080229-backup-notification-error-reporting](./2025-11-08-080229-backup-notification-error-reporting.md)

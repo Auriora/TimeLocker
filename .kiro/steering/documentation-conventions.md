@@ -11,7 +11,32 @@ fileMatchPattern: 'docs/**'
 
 ## Documentation Structure
 
-All documentation MUST live under `docs/` and follow the established structure:
+All documentation MUST live under `docs/` and follow the established structure.
+
+### Source Folder Documentation Policy
+
+**IMPORTANT**: The `src/` folder structure is for code only. Documentation files should NOT be placed in `src/` with the following exception:
+
+- **Allowed**: Minimal `README.md` files in source folders that:
+  - Briefly explain the folder's purpose (1-3 sentences)
+  - Point to the relevant detailed documentation in `docs/`
+  - Provide a quick structural overview if helpful
+  
+- **NOT Allowed**: 
+  - Detailed documentation, usage guides, or examples in `src/`
+  - Architecture explanations, design decisions, or implementation details in `src/`
+  - Any documentation that duplicates content from `docs/`
+
+**Example of acceptable `src/` README.md**:
+```markdown
+# Module Name
+
+Brief one-line description of what this module does.
+
+For detailed documentation, see [docs/3-implementation/module-name.md](../../../docs/3-implementation/module-name.md).
+```
+
+All comprehensive documentation MUST be placed in the appropriate `docs/` subfolder:
 
 ```
 docs/

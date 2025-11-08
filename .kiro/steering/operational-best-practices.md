@@ -19,6 +19,7 @@ inclusion: always
 - **Process Transparency**: Justify all actions taken and explain them in the context of the user's request.
 - **Security**: Never output, log, or expose sensitive information in any user-facing message or code output.
 - **Documentation Consistency**: Always update relevant documentation when asked to update AI Guidelines to ensure documentation remains current and consistent.
+- **Documentation Placement**: All comprehensive documentation must be placed in `docs/`. Source folders (`src/`) may only contain minimal README files (1-3 sentences) that point to detailed documentation in `docs/`. See `documentation-conventions.md` for full policy.
 - **Command Output Analysis**: Read command output thoroughly to the end before interpreting results. Avoid making premature assumptions about errors or success states. Always verify the exact location and nature of issues by analyzing the complete output rather than jumping to conclusions based on partial information.
 
 ## SRS and Design Alignment

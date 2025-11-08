@@ -8,6 +8,8 @@ output/
 __pycache__
 .idea/
 
+.vscode/
+
 # Build artifacts
 /build/
 /dist/

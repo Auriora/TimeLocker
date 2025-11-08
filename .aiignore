@@ -18,3 +18,10 @@ temp/
 .obsidian/
 
 .idea/
+.vscode/
+.pytest_cache/
+__pycache__/
+.benchmarks/
+htmlcov/
+*.egg-info/
+.env
