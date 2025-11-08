@@ -1212,6 +1212,246 @@ def repos_update(
 
 
 
+@repos_app.command("edit")
+@with_error_handling("Edit Error")
+@with_logging
+def repos_edit(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        uri: Annotated[Optional[str], typer.Option("--uri", help="Update repository URI")] = None,
+        description: Annotated[Optional[str], typer.Option("--description", "-d", help="Update repository description")] = None,
+        password: Annotated[Optional[str], typer.Option("--password", "-p", help="Update repository password")] = None,
+        update_credentials: Annotated[bool, typer.Option("--update-credentials", help="Update backend credentials interactively")] = False,
+        interactive: Annotated[bool, typer.Option("--interactive/--no-interactive", help="Enable interactive mode for all fields")] = None,
+        verbose: VerboseOption = False,
+        config_dir: ConfigDirOption = None,
+) -> None:
+    """
+    Edit repository configuration with interactive prompts.
+    
+    This command allows you to modify repository settings including:
+    - Repository URI
+    - Description
+    - Password
+    - Backend credentials (for cloud repositories)
+    
+    In interactive mode (default when no options provided), the command will:
+    - Display current values for all settings
+    - Prompt for new values (press Enter to keep current value)
+    - Allow credential management for cloud backends
+    
+    Examples:
+        # Interactive edit (shows current values, prompts for changes)
+        tl repos edit myrepo
+        
+        # Update specific fields non-interactively
+        tl repos edit myrepo --description "Updated description"
+        
+        # Update URI
+        tl repos edit myrepo --uri s3:s3.amazonaws.com/new-bucket/path
+        
+        # Update credentials for cloud repository
+        tl repos edit myrepo --update-credentials
+        
+        # Force interactive mode even with options
+        tl repos edit myrepo --description "New desc" --interactive
+    """
+    setup_logging(verbose, config_dir)
+    is_interactive = sys.stdin.isatty() if interactive is None else interactive
+    
+    try:
+        config_manager = ConfigurationManager(config_dir=config_dir)
+        manager = _get_service_manager_for_command(config_dir)
+        
+        # Get existing repository configuration
+        try:
+            repo_config = config_manager.get_repository(name)
+        except ConfigurationError:
+            show_error_panel("Repository Not Found", f"Repository '{name}' not found in configuration.")
+            raise typer.Exit(1)
+        
+        # Extract current values
+        if isinstance(repo_config, dict):
+            current_uri = repo_config.get('uri') or repo_config.get('location', '')
+            current_description = repo_config.get('description', '')
+            current_password = repo_config.get('password')
+            has_backend_creds = repo_config.get('has_backend_credentials', False)
+        else:
+            current_uri = getattr(repo_config, 'uri', None) or getattr(repo_config, 'location', '')
+            current_description = getattr(repo_config, 'description', '')
+            current_password = getattr(repo_config, 'password', None)
+            has_backend_creds = getattr(repo_config, 'has_backend_credentials', False)
+        
+        # Determine backend type
+        backend_type = _determine_backend_from_uri(current_uri)
+        
+        # Track what was updated
+        updates = []
+        
+        # Interactive mode: show current values and prompt for changes
+        if is_interactive and not any([uri, description, password, update_credentials]):
+            console.print(f"\n[bold cyan]Editing Repository: {name}[/bold cyan]\n")
+            console.print("[dim]Press Enter to keep current value, or type new value[/dim]\n")
+            
+            # Display and prompt for URI
+            console.print(f"[bold]Current URI:[/bold] {current_uri}")
+            new_uri = Prompt.ask("New URI", default="")
+            if new_uri and new_uri != current_uri:
+                uri = new_uri
+            
+            # Display and prompt for description
+            console.print(f"\n[bold]Current Description:[/bold] {current_description or '(none)'}")
+            new_description = Prompt.ask("New Description", default="")
+            if new_description and new_description != current_description:
+                description = new_description
+            
+            # Display and prompt for password
+            if current_password:
+                console.print(f"\n[bold]Current Password:[/bold] ••••••••")
+            else:
+                console.print(f"\n[bold]Current Password:[/bold] (none)")
+            
+            update_password = Confirm.ask("Update password?", default=False)
+            if update_password:
+                password = Prompt.ask("New Password", password=True)
+            
+            # Prompt for credential management if cloud backend
+            if backend_type in ["s3", "b2", "azure", "gcs"]:
+                console.print(f"\n[bold]Backend Credentials:[/bold] {_backend_display_name(backend_type)}")
+                if has_backend_creds:
+                    console.print("[green]Credentials stored[/green]")
+                else:
+                    console.print("[yellow]No credentials stored[/yellow]")
+                
+                update_credentials = Confirm.ask("Update backend credentials?", default=False)
+        
+        # Update URI if provided
+        if uri and uri != current_uri:
+            # Validate new URI
+            if not uri.strip():
+                show_error_panel("Invalid URI", "Repository URI cannot be empty")
+                raise typer.Exit(1)
+            
+            # Validate URI format
+            if "://" in uri:
+                parsed = urlparse(uri)
+                scheme = (parsed.scheme or "").lower()
+                allowed_schemes = {"file", "s3", "b2", "azure", "gs", "swift", "rest", "rclone", "sftp"}
+                if scheme not in allowed_schemes:
+                    show_error_panel("Invalid URI", f"Unsupported URI scheme: '{scheme}'")
+                    raise typer.Exit(1)
+            
+            if isinstance(repo_config, dict):
+                repo_config['uri'] = uri
+                repo_config.pop('location', None)  # Remove old location field if exists
+            else:
+                repo_config.uri = uri
+            
+            updates.append(f"URI updated to: {uri}")
+            
+            # Update backend type if changed
+            new_backend_type = _determine_backend_from_uri(uri)
+            if new_backend_type != backend_type:
+                backend_type = new_backend_type
+                updates.append(f"Backend type changed to: {_backend_display_name(backend_type) if backend_type else 'local'}")
+        
+        # Update description if provided
+        if description is not None and description != current_description:
+            if isinstance(repo_config, dict):
+                repo_config['description'] = description
+            else:
+                repo_config.description = description
+            updates.append("Description updated")
+        
+        # Update password if provided
+        if password is not None:
+            if isinstance(repo_config, dict):
+                repo_config['password'] = password
+            else:
+                repo_config.password = password
+            updates.append("Password updated")
+        
+        # Save configuration if any updates were made
+        if updates:
+            config = config_manager.get_config()
+            if config and hasattr(config, 'repositories'):
+                config.repositories[name] = repo_config
+                config_manager.save_config(config)
+        
+        # Handle credential updates
+        if update_credentials:
+            if not backend_type or backend_type not in ["s3", "b2", "azure", "gcs"]:
+                show_info_panel("No Backend Credentials", 
+                              "This repository type does not support backend credential storage.")
+            else:
+                console.print(f"\n[cyan]Updating {_backend_display_name(backend_type)} credentials...[/cyan]")
+                
+                credential_manager = _create_credential_manager(config_dir)
+                
+                # Prompt for credentials based on backend type
+                if backend_type == "s3":
+                    access_key = Prompt.ask("AWS Access Key ID")
+                    secret_key = Prompt.ask("AWS Secret Access Key", password=True)
+                    region = Prompt.ask("AWS Region", default="")
+                    insecure_tls = Confirm.ask("Allow insecure TLS?", default=False)
+                    
+                    credentials_payload = {
+                        "access_key_id": access_key,
+                        "secret_access_key": secret_key,
+                    }
+                    if region:
+                        credentials_payload["region"] = region
+                    if insecure_tls:
+                        credentials_payload["insecure_tls"] = True
+                    
+                    # Store credentials
+                    success = store_backend_credentials_helper(
+                        repository_name=name,
+                        backend_type=backend_type,
+                        backend_name=_backend_display_name(backend_type),
+                        credentials_dict=credentials_payload,
+                        cred_mgr=credential_manager,
+                        config_manager=config_manager,
+                        repository_config=_repository_config_to_dict(repo_config, name),
+                        console=console,
+                        logger=logging.getLogger(__name__),
+                        allow_prompt=is_interactive,
+                    )
+                    
+                    if success:
+                        updates.append(f"{_backend_display_name(backend_type)} credentials updated")
+                    else:
+                        show_error_panel("Credential Update Failed", 
+                                       f"Failed to update {_backend_display_name(backend_type)} credentials")
+                        raise typer.Exit(1)
+                else:
+                    show_info_panel("Not Implemented", 
+                                  f"Credential management for {_backend_display_name(backend_type)} is not yet implemented.")
+        
+        # Display results
+        if not updates:
+            show_info_panel("No Changes", 
+                          "No changes were made to the repository configuration.")
+            raise typer.Exit(0)
+        
+        updates_str = "\n  • ".join(updates)
+        show_success_panel("Repository Updated", 
+                         f"Repository '{name}' updated successfully.\n\nChanges:\n  • {updates_str}")
+        
+    except ConfigurationError as e:
+        show_error_panel("Configuration Error", str(e))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Edit operation cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Edit Error", f"Failed to edit repository '{name}': {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+
+
 @repos_app.command("default")
 @with_error_handling("Default Error")
 @with_logging
@@ -1757,6 +1997,149 @@ def repos_stats(
         raise typer.Exit(130)
     except Exception as e:
         show_error_panel("Stats Error", f"Failed to get repository stats: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+@repos_app.command("prune")
+@with_error_handling("Prune Error")
+@with_logging
+def repos_prune(
+        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
+        dry_run: DryRunOption = False,
+        repository: Annotated[
+            Optional[str], typer.Option("--repository", "-r", help="Repository URI override", autocompletion=repository_uri_completer)] = None,
+        password: Annotated[Optional[str], typer.Option("--password", "-p", help="Repository password if required")] = None,
+        max_unused: Annotated[Optional[str], typer.Option("--max-unused", help="Maximum unused data to keep (e.g., '5%', '10G')")] = None,
+        max_repack_size: Annotated[Optional[str], typer.Option("--max-repack-size", help="Maximum size to repack (e.g., '1G')")] = None,
+        verbose: VerboseOption = False,
+        config_dir: ConfigDirOption = None,
+) -> None:
+    """
+    Optimize repository storage by removing unreferenced data.
+    
+    This command performs repository maintenance by:
+    - Removing unreferenced data blocks
+    - Repacking repository data for better compression
+    - Optimizing storage usage
+    - Reclaiming disk space
+    
+    The prune operation is safe and will not remove any data that is still
+    referenced by existing snapshots. Use --dry-run to preview what would
+    be removed without making actual changes.
+    
+    Examples:
+        # Prune repository (preview mode)
+        tl repos prune myrepo --dry-run
+        
+        # Prune repository and reclaim space
+        tl repos prune myrepo
+        
+        # Prune with size limits
+        tl repos prune myrepo --max-unused 5% --max-repack-size 1G
+        
+        # Verbose output with progress
+        tl repos prune myrepo --verbose
+    """
+    setup_logging(verbose, config_dir)
+    try:
+        manager = _get_service_manager_for_command(config_dir)
+        prune_method = _get_service_method(manager, "prune_repository")
+        
+        if not prune_method:
+            show_error_panel("Not Implemented", "Repository prune is not available in this build.")
+            raise typer.Exit(1)
+        
+        # Show what we're doing
+        if dry_run:
+            console.print(f"[cyan]Analyzing repository '{name}' (dry run)...[/cyan]")
+        else:
+            console.print(f"[cyan]Pruning repository '{name}'...[/cyan]")
+        
+        # Execute prune with progress indicator
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TimeElapsedColumn(),
+            console=console
+        ) as progress:
+            task = progress.add_task("Pruning..." if not dry_run else "Analyzing...", total=None)
+            
+            # Build prune parameters
+            prune_params = {
+                "name": name,
+                "repository": repository or name,
+                "repository_uri": repository,
+                "repository_name": name,
+                "dry_run": dry_run,
+                "password": password
+            }
+            
+            if max_unused:
+                prune_params["max_unused"] = max_unused
+            if max_repack_size:
+                prune_params["max_repack_size"] = max_repack_size
+            
+            # Call prune method
+            result = _call_service_method(prune_method, **prune_params)
+            
+            progress.update(task, completed=True)
+        
+        # Parse result
+        if isinstance(result, dict):
+            success = result.get("success", True)
+            space_freed = result.get("space_freed", 0)
+            packs_removed = result.get("packs_removed", 0)
+            errors = result.get("errors")
+            warnings = result.get("warnings", [])
+        else:
+            success = getattr(result, "success", True)
+            space_freed = getattr(result, "space_freed", 0)
+            packs_removed = getattr(result, "packs_removed", 0)
+            errors = getattr(result, "errors", None)
+            warnings = getattr(result, "warnings", [])
+        
+        # Display results
+        if success:
+            # Build success message
+            message_lines = []
+            message_lines.append(f"[bold]Repository:[/bold] {name}")
+            
+            if dry_run:
+                message_lines.append(f"[bold]Mode:[/bold] Dry run (no changes made)")
+            else:
+                message_lines.append(f"[bold]Mode:[/bold] Prune completed")
+            
+            if space_freed:
+                message_lines.append(f"[bold]Space Freed:[/bold] {_format_size(space_freed)}")
+            
+            if packs_removed:
+                message_lines.append(f"[bold]Packs Removed:[/bold] {packs_removed}")
+            
+            # Show warnings if any
+            if warnings:
+                message_lines.append("\n[bold yellow]Warnings:[/bold yellow]")
+                for warning in warnings:
+                    message_lines.append(f"  • {warning}")
+            
+            title = "Prune Analysis Complete" if dry_run else "Prune Complete"
+            show_success_panel(title, "\n".join(message_lines))
+        else:
+            # Build error message
+            error_details = errors if isinstance(errors, list) else [errors] if errors else None
+            show_error_panel("Prune Failed", f"Failed to prune repository '{name}'.", error_details)
+            raise typer.Exit(1)
+            
+    except ConfigurationError as e:
+        show_error_panel("Configuration Error", str(e))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Prune operation cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Prune Error", f"Failed to prune repository '{name}': {e}")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
