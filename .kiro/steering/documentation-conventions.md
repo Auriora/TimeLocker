@@ -15,38 +15,113 @@ All documentation MUST live under `docs/` and follow the established structure:
 
 ```
 docs/
-├── index.md                      # Landing page (keep updated)
-├── getting-started/quickstart.md # Setup in 5 minutes
-├── concepts/                     # Core ideas
-├── reference/                    # Source of truth for APIs/specs
-├── architecture/implementation.md# Technical details & design
-├── developer/                    # Contributor/ops docs
-├── updates/                      # "What Was Implemented" docs
-│   ├── README.md
-│   ├── _TEMPLATE.md
-│   └── index.md
-└── archive/                      # Historical docs only
+├── README.md                           # Documentation hub landing page
+├── _template/                          # Templates for all doc types
+│   ├── _template.md
+│   ├── _template.README.md
+│   └── README.md
+├── 0-project-management/               # Project tracking and management
+│   ├── tasks-to-issues-map.md
+│   └── README.md
+├── 1-requirements/                     # Requirements and specifications
+│   ├── _template.md
+│   └── README.md
+├── 2-architecture/                     # Architecture and design docs
+│   ├── _template.md
+│   ├── overview.md
+│   ├── system-architecture.md
+│   └── README.md
+├── 3-implementation/                   # Implementation details
+│   ├── _template.md
+│   ├── command-builder.md
+│   └── README.md
+├── 4-testing/                          # Testing documentation
+│   ├── _template.md
+│   ├── test-plan.md
+│   └── README.md
+├── guides/                             # User and developer guides
+│   ├── user/                           # End-user documentation
+│   ├── developer/                      # Developer/contributor docs
+│   ├── ai-agent/                       # AI agent instructions
+│   └── README.md
+├── plans/                              # Implementation plans
+│   ├── _template.md
+│   └── README.md
+├── processes/                          # Process documentation
+│   ├── _template.md
+│   ├── version-management.md
+│   └── README.md
+├── proposals/                          # Design proposals
+│   ├── _template.md
+│   └── README.md
+├── reference/                          # Reference documentation
+│   ├── _template.md
+│   └── README.md
+├── reports/                            # Status and analysis reports
+│   ├── _template.md
+│   ├── _template.code-quality.md
+│   ├── _template.coverage.md
+│   └── README.md
+├── updates/                            # Implementation update logs
+│   ├── _template.md
+│   ├── index.md
+│   └── README.md
+├── traceability/                       # Traceability matrices
+│   ├── _template.md
+│   └── README.md
+└── archive/                            # Historical documentation
+    └── README.md
 ```
 
 - Do NOT add documentation files outside `docs/`.
+- Do NOT create ad-hoc directories like `docs/progress/` - use the established structure.
 
-## Implementation Notes
+## Implementation Notes and Reports
+
+### Updates (Implementation Logs)
 
 Task-scoped implementation notes (often written by agents) MUST be placed in `docs/updates/`:
 
-- File naming: `YYYY-MM-DD-descriptive-slug.md`.
-- Use the template: `docs/updates/_TEMPLATE.md`.
+- File naming: `YYYY-MM-DD-HHMMSS-descriptive-slug.md` (include timestamp for uniqueness).
+- Use the template: `docs/updates/_template.md`.
 - Add to the index: `docs/updates/index.md` (newest first).
 - Optionally add a short entry to `CHANGELOG.md` linking to the update.
 - See guidance: `docs/updates/README.md`.
 
+### Reports (Status and Analysis)
+
+Status reports, progress summaries, and analysis documents MUST be placed in `docs/reports/`:
+
+- File naming: `YYYY-MM-DD-HHMMSS-descriptive-slug.md` (include timestamp for uniqueness).
+- Use the appropriate template from `docs/reports/`:
+  - `_template.md` - Generic report template
+  - `_template.code-quality.md` - Code quality reports
+  - `_template.coverage.md` - Test coverage reports
+  - `_template.security-review.md` - Security reviews
+- See guidance: `docs/reports/README.md`.
+
+**Key Distinction**:
+- **Updates**: What was implemented, how it was done, technical details
+- **Reports**: Status snapshots, metrics, analysis, findings
+
 ## Content Guidelines
 
 - **Update the Right Page for the Right Change**:
-  - New/changed tools → `docs/reference/` (parameters, returns, examples)
-  - New/changed core concepts → `docs/concepts/`
-  - Architecture/service design changes → `docs/architecture/implementation.md`
-  - Operational guidance → `docs/developer/`
+  - Requirements and specifications → `docs/1-requirements/`
+  - Architecture/service design changes → `docs/2-architecture/`
+  - Implementation details and code structure → `docs/3-implementation/`
+  - Testing documentation → `docs/4-testing/`
+  - User guides and tutorials → `docs/guides/user/`
+  - Developer/contributor guides → `docs/guides/developer/`
+  - AI agent instructions → `docs/guides/ai-agent/`
+  - Reference documentation (APIs, specs) → `docs/reference/`
+  - Implementation plans → `docs/plans/`
+  - Process documentation → `docs/processes/`
+  - Design proposals → `docs/proposals/`
+  - Status reports and analysis → `docs/reports/`
+  - Implementation update logs → `docs/updates/`
+  - Traceability matrices → `docs/traceability/`
+  - Historical documentation → `docs/archive/`
 
 - **MUST NOT Duplicate Content**: One home per concept. Reference, don't repeat.
 
@@ -64,9 +139,12 @@ Task-scoped implementation notes (often written by agents) MUST be placed in `do
 
 When making changes that affect documentation:
 
--   [ ] If code behavior or APIs changed, updated relevant reference docs
--   [ ] If new concept or major change, updated/added under `docs/concepts/` and linked from relevant pages
--   [ ] If architecture changed, updated `docs/architecture/implementation.md`
--   [ ] If work was task-scoped, added an entry in `docs/updates/` and `docs/updates/index.md`
--   [ ] Updated `docs/index.md` if navigation/structure changed
+-   [ ] If code behavior or APIs changed, updated relevant reference docs in `docs/reference/`
+-   [ ] If requirements changed, updated `docs/1-requirements/`
+-   [ ] If architecture changed, updated `docs/2-architecture/`
+-   [ ] If implementation details changed, updated `docs/3-implementation/`
+-   [ ] If testing approach changed, updated `docs/4-testing/`
+-   [ ] If work was task-scoped, added an entry in `docs/updates/` with timestamp and updated `docs/updates/index.md`
+-   [ ] If creating a status report, added to `docs/reports/` with timestamp
+-   [ ] Updated `docs/README.md` if navigation/structure changed
 -   [ ] Removed duplication and updated cross-links; added "Last updated" where applicable
