@@ -39,6 +39,9 @@ from .base import (
     DryRunOption,
 )
 
+# Import completion functions
+from TimeLocker.completion import schedule_name_completer, policy_name_completer
+
 # Create Typer app
 schedule_app = create_typer_app(
     name="schedule",
@@ -316,7 +319,7 @@ echo Run 'schtasks /Query /TN "TimeLocker\\{schedule_name}"' to verify
 @with_logging
 def schedule_create(
     name: Annotated[str, typer.Argument(help="Schedule name")],
-    policy: Annotated[Optional[str], typer.Argument(help="Policy name")] = None,
+    policy: Annotated[Optional[str], typer.Argument(help="Policy name", autocompletion=policy_name_completer)] = None,
     frequency: Annotated[Optional[str], typer.Option("--frequency", "-f", help="Frequency (hourly, daily, weekly, monthly)")] = None,
     cron: Annotated[Optional[str], typer.Option("--cron", help="Custom cron expression")] = None,
     enabled: Annotated[bool, typer.Option("--enabled/--disabled", help="Enable schedule immediately")] = True,
@@ -418,7 +421,7 @@ def schedule_list(
 @with_error_handling("Schedule Show Error")
 @with_logging
 def schedule_show(
-    name: Annotated[str, typer.Argument(help="Schedule name")],
+    name: Annotated[str, typer.Argument(help="Schedule name", autocompletion=schedule_name_completer)],
     verbose: VerboseOption = False,
     json_output: JsonOption = False,
     config_dir: ConfigDirOption = None,
@@ -457,8 +460,8 @@ def schedule_show(
 @with_error_handling("Schedule Edit Error")
 @with_logging
 def schedule_edit(
-    name: Annotated[str, typer.Argument(help="Schedule name")],
-    policy: Annotated[Optional[str], typer.Option("--policy", "-p", help="New policy name")] = None,
+    name: Annotated[str, typer.Argument(help="Schedule name", autocompletion=schedule_name_completer)],
+    policy: Annotated[Optional[str], typer.Option("--policy", "-p", help="New policy name", autocompletion=policy_name_completer)] = None,
     frequency: Annotated[Optional[str], typer.Option("--frequency", "-f", help="New frequency")] = None,
     cron: Annotated[Optional[str], typer.Option("--cron", help="New cron expression")] = None,
     enabled: Annotated[Optional[bool], typer.Option("--enabled/--disabled", help="Enable/disable schedule")] = None,
@@ -500,7 +503,7 @@ def schedule_edit(
 @with_error_handling("Schedule Delete Error")
 @with_logging
 def schedule_delete(
-    name: Annotated[str, typer.Argument(help="Schedule name")],
+    name: Annotated[str, typer.Argument(help="Schedule name", autocompletion=schedule_name_completer)],
     yes: YesOption = False,
     verbose: VerboseOption = False,
     config_dir: ConfigDirOption = None,
@@ -531,7 +534,7 @@ def schedule_delete(
 @with_error_handling("Schedule Enable Error")
 @with_logging
 def schedule_enable(
-    name: Annotated[str, typer.Argument(help="Schedule name")],
+    name: Annotated[str, typer.Argument(help="Schedule name", autocompletion=schedule_name_completer)],
     verbose: VerboseOption = False,
     config_dir: ConfigDirOption = None,
 ) -> None:
@@ -556,7 +559,7 @@ def schedule_enable(
 @with_error_handling("Schedule Disable Error")
 @with_logging
 def schedule_disable(
-    name: Annotated[str, typer.Argument(help="Schedule name")],
+    name: Annotated[str, typer.Argument(help="Schedule name", autocompletion=schedule_name_completer)],
     verbose: VerboseOption = False,
     config_dir: ConfigDirOption = None,
 ) -> None:
@@ -581,7 +584,7 @@ def schedule_disable(
 @with_error_handling("Script Generation Error")
 @with_logging
 def schedule_generate_scripts(
-    name: Annotated[str, typer.Argument(help="Schedule name")],
+    name: Annotated[str, typer.Argument(help="Schedule name", autocompletion=schedule_name_completer)],
     output_dir: Annotated[Optional[Path], typer.Option("--output", "-o", help="Output directory for scripts")] = None,
     platform_type: Annotated[Optional[str], typer.Option("--platform", "-p", help="Platform (cron, systemd, windows)")] = None,
     verbose: VerboseOption = False,
@@ -684,7 +687,7 @@ def schedule_generate_scripts(
 @with_error_handling("Schedule Test Error")
 @with_logging
 def schedule_test(
-    name: Annotated[str, typer.Argument(help="Schedule name")],
+    name: Annotated[str, typer.Argument(help="Schedule name", autocompletion=schedule_name_completer)],
     dry_run: DryRunOption = True,
     verbose: VerboseOption = False,
     config_dir: ConfigDirOption = None,

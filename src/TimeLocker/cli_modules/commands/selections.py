@@ -37,6 +37,9 @@ from .base import (
     ConfigDirOption,
 )
 
+# Import completion functions
+from TimeLocker.completion import selection_name_completer
+
 # Create Typer app
 selections_app = create_typer_app(
     name="selections",
@@ -85,7 +88,7 @@ def selections_list(
 @with_error_handling("Selection Show Error")
 @with_logging
 def selections_show(
-    name: Annotated[str, typer.Argument(help="Selection template name")],
+    name: Annotated[str, typer.Argument(help="Selection template name", autocompletion=selection_name_completer)],
     verbose: VerboseOption = False,
     json_output: JsonOption = False,
     config_dir: ConfigDirOption = None,
@@ -102,7 +105,7 @@ def selections_show(
 @with_error_handling("Selection Edit Error")
 @with_logging
 def selections_edit(
-    name: Annotated[str, typer.Argument(help="Selection template name")],
+    name: Annotated[str, typer.Argument(help="Selection template name", autocompletion=selection_name_completer)],
     description: Annotated[Optional[str], typer.Option("--description", "-d", help="New description")] = None,
     verbose: VerboseOption = False,
     config_dir: ConfigDirOption = None,
@@ -119,7 +122,7 @@ def selections_edit(
 @with_error_handling("Selection Delete Error")
 @with_logging
 def selections_delete(
-    name: Annotated[str, typer.Argument(help="Selection template name")],
+    name: Annotated[str, typer.Argument(help="Selection template name", autocompletion=selection_name_completer)],
     yes: YesOption = False,
     verbose: VerboseOption = False,
     config_dir: ConfigDirOption = None,
@@ -136,7 +139,7 @@ def selections_delete(
 @with_error_handling("Selection Test Error")
 @with_logging
 def selections_test(
-    name: Annotated[str, typer.Argument(help="Selection template name")],
+    name: Annotated[str, typer.Argument(help="Selection template name", autocompletion=selection_name_completer)],
     path: Annotated[Optional[Path], typer.Argument(help="Path to test selection against")] = None,
     verbose: VerboseOption = False,
     json_output: JsonOption = False,
@@ -154,7 +157,7 @@ def selections_test(
 @with_error_handling("Selection Export Error")
 @with_logging
 def selections_export(
-    name: Annotated[str, typer.Argument(help="Selection template name")],
+    name: Annotated[str, typer.Argument(help="Selection template name", autocompletion=selection_name_completer)],
     output: Annotated[Optional[Path], typer.Option("--output", "-o", help="Output file path")] = None,
     verbose: VerboseOption = False,
     config_dir: ConfigDirOption = None,

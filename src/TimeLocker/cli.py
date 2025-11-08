@@ -313,18 +313,264 @@ def cli_version(
         console.print(f"TimeLocker version [bold]{__version__}[/bold]")
 
 
+@app.command("help")
+def cli_help(
+        topic: Annotated[Optional[str], typer.Argument(help="Help topic (repos, backup, restore, policy, schedule, selections)")] = None,
+) -> None:
+    """
+    Show comprehensive help and usage examples for TimeLocker commands.
+    
+    This command provides detailed help, usage examples, and common workflows
+    for different TimeLocker operations.
+    
+    Examples:
+        timelocker help              # Show general help
+        timelocker help repos        # Show repository management help
+        timelocker help backup       # Show backup operations help
+        timelocker help restore      # Show restore operations help
+    """
+    if topic is None:
+        # Show general help
+        console.print("\n[bold cyan]TimeLocker - Backup Management System[/bold cyan]\n")
+        console.print("TimeLocker provides comprehensive backup and restore capabilities with")
+        console.print("policy-based management, scheduling, and data selection.\n")
+        
+        console.print("[bold]Main Command Groups:[/bold]")
+        console.print("  [cyan]repos[/cyan]       - Repository management (create, list, validate)")
+        console.print("  [cyan]backup[/cyan]      - Backup operations (run, status, list)")
+        console.print("  [cyan]restore[/cyan]     - Restore operations (browse, files, full)")
+        console.print("  [cyan]snapshots[/cyan]   - Snapshot management (list, show, delete)")
+        console.print("  [cyan]policy[/cyan]      - Policy management (backup and retention policies)")
+        console.print("  [cyan]schedule[/cyan]    - Scheduling automation (create, manage schedules)")
+        console.print("  [cyan]selections[/cyan]  - Data selection templates (include/exclude patterns)")
+        console.print("  [cyan]security[/cyan]    - Security and credential management")
+        console.print("  [cyan]monitor[/cyan]     - System monitoring and health checks\n")
+        
+        console.print("[bold]Quick Start:[/bold]")
+        console.print("  1. Create a repository:")
+        console.print("     timelocker repos create myrepo file:///backup/repo\n")
+        console.print("  2. Create a backup target:")
+        console.print("     timelocker targets add documents --path ~/Documents\n")
+        console.print("  3. Run a backup:")
+        console.print("     timelocker backup run --target documents\n")
+        console.print("  4. List snapshots:")
+        console.print("     timelocker snapshots list\n")
+        console.print("  5. Restore files:")
+        console.print("     timelocker restore files myrepo latest /restore/path\n")
+        
+        console.print("[bold]Get Detailed Help:[/bold]")
+        console.print("  timelocker help repos      # Repository management help")
+        console.print("  timelocker help backup     # Backup operations help")
+        console.print("  timelocker help restore    # Restore operations help")
+        console.print("  timelocker help policy     # Policy management help")
+        console.print("  timelocker help schedule   # Scheduling help\n")
+        
+        console.print("[bold]Command Help:[/bold]")
+        console.print("  timelocker <command> --help    # Show help for any command")
+        console.print("  timelocker repos --help        # Show repos command help")
+        console.print("  timelocker backup run --help   # Show backup run help\n")
+        
+        console.print("[bold]Aliases:[/bold]")
+        console.print("  'tl' can be used as a short alias for 'timelocker'")
+        console.print("  Example: tl repos list\n")
+        
+        return
+    
+    topic = topic.lower()
+    
+    if topic == "repos" or topic == "repository":
+        console.print("\n[bold cyan]Repository Management Help[/bold cyan]\n")
+        console.print("Repositories store your backup data. TimeLocker supports multiple")
+        console.print("repository backends including local, S3, B2, SFTP, and more.\n")
+        
+        console.print("[bold]Common Commands:[/bold]")
+        console.print("  [cyan]repos create[/cyan] <name> <uri>  - Create a new repository")
+        console.print("  [cyan]repos list[/cyan]                 - List all repositories")
+        console.print("  [cyan]repos show[/cyan] <name>          - Show repository details")
+        console.print("  [cyan]repos validate[/cyan] <name>      - Validate repository connectivity")
+        console.print("  [cyan]repos check[/cyan] <name>         - Check repository integrity")
+        console.print("  [cyan]repos stats[/cyan] <name>         - Show repository statistics")
+        console.print("  [cyan]repos delete[/cyan] <name>        - Delete a repository\n")
+        
+        console.print("[bold]Examples:[/bold]")
+        console.print("  # Create a local repository")
+        console.print("  timelocker repos create local-backup file:///backup/local\n")
+        console.print("  # Create an S3 repository")
+        console.print("  timelocker repos create s3-backup s3:s3.amazonaws.com/my-bucket/backup\n")
+        console.print("  # List all repositories")
+        console.print("  timelocker repos list\n")
+        console.print("  # Check repository health")
+        console.print("  timelocker repos check local-backup\n")
+        console.print("  # View repository statistics")
+        console.print("  timelocker repos stats local-backup\n")
+        
+        console.print("[bold]Credential Management:[/bold]")
+        console.print("  repos credentials set <name>     - Store backend credentials")
+        console.print("  repos credentials show <name>    - Show credential status")
+        console.print("  repos credentials remove <name>  - Remove stored credentials\n")
+        
+    elif topic == "backup":
+        console.print("\n[bold cyan]Backup Operations Help[/bold cyan]\n")
+        console.print("Backup operations create snapshots of your data in repositories.\n")
+        
+        console.print("[bold]Common Commands:[/bold]")
+        console.print("  [cyan]backup run[/cyan] <policy>        - Run a backup using a policy")
+        console.print("  [cyan]backup status[/cyan]              - Show current backup status")
+        console.print("  [cyan]backup list[/cyan]                - List backup history")
+        console.print("  [cyan]backup cancel[/cyan] <job-id>     - Cancel a running backup\n")
+        
+        console.print("[bold]Examples:[/bold]")
+        console.print("  # Run a backup with a target")
+        console.print("  timelocker backup run --target documents\n")
+        console.print("  # Run a backup with a policy")
+        console.print("  timelocker backup run daily-backup\n")
+        console.print("  # Check backup status")
+        console.print("  timelocker backup status\n")
+        console.print("  # List recent backups")
+        console.print("  timelocker backup list --limit 10\n")
+        
+    elif topic == "restore":
+        console.print("\n[bold cyan]Restore Operations Help[/bold cyan]\n")
+        console.print("Restore operations recover data from backup snapshots.\n")
+        
+        console.print("[bold]Common Commands:[/bold]")
+        console.print("  [cyan]restore browse[/cyan] <repo> <snapshot>        - Browse snapshot contents")
+        console.print("  [cyan]restore files[/cyan] <repo> <snapshot> <paths> - Restore specific files")
+        console.print("  [cyan]restore full[/cyan] <repo> <snapshot> <target> - Restore entire snapshot")
+        console.print("  [cyan]restore list[/cyan] <repo>                      - List available snapshots")
+        console.print("  [cyan]restore find[/cyan] <repo> <query>              - Search for files")
+        console.print("  [cyan]restore diff[/cyan] <repo> <snap1> <snap2>      - Compare snapshots\n")
+        
+        console.print("[bold]Examples:[/bold]")
+        console.print("  # List available snapshots")
+        console.print("  timelocker restore list myrepo\n")
+        console.print("  # Browse latest snapshot")
+        console.print("  timelocker restore browse myrepo latest\n")
+        console.print("  # Restore specific files")
+        console.print("  timelocker restore files myrepo latest /restore/path --include '*.txt'\n")
+        console.print("  # Restore entire snapshot")
+        console.print("  timelocker restore full myrepo abc123 /restore/path\n")
+        console.print("  # Find files across snapshots")
+        console.print("  timelocker restore find myrepo 'important.doc'\n")
+        
+    elif topic == "policy":
+        console.print("\n[bold cyan]Policy Management Help[/bold cyan]\n")
+        console.print("Policies define backup and retention rules for automated operations.\n")
+        
+        console.print("[bold]Backup Policies:[/bold]")
+        console.print("  [cyan]policy backup create[/cyan] <name>   - Create a backup policy")
+        console.print("  [cyan]policy backup list[/cyan]            - List backup policies")
+        console.print("  [cyan]policy backup show[/cyan] <id>       - Show policy details")
+        console.print("  [cyan]policy backup delete[/cyan] <id>     - Delete a policy\n")
+        
+        console.print("[bold]Retention Policies:[/bold]")
+        console.print("  [cyan]policy retention create[/cyan] <name> - Create a retention policy")
+        console.print("  [cyan]policy retention list[/cyan]          - List retention policies")
+        console.print("  [cyan]policy retention show[/cyan] <id>     - Show policy details\n")
+        
+        console.print("[bold]Examples:[/bold]")
+        console.print("  # Create a backup policy")
+        console.print("  timelocker policy backup create daily-backup \\")
+        console.print("    --repository myrepo --description 'Daily backups'\n")
+        console.print("  # Create a retention policy")
+        console.print("  timelocker policy retention create keep-7-days \\")
+        console.print("    --daily 7 --weekly 4 --monthly 6\n")
+        console.print("  # List all policies")
+        console.print("  timelocker policy backup list\n")
+        
+    elif topic == "schedule":
+        console.print("\n[bold cyan]Scheduling Automation Help[/bold cyan]\n")
+        console.print("Schedules automate backup execution using policies.\n")
+        
+        console.print("[bold]Common Commands:[/bold]")
+        console.print("  [cyan]schedule create[/cyan] <name> <policy>  - Create a schedule")
+        console.print("  [cyan]schedule list[/cyan]                     - List all schedules")
+        console.print("  [cyan]schedule show[/cyan] <name>              - Show schedule details")
+        console.print("  [cyan]schedule enable[/cyan] <name>            - Enable a schedule")
+        console.print("  [cyan]schedule disable[/cyan] <name>           - Disable a schedule")
+        console.print("  [cyan]schedule generate-scripts[/cyan] <name>  - Generate automation scripts\n")
+        
+        console.print("[bold]Examples:[/bold]")
+        console.print("  # Create a daily schedule")
+        console.print("  timelocker schedule create daily-2am daily-backup \\")
+        console.print("    --frequency daily --cron '0 2 * * *'\n")
+        console.print("  # Generate cron script")
+        console.print("  timelocker schedule generate-scripts daily-2am --platform cron\n")
+        console.print("  # Enable a schedule")
+        console.print("  timelocker schedule enable daily-2am\n")
+        
+    elif topic == "selections":
+        console.print("\n[bold cyan]Data Selection Help[/bold cyan]\n")
+        console.print("Selection templates define which files to include or exclude in backups.\n")
+        
+        console.print("[bold]Common Commands:[/bold]")
+        console.print("  [cyan]selections create[/cyan] <name>     - Create a selection template")
+        console.print("  [cyan]selections list[/cyan]              - List all templates")
+        console.print("  [cyan]selections show[/cyan] <name>       - Show template details")
+        console.print("  [cyan]selections test[/cyan] <name>       - Test a template")
+        console.print("  [cyan]selections export[/cyan] <name>     - Export a template")
+        console.print("  [cyan]selections import[/cyan] <file>     - Import a template\n")
+        
+        console.print("[bold]Examples:[/bold]")
+        console.print("  # Create a selection template")
+        console.print("  timelocker selections create documents \\")
+        console.print("    --include '*.doc' --include '*.pdf' \\")
+        console.print("    --exclude '*/temp/*'\n")
+        console.print("  # Test a template")
+        console.print("  timelocker selections test documents ~/Documents\n")
+        
+    else:
+        show_error_panel(
+            "Unknown Topic",
+            f"Unknown help topic: {topic}\n\n"
+            "Available topics: repos, backup, restore, policy, schedule, selections"
+        )
+        raise typer.Exit(1)
+
+
 @app.command("completion")
 def cli_completion(
         shell: Annotated[Optional[str], typer.Argument(help="Target shell (bash, zsh, fish, powershell)")] = None,
+        install: Annotated[bool, typer.Option("--install", help="Install completion for the specified shell")] = False,
 ) -> None:
-    """Show instructions for enabling shell completion scripts."""
+    """
+    Show instructions for enabling shell completion scripts.
+    
+    Shell completion enables tab-completion for TimeLocker commands, options, and dynamic values
+    like repository names, policy names, and schedule names.
+    
+    Examples:
+        timelocker completion bash          # Show bash completion instructions
+        timelocker completion --install bash # Install bash completion
+        timelocker --show-completion        # Show completion script for current shell
+        timelocker --install-completion     # Install completion for current shell
+    """
     supported_shells = ["bash", "zsh", "fish", "powershell"]
 
     if shell is None:
-        show_info_panel(
-                "Shell Completion",
-                "Provide a shell name (bash, zsh, fish, powershell) to print the completion script, or run 'timelocker --install-completion'."
-        )
+        # Show general completion information
+        console.print("\n[bold cyan]TimeLocker Shell Completion[/bold cyan]\n")
+        console.print("Shell completion provides tab-completion for:")
+        console.print("  • Commands and subcommands")
+        console.print("  • Command options and flags")
+        console.print("  • Repository names from your configuration")
+        console.print("  • Policy names, schedule names, and selection templates")
+        console.print("  • File paths and URIs\n")
+        
+        console.print("[bold]Supported Shells:[/bold]")
+        for s in supported_shells:
+            console.print(f"  • {s}")
+        
+        console.print("\n[bold]Quick Install:[/bold]")
+        console.print("  timelocker --install-completion     # Auto-detect and install")
+        console.print("  timelocker completion --install bash # Install for specific shell\n")
+        
+        console.print("[bold]Manual Installation:[/bold]")
+        console.print("  timelocker --show-completion > ~/.timelocker-complete.sh")
+        console.print("  source ~/.timelocker-complete.sh\n")
+        
+        console.print("[bold]Aliases:[/bold]")
+        console.print("  Both 'timelocker' and 'tl' commands support completion\n")
         return
 
     shell = shell.lower()
@@ -335,13 +581,49 @@ def cli_completion(
         )
         raise typer.Exit(2)
 
-    # Typer automatically supports --show-completion/--install-completion;
-    # provide guidance for manual installation.
-    instructions = (
-            "Run 'timelocker --show-completion' to print the script, then save it per your shell's documentation.\n"
-            "For persistent installation use 'timelocker --install-completion'."
-    )
-    show_info_panel(f"{shell.title()} Completion", instructions)
+    if install:
+        # Provide installation instructions
+        console.print(f"\n[bold cyan]Installing {shell.title()} Completion[/bold cyan]\n")
+        
+        if shell == "bash":
+            console.print("[bold]For Bash:[/bold]")
+            console.print("  1. Generate completion script:")
+            console.print("     timelocker --show-completion bash > ~/.timelocker-complete.bash\n")
+            console.print("  2. Add to your ~/.bashrc:")
+            console.print("     echo 'source ~/.timelocker-complete.bash' >> ~/.bashrc\n")
+            console.print("  3. Reload your shell:")
+            console.print("     source ~/.bashrc\n")
+        elif shell == "zsh":
+            console.print("[bold]For Zsh:[/bold]")
+            console.print("  1. Generate completion script:")
+            console.print("     timelocker --show-completion zsh > ~/.timelocker-complete.zsh\n")
+            console.print("  2. Add to your ~/.zshrc:")
+            console.print("     echo 'source ~/.timelocker-complete.zsh' >> ~/.zshrc\n")
+            console.print("  3. Reload your shell:")
+            console.print("     source ~/.zshrc\n")
+        elif shell == "fish":
+            console.print("[bold]For Fish:[/bold]")
+            console.print("  1. Generate completion script:")
+            console.print("     timelocker --show-completion fish > ~/.config/fish/completions/timelocker.fish\n")
+            console.print("  2. Reload completions:")
+            console.print("     fish_update_completions\n")
+        elif shell == "powershell":
+            console.print("[bold]For PowerShell:[/bold]")
+            console.print("  1. Generate completion script:")
+            console.print("     timelocker --show-completion powershell > $PROFILE\n")
+            console.print("  2. Reload your profile:")
+            console.print("     . $PROFILE\n")
+        
+        console.print("[bold green]Completion will be available after reloading your shell[/bold green]\n")
+    else:
+        # Show instructions without installing
+        console.print(f"\n[bold cyan]{shell.title()} Completion Instructions[/bold cyan]\n")
+        console.print(f"To view the completion script for {shell}:")
+        console.print(f"  timelocker --show-completion {shell}\n")
+        console.print(f"To install completion for {shell}:")
+        console.print(f"  timelocker completion --install {shell}\n")
+        console.print("Or use the automatic installer:")
+        console.print("  timelocker --install-completion\n")
 
 
 def main() -> None:

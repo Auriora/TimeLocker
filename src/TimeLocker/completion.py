@@ -299,6 +299,98 @@ def complete_file_paths(incomplete: str) -> List[str]:
         return []
 
 
+@suppress_logging_for_completion
+def complete_selection_names(incomplete: str) -> List[str]:
+    """
+    Complete data selection template names from configuration.
+    
+    Args:
+        incomplete: Partial selection name being typed
+        
+    Returns:
+        List of matching selection names
+    """
+    try:
+        # Try to load selections from configuration
+        from .config.configuration_path_resolver import ConfigurationPathResolver
+        import json
+        
+        # Check for selections in data directory
+        data_dir = ConfigurationPathResolver.get_data_directory()
+        selections_file = data_dir / "selections" / "selections.json"
+        
+        if not selections_file.exists():
+            return []
+        
+        with open(selections_file, 'r') as f:
+            selections = json.load(f)
+        
+        return [name for name in selections.keys() if name.startswith(incomplete)]
+    except Exception:
+        return []
+
+
+@suppress_logging_for_completion
+def complete_policy_names(incomplete: str) -> List[str]:
+    """
+    Complete policy names from configuration.
+    
+    Args:
+        incomplete: Partial policy name being typed
+        
+    Returns:
+        List of matching policy names
+    """
+    try:
+        # Try to load policies from policy storage
+        from .config.configuration_path_resolver import ConfigurationPathResolver
+        
+        policy_dir = ConfigurationPathResolver.get_data_directory() / "policies"
+        
+        if not policy_dir.exists():
+            return []
+        
+        # List all policy files
+        policy_names = []
+        for policy_file in policy_dir.glob("*.json"):
+            if policy_file.stem not in ['index', 'metadata']:
+                policy_names.append(policy_file.stem)
+        
+        return [name for name in policy_names if name.startswith(incomplete)]
+    except Exception:
+        return []
+
+
+@suppress_logging_for_completion
+def complete_schedule_names(incomplete: str) -> List[str]:
+    """
+    Complete schedule names from configuration.
+    
+    Args:
+        incomplete: Partial schedule name being typed
+        
+    Returns:
+        List of matching schedule names
+    """
+    try:
+        # Try to load schedules from configuration
+        from .config.configuration_path_resolver import ConfigurationPathResolver
+        import json
+        
+        schedule_dir = ConfigurationPathResolver.get_data_directory() / "schedules"
+        schedules_file = schedule_dir / "schedules.json"
+        
+        if not schedules_file.exists():
+            return []
+        
+        with open(schedules_file, 'r') as f:
+            schedules = json.load(f)
+        
+        return [name for name in schedules.keys() if name.startswith(incomplete)]
+    except Exception:
+        return []
+
+
 # Typer completion functions for specific parameters
 def repository_name_completer(incomplete: str) -> List[str]:
     """Typer completer for repository names."""
@@ -328,6 +420,21 @@ def repository_completer(incomplete: str) -> List[str]:
 def file_path_completer(incomplete: str) -> List[str]:
     """Typer completer for file paths."""
     return complete_file_paths(incomplete)
+
+
+def selection_name_completer(incomplete: str) -> List[str]:
+    """Typer completer for selection template names."""
+    return complete_selection_names(incomplete)
+
+
+def policy_name_completer(incomplete: str) -> List[str]:
+    """Typer completer for policy names."""
+    return complete_policy_names(incomplete)
+
+
+def schedule_name_completer(incomplete: str) -> List[str]:
+    """Typer completer for schedule names."""
+    return complete_schedule_names(incomplete)
 
 
 # Special completers for context-aware completion
@@ -362,11 +469,17 @@ __all__ = [
         'complete_repository_uris',
         'complete_repositories',
         'complete_file_paths',
+        'complete_selection_names',
+        'complete_policy_names',
+        'complete_schedule_names',
         'repository_name_completer',
         'target_name_completer',
         'snapshot_id_completer',
         'repository_uri_completer',
         'repository_completer',
         'file_path_completer',
+        'selection_name_completer',
+        'policy_name_completer',
+        'schedule_name_completer',
         'ContextAwareCompleters',
 ]
