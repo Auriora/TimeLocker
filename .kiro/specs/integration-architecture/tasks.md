@@ -67,14 +67,14 @@
   - Implement integration monitoring and validation tools
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ]* 11. Write comprehensive unit tests
+- [ ] 11. Write comprehensive unit tests
   - Create unit tests for ServiceManager lifecycle and service discovery
   - Write tests for DependencyInjector with circular dependency scenarios
   - Add tests for EventBus publish/subscribe and event correlation
   - Test error propagation and recovery mechanisms
   - _Requirements: 2.1, 3.1, 4.1, 5.1_
 
-- [ ]* 12. Create integration test suite
+- [ ] 12. Create integration test suite
   - Write integration tests for CLI service orchestration workflows
   - Test service communication performance and optimization features
   - Add security integration tests for service authentication and authorization

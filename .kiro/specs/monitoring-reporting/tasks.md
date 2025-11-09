@@ -123,20 +123,20 @@
     - Create configurable ping intervals and timeout management
     - _Requirements: Optional enhancement for external health monitoring_
 
-- [ ]* 11. Create comprehensive test suite for monitoring components
-  - [ ]* 11.1 Write unit tests for core monitoring components
+- [ ] 11. Create comprehensive test suite for monitoring components
+  - [ ] 11.1 Write unit tests for core monitoring components
     - Create unit tests for MonitoringService, ActivityLogger, and BackupHistory
     - Add unit tests for StorageMonitor, IntegrityChecker, and PerformanceTracker
     - Write unit tests for TroubleshootingService and desktop integration components
     - _Requirements: All monitoring requirements validation_
 
-  - [ ]* 11.2 Write integration tests for monitoring workflows
+  - [ ] 11.2 Write integration tests for monitoring workflows
     - Create integration tests for end-to-end monitoring workflows
     - Add cross-platform testing for desktop integration on Linux, macOS, and Windows
     - Write integration tests for external webhook and health check integrations
     - _Requirements: Complete monitoring system validation_
 
-  - [ ]* 11.3 Write user experience and accessibility tests
+  - [ ] 11.3 Write user experience and accessibility tests
     - Create tests for notification timing and frequency validation
     - Add tests for information clarity and actionability of monitoring data
     - Write accessibility tests with screen readers and accessibility tools

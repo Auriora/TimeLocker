@@ -122,14 +122,14 @@
     - Create recovery history and reporting capabilities
     - _Requirements: 5.1, 5.2, 5.3_
 
-- [ ]* 10. Add comprehensive recovery operations testing
-  - [ ]* 10.1 Create unit tests for recovery components
+- [ ] 10. Add comprehensive recovery operations testing
+  - [ ] 10.1 Create unit tests for recovery components
     - Write tests for RecoveryOrchestrator operation coordination
     - Add tests for SnapshotBrowser browsing and search capabilities
     - Create tests for RecoveryValidator integrity verification
     - _Requirements: All requirements_
 
-  - [ ]* 10.2 Create integration tests for recovery workflows
+  - [ ] 10.2 Create integration tests for recovery workflows
     - Write end-to-end tests for full and selective recovery operations
     - Add tests for cross-tool compatibility and recovery scenarios
     - Create performance tests for large snapshot recovery operations
@@ -155,7 +155,7 @@
     - Create recovery verification and monitoring examples
     - _Requirements: All requirements_
 
-  - [ ]* 12.2 Update API documentation for recovery operations
+  - [ ] 12.2 Update API documentation for recovery operations
     - Document all new recovery interfaces and data models
     - Add comprehensive usage examples and best practices
     - Create troubleshooting guide for common recovery scenarios

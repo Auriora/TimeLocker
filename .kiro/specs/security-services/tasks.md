@@ -41,7 +41,7 @@
   - Create security configuration CLI commands
   - _Requirements: 2.3, 3.1, 5.4_
 
-- [ ]* 7. Write comprehensive security tests
+- [ ] 7. Write comprehensive security tests
   - Create unit tests for AccessManager session management
   - Write integration tests for security workflow end-to-end
   - Add security configuration validation tests
@@ -49,7 +49,7 @@
   - Write security penetration tests for credential protection
   - _Requirements: All requirements validation_
 
-- [ ]* 8. Add security documentation and user guides
+- [ ] 8. Add security documentation and user guides
   - Create security best practices documentation
   - Write user guide for credential management
   - Document security configuration options
