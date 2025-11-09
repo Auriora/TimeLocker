@@ -54,6 +54,7 @@ be non-technical and focus on how to use the features of the product.
 - `s3-compatible-services.md`: Configuring S3-compatible endpoints.
 - `auto-completion-guide.md`: Enabling CLI auto-completion.
 - `timeshift-import.md`: Importing Timeshift configurations.
+- `backup-operations-troubleshooting.md`: Troubleshooting backup operations issues.
 
 # References
 

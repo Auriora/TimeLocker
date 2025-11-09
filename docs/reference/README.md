@@ -29,6 +29,12 @@ licensing. These documents are typically stable and serve as authoritative sourc
 - API specifications or data schemas.
 - Licensing information and compliance guidelines.
 
+## Available Reference Documents
+
+- [Backup Operations API Reference](backup-operations-api.md) - Complete API documentation for backup orchestration
+- [Repository URI Guide](repository-uri-guide.md) - Guide to repository URI formats
+- [TimeLocker CLI Command Hierarchy](timelocker-cli-command-hierarchy.md) - CLI command structure
+
 ## 3. What Does NOT Belong Here?
 
 - Step-by-step guides (see `../guides/`).

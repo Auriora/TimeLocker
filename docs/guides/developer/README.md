@@ -50,6 +50,9 @@ aimed at developers working on the project.
 - `_template.md`: Generic developer guide template.
 - `automation-examples.md`: Scheduling automation patterns (env vars, systemd, cron, containers).
 - `scheduling-guide.md`: Step-by-step jobs scheduling playbook.
+- `plugin-wrapper-development.md`: Guide for developing backup tool plugin wrappers.
+- `performance-optimization-guide.md`: Performance optimization strategies.
+- `test-isolation-quick-reference.md`: Test isolation and XDG compliance reference.
 
 # References
 
