@@ -219,7 +219,7 @@ CLI Refactoring:          ████████████░░░░░░
      - Task 5.2: Add progress notification integration
 
 6. **Tool Adapters**
-   - [ ] Task 6: Create backup tool adapter framework
+   - [x] Task 6: Create backup tool adapter framework
      - Task 6.1: Define BackupToolAdapter abstract base class
      - Task 6.2: Implement ResticAdapter
      - Task 6.3: Implement BorgAdapter (optional)

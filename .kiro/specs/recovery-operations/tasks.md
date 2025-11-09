@@ -58,14 +58,14 @@
     - Add error reporting and warning notification capabilities
     - _Requirements: 5.4, 5.5_
 
-- [ ] 6. Create backup tool adapter framework
-  - [ ] 6.1 Define BackupToolAdapter abstract base class
+- [x] 6. Create backup tool adapter framework
+  - [x] 6.1 Define BackupToolAdapter abstract base class
     - Create abstract methods for browse_snapshot, restore_files, and verify_restoration
     - Define common interface for tool-specific recovery operations
     - Add tool detection and capability discovery methods
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-  - [ ] 6.2 Implement ResticAdapter for Restic-specific operations
+  - [x] 6.2 Implement ResticAdapter for Restic-specific operations
     - Create Restic-specific snapshot browsing implementation
     - Implement Restic restore operations with tool-specific options
     - Add Restic verification and integrity checking capabilities
