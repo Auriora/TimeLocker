@@ -274,9 +274,9 @@ Each phase is independently reversible.
 ## Resources
 
 ### Documentation
-- [Phase 1 Implementation](../updates/2025-11-07-cli-refactoring-phase1.md)
-- [Coding Standards](../../.kiro/steering/coding-standards.md)
-- [General Preferences](../../.kiro/steering/general-preferences.md)
+- [Phase 1 Implementation](../../updates/2025-11-07-093135-cli-refactoring-phase1.md)
+- [Coding Standards](../../../.kiro/steering/coding-standards.md)
+- [General Preferences](../../../.kiro/steering/general-preferences.md)
 
 ### Related Work
 - Plugin architecture implementation

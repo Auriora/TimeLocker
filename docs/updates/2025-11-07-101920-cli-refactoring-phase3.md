@@ -438,6 +438,6 @@ As remaining command groups are created in Phase 2, they should immediately use 
 
 ## References
 
-- [Phase 1 Implementation](2025-11-07-cli-refactoring-phase1.md)
-- [Phase 2 Progress](2025-11-07-cli-refactoring-phase2-progress.md)
-- [CLI Refactoring Plan](../guides/cli-refactoring-plan.md)
+- [Phase 1 Implementation](./2025-11-07-093135-cli-refactoring-phase1.md)
+- [Phase 2 Progress](./2025-11-07-095256-cli-refactoring-phase2-progress.md)
+- [CLI Refactoring Plan](../archive/cli-refactoring/cli-refactoring-plan.md)

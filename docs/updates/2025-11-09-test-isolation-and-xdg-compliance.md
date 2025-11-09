@@ -247,9 +247,9 @@ def test_something(tmp_path):
 
 ## Related Documentation
 
-- [File Locations Review](../architecture/file-locations-review.md)
-- [Test Isolation Strategy](../architecture/test-isolation-strategy.md)
-- [Summary](../architecture/SUMMARY-path-review.md)
+- [File Locations Review](../2-architecture/file-locations-review.md)
+- [Test Isolation Strategy](../2-architecture/test-isolation-strategy.md)
+- [Summary](../2-architecture/path-review-summary.md)
 
 ---
 

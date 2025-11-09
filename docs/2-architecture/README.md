@@ -59,5 +59,5 @@ See [README.design.md](./README.design.md) for a complete index of architecture 
 ## 6. References
 
 - [Design Index](./README.design.md) - Complete architecture document index
-- [Implementation](../3-implementation/) - Implementation details
-- [Updates](../updates/) - Architecture change notes
+- [Implementation](../3-implementation/README.md) - Implementation details
+- [Updates](../updates/index.md) - Architecture change notes

@@ -2,7 +2,7 @@
 
 **Last Updated**: 2025-11-08  
 **Status**: Active Development  
-**Related**: [CLI Refactoring Plan](../guides/cli-refactoring-plan.md), [Phase 1 Implementation](../updates/2025-11-07-cli-refactoring-phase1.md)
+**Related**: [CLI Refactoring Plan](../archive/cli-refactoring/cli-refactoring-plan.md), [Phase 1 Implementation](../updates/2025-11-07-093135-cli-refactoring-phase1.md)
 
 Modular command-line interface for TimeLocker backup operations.
 
@@ -256,7 +256,7 @@ except Exception as e:
 - 🔄 **Phase 2**: Command group separation (in progress)
 - 📋 **Phase 3**: Pattern consolidation (planned)
 
-See [CLI Refactoring Plan](../guides/cli-refactoring-plan.md) for details.
+See [CLI Refactoring Plan](../archive/cli-refactoring/cli-refactoring-plan.md) for details.
 
 ## Contributing
 
@@ -270,6 +270,6 @@ When adding new commands or helpers:
 
 ## Resources
 
-- [CLI Refactoring Plan](../guides/cli-refactoring-plan.md)
-- [Phase 1 Implementation](../updates/2025-11-07-cli-refactoring-phase1.md)
+- [CLI Refactoring Plan](../archive/cli-refactoring/cli-refactoring-plan.md)
+- [Phase 1 Implementation](../updates/2025-11-07-093135-cli-refactoring-phase1.md)
 - [Coding Standards](../../.kiro/steering/coding-standards.md)

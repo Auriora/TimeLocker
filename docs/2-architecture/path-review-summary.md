@@ -1,24 +1,39 @@
-# Path Review Summary
-
-**Date:** 2025-11-09  
-**Reviewer:** AI Assistant  
-**Status:** Review Complete - Action Required
-
+---
+title: "Architecture Decision Record: Path Review Summary"
+id: "adr-path-review-summary"
+type: [ architecture ]
+status: accepted
+owner: "Architecture Team"
+last_reviewed: "09-11-2025"
+tags: [ architecture, adr, xdg, summary, test-isolation ]
+links:
+    tooling: [ pytest ]
 ---
 
-## Executive Summary
+# Architecture Decision Record: Path Review Summary
 
-Reviewed all system and user file locations in TimeLocker for XDG Base Directory Specification compliance and test isolation safety.
+- **Owner**: Architecture Team
+- **Status**: Accepted
+- **Created Date**: 09-11-2025
+- **Last Updated**: 09-11-2025
+- **Audience**: Engineering Teams, Stakeholders
 
-**Key Findings:**
+## 1. Context
+
+This document summarizes the review of all system and user file locations in TimeLocker for XDG Base Directory Specification compliance and test isolation safety.
+
+## 2. Decision
+
+Implement full XDG compliance with multi-phase rollout focusing on test isolation first, then path standardization, then enhancement.
+
+### Key Findings
+
 - ✅ Core path resolver is XDG-compliant
 - ⚠️ 6 modules bypass the resolver with hardcoded paths
 - ⚠️ Tests can currently modify real user files (CRITICAL RISK)
 - ⚠️ Shell completions don't follow XDG standards
 
----
-
-## Critical Issue: Test Isolation
+### Critical Issue: Test Isolation
 
 **Problem:** Tests inherit user's actual XDG paths and can modify real configuration files.
 
@@ -30,11 +45,40 @@ Reviewed all system and user file locations in TimeLocker for XDG Base Directory
 3. Always use explicit `config_dir` parameters in tests
 4. Add automatic verification that no user files are created
 
-**See:** [Test Isolation Strategy](./test-isolation-strategy.md)
+## 3. Consequences
 
----
+### Positive Outcomes
 
-## Compliance Status
+- **Safety**: Tests can never corrupt user data
+- **Standards Compliance**: Full XDG compliance on Linux
+- **Better Organization**: Clear separation of concerns
+- **Reproducibility**: Tests run in clean, isolated environments
+
+### Negative Consequences
+
+- **Migration Required**: Existing users need path migration
+- **Code Changes**: Multiple modules need updates
+- **Testing Overhead**: All tests need explicit parameters
+- **Documentation**: Extensive documentation updates needed
+
+## 4. Alternatives Considered
+
+### Option A: Minimal Changes (Test Isolation Only)
+
+- Pros: Quick fix, addresses critical issue
+- Cons: Doesn't solve XDG compliance, technical debt remains
+
+### Option B: Full Rewrite
+
+- Pros: Clean slate, perfect compliance
+- Cons: High risk, long timeline, breaks existing installations
+
+### Option C: Phased Approach (CHOSEN)
+
+- Pros: Addresses critical issues first, manageable risk, incremental value
+- Cons: Takes longer overall, requires coordination
+
+## 5. Compliance Status
 
 ### ✅ Compliant Components
 
@@ -58,9 +102,7 @@ Reviewed all system and user file locations in TimeLocker for XDG Base Directory
 | `backup_notification_service.py` | Uses legacy `~/.timelocker/` | Wrong location | High |
 | Shell completions (bash/zsh) | Uses `~/` instead of XDG | Wrong location | Medium |
 
----
-
-## Recommended Directory Structure
+## 6. Recommended Directory Structure
 
 ### Current (Mixed)
 ```
@@ -78,9 +120,7 @@ Reviewed all system and user file locations in TimeLocker for XDG Base Directory
 /run/user/$UID/timelocker/        # XDG_RUNTIME_DIR - runtime files
 ```
 
----
-
-## Action Plan
+## 7. Action Plan
 
 ### Phase 1: Test Safety (CRITICAL - Do First)
 **Timeline:** 1-2 days
@@ -118,94 +158,7 @@ Reviewed all system and user file locations in TimeLocker for XDG Base Directory
 3. Add CI checks for path isolation
 4. Update user documentation
 
----
-
-## Quick Fixes
-
-### For Immediate Test Safety
-
-Add to `tests/TimeLocker/test_fixtures.py`:
-
-```python
-@pytest.fixture(autouse=True)
-def isolate_environment(resource_manager, tmp_path):
-    """Isolate test environment - prevents touching user files"""
-    test_env = {
-        'XDG_CONFIG_HOME': str(tmp_path / "config"),
-        'XDG_DATA_HOME': str(tmp_path / "data"),
-        'XDG_CACHE_HOME': str(tmp_path / "cache"),
-        'XDG_STATE_HOME': str(tmp_path / "state"),
-        'HOME': str(tmp_path / "home"),
-        'TIMELOCKER_TEST_MODE': '1',
-    }
-    
-    original_env = {}
-    for key, value in test_env.items():
-        original_env[key] = os.environ.get(key)
-        os.environ[key] = value
-    
-    yield
-    
-    for key, original_value in original_env.items():
-        if original_value is None:
-            os.environ.pop(key, None)
-        else:
-            os.environ[key] = original_value
-```
-
-### For Path Resolver
-
-Add to `src/TimeLocker/config/configuration_path_resolver.py`:
-
-```python
-@staticmethod
-def is_test_mode() -> bool:
-    """Check if running in test mode."""
-    return os.environ.get('TIMELOCKER_TEST_MODE') == '1'
-
-@staticmethod
-def get_config_directory() -> Path:
-    """Get appropriate configuration directory based on context."""
-    # Test mode override
-    if ConfigurationPathResolver.is_test_mode():
-        test_config = os.environ.get('TIMELOCKER_CONFIG_DIR')
-        if test_config:
-            return Path(test_config)
-    
-    # ... rest of existing code
-```
-
----
-
-## Documentation
-
-Created:
-- ✅ `docs/architecture/file-locations-review.md` - Complete path analysis
-- ✅ `docs/architecture/test-isolation-strategy.md` - Test isolation implementation
-- ✅ `docs/architecture/SUMMARY-path-review.md` - This summary
-
----
-
-## Next Steps
-
-1. **Review this summary** with the team
-2. **Prioritize test isolation** - implement Phase 1 immediately
-3. **Create GitHub issues** for each phase
-4. **Assign owners** for each component update
-5. **Set timeline** for completion
-
----
-
-## Questions to Consider
-
-1. Should we maintain backward compatibility with `~/.timelocker/`?
-2. When should we migrate existing user installations?
-3. Should we add a configuration option to override paths?
-4. How do we handle the shell completion file migration?
-
----
-
-## References
+# References
 
 - [file-locations-review.md](./file-locations-review.md) - Detailed analysis
 - [test-isolation-strategy.md](./test-isolation-strategy.md) - Implementation guide

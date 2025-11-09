@@ -252,6 +252,6 @@ For comprehensive testing, see `tests/TimeLocker/policy/` (to be created in futu
 
 ## Related Documentation
 
-- [Requirements](../1-requirements/)
+- [Requirements](../1-requirements/README.md)
 - [Architecture Overview](../2-architecture/overview.md)
-- [Testing Documentation](../4-testing/)
+- [Testing Documentation](../4-testing/README.md)

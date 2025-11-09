@@ -1,17 +1,26 @@
-# Test Isolation Strategy for TimeLocker
-
-## Overview
-
-This document outlines the strategy to ensure tests never modify actual user configuration files, credentials, or data.
-
-**Created:** 2025-11-09  
-**Status:** Proposed
-
+---
+title: "Architecture Decision Record: Test Isolation Strategy"
+id: "adr-test-isolation"
+type: [ architecture ]
+status: accepted
+owner: "Testing Team"
+last_reviewed: "09-11-2025"
+tags: [ architecture, adr, testing, isolation, pytest ]
+links:
+    tooling: [ pytest ]
 ---
 
-## Problem Statement
+# Architecture Decision Record: Test Isolation Strategy for TimeLocker
 
-Currently, tests may inadvertently access or modify real user files because:
+- **Owner**: Testing Team
+- **Status**: Accepted
+- **Created Date**: 09-11-2025
+- **Last Updated**: 09-11-2025
+- **Audience**: Engineering Teams, Developers
+
+## 1. Context
+
+Tests may inadvertently access or modify real user files because:
 
 1. **XDG variables are saved but not overridden** - Tests inherit the user's actual XDG paths
 2. **Some modules use hardcoded paths** - Bypassing the centralized path resolver
@@ -19,9 +28,9 @@ Currently, tests may inadvertently access or modify real user files because:
 
 **Risk:** Tests could corrupt user data, credentials, or configuration files.
 
----
+## 2. Decision
 
-## Solution: Multi-Layer Test Isolation
+Implement multi-layer test isolation to ensure tests never modify actual user configuration files, credentials, or data.
 
 ### Layer 1: Environment Variable Override (Highest Priority)
 
@@ -103,8 +112,6 @@ def isolate_environment(resource_manager, tmp_path):
         pass
 ```
 
----
-
 ### Layer 2: ConfigurationPathResolver Enhancement
 
 Add test mode detection to the path resolver.
@@ -142,8 +149,6 @@ def get_config_directory() -> Path:
         return ConfigurationPathResolver.get_user_config_directory()
 ```
 
----
-
 ### Layer 3: Explicit config_dir Parameters in Tests
 
 Always pass explicit `config_dir` parameters when instantiating components in tests.
@@ -162,8 +167,6 @@ def test_credential_manager(tmp_path):
     assert cm.config_dir == config_dir
     assert not (Path.home() / ".timelocker").exists()  # Verify no real files
 ```
-
----
 
 ### Layer 4: Pytest Configuration
 
@@ -192,9 +195,41 @@ filterwarnings = [
 ]
 ```
 
----
+## 3. Consequences
 
-## Implementation Checklist
+### Positive Outcomes
+
+1. **Safety**: Tests can never corrupt user data
+2. **Reproducibility**: Tests run in clean, isolated environments
+3. **Parallelization**: Tests can run in parallel without conflicts
+4. **CI/CD**: Tests work identically in CI and local environments
+5. **Debugging**: Easy to inspect test artifacts in tmp directories
+
+### Negative Consequences
+
+1. **Test Updates Required**: All tests need explicit `config_dir` parameters
+2. **Fixture Complexity**: More complex test setup
+3. **Learning Curve**: Developers need to understand isolation patterns
+4. **Maintenance**: Need to keep isolation patterns up to date
+
+## 4. Alternatives Considered
+
+### Option A: No Isolation (Current State)
+
+- Pros: Simple, no changes needed
+- Cons: HIGH RISK - tests can corrupt user data
+
+### Option B: Manual Isolation Per Test
+
+- Pros: Flexible, test-specific control
+- Cons: Error-prone, inconsistent, easy to forget
+
+### Option C: Multi-Layer Isolation (CHOSEN)
+
+- Pros: Comprehensive, automatic, safe by default
+- Cons: More complex setup, requires fixture updates
+
+## 5. Implementation Checklist
 
 ### Phase 1: Core Infrastructure (High Priority)
 
@@ -227,9 +262,7 @@ filterwarnings = [
 - [ ] Verify no files created in `~/.local/share/timelocker/`
 - [ ] Add CI check to verify isolation
 
----
-
-## Test Helper Functions
+## 6. Test Helper Functions
 
 Add to `tests/TimeLocker/test_fixtures.py`:
 
@@ -270,167 +303,10 @@ def verify_isolation():
     verify_no_user_files_created()
 ```
 
----
-
-## Usage Examples
-
-### Example 1: Unit Test with Isolation
-
-```python
-def test_credential_manager_basic(tmp_path):
-    """Test basic credential manager operations"""
-    # Explicit config_dir ensures isolation
-    config_dir = tmp_path / "test_credentials"
-    cm = CredentialManager(config_dir=config_dir)
-    
-    # All operations use tmp_path
-    cm.unlock("test_password")
-    cm.store_credential("test_repo", "test_user", "test_pass")
-    
-    # Verify isolation
-    assert cm.config_dir == config_dir
-    assert (config_dir / "credentials.enc").exists()
-    assert not (Path.home() / ".timelocker").exists()
-```
-
-### Example 2: Integration Test with Multiple Components
-
-```python
-def test_backup_workflow_integration(tmp_path):
-    """Test complete backup workflow with isolated paths"""
-    # Create isolated directory structure
-    config_dir = tmp_path / "config"
-    data_dir = tmp_path / "data"
-    cache_dir = tmp_path / "cache"
-    
-    for directory in [config_dir, data_dir, cache_dir]:
-        directory.mkdir(parents=True)
-    
-    # Initialize components with explicit paths
-    cm = CredentialManager(config_dir=config_dir / "credentials")
-    ns = NotificationService(config_dir=config_dir / "notifications")
-    sr = StatusReporter(config_dir=config_dir / "status")
-    
-    # Run test workflow...
-    
-    # Verify all files are in tmp_path
-    assert all(
-        str(f).startswith(str(tmp_path))
-        for f in tmp_path.rglob("*")
-    )
-```
-
-### Example 3: Testing Path Resolution
-
-```python
-def test_path_resolution_in_test_mode(tmp_path, monkeypatch):
-    """Test that path resolution respects test mode"""
-    # Set test mode environment
-    monkeypatch.setenv('TIMELOCKER_TEST_MODE', '1')
-    monkeypatch.setenv('TIMELOCKER_CONFIG_DIR', str(tmp_path / "config"))
-    
-    # Path resolver should use test directory
-    config_dir = ConfigurationPathResolver.get_config_directory()
-    
-    assert str(config_dir).startswith(str(tmp_path))
-    assert config_dir == tmp_path / "config"
-```
-
----
-
-## Monitoring and Validation
-
-### Pre-Test Validation
-
-Add to test suite initialization:
-
-```python
-def pytest_configure(config):
-    """Pytest configuration hook"""
-    # Verify we're not accidentally in production mode
-    if os.environ.get('TIMELOCKER_TEST_MODE') != '1':
-        print("WARNING: TIMELOCKER_TEST_MODE not set!")
-    
-    # Check for existing user files (baseline)
-    user_config = Path.home() / ".config" / "timelocker"
-    if user_config.exists():
-        print(f"INFO: User config exists at {user_config}")
-        print("      Tests should not modify these files")
-```
-
-### Post-Test Validation
-
-Add to test suite teardown:
-
-```python
-def pytest_unconfigure(config):
-    """Pytest unconfiguration hook"""
-    # Final verification that no user files were created
-    verify_no_user_files_created()
-```
-
----
-
-## CI/CD Integration
-
-Add to CI pipeline (e.g., `.github/workflows/test.yml`):
-
-```yaml
-- name: Run tests with isolation verification
-  run: |
-    # Capture state before tests
-    find ~/.config ~/.local ~/.cache -name "*timelocker*" > before.txt 2>/dev/null || true
-    
-    # Run tests
-    pytest -v --tb=short
-    
-    # Capture state after tests
-    find ~/.config ~/.local ~/.cache -name "*timelocker*" > after.txt 2>/dev/null || true
-    
-    # Compare (should be identical)
-    if ! diff before.txt after.txt; then
-      echo "ERROR: Tests created files in user directories!"
-      exit 1
-    fi
-```
-
----
-
-## Migration Path
-
-### Step 1: Add Infrastructure (Week 1)
-- Implement enhanced `isolate_environment` fixture
-- Add test mode to `ConfigurationPathResolver`
-- Add verification helpers
-
-### Step 2: Fix Hardcoded Paths (Week 1-2)
-- Update all modules to use `ConfigurationPathResolver`
-- Add backward compatibility for existing code
-
-### Step 3: Update Tests (Week 2-3)
-- Audit and update all tests
-- Add explicit `config_dir` parameters
-- Add isolation assertions
-
-### Step 4: Validation (Week 3)
-- Run full test suite
-- Verify no user file access
-- Add CI checks
-
----
-
-## Benefits
-
-1. **Safety**: Tests can never corrupt user data
-2. **Reproducibility**: Tests run in clean, isolated environments
-3. **Parallelization**: Tests can run in parallel without conflicts
-4. **CI/CD**: Tests work identically in CI and local environments
-5. **Debugging**: Easy to inspect test artifacts in tmp directories
-
----
-
-## References
+# References
 
 - [Pytest tmp_path fixture](https://docs.pytest.org/en/stable/how-to/tmp_path.html)
 - [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/basedir-spec-latest.html)
 - [Testing Best Practices](https://docs.python-guide.org/writing/tests/)
+- [file-locations-review.md](./file-locations-review.md)
+- [path-review-summary.md](./path-review-summary.md)

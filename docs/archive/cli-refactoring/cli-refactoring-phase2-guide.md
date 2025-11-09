@@ -365,8 +365,8 @@ Phase 2 is complete when:
 
 ## Resources
 
-- [Phase 1 Implementation](../updates/2025-11-07-cli-refactoring-phase1.md)
-- [CLI Refactoring Plan](cli-refactoring-plan.md)
+- [Phase 1 Implementation](../../updates/2025-11-07-093135-cli-refactoring-phase1.md)
+- [CLI Refactoring Plan](./cli-refactoring-plan.md)
 - [CLI Module README](../../src/TimeLocker/cli/README.md)
 
 ## Questions?

@@ -99,7 +99,9 @@ docs/
 ```
 
 - Do NOT add documentation files outside `docs/`.
-- Do NOT create ad-hoc directories like `docs/progress/` - use the established structure.
+- Do NOT create ad-hoc directories like `docs/progress/`, `docs/architecture/`, `docs/tasks/`, or any other non-standard folders - use the established structure.
+- **IMPORTANT**: Architecture documentation MUST go in `docs/2-architecture/`, NOT `docs/architecture/`.
+- **IMPORTANT**: Task and project tracking documents MUST go in `docs/0-project-management/`, NOT `docs/tasks/`.
 
 ## Implementation Notes and Reports
 
@@ -133,7 +135,7 @@ Status reports, progress summaries, and analysis documents MUST be placed in `do
 
 - **Update the Right Page for the Right Change**:
   - Requirements and specifications → `docs/1-requirements/`
-  - Architecture/service design changes → `docs/2-architecture/`
+  - Architecture/service design changes → `docs/2-architecture/` (NOT `docs/architecture/`)
   - Implementation details and code structure → `docs/3-implementation/`
   - Testing documentation → `docs/4-testing/`
   - User guides and tutorials → `docs/guides/user/`

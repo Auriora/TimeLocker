@@ -8,7 +8,7 @@ from collections import defaultdict
 # Configuration
 ROOT = Path(os.getcwd())  # This will be the project root
 DOCS_DIR = ROOT / 'docs'
-EXCLUDE_DIRS = {'.venv', 'venv', 'env', '.git', '.pytest_cache', '__pycache__', 'node_modules'}
+EXCLUDE_DIRS = {'.venv', 'venv', 'env', '.git', '.kiro', '.pytest_cache', '__pycache__', 'node_modules'}
 EXCLUDE_AMBIGUOUS_FILENAMES = {'README.md', '_template.md'}
 
 # Global debug flag

@@ -61,5 +61,5 @@ links:
 ## 6. References
 
 - [Testing Quick Start](./quickstart-testing.md) - Start here for testing
-- [Reports](../reports/) - Test coverage and quality reports
-- [Updates](../updates/) - Implementation notes with testing details
+- [Reports](../reports/README.md) - Test coverage and quality reports
+- [Updates](../updates/index.md) - Implementation notes with testing details

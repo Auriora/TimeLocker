@@ -206,6 +206,6 @@ python -c "from TimeLocker.cli import app; print('✓ Import successful')"
 
 ## References
 
-- [Phase 1 Implementation](2025-11-07-cli-refactoring-phase1.md)
-- [CLI Refactoring Plan](../guides/cli-refactoring-plan.md)
-- [Phase 2 Guide](../guides/cli-refactoring-phase2-guide.md)
+- [Phase 1 Implementation](./2025-11-07-093135-cli-refactoring-phase1.md)
+- [CLI Refactoring Plan](../archive/cli-refactoring/cli-refactoring-plan.md)
+- [Phase 2 Guide](../archive/cli-refactoring/cli-refactoring-phase2-guide.md)
