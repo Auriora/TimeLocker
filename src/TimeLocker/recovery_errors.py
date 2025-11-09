@@ -64,3 +64,8 @@ class SnapshotCorruptedError(RecoveryError):
 class InsufficientSpaceError(RestoreError):
     """Raised when there is insufficient disk space for restore"""
     pass
+
+
+class ValidationError(RecoveryError):
+    """Raised when validation operations fail"""
+    pass
