@@ -84,7 +84,9 @@ class NotificationService(ServiceInterface):
             config_dir: Directory for notification configuration
         """
         if config_dir is None:
-            config_dir = Path.home() / ".timelocker" / "notifications"
+            # Use centralized path resolver for XDG compliance
+            from ..config.configuration_path_resolver import ConfigurationPathResolver
+            config_dir = ConfigurationPathResolver.get_config_directory() / "notifications"
 
         self.config_dir = Path(config_dir)
         self.config_dir.mkdir(parents=True, exist_ok=True)

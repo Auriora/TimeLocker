@@ -60,12 +60,14 @@ class CredentialManager:
 
         Args:
             config_dir: Directory to store encrypted credentials.
-                       Defaults to ~/.timelocker/credentials
+                       Defaults to XDG_CONFIG_HOME/timelocker/credentials
             auto_lock_timeout: Auto-lock timeout in seconds (default: 30 minutes)
             security_logger: Optional SecurityLogger instance for enhanced logging
         """
         if config_dir is None:
-            config_dir = Path.home() / ".timelocker" / "credentials"
+            # Use centralized path resolver for XDG compliance
+            from ..config.configuration_path_resolver import ConfigurationPathResolver
+            config_dir = ConfigurationPathResolver.get_config_directory() / "credentials"
 
         self.config_dir = Path(config_dir)
         self.config_dir.mkdir(parents=True, exist_ok=True)

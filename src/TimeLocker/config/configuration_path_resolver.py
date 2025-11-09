@@ -25,6 +25,19 @@ class ConfigurationPathResolver:
     """
 
     @staticmethod
+    def is_test_mode() -> bool:
+        """
+        Check if running in test mode.
+        
+        Test mode is enabled by setting TIMELOCKER_TEST_MODE=1 environment variable.
+        This allows tests to use isolated directories without touching user files.
+        
+        Returns:
+            bool: True if running in test mode
+        """
+        return os.environ.get('TIMELOCKER_TEST_MODE') == '1'
+
+    @staticmethod
     def get_config_directory() -> Path:
         """
         Get appropriate configuration directory based on context.
@@ -32,6 +45,16 @@ class ConfigurationPathResolver:
         Returns:
             Path: Configuration directory to use
         """
+        # Test mode override - use test-specific directory
+        if ConfigurationPathResolver.is_test_mode():
+            test_config = os.environ.get('TIMELOCKER_CONFIG_DIR')
+            if test_config:
+                return Path(test_config)
+            # Fallback to XDG_CONFIG_HOME/timelocker in test mode
+            xdg_config = os.environ.get('XDG_CONFIG_HOME')
+            if xdg_config:
+                return Path(xdg_config) / "timelocker"
+        
         if ConfigurationPathResolver.is_system_context():
             return ConfigurationPathResolver.get_system_config_directory()
         else:

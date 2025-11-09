@@ -93,7 +93,18 @@ class BackupNotificationService:
         self.status_reporter = status_reporter
         
         if config_dir is None:
-            config_dir = Path.home() / ".timelocker" / "backup_notifications"
+            # Use centralized path resolver for XDG compliance
+            # Notification logs are state data, so use XDG_STATE_HOME
+            from ..config.configuration_path_resolver import ConfigurationPathResolver
+            import os
+            
+            xdg_state_home = os.environ.get('XDG_STATE_HOME')
+            if xdg_state_home:
+                state_dir = Path(xdg_state_home) / "timelocker"
+            else:
+                state_dir = Path.home() / ".local" / "state" / "timelocker"
+            
+            config_dir = state_dir / "backup_notifications"
         
         self.config_dir = Path(config_dir)
         self.config_dir.mkdir(parents=True, exist_ok=True)

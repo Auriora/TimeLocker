@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import json
 import logging
+import os
 import uuid
 import yaml
 from datetime import datetime
@@ -107,12 +108,20 @@ class SelectionTemplateManager:
         
         Args:
             storage_dir: Optional directory for template storage.
-                        Defaults to ~/.config/timelocker/templates
+                        Defaults to XDG_DATA_HOME/timelocker/templates
         """
         if storage_dir is None:
-            # Use default configuration directory
-            config_home = Path.home() / ".config" / "timelocker"
-            storage_dir = config_home / "templates"
+            # Use centralized path resolver for XDG compliance
+            from .config.configuration_path_resolver import ConfigurationPathResolver
+            
+            # Templates are user data, so use XDG_DATA_HOME
+            xdg_data_home = os.environ.get('XDG_DATA_HOME')
+            if xdg_data_home:
+                data_dir = Path(xdg_data_home) / "timelocker"
+            else:
+                data_dir = Path.home() / ".local" / "share" / "timelocker"
+            
+            storage_dir = data_dir / "templates"
         
         self.storage_dir = storage_dir
         self.templates_cache: Dict[str, SelectionTemplate] = {}

@@ -602,19 +602,30 @@ def cli_completion(
 
     # Determine shell-specific paths and commands
     home = Path.home()
+    
+    # Use XDG_DATA_HOME for completion files (XDG compliant)
+    xdg_data_home = os.environ.get('XDG_DATA_HOME')
+    if xdg_data_home:
+        data_dir = Path(xdg_data_home)
+    else:
+        data_dir = home / ".local" / "share"
+    
+    bash_completion_dir = data_dir / "bash-completion" / "completions"
+    zsh_completion_dir = data_dir / "zsh" / "site-functions"
+    
     shell_configs = {
         "bash": {
-            "completion_file": home / ".timelocker-complete.bash",
+            "completion_file": bash_completion_dir / "timelocker",
             "rc_file": home / ".bashrc",
-            "source_line": "source ~/.timelocker-complete.bash",
-            "generate_cmd": "timelocker --show-completion bash > ~/.timelocker-complete.bash",
+            "source_line": f"source {bash_completion_dir / 'timelocker'}",
+            "generate_cmd": f"timelocker --show-completion bash > {bash_completion_dir / 'timelocker'}",
             "reload_cmd": "source ~/.bashrc"
         },
         "zsh": {
-            "completion_file": home / ".timelocker-complete.zsh",
+            "completion_file": zsh_completion_dir / "_timelocker",
             "rc_file": home / ".zshrc",
-            "source_line": "source ~/.timelocker-complete.zsh",
-            "generate_cmd": "timelocker --show-completion zsh > ~/.timelocker-complete.zsh",
+            "source_line": f"fpath=({zsh_completion_dir} $fpath)",
+            "generate_cmd": f"timelocker --show-completion zsh > {zsh_completion_dir / '_timelocker'}",
             "reload_cmd": "source ~/.zshrc"
         },
         "fish": {

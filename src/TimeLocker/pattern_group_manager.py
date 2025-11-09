@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -54,7 +55,21 @@ class PatternGroupManager:
             config_path: Path to configuration file for custom groups.
                         If None, uses default location.
         """
-        self.config_path = config_path or Path.home() / ".timelocker" / "pattern_groups.json"
+        if config_path is None:
+            # Use centralized path resolver for XDG compliance
+            # Pattern groups are user data, so use XDG_DATA_HOME
+            from .config.configuration_path_resolver import ConfigurationPathResolver
+            import os
+            
+            xdg_data_home = os.environ.get('XDG_DATA_HOME')
+            if xdg_data_home:
+                data_dir = Path(xdg_data_home) / "timelocker"
+            else:
+                data_dir = Path.home() / ".local" / "share" / "timelocker"
+            
+            config_path = data_dir / "pattern_groups.json"
+        
+        self.config_path = config_path
         self.custom_groups: Dict[str, PatternGroup] = {}
         self._initialize_system_groups()
         self._load_custom_groups()
