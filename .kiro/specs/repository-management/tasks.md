@@ -26,7 +26,7 @@
   - Implement repository status tracking (active, inactive, error, validating)
   - _Requirements: 10.5, 10.6_
 
-- [ ]* 1.4 Write unit tests for RepositoryManager
+- [x] 1.4 Write unit tests for RepositoryManager
   - Test CRUD operations with various repository configurations
   - Test existing repository detection and handling scenarios
   - Test state management and audit logging functionality
@@ -59,7 +59,7 @@
   - Add configuration restoration from backup functionality
   - _Requirements: 10.1, 10.2, 10.7_
 
-- [ ] 2.4 Write unit tests for enhanced configuration
+- [x] 2.4 Write unit tests for enhanced configuration
   - Test RepositoryConfig extensions and validation
   - Test ValidationService repository validation methods
   - Test configuration backup and recovery functionality
@@ -90,7 +90,7 @@
   - Implement engine-specific configuration validation
   - _Requirements: 4.1, 4.2, 4.4, 4.5_
 
-- [ ] 3.4 Write unit tests for plugin architecture
+- [x] 3.4 Write unit tests for plugin architecture
   - Test plugin registry and engine discovery
   - Test built-in engine plugins functionality
   - Test plugin integration with repository operations
@@ -122,7 +122,7 @@
   - Add TLS verification options with appropriate warnings for insecure connections
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-- [ ] 4.4 Write unit tests for credential management
+- [x] 4.4 Write unit tests for credential management
   - Test Security Services integration for credential storage
   - Test credential resolution order and rotation functionality
   - Test S3-compatible service configuration and validation
@@ -153,7 +153,7 @@
   - Add metadata display in repository listings and details
   - _Requirements: 6.2, 6.5_
 
-- [ ] 5.4 Write unit tests for named repository management
+- [x] 5.4 Write unit tests for named repository management
   - Test repository alias system and name validation
   - Test default repository selection and management
   - Test metadata storage and retrieval functionality
@@ -184,7 +184,7 @@
   - Optimize repository listing for responsive performance (<2s for typical desktop usage)
   - _Requirements: 9.1, 9.4_
 
-- [ ] 6.4 Write unit tests for performance monitoring
+- [x] 6.4 Write unit tests for performance monitoring
   - Test performance monitoring and threshold checking
   - Test concurrent operation management and locking
   - Test caching effectiveness and optimization features
@@ -216,7 +216,7 @@
   - Enhance repos list command with status indicators and performance information
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-- [ ] 7.4 Write integration tests for CLI commands
+- [x] 7.4 Write integration tests for CLI commands
   - Test enhanced repository creation with existing repository handling
   - Test validation commands with various repository states
   - Test repository management commands with metadata and configuration updates
@@ -247,7 +247,7 @@
   - Add optional exclusion of TimeLocker configuration from backups
   - _Requirements: 11.3, 11.5, 12.5_
 
-- [ ] 8.4 Write integration tests for configuration support
+- [x] 8.4 Write integration tests for configuration support
   - Test configuration backup inclusion and credential exclusion
   - Test cross-platform compatibility for repository operations
   - Test configuration restoration with credential re-entry
@@ -278,7 +278,7 @@
   - Test concurrent validation limits (3 parallel operations)
   - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 9.4 Test error handling and recovery
+- [x] 9.4 Test error handling and recovery
   - Test network failure scenarios and timeout handling
   - Test credential error recovery and fallback mechanisms
   - Test configuration corruption detection and recovery
