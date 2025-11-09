@@ -55,6 +55,7 @@ This directory contains example scripts demonstrating various TimeLocker feature
 
 ## Recovery Operations Examples
 
+- `recovery_models_demo.py` - **NEW** Recovery operations data models and core interfaces
 - `recovery_operations_demo.py` - Recovery and restore operations
 
 ## Security Examples

@@ -108,6 +108,29 @@ from .integration_data_models import (
     Event
 )
 
+# Recovery Operations Data Models
+from .recovery_models import (
+    RecoveryType,
+    OperationStatus,
+    FileType,
+    FailureType,
+    ConflictResolution,
+    FileEntry,
+    PaginationInfo,
+    SnapshotListing,
+    SizeRange,
+    DateRange,
+    SelectionCriteria,
+    NotificationPreferences,
+    RecoveryOptions,
+    ProgressStatus,
+    ErrorDetails,
+    ValidationFailure,
+    ValidationWarning,
+    ValidationResult,
+    RecoveryOperation
+)
+
 __all__ = [
         # Interfaces
         'IRepositoryFactory',
@@ -203,5 +226,26 @@ __all__ = [
         
         # Integration Architecture Data Models
         'ServiceContext',
-        'Event'
+        'Event',
+        
+        # Recovery Operations Data Models
+        'RecoveryType',
+        'OperationStatus',
+        'FileType',
+        'FailureType',
+        'ConflictResolution',
+        'FileEntry',
+        'PaginationInfo',
+        'SnapshotListing',
+        'SizeRange',
+        'DateRange',
+        'SelectionCriteria',
+        'NotificationPreferences',
+        'RecoveryOptions',
+        'ProgressStatus',
+        'ErrorDetails',
+        'ValidationFailure',
+        'ValidationWarning',
+        'ValidationResult',
+        'RecoveryOperation'
 ]
