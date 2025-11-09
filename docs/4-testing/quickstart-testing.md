@@ -81,7 +81,7 @@ open htmlcov/index.html
 
 ```bash
 # Copy example config
-cp test-config.example.json test-config.json
+cp config/test-config.example.json test-config.json
 
 # Use test config
 export TIMELOCKER_CONFIG_FILE=./test-config.json

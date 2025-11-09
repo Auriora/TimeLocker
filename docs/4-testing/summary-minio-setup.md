@@ -29,7 +29,7 @@ All configuration files have been updated to use `minio.lan`:
 ### Updated Files
 
 - ✅ `test-config.json` - Uses `minio.lan` (no port, proxied via Traefik)
-- ✅ `test-config.example.json` - Uses `minio.lan` (no port, proxied via Traefik)
+- ✅ `config/test-config.example.json` - Uses `minio.lan` (no port, proxied via Traefik)
 - ✅ `.env.test.example` - Uses `minio.lan` (no port, proxied via Traefik)
 - ✅ `tests/TimeLocker/integration/test_s3_minio.py` - Defaults to `minio.lan` (no port, proxied via Traefik)
 - ✅ `scripts/setup_minio_test.sh` - Verifies access to `minio.lan`

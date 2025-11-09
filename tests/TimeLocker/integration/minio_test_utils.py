@@ -69,7 +69,7 @@ def load_minio_settings(require_credentials: bool = True) -> Tuple[Dict[str, str
     if env_config:
         config_candidates.append(Path(env_config))
     config_candidates.append(Path("test-config.json"))
-    config_candidates.append(Path("test-config.example.json"))
+    config_candidates.append(Path("config/test-config.example.json"))
 
     for config_path in config_candidates:
         if not config_path.is_file():

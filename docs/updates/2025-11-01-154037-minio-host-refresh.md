@@ -25,7 +25,7 @@ samples with the supported non-interactive credential flow while keeping restic 
 
 ## 2. Summary
 
-- Updated `.env.test`, `.env.test.example`, and `test-config.example.json` to default to `https://minio.lan` with explicit TLS settings.
+- Updated `.env.test`, `.env.test.example`, and `config/test-config.example.json` to default to `https://minio.lan` with explicit TLS settings.
 - Replaced lingering `minio.local` references across docs and helper comments to avoid stale setup instructions.
 - Confirmed Typer-based credentials flows operate non-interactively after recent prompt patches.
 - Verified Dockerfile now pins restic `0.18.1` fetched from upstream release archives.
@@ -38,7 +38,7 @@ samples with the supported non-interactive credential flow while keeping restic 
 
 ## 3. Implementation Notes
 
-- Key paths: `.env.test`, `.env.test.example`, `test-config.example.json`, `src/TimeLocker/utils/repository_resolver.py`,
+- Key paths: `.env.test`, `.env.test.example`, `config/test-config.example.json`, `src/TimeLocker/utils/repository_resolver.py`,
   `src/TimeLocker/restic/Repositories/s3.py`, `src/TimeLocker/command_builder/core.py`, `src/TimeLocker/restic/restic_repository.py`, `docs/`.
 - Tests:
   `pytest tests/TimeLocker/cli/test_repos_credentials_commands.py tests/TimeLocker/integration/test_repos_credentials_command_usage.py tests/TimeLocker/integration/test_timeshift_cli_integration.py tests/TimeLocker/config/test_configuration_module.py::TestConfigurationModule::test_default_configuration tests/TimeLocker/restic/Repositories/test_s3.py -q`
