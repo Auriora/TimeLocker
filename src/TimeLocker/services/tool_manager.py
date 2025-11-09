@@ -24,6 +24,7 @@ from enum import Enum
 from packaging import version
 
 from ..interfaces.data_models import BackupJob, ToolConfiguration
+from .parallel_execution_optimizer import ParallelExecutionOptimizer, SystemResources
 
 logger = logging.getLogger(__name__)
 
@@ -183,15 +184,21 @@ class ToolManager:
     - Performance optimization recommendations
     """
     
-    def __init__(self):
-        """Initialize tool manager"""
+    def __init__(self, parallel_optimizer: Optional[ParallelExecutionOptimizer] = None):
+        """
+        Initialize tool manager.
+        
+        Args:
+            parallel_optimizer: Optional parallel execution optimizer
+        """
         self._capabilities_cache: Dict[str, ToolCapabilities] = {}
         self._tool_detectors: Dict[str, callable] = {
             'restic': self._detect_restic_capabilities,
             'borg': self._detect_borg_capabilities,
             'duplicity': self._detect_duplicity_capabilities
         }
-        logger.debug("ToolManager initialized")
+        self._parallel_optimizer = parallel_optimizer or ParallelExecutionOptimizer()
+        logger.debug("ToolManager initialized with parallel execution optimizer")
     
     def get_tool_capabilities(self, tool_type: str) -> ToolCapabilities:
         """
@@ -257,13 +264,38 @@ class ToolManager:
         # Start with existing configuration or create new one
         config = job.tool_configuration or ToolConfiguration(tool_type=tool_type)
         
-        # Optimize parallel operations
+        # Optimize parallel operations using parallel execution optimizer
         if capabilities.has_feature(Feature.PARALLEL_PROCESSING):
-            config.parallel_operations = self._calculate_optimal_parallelism(
+            # Get system resources
+            system_resources = self._parallel_optimizer.get_system_resources()
+            
+            # Calculate optimal parallelism
+            parallel_config = self._parallel_optimizer.calculate_optimal_parallelism(
                 capabilities,
-                job
+                job,
+                system_resources
             )
-            logger.debug(f"Set parallel operations to {config.parallel_operations}")
+            
+            config.parallel_operations = parallel_config.parallel_operations
+            
+            # Store optimization details in metadata
+            config.tool_specific_options['parallel_optimization'] = {
+                'configured_parallelism': parallel_config.parallel_operations,
+                'max_parallelism': parallel_config.max_parallel_operations,
+                'resource_constraint': parallel_config.resource_constraint_level.value,
+                'optimization_reason': parallel_config.optimization_reason,
+                'degradation_applied': parallel_config.degradation_applied,
+                'recommendations': parallel_config.recommendations
+            }
+            
+            logger.info(
+                f"Optimized parallel operations to {config.parallel_operations}: "
+                f"{parallel_config.optimization_reason}"
+            )
+            
+            # Log recommendations
+            for recommendation in parallel_config.recommendations:
+                logger.info(f"Recommendation: {recommendation}")
         else:
             config.parallel_operations = 1
             logger.debug("Tool does not support parallel operations")
@@ -843,3 +875,134 @@ class ToolManager:
             required.add(Feature.SNAPSHOT_TAGGING)
         
         return required
+    
+    def get_parallel_optimizer(self) -> ParallelExecutionOptimizer:
+        """
+        Get the parallel execution optimizer.
+        
+        Returns:
+            ParallelExecutionOptimizer instance
+        """
+        return self._parallel_optimizer
+    
+    def monitor_parallel_execution(
+        self,
+        operation_id: str,
+        tool_type: str,
+        configured_parallelism: int
+    ) -> None:
+        """
+        Start monitoring parallel execution for an operation.
+        
+        Args:
+            operation_id: Unique operation identifier
+            tool_type: Type of backup tool
+            configured_parallelism: Configured parallelism level
+        """
+        self._parallel_optimizer.start_execution_monitoring(
+            operation_id,
+            configured_parallelism
+        )
+        
+        logger.debug(
+            f"Started parallel execution monitoring for {operation_id} "
+            f"with {tool_type} at parallelism={configured_parallelism}"
+        )
+    
+    def update_parallel_execution_metrics(
+        self,
+        operation_id: str,
+        actual_parallelism: Optional[int] = None,
+        resource_usage: Optional[Dict[str, float]] = None,
+        bottleneck: Optional[str] = None
+    ) -> None:
+        """
+        Update parallel execution metrics during operation.
+        
+        Args:
+            operation_id: Operation identifier
+            actual_parallelism: Actual parallelism achieved
+            resource_usage: Current resource usage
+            bottleneck: Identified bottleneck
+        """
+        self._parallel_optimizer.update_execution_metrics(
+            operation_id,
+            actual_parallelism,
+            resource_usage,
+            bottleneck
+        )
+    
+    def handle_parallel_execution_failure(
+        self,
+        operation_id: str,
+        current_parallelism: int,
+        failure_reason: str
+    ) -> int:
+        """
+        Handle parallel execution failure with graceful degradation.
+        
+        Args:
+            operation_id: Operation identifier
+            current_parallelism: Current parallelism level
+            failure_reason: Reason for failure
+            
+        Returns:
+            New reduced parallelism level
+        """
+        new_parallelism = self._parallel_optimizer.apply_graceful_degradation(
+            operation_id,
+            current_parallelism,
+            failure_reason
+        )
+        
+        logger.warning(
+            f"Applied graceful degradation for {operation_id}: "
+            f"{current_parallelism} -> {new_parallelism}"
+        )
+        
+        return new_parallelism
+    
+    def get_parallel_execution_report(self, operation_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get parallel execution report for an operation.
+        
+        Args:
+            operation_id: Operation identifier
+            
+        Returns:
+            Dictionary with execution metrics and analysis
+        """
+        metrics = self._parallel_optimizer.get_execution_metrics(operation_id)
+        
+        if not metrics:
+            return None
+        
+        return {
+            'operation_id': metrics.operation_id,
+            'configured_parallelism': metrics.configured_parallelism,
+            'actual_parallelism': metrics.actual_parallelism,
+            'parallel_efficiency': metrics.parallel_efficiency,
+            'resource_usage': metrics.resource_usage,
+            'bottlenecks': metrics.bottlenecks,
+            'degradation_events': metrics.degradation_events,
+            'efficiency_rating': self._rate_parallel_efficiency(metrics.parallel_efficiency)
+        }
+    
+    def _rate_parallel_efficiency(self, efficiency: float) -> str:
+        """
+        Rate parallel efficiency.
+        
+        Args:
+            efficiency: Parallel efficiency (0.0-1.0)
+            
+        Returns:
+            Efficiency rating string
+        """
+        if efficiency >= 0.9:
+            return "excellent"
+        elif efficiency >= 0.75:
+            return "good"
+        elif efficiency >= 0.5:
+            return "fair"
+        else:
+            return "poor"

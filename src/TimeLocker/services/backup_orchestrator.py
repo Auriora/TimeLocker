@@ -58,6 +58,7 @@ from .integrity_validation_service import IntegrityValidationService
 from .data_selection_integration_service import DataSelectionIntegrationService
 from .backup_error_reporter import BackupErrorReporter, BackupError, BackupWarning
 from .backup_notification_service import BackupNotificationService, BackupEventType
+from .tool_manager import ToolManager
 from ..monitoring.notification_service import NotificationService
 from ..monitoring.status_reporter import StatusReporter
 
@@ -82,7 +83,8 @@ class BackupOrchestrator(IBackupOrchestrator):
                  integrity_validation_service: Optional[IntegrityValidationService] = None,
                  data_selection_integration_service: Optional[DataSelectionIntegrationService] = None,
                  notification_service: Optional[NotificationService] = None,
-                 status_reporter: Optional[StatusReporter] = None):
+                 status_reporter: Optional[StatusReporter] = None,
+                 tool_manager: Optional[ToolManager] = None):
         """
         Initialize backup orchestrator.
         
@@ -97,6 +99,7 @@ class BackupOrchestrator(IBackupOrchestrator):
             data_selection_integration_service: Optional data selection integration service
             notification_service: Optional notification service for sending notifications
             status_reporter: Optional status reporter for operation tracking
+            tool_manager: Optional tool manager for tool capabilities and parallel optimization
         """
         self._repository_factory = repository_factory
         self._configuration_provider = configuration_provider
@@ -106,6 +109,7 @@ class BackupOrchestrator(IBackupOrchestrator):
         self._job_executor = job_executor or JobExecutor()
         self._integrity_validation_service = integrity_validation_service or IntegrityValidationService()
         self._data_selection_integration_service = data_selection_integration_service or DataSelectionIntegrationService()
+        self._tool_manager = tool_manager or ToolManager()
         
         # Initialize notification and error reporting services
         self._notification_service = notification_service or NotificationService()
@@ -556,7 +560,8 @@ class BackupOrchestrator(IBackupOrchestrator):
         Execute a backup job with advanced retry logic.
         
         This method uses the JobExecutor for sophisticated retry handling
-        with error classification and exponential backoff.
+        with error classification and exponential backoff. It also monitors
+        parallel execution performance.
         
         Args:
             backup_job: Backup job to execute
@@ -565,6 +570,18 @@ class BackupOrchestrator(IBackupOrchestrator):
             BackupResult with execution details
         """
         logger.info(f"Executing job with advanced retry: {backup_job.config.job_id}")
+        
+        # Start parallel execution monitoring if parallel operations are configured
+        if backup_job.tool_configuration and backup_job.tool_configuration.parallel_operations > 1:
+            self._tool_manager.monitor_parallel_execution(
+                operation_id=backup_job.config.job_id,
+                tool_type=backup_job.config.tool_type,
+                configured_parallelism=backup_job.tool_configuration.parallel_operations
+            )
+            logger.debug(
+                f"Started parallel execution monitoring for {backup_job.config.job_id} "
+                f"with parallelism={backup_job.tool_configuration.parallel_operations}"
+            )
         
         # Use JobExecutor for advanced retry logic
         execution_result = self._job_executor.execute_with_retry(
@@ -600,6 +617,20 @@ class BackupOrchestrator(IBackupOrchestrator):
                 f"Integrity validation complete: status={validation_result.status.value}, "
                 f"issues={len(validation_result.issues)}"
             )
+        
+        # Get parallel execution report if monitoring was enabled
+        if backup_job.tool_configuration and backup_job.tool_configuration.parallel_operations > 1:
+            parallel_report = self._tool_manager.get_parallel_execution_report(
+                backup_job.config.job_id
+            )
+            if parallel_report:
+                result.metadata['parallel_execution'] = parallel_report
+                logger.info(
+                    f"Parallel execution report for {backup_job.config.job_id}: "
+                    f"efficiency={parallel_report['parallel_efficiency']:.2f}, "
+                    f"rating={parallel_report['efficiency_rating']}, "
+                    f"degradation_events={parallel_report['degradation_events']}"
+                )
         
         logger.info(
             f"Job execution completed: {backup_job.config.job_id}, "
@@ -667,11 +698,29 @@ class BackupOrchestrator(IBackupOrchestrator):
             # Create backup targets
             targets = self._create_backup_targets_from_job(backup_job)
             
-            # Execute backup
+            # Execute backup with resource monitoring
             result = repository.backup_target(
                 targets,
                 backup_job.config.tags
             )
+            
+            # Update parallel execution metrics if monitoring is enabled
+            if backup_job.tool_configuration and backup_job.tool_configuration.parallel_operations > 1:
+                try:
+                    # Get current system resources
+                    system_resources = self._tool_manager.get_parallel_optimizer().get_system_resources()
+                    
+                    # Update metrics with resource usage
+                    self._tool_manager.update_parallel_execution_metrics(
+                        operation_id=backup_job.config.job_id,
+                        resource_usage={
+                            'cpu_usage_percent': system_resources.cpu_usage_percent,
+                            'memory_usage_percent': system_resources.memory_usage_percent,
+                            'memory_available_gb': system_resources.memory_available_gb
+                        }
+                    )
+                except Exception as e:
+                    logger.debug(f"Could not update parallel execution metrics: {e}")
             
             if result and 'snapshot_id' in result:
                 backup_result.snapshot_id = result['snapshot_id']
