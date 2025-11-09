@@ -24,9 +24,11 @@ from .progress_monitor import (
     ProgressState,
     PerformanceMetrics
 )
+from .recovery_progress_notifier import RecoveryProgressNotifier
 
 __all__ = [
         'StatusReporter', 'OperationStatus', 'StatusLevel',
         'NotificationService', 'NotificationError', 'NotificationType',
-        'ProgressMonitor', 'ProgressData', 'ProgressReport', 'ProgressState', 'PerformanceMetrics'
+        'ProgressMonitor', 'ProgressData', 'ProgressReport', 'ProgressState', 'PerformanceMetrics',
+        'RecoveryProgressNotifier'
 ]

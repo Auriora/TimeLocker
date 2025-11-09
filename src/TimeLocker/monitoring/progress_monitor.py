@@ -143,10 +143,11 @@ class ProgressReport:
 
 class ProgressMonitor:
     """
-    Real-time progress monitoring for backup operations.
+    Real-time progress monitoring for backup and recovery operations.
     
     Provides 5-second update intervals, progress estimation, and performance
     metrics collection. Integrates with StatusReporter for unified reporting.
+    Supports both backup and recovery operations with operation-specific tracking.
     """
     
     UPDATE_INTERVAL_SECONDS = 5.0
@@ -170,8 +171,8 @@ class ProgressMonitor:
         self._progress_data: Dict[str, ProgressData] = {}
         self._performance_metrics: Dict[str, PerformanceMetrics] = {}
         
-        # Progress update callbacks
-        self._progress_callbacks: List[Callable[[ProgressReport], None]] = []
+        # Progress update callbacks (operation_id -> list of callbacks)
+        self._progress_callbacks: Dict[str, List[Callable[[ProgressReport], None]]] = {}
         
         # Global lock for thread-safe operations
         self._global_lock = threading.Lock()
@@ -180,24 +181,67 @@ class ProgressMonitor:
     
     def add_progress_callback(self, callback: Callable[[ProgressReport], None]) -> None:
         """
-        Add a callback to be notified of progress updates.
+        Add a global callback to be notified of progress updates for all operations.
         
         Args:
             callback: Function to call with ProgressReport on updates
         """
+        # For backward compatibility, add to a special "global" key
         with self._global_lock:
-            self._progress_callbacks.append(callback)
+            if "global" not in self._progress_callbacks:
+                self._progress_callbacks["global"] = []
+            self._progress_callbacks["global"].append(callback)
     
     def remove_progress_callback(self, callback: Callable[[ProgressReport], None]) -> None:
         """
-        Remove a progress callback.
+        Remove a global progress callback.
         
         Args:
             callback: Callback function to remove
         """
         with self._global_lock:
-            if callback in self._progress_callbacks:
-                self._progress_callbacks.remove(callback)
+            if "global" in self._progress_callbacks:
+                if callback in self._progress_callbacks["global"]:
+                    self._progress_callbacks["global"].remove(callback)
+    
+    def register_progress_callback(
+        self,
+        operation_id: str,
+        callback: Callable[[ProgressReport], None]
+    ) -> None:
+        """
+        Register a callback for real-time progress updates for a specific operation.
+        
+        This method allows registering operation-specific callbacks that will be
+        invoked whenever progress is updated for the specified operation.
+        
+        Args:
+            operation_id: ID of the operation to monitor
+            callback: Function to call with ProgressReport on updates
+        """
+        with self._global_lock:
+            if operation_id not in self._progress_callbacks:
+                self._progress_callbacks[operation_id] = []
+            self._progress_callbacks[operation_id].append(callback)
+            logger.debug(f"Registered progress callback for operation {operation_id}")
+    
+    def unregister_progress_callback(
+        self,
+        operation_id: str,
+        callback: Callable[[ProgressReport], None]
+    ) -> None:
+        """
+        Unregister a progress callback for a specific operation.
+        
+        Args:
+            operation_id: ID of the operation
+            callback: Callback function to remove
+        """
+        with self._global_lock:
+            if operation_id in self._progress_callbacks:
+                if callback in self._progress_callbacks[operation_id]:
+                    self._progress_callbacks[operation_id].remove(callback)
+                    logger.debug(f"Unregistered progress callback for operation {operation_id}")
     
     def start_monitoring(self, 
                         job_id: str,
@@ -384,6 +428,65 @@ class ProgressMonitor:
                 estimated_completion=progress_data.estimated_completion
             )
     
+    def get_progress_status(self, operation_id: str) -> Optional[ProgressData]:
+        """
+        Retrieves current progress information for an operation.
+        
+        This method provides real-time progress data including files processed,
+        bytes transferred, and estimated completion time.
+        
+        Args:
+            operation_id: ID of the operation to get status for
+            
+        Returns:
+            ProgressData if operation is being monitored, None otherwise
+        """
+        if operation_id not in self._active_monitors:
+            logger.warning(f"No active monitoring for operation {operation_id}")
+            return None
+        
+        with self._monitor_locks.get(operation_id, threading.Lock()):
+            progress_data = self._progress_data.get(operation_id)
+            if progress_data:
+                # Update timestamp to current time
+                progress_data.timestamp = datetime.now()
+            return progress_data
+    
+    def estimate_completion_time(self, operation_id: str) -> Optional[datetime]:
+        """
+        Estimates recovery completion time based on current progress.
+        
+        This method calculates an estimated completion time using the current
+        transfer rate and remaining data to be processed.
+        
+        Args:
+            operation_id: ID of the operation to estimate completion for
+            
+        Returns:
+            Estimated completion datetime, or None if estimation not possible
+        """
+        progress_data = self.get_progress_status(operation_id)
+        
+        if not progress_data:
+            logger.warning(f"Cannot estimate completion for operation {operation_id}: no progress data")
+            return None
+        
+        # Use the estimated_completion property from ProgressData
+        estimated = progress_data.estimated_completion
+        
+        if estimated:
+            logger.debug(
+                f"Estimated completion for operation {operation_id}: "
+                f"{estimated.isoformat()}"
+            )
+        else:
+            logger.debug(
+                f"Cannot estimate completion for operation {operation_id}: "
+                f"insufficient progress data"
+            )
+        
+        return estimated
+    
     def get_active_jobs(self) -> List[str]:
         """
         Get list of jobs currently being monitored.
@@ -448,9 +551,14 @@ class ProgressMonitor:
             
             # Notify callbacks
             with self._global_lock:
-                callbacks = self._progress_callbacks.copy()
+                # Get operation-specific callbacks
+                operation_callbacks = self._progress_callbacks.get(report.job_id, []).copy()
+                # Get global callbacks
+                global_callbacks = self._progress_callbacks.get("global", []).copy()
+                # Combine both
+                all_callbacks = operation_callbacks + global_callbacks
             
-            for callback in callbacks:
+            for callback in all_callbacks:
                 try:
                     callback(report)
                 except Exception as e:
