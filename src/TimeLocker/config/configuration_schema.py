@@ -140,6 +140,14 @@ class MonitoringConfig:
     log_retention_days: int = 7
     export_metrics: bool = False
     metrics_endpoint: Optional[str] = None
+    log_level: str = "INFO"
+    enable_desktop_notifications: bool = True
+    enable_email_notifications: bool = False
+    notify_on_success: bool = True
+    notify_on_warning: bool = True
+    notify_on_error: bool = True
+    notify_on_critical: bool = True
+    min_operation_duration_seconds: int = 60
 
 
 @dataclass

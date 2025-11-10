@@ -25,10 +25,20 @@ from .progress_monitor import (
     PerformanceMetrics
 )
 from .recovery_progress_notifier import RecoveryProgressNotifier
+from .monitoring_service import (
+    MonitoringService,
+    HealthStatus,
+    BackupEvent,
+    RecoveryEvent,
+    MonitoringSummary,
+    MonitoringPreferences
+)
 
 __all__ = [
         'StatusReporter', 'OperationStatus', 'StatusLevel',
         'NotificationService', 'NotificationError', 'NotificationType',
         'ProgressMonitor', 'ProgressData', 'ProgressReport', 'ProgressState', 'PerformanceMetrics',
-        'RecoveryProgressNotifier'
+        'RecoveryProgressNotifier',
+        'MonitoringService', 'HealthStatus', 'BackupEvent', 'RecoveryEvent', 
+        'MonitoringSummary', 'MonitoringPreferences'
 ]
