@@ -33,6 +33,14 @@ from .monitoring_service import (
     MonitoringSummary,
     MonitoringPreferences
 )
+from .activity_logger import ActivityLogger, LogLevel, LogEntry
+from .backup_history import (
+    BackupHistory,
+    BackupRecord,
+    BackupStatus,
+    HistoryFilters,
+    PerformanceTrends
+)
 
 __all__ = [
         'StatusReporter', 'OperationStatus', 'StatusLevel',
@@ -40,5 +48,7 @@ __all__ = [
         'ProgressMonitor', 'ProgressData', 'ProgressReport', 'ProgressState', 'PerformanceMetrics',
         'RecoveryProgressNotifier',
         'MonitoringService', 'HealthStatus', 'BackupEvent', 'RecoveryEvent', 
-        'MonitoringSummary', 'MonitoringPreferences'
+        'MonitoringSummary', 'MonitoringPreferences',
+        'ActivityLogger', 'LogLevel', 'LogEntry',
+        'BackupHistory', 'BackupRecord', 'BackupStatus', 'HistoryFilters', 'PerformanceTrends'
 ]

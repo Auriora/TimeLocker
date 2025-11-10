@@ -24,6 +24,8 @@ from enum import Enum
 
 from .status_reporter import StatusReporter, OperationStatus, StatusLevel
 from .notification_service import NotificationService
+from .activity_logger import ActivityLogger, LogLevel as ActivityLogLevel
+from .backup_history import BackupHistory, BackupRecord, BackupStatus
 from ..interfaces.service_interface import ServiceInterface
 from ..interfaces.integration_data_models import ServiceContext
 
@@ -126,11 +128,13 @@ class MonitoringService(ServiceInterface):
         # Initialize core monitoring components
         self.status_reporter = StatusReporter(config_dir / "status")
         self.notifier = NotificationService(config_dir / "notifications")
+        self.activity_logger = ActivityLogger(config_dir)
+        self.backup_history = BackupHistory(config_dir / "history")
         
         # Load monitoring preferences
         self.preferences = self._load_preferences()
         
-        # Register status reporter handler to trigger notifications
+        # Register status reporter handler to trigger notifications and logging
         self.status_reporter.add_status_handler(self._handle_status_update)
         
         # ServiceInterface implementation
@@ -247,6 +251,8 @@ class MonitoringService(ServiceInterface):
                 message=event.message,
                 timestamp=event.timestamp,
                 repository_id=event.repository_id,
+                files_processed=event.details.get('files_processed'),
+                bytes_processed=event.details.get('bytes_processed'),
                 metadata=event.details
             )
             
@@ -259,6 +265,15 @@ class MonitoringService(ServiceInterface):
                     metadata=event.details
                 )
             elif event.event_type.endswith('_completed') or event.event_type.endswith('_failed'):
+                # Update with final metrics before completing
+                self.status_reporter.update_operation(
+                    operation_id=event.operation_id,
+                    status=event.severity,
+                    message=event.message,
+                    files_processed=event.details.get('files_processed'),
+                    bytes_processed=event.details.get('bytes_processed'),
+                    metadata=event.details
+                )
                 self.status_reporter.complete_operation(
                     operation_id=event.operation_id,
                     status=event.severity,
@@ -271,6 +286,8 @@ class MonitoringService(ServiceInterface):
                     operation_id=event.operation_id,
                     status=event.severity,
                     message=event.message,
+                    files_processed=event.details.get('files_processed'),
+                    bytes_processed=event.details.get('bytes_processed'),
                     metadata=event.details
                 )
             
@@ -295,6 +312,8 @@ class MonitoringService(ServiceInterface):
                 message=event.message,
                 timestamp=event.timestamp,
                 repository_id=event.repository_id,
+                files_processed=event.details.get('files_processed'),
+                bytes_processed=event.details.get('bytes_processed'),
                 metadata=event.details
             )
             
@@ -307,6 +326,15 @@ class MonitoringService(ServiceInterface):
                     metadata=event.details
                 )
             elif event.event_type.endswith('_completed') or event.event_type.endswith('_failed'):
+                # Update with final metrics before completing
+                self.status_reporter.update_operation(
+                    operation_id=event.operation_id,
+                    status=event.severity,
+                    message=event.message,
+                    files_processed=event.details.get('files_processed'),
+                    bytes_processed=event.details.get('bytes_processed'),
+                    metadata=event.details
+                )
                 self.status_reporter.complete_operation(
                     operation_id=event.operation_id,
                     status=event.severity,
@@ -319,6 +347,8 @@ class MonitoringService(ServiceInterface):
                     operation_id=event.operation_id,
                     status=event.severity,
                     message=event.message,
+                    files_processed=event.details.get('files_processed'),
+                    bytes_processed=event.details.get('bytes_processed'),
                     metadata=event.details
                 )
             
@@ -465,23 +495,107 @@ class MonitoringService(ServiceInterface):
         """
         return self.preferences
 
+    def get_activity_logger(self) -> ActivityLogger:
+        """
+        Get the activity logger instance.
+        
+        Returns:
+            ActivityLogger: Activity logger instance
+        """
+        return self.activity_logger
+
+    def get_backup_history(self) -> BackupHistory:
+        """
+        Get the backup history instance.
+        
+        Returns:
+            BackupHistory: Backup history instance
+        """
+        return self.backup_history
+
     def _handle_status_update(self, status: OperationStatus) -> None:
         """
         Handle status updates from StatusReporter.
         
         This method is called whenever the StatusReporter updates an operation status.
-        It triggers notifications based on the status and user preferences.
+        It triggers notifications, logging, and history recording based on the status.
         
         Args:
             status: Updated operation status
         """
         try:
+            # Log the event
+            self.activity_logger.log_backup_event(status)
+            
             # Send notification if appropriate
             if self.notifier.should_notify(status):
                 self.notifier.send_notification(status)
+            
+            # Record in history if operation is complete
+            if status.progress_percentage == 100 or status.status in [StatusLevel.ERROR, StatusLevel.CRITICAL]:
+                self._record_in_history(status)
                 
         except Exception as e:
             logger.error(f"Failed to handle status update: {e}")
+
+    def _record_in_history(self, status: OperationStatus) -> None:
+        """
+        Record completed operation in backup history.
+        
+        Args:
+            status: Operation status to record
+        """
+        try:
+            # Only record backup operations
+            if status.operation_type not in ['backup', 'backup_started', 'backup_completed', 'backup_failed']:
+                return
+            
+            # Extract timing information
+            start_time = status.timestamp
+            end_time = status.timestamp
+            duration_seconds = 0.0
+            
+            if status.metadata:
+                if 'start_time' in status.metadata:
+                    start_time = datetime.fromisoformat(status.metadata['start_time'])
+                if 'end_time' in status.metadata:
+                    end_time = datetime.fromisoformat(status.metadata['end_time'])
+                if 'duration' in status.metadata:
+                    duration_seconds = float(status.metadata['duration'])
+                else:
+                    duration_seconds = (end_time - start_time).total_seconds()
+            
+            # Map status to BackupStatus
+            status_map = {
+                StatusLevel.SUCCESS: BackupStatus.SUCCESS,
+                StatusLevel.WARNING: BackupStatus.PARTIAL,
+                StatusLevel.ERROR: BackupStatus.FAILED,
+                StatusLevel.CRITICAL: BackupStatus.FAILED,
+                StatusLevel.INFO: BackupStatus.SUCCESS
+            }
+            
+            backup_status = status_map.get(status.status, BackupStatus.FAILED)
+            
+            # Create backup record
+            record = BackupRecord(
+                operation_id=status.operation_id,
+                repository_id=status.repository_id or 'unknown',
+                start_time=start_time,
+                end_time=end_time,
+                status=backup_status,
+                files_processed=status.files_processed or 0,
+                bytes_transferred=status.bytes_processed or 0,
+                duration_seconds=duration_seconds,
+                snapshot_id=status.metadata.get('snapshot_id') if status.metadata else None,
+                error_message=status.message if status.status in [StatusLevel.ERROR, StatusLevel.CRITICAL] else None,
+                warnings=status.metadata.get('warnings') if status.metadata else None,
+                metadata=status.metadata
+            )
+            
+            self.backup_history.record_backup_operation(record)
+            
+        except Exception as e:
+            logger.error(f"Failed to record operation in history: {e}")
 
     def _load_preferences(self) -> MonitoringPreferences:
         """
