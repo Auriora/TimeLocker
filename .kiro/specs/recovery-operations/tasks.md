@@ -90,20 +90,20 @@
     - Add file system error recovery and alternative path strategies
     - _Requirements: 9.1, 9.2, 9.3, 9.5_
 
-- [ ] 8. Integrate recovery operations with existing services
-  - [ ] 8.1 Add Repository Management integration
+- [x] 8. Integrate recovery operations with existing services
+  - [x] 8.1 Add Repository Management integration
     - Implement repository accessibility validation before recovery
     - Add coordination with ongoing backup operations to prevent conflicts
     - Integrate repository authentication and authorization checks
     - _Requirements: 6.1, 6.3, 6.4_
 
-  - [ ] 8.2 Add Data Selection system integration
+  - [x] 8.2 Add Data Selection system integration
     - Implement selection template retrieval and application during recovery
     - Add selection criteria validation against snapshot contents
     - Create recovery-specific selection template modification capabilities
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-  - [ ] 8.3 Add Security Services integration
+  - [x] 8.3 Add Security Services integration
     - Implement recovery operation auditing and logging
     - Add encryption key management for encrypted snapshots
     - Integrate access control validation for recovery target locations

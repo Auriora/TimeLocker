@@ -170,3 +170,18 @@ class ChecksumMismatchError(ValidationError):
 class MetadataError(RecoveryError):
     """Raised when there are issues with file metadata during recovery"""
     pass
+
+
+class RepositoryAccessError(RecoveryError):
+    """Raised when repository cannot be accessed for recovery operations"""
+    pass
+
+
+class SelectionValidationError(RecoveryError):
+    """Raised when selection criteria validation fails during recovery"""
+    pass
+
+
+class EncryptionKeyError(RecoveryError):
+    """Raised when encryption key is missing or invalid for encrypted snapshots"""
+    pass
