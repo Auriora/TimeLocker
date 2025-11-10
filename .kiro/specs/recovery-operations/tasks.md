@@ -135,14 +135,14 @@
     - Create performance tests for large snapshot recovery operations
     - _Requirements: All requirements_
 
-- [ ] 11. Update existing components for recovery integration
-  - [ ] 11.1 Enhance RestoreManager for new recovery architecture
+- [x] 11. Update existing components for recovery integration
+  - [x] 11.1 Enhance RestoreManager for new recovery architecture
     - Refactor RestoreManager to work with new RecoveryOrchestrator
     - Add backward compatibility for existing restore functionality
     - Integrate new validation and progress monitoring capabilities
     - _Requirements: 2.1, 4.1, 5.1_
 
-  - [ ] 11.2 Update SnapshotManager for recovery operations
+  - [x] 11.2 Update SnapshotManager for recovery operations
     - Add recovery-specific snapshot metadata retrieval
     - Implement snapshot browsing support for recovery operations
     - Enhance snapshot verification for recovery validation

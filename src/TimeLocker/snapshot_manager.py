@@ -24,6 +24,11 @@ from .backup_repository import BackupRepository
 from .backup_snapshot import BackupSnapshot
 from .recovery_errors import SnapshotNotFoundError, RecoveryError
 
+# Type hints for forward references
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .snapshot_browser import SnapshotBrowser
+
 logger = logging.getLogger(__name__)
 
 
@@ -61,19 +66,43 @@ class SnapshotFilter:
 
 
 class SnapshotManager:
-    """Manages snapshot listing, filtering, and selection operations"""
+    """
+    Manages snapshot listing, filtering, and selection operations.
+    
+    This class provides comprehensive snapshot management capabilities including
+    listing, filtering, and recovery-specific metadata retrieval. It integrates
+    with the recovery operations architecture to support snapshot browsing and
+    validation for recovery workflows.
+    """
 
-    def __init__(self, repository: BackupRepository):
+    def __init__(
+        self, 
+        repository: BackupRepository,
+        snapshot_browser: Optional['SnapshotBrowser'] = None
+    ):
         """
         Initialize SnapshotManager
         
         Args:
             repository: BackupRepository instance to work with
+            snapshot_browser: Optional SnapshotBrowser for recovery operations
         """
         self.repository = repository
         self._cached_snapshots: Optional[List[BackupSnapshot]] = None
         self._cache_timestamp: Optional[datetime] = None
         self._cache_ttl = timedelta(minutes=5)  # Cache for 5 minutes
+        
+        # Recovery operations integration
+        self.snapshot_browser = snapshot_browser
+        self._recovery_metadata_cache: Dict[str, Dict[str, Any]] = {}
+        self._recovery_cache_lock = None
+        
+        # Initialize lock for thread-safe cache access
+        try:
+            from threading import Lock
+            self._recovery_cache_lock = Lock()
+        except ImportError:
+            pass
 
     def list_snapshots(self, filter_criteria: Optional[SnapshotFilter] = None,
                        force_refresh: bool = False) -> List[BackupSnapshot]:
@@ -237,3 +266,280 @@ class SnapshotManager:
         self._cached_snapshots = None
         self._cache_timestamp = None
         logger.debug("Snapshot cache cleared")
+    
+    def get_recovery_metadata(self, snapshot_id: str) -> Dict[str, Any]:
+        """
+        Get recovery-specific metadata for a snapshot.
+        
+        This method retrieves detailed metadata needed for recovery operations
+        including file counts, total size, and verification information.
+        
+        Args:
+            snapshot_id: ID of the snapshot to get metadata for
+            
+        Returns:
+            Dictionary with recovery-specific metadata
+            
+        Raises:
+            SnapshotNotFoundError: If snapshot is not found
+        """
+        # Check cache first
+        if self._recovery_cache_lock:
+            with self._recovery_cache_lock:
+                if snapshot_id in self._recovery_metadata_cache:
+                    logger.debug(f"Returning cached recovery metadata for {snapshot_id}")
+                    return self._recovery_metadata_cache[snapshot_id]
+        
+        try:
+            # Get snapshot
+            snapshot = self.get_snapshot_by_id(snapshot_id)
+            
+            # Get basic stats
+            stats = snapshot.get_stats()
+            
+            # Build recovery metadata
+            metadata = {
+                'snapshot_id': snapshot_id,
+                'timestamp': snapshot.timestamp,
+                'paths': [str(p) for p in snapshot.paths],
+                'tags': getattr(snapshot, 'tags', []),
+                'total_size': stats.get('total_size', 0),
+                'file_count': stats.get('files_changed', 0),
+                'repository': snapshot.repo.location(),
+                'hostname': getattr(snapshot, 'hostname', 'unknown'),
+                'username': getattr(snapshot, 'username', 'unknown'),
+                'verified': False,  # Will be updated by verification
+                'browsable': self.snapshot_browser is not None
+            }
+            
+            # Add browsing support info if available
+            if self.snapshot_browser:
+                try:
+                    # Test if we can browse this snapshot
+                    listing = self.snapshot_browser.list_snapshot_contents(
+                        snapshot_id, 
+                        path="/",
+                        pagination=None
+                    )
+                    metadata['browsable'] = True
+                    metadata['root_entry_count'] = listing.total_entries
+                except Exception as e:
+                    logger.warning(f"Snapshot browsing not available for {snapshot_id}: {e}")
+                    metadata['browsable'] = False
+            
+            # Cache the metadata
+            if self._recovery_cache_lock:
+                with self._recovery_cache_lock:
+                    self._recovery_metadata_cache[snapshot_id] = metadata
+            
+            logger.info(f"Retrieved recovery metadata for snapshot {snapshot_id}")
+            return metadata
+            
+        except Exception as e:
+            logger.error(f"Failed to get recovery metadata for {snapshot_id}: {e}")
+            raise RecoveryError(f"Failed to retrieve recovery metadata: {e}") from e
+    
+    def verify_snapshot_for_recovery(self, snapshot_id: str) -> Dict[str, Any]:
+        """
+        Verify that a snapshot is suitable for recovery operations.
+        
+        This method performs comprehensive checks to ensure the snapshot
+        can be used for recovery, including integrity verification and
+        accessibility checks.
+        
+        Args:
+            snapshot_id: ID of the snapshot to verify
+            
+        Returns:
+            Dictionary with verification results:
+                - verified: Boolean indicating if snapshot is verified
+                - issues: List of any issues found
+                - warnings: List of warnings
+                - can_recover: Boolean indicating if recovery is possible
+        """
+        result = {
+            'verified': False,
+            'issues': [],
+            'warnings': [],
+            'can_recover': True
+        }
+        
+        try:
+            # Get snapshot
+            snapshot = self.get_snapshot_by_id(snapshot_id)
+            
+            # Verify snapshot integrity
+            try:
+                if hasattr(snapshot, 'verify') and callable(snapshot.verify):
+                    if not snapshot.verify():
+                        result['warnings'].append("Snapshot verification returned false")
+                        result['verified'] = False
+                    else:
+                        result['verified'] = True
+                else:
+                    result['warnings'].append("Snapshot verification not available")
+            except Exception as e:
+                result['issues'].append(f"Verification failed: {str(e)}")
+                result['verified'] = False
+            
+            # Check if snapshot has paths
+            if not snapshot.paths:
+                result['issues'].append("Snapshot has no paths")
+                result['can_recover'] = False
+            
+            # Check if repository is accessible
+            try:
+                if not self.repository.is_repository_initialized():
+                    result['issues'].append("Repository is not initialized")
+                    result['can_recover'] = False
+            except Exception as e:
+                result['issues'].append(f"Repository check failed: {str(e)}")
+                result['can_recover'] = False
+            
+            # Check if snapshot is too old (optional warning)
+            age_days = (datetime.now() - snapshot.timestamp).days
+            if age_days > 365:
+                result['warnings'].append(
+                    f"Snapshot is {age_days} days old - verify data is still relevant"
+                )
+            
+            logger.info(
+                f"Snapshot verification for {snapshot_id}: "
+                f"verified={result['verified']}, can_recover={result['can_recover']}, "
+                f"issues={len(result['issues'])}, warnings={len(result['warnings'])}"
+            )
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to verify snapshot {snapshot_id}: {e}")
+            result['issues'].append(f"Verification error: {str(e)}")
+            result['can_recover'] = False
+            return result
+    
+    def list_snapshots_for_recovery(
+        self, 
+        filter_criteria: Optional[SnapshotFilter] = None,
+        include_metadata: bool = True
+    ) -> List[Dict[str, Any]]:
+        """
+        List snapshots with recovery-specific information.
+        
+        This method provides an enhanced snapshot listing that includes
+        recovery metadata and verification status for each snapshot.
+        
+        Args:
+            filter_criteria: Optional filter to apply
+            include_metadata: Whether to include full recovery metadata
+            
+        Returns:
+            List of dictionaries with snapshot and recovery information
+        """
+        try:
+            # Get snapshots using standard listing
+            snapshots = self.list_snapshots(filter_criteria)
+            
+            # Enhance with recovery information
+            recovery_snapshots = []
+            for snapshot in snapshots:
+                snapshot_info = {
+                    'id': snapshot.id,
+                    'timestamp': snapshot.timestamp,
+                    'paths': [str(p) for p in snapshot.paths],
+                    'tags': getattr(snapshot, 'tags', [])
+                }
+                
+                # Add recovery metadata if requested
+                if include_metadata:
+                    try:
+                        metadata = self.get_recovery_metadata(snapshot.id)
+                        snapshot_info['recovery_metadata'] = metadata
+                    except Exception as e:
+                        logger.warning(f"Failed to get recovery metadata for {snapshot.id}: {e}")
+                        snapshot_info['recovery_metadata'] = None
+                
+                recovery_snapshots.append(snapshot_info)
+            
+            logger.info(f"Listed {len(recovery_snapshots)} snapshots for recovery")
+            return recovery_snapshots
+            
+        except Exception as e:
+            logger.error(f"Failed to list snapshots for recovery: {e}")
+            raise RecoveryError(f"Failed to list recovery snapshots: {e}") from e
+    
+    def get_snapshot_contents_summary(self, snapshot_id: str) -> Dict[str, Any]:
+        """
+        Get a summary of snapshot contents for recovery planning.
+        
+        This method provides a high-level overview of what's in the snapshot
+        to help users plan recovery operations.
+        
+        Args:
+            snapshot_id: ID of the snapshot to summarize
+            
+        Returns:
+            Dictionary with content summary
+        """
+        try:
+            # Get basic snapshot info
+            snapshot = self.get_snapshot_by_id(snapshot_id)
+            summary = self.get_snapshot_summary(snapshot)
+            
+            # Add recovery-specific content information if browser is available
+            if self.snapshot_browser:
+                try:
+                    # Get root directory listing
+                    listing = self.snapshot_browser.list_snapshot_contents(
+                        snapshot_id,
+                        path="/",
+                        pagination=None
+                    )
+                    
+                    # Count file types
+                    file_count = sum(1 for e in listing.entries if e.type.value == "file")
+                    dir_count = sum(1 for e in listing.entries if e.type.value == "directory")
+                    symlink_count = sum(1 for e in listing.entries if e.type.value == "symlink")
+                    
+                    summary['content_summary'] = {
+                        'total_entries': listing.total_entries,
+                        'files': file_count,
+                        'directories': dir_count,
+                        'symlinks': symlink_count,
+                        'browsable': True
+                    }
+                except Exception as e:
+                    logger.warning(f"Failed to get content summary for {snapshot_id}: {e}")
+                    summary['content_summary'] = {
+                        'browsable': False,
+                        'error': str(e)
+                    }
+            else:
+                summary['content_summary'] = {
+                    'browsable': False,
+                    'message': 'Snapshot browser not available'
+                }
+            
+            return summary
+            
+        except Exception as e:
+            logger.error(f"Failed to get snapshot contents summary: {e}")
+            raise RecoveryError(f"Failed to get contents summary: {e}") from e
+    
+    def set_snapshot_browser(self, browser: Optional['SnapshotBrowser']) -> None:
+        """
+        Set or update the snapshot browser for recovery operations.
+        
+        Args:
+            browser: SnapshotBrowser instance or None to disable
+        """
+        self.snapshot_browser = browser
+        logger.info(f"Snapshot browser {'enabled' if browser else 'disabled'}")
+    
+    def clear_recovery_cache(self) -> None:
+        """Clear the recovery metadata cache."""
+        if self._recovery_cache_lock:
+            with self._recovery_cache_lock:
+                self._recovery_metadata_cache.clear()
+        else:
+            self._recovery_metadata_cache.clear()
+        logger.debug("Recovery metadata cache cleared")
