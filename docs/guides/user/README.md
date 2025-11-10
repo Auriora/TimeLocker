@@ -46,15 +46,24 @@ be non-technical and focus on how to use the features of the product.
 
 ## 5. Available Templates & Guides
 
+### Getting Started
 - `_template.md`: Template for new user guides.
 - `installation.md`: Installing and verifying TimeLocker.
+
+### Repository Management
 - `repository-management-guide.md`: Working with named repositories.
 - `per-repo-credentials.md`: Managing credentials per repository.
 - `repository-password-workflow.md`: Password storage workflow.
 - `s3-compatible-services.md`: Configuring S3-compatible endpoints.
+
+### Operations
+- `recovery-operations-guide.md`: Complete guide to recovery operations.
+- `recovery-operations-troubleshooting.md`: Troubleshooting recovery issues.
+- `backup-operations-troubleshooting.md`: Troubleshooting backup operations issues.
+
+### Configuration and Tools
 - `auto-completion-guide.md`: Enabling CLI auto-completion.
 - `timeshift-import.md`: Importing Timeshift configurations.
-- `backup-operations-troubleshooting.md`: Troubleshooting backup operations issues.
 
 # References
 

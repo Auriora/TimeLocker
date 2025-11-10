@@ -31,7 +31,12 @@ licensing. These documents are typically stable and serve as authoritative sourc
 
 ## Available Reference Documents
 
+### API References
 - [Backup Operations API Reference](backup-operations-api.md) - Complete API documentation for backup orchestration
+- [Recovery Operations API Reference](recovery-operations-api.md) - Complete API documentation for recovery operations
+- [Recovery Operations Models Reference](recovery-operations-models-reference.md) - Data models for recovery operations
+
+### Guides and Specifications
 - [Repository URI Guide](repository-uri-guide.md) - Guide to repository URI formats
 - [TimeLocker CLI Command Hierarchy](timelocker-cli-command-hierarchy.md) - CLI command structure
 

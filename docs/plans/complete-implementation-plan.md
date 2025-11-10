@@ -251,7 +251,7 @@ CLI Refactoring:          ████████████░░░░░░
       - Task 11.2: Update SnapshotManager
 
 12. **Documentation**
-    - [ ] Task 12: Add recovery operations documentation
+    - [x] Task 12: Add recovery operations documentation
       - Task 12.1: Create usage examples
       - Task 12.2: Update API documentation
 

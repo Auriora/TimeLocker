@@ -148,14 +148,14 @@
     - Enhance snapshot verification for recovery validation
     - _Requirements: 1.1, 4.1_
 
-- [ ] 12. Add recovery operations documentation and examples
-  - [ ] 12.1 Create recovery operations usage examples
+- [x] 12. Add recovery operations documentation and examples
+  - [x] 12.1 Create recovery operations usage examples
     - Write example scripts demonstrating full recovery workflows
     - Add selective recovery examples with different selection criteria
     - Create recovery verification and monitoring examples
     - _Requirements: All requirements_
 
-  - [ ] 12.2 Update API documentation for recovery operations
+  - [x] 12.2 Update API documentation for recovery operations
     - Document all new recovery interfaces and data models
     - Add comprehensive usage examples and best practices
     - Create troubleshooting guide for common recovery scenarios

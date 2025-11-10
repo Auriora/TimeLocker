@@ -55,8 +55,22 @@ This directory contains example scripts demonstrating various TimeLocker feature
 
 ## Recovery Operations Examples
 
-- `recovery_models_demo.py` - **NEW** Recovery operations data models and core interfaces
-- `recovery_operations_demo.py` - Recovery and restore operations
+### Core Recovery Operations
+- `recovery_operations_demo.py` - Basic recovery and restore operations
+- `recovery_models_demo.py` - Recovery operations data models and core interfaces
+- `recovery_orchestrator_demo.py` - Recovery orchestration and state management
+- `snapshot_browser_demo.py` - Snapshot browsing and exploration
+
+### Complete Workflows
+- `full_recovery_workflow_demo.py` - **NEW** Complete end-to-end full recovery workflow
+- `selective_recovery_demo.py` - **NEW** Selective recovery with various selection strategies
+- `recovery_verification_monitoring_demo.py` - **NEW** Verification and monitoring capabilities
+
+### Specialized Recovery Features
+- `recovery_error_handling_demo.py` - Error handling and retry logic
+- `recovery_progress_monitoring_demo.py` - Progress tracking and reporting
+- `recovery_validator_demo.py` - Integrity validation
+- `recovery_service_integration_demo.py` - Service integration
 
 ## Security Examples
 
