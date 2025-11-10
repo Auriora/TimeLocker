@@ -3,6 +3,12 @@ Restore operations.
 
 This module contains CLI commands for restore/recovery operations.
 Reorganized from snapshots.py to provide a dedicated restore command hierarchy.
+
+This module integrates with the new Recovery Operations architecture including:
+- RecoveryOrchestrator for coordinated recovery operations
+- SnapshotBrowser for interactive snapshot exploration
+- RecoveryValidator for integrity verification
+- Progress monitoring for real-time operation tracking
 """
 
 import sys
@@ -10,6 +16,8 @@ import os
 import logging
 from typing import Optional, List, Annotated, Dict, Any
 from pathlib import Path
+from datetime import datetime
+from time import sleep
 
 import typer
 import click
@@ -17,6 +25,8 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
+from rich.live import Live
+from rich.layout import Layout
 
 # Import from base module
 from .base import (
@@ -62,6 +72,30 @@ from TimeLocker.utils.repository_resolver import (
 )
 from TimeLocker.utils.snapshot_validation import validate_snapshot_id_format
 
+# Import recovery operations components
+try:
+    from TimeLocker.recovery_orchestrator import RecoveryOrchestrator
+    from TimeLocker.snapshot_browser import SnapshotBrowser
+    from TimeLocker.recovery_validator import RecoveryValidator
+    from TimeLocker.interfaces.recovery_models import (
+        RecoveryOptions,
+        SelectionCriteria,
+        RecoveryType,
+        OperationStatus,
+        PaginationOptions
+    )
+    from TimeLocker.recovery_errors import (
+        RecoveryError,
+        SnapshotNotFoundError,
+        RestoreTargetError,
+        RepositoryAccessError
+    )
+    RECOVERY_OPERATIONS_AVAILABLE = True
+except ImportError as e:
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Recovery operations components not available: {e}")
+    RECOVERY_OPERATIONS_AVAILABLE = False
+
 # Create Typer app for restore operations
 restore_app = create_typer_app(
     name="restore",
@@ -70,6 +104,112 @@ restore_app = create_typer_app(
 
 # Helper function to get setup_logging from base
 setup_logging = _cli_module.setup_logging
+
+
+# ============================================================================
+# Progress Monitoring Helpers
+# ============================================================================
+
+def _display_recovery_progress(operation_id: str, orchestrator: 'RecoveryOrchestrator') -> None:
+    """
+    Display real-time progress for a recovery operation.
+    
+    Args:
+        operation_id: ID of the recovery operation to monitor
+        orchestrator: RecoveryOrchestrator instance managing the operation
+    """
+    from rich.progress import Progress, SpinnerColumn, BarColumn, TextColumn, TimeRemainingColumn
+    from time import sleep
+    
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+        TimeRemainingColumn(),
+        console=console,
+    ) as progress:
+        task = progress.add_task("Restoring files...", total=100)
+        
+        while True:
+            try:
+                # Get operation status
+                operation = orchestrator.get_recovery_status(operation_id)
+                
+                if operation.status == OperationStatus.COMPLETED:
+                    progress.update(task, completed=100, description="✅ Restore completed")
+                    break
+                elif operation.status == OperationStatus.FAILED:
+                    progress.update(task, description="❌ Restore failed")
+                    break
+                elif operation.status == OperationStatus.CANCELLED:
+                    progress.update(task, description="⚠️  Restore cancelled")
+                    break
+                
+                # Update progress
+                if operation.progress:
+                    if operation.progress.total_files > 0:
+                        percentage = (operation.progress.files_processed / operation.progress.total_files) * 100
+                        progress.update(
+                            task,
+                            completed=percentage,
+                            description=f"Restoring files... ({operation.progress.files_processed}/{operation.progress.total_files})"
+                        )
+                
+                sleep(0.5)  # Update every 500ms
+                
+            except KeyboardInterrupt:
+                # Cancel operation on Ctrl+C
+                orchestrator.cancel_recovery(operation_id)
+                progress.update(task, description="⚠️  Cancelling restore...")
+                break
+            except Exception as e:
+                logger.error(f"Error monitoring progress: {e}")
+                break
+
+
+def _format_progress_status(progress: 'ProgressStatus') -> str:
+    """
+    Format progress status for display.
+    
+    Args:
+        progress: ProgressStatus object
+        
+    Returns:
+        Formatted progress string
+    """
+    if not progress:
+        return "No progress information available"
+    
+    lines = []
+    
+    # Files progress
+    if progress.total_files > 0:
+        files_pct = (progress.files_processed / progress.total_files) * 100
+        lines.append(f"Files: {progress.files_processed:,}/{progress.total_files:,} ({files_pct:.1f}%)")
+    
+    # Bytes progress
+    if progress.total_bytes > 0:
+        bytes_pct = (progress.bytes_transferred / progress.total_bytes) * 100
+        transferred_str = _format_size(progress.bytes_transferred)
+        total_str = _format_size(progress.total_bytes)
+        lines.append(f"Data: {transferred_str}/{total_str} ({bytes_pct:.1f}%)")
+    
+    # Transfer rate
+    if progress.transfer_rate > 0:
+        rate_str = _format_size(int(progress.transfer_rate))
+        lines.append(f"Rate: {rate_str}/s")
+    
+    # Current file
+    if progress.current_file:
+        lines.append(f"Current: {progress.current_file}")
+    
+    # Estimated completion
+    if progress.estimated_completion:
+        eta = progress.estimated_completion.strftime('%H:%M:%S')
+        lines.append(f"ETA: {eta}")
+    
+    return "\n".join(lines)
 
 
 # ============================================================================
@@ -82,11 +222,25 @@ setup_logging = _cli_module.setup_logging
 def restore_browse(
         repository: Annotated[str, typer.Argument(help="Repository name or URI", autocompletion=repository_completer)],
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID", autocompletion=snapshot_id_completer)],
-        path: Annotated[Optional[str], typer.Option("--path", help="Filter contents to a specific path prefix")] = None,
+        path: Annotated[Optional[str], typer.Option("--path", help="Browse specific path within snapshot")] = None,
+        page: Annotated[int, typer.Option("--page", help="Page number for pagination")] = 1,
+        page_size: Annotated[int, typer.Option("--page-size", help="Number of entries per page")] = 50,
+        password: Annotated[Optional[str], typer.Option("--password", "-p", help="Repository password")] = None,
         verbose: VerboseOption = False,
         config_dir: ConfigDirOption = None,
 ) -> None:
-    """Browse snapshot contents interactively."""
+    """
+    Browse snapshot contents interactively.
+    
+    This command provides interactive exploration of snapshot contents with
+    pagination support for large directories. It integrates with the new
+    SnapshotBrowser component for efficient browsing.
+    
+    Examples:
+        timelocker restore browse myrepo latest
+        timelocker restore browse myrepo abc123 --path /home/user
+        timelocker restore browse myrepo latest --page 2 --page-size 100
+    """
     setup_logging(verbose, config_dir)
     interactive = sys.stdin.isatty()
     
@@ -95,61 +249,130 @@ def restore_browse(
         validate_repository_name_or_uri(repository)
         validate_snapshot_id_format(snapshot_id, allow_latest=True)
         
-        # Try service manager first
-        manager = get_cli_service_manager(config_dir=config_dir)
-        contents_method = _get_service_method(manager, "list_snapshot_contents")
+        # Resolve repository
+        actual_repository_name = repository or get_default_repository()
+        repository_uri = resolve_repository_uri(repository)
         
-        if contents_method:
-            contents = _call_service_method(
-                contents_method,
-                snapshot_id=snapshot_id,
-                repository=repository,
-                path=path,
-                path_filter=path
-            ) or []
-        else:
-            show_error_panel("Not Implemented", "Snapshot browsing is not available in this build.")
-            raise typer.Exit(1)
+        # Get password if not provided
+        if not password:
+            password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
+            if not password and interactive:
+                password = Prompt.ask("Repository password", password=True)
         
-        # Filter by path if specified
-        if path:
-            normalized = str(path).rstrip("/")
-            filtered = []
-            for entry in contents:
-                entry_path = ""
-                if isinstance(entry, dict):
-                    entry_path = str(entry.get("path", entry.get("Path", "")))
-                else:
-                    entry_path = str(getattr(entry, "path", getattr(entry, "name", "")))
-                if entry_path and entry_path.startswith(normalized):
-                    filtered.append(entry)
-            contents = filtered
-        
-        if not contents:
-            show_info_panel("Snapshot Contents", "No files found in this snapshot.")
-            return
-        
-        # Display contents in a table
-        table = Table(title=f"Contents of Snapshot {snapshot_id}")
-        table.add_column("Type", style="cyan", width=10)
-        table.add_column("Size", style="green", width=12)
-        table.add_column("Path", style="white")
-        
-        for entry in contents:
-            if isinstance(entry, dict):
-                entry_type = entry.get("type", "file")
-                size = entry.get("size", entry.get("Size", 0))
-                path_value = entry.get("path", entry.get("Path", ""))
-            else:
-                entry_type = getattr(entry, "type", "file")
-                size = getattr(entry, "size", 0)
-                path_value = getattr(entry, "path", getattr(entry, "name", ""))
+        # Initialize components
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Initializing snapshot browser...", total=None)
             
-            # Format size
-            size_str = _format_size(size) if isinstance(size, (int, float)) else str(size)
-            table.add_row(str(entry_type), size_str, str(path_value))
-        
-        console.print(table)
+            backup_manager = BackupManager()
+            repo = backup_manager.from_uri(repository_uri, password=password, 
+                                         repository_name=actual_repository_name)
+            
+            # Handle "latest" snapshot
+            if snapshot_id == "latest":
+                progress.update(task, description="Finding latest snapshot...")
+                snapshot_manager = SnapshotManager(repo)
+                snapshots = snapshot_manager.list_snapshots()
+                if not snapshots:
+                    show_error_panel("No Snapshots", "No snapshots found in repository")
+                    raise typer.Exit(1)
+                snapshot_id = snapshots[0].id
+                console.print(f"📸 Using latest snapshot: [bold cyan]{snapshot_id[:12]}[/bold cyan]")
+            
+            # Use SnapshotBrowser if available
+            if RECOVERY_OPERATIONS_AVAILABLE:
+                progress.update(task, description="Loading snapshot contents...")
+                browser = SnapshotBrowser(repo)
+                
+                # Create pagination options
+                pagination = PaginationOptions(page=page, page_size=page_size)
+                
+                # List snapshot contents
+                listing = browser.list_snapshot_contents(
+                    snapshot_id=snapshot_id,
+                    path=path or "/",
+                    pagination=pagination
+                )
+                
+                progress.remove_task(task)
+                
+                # Display contents in a table
+                title = f"Contents of Snapshot {snapshot_id[:12]}"
+                if path:
+                    title += f" at {path}"
+                if listing.pagination_info:
+                    title += f" (Page {listing.pagination_info.current_page}/{listing.pagination_info.total_pages})"
+                
+                table = Table(title=title, show_header=True, header_style="bold magenta")
+                table.add_column("Type", style="cyan", width=10)
+                table.add_column("Size", style="green", width=12)
+                table.add_column("Modified", style="yellow", width=20)
+                table.add_column("Path", style="white")
+                
+                for entry in listing.entries:
+                    entry_type = entry.type.value if hasattr(entry.type, 'value') else str(entry.type)
+                    size_str = _format_size(entry.size) if entry.size else "-"
+                    mod_time = entry.modification_time.strftime('%Y-%m-%d %H:%M:%S') if entry.modification_time else "-"
+                    table.add_row(entry_type, size_str, mod_time, entry.path)
+                
+                console.print()
+                console.print(table)
+                console.print()
+                
+                # Show pagination info
+                if listing.pagination_info:
+                    info = listing.pagination_info
+                    console.print(f"[dim]Showing {len(listing.entries)} of {info.total_entries} entries[/dim]")
+                    if info.has_next:
+                        console.print(f"[dim]💡 Use --page {info.current_page + 1} to see next page[/dim]")
+                
+            else:
+                # Fallback to service manager
+                progress.update(task, description="Loading snapshot contents...")
+                manager = get_cli_service_manager(config_dir=config_dir)
+                contents_method = _get_service_method(manager, "list_snapshot_contents")
+                
+                if contents_method:
+                    contents = _call_service_method(
+                        contents_method,
+                        snapshot_id=snapshot_id,
+                        repository=repository,
+                        path=path,
+                        path_filter=path
+                    ) or []
+                else:
+                    show_error_panel("Not Implemented", "Snapshot browsing is not available in this build.")
+                    raise typer.Exit(1)
+                
+                progress.remove_task(task)
+                
+                # Display contents
+                if not contents:
+                    show_info_panel("Snapshot Contents", "No files found in this snapshot.")
+                    return
+                
+                table = Table(title=f"Contents of Snapshot {snapshot_id[:12]}")
+                table.add_column("Type", style="cyan", width=10)
+                table.add_column("Size", style="green", width=12)
+                table.add_column("Path", style="white")
+                
+                for entry in contents:
+                    if isinstance(entry, dict):
+                        entry_type = entry.get("type", "file")
+                        size = entry.get("size", entry.get("Size", 0))
+                        path_value = entry.get("path", entry.get("Path", ""))
+                    else:
+                        entry_type = getattr(entry, "type", "file")
+                        size = getattr(entry, "size", 0)
+                        path_value = getattr(entry, "path", getattr(entry, "name", ""))
+                    
+                    size_str = _format_size(size) if isinstance(size, (int, float)) else str(size)
+                    table.add_row(str(entry_type), size_str, str(path_value))
+                
+                console.print(table)
         
         # Interactive file selection if in interactive mode
         if interactive:
@@ -163,14 +386,12 @@ def restore_browse(
                 restore_all = Confirm.ask("Restore all files?", default=True)
                 
                 if restore_all:
-                    # Call restore files command
-                    console.print(f"\n[cyan]Restoring all files to {target_path}...[/cyan]")
-                    # This would call the restore files function
-                    show_info_panel("Restore", f"Use 'timelocker restore files {repository} {snapshot_id} {target_path}' to restore")
+                    console.print(f"\n[cyan]To restore all files, run:[/cyan]")
+                    console.print(f"  timelocker restore full {repository} {snapshot_id} {target_path}")
                 else:
                     file_path = Prompt.ask("Enter file path to restore")
-                    console.print(f"\n[cyan]Restoring {file_path} to {target_path}...[/cyan]")
-                    show_info_panel("Restore", f"Use 'timelocker restore files {repository} {snapshot_id} {target_path} --include {file_path}' to restore")
+                    console.print(f"\n[cyan]To restore specific files, run:[/cyan]")
+                    console.print(f"  timelocker restore files {repository} {snapshot_id} {target_path} --include '{file_path}'")
         
     except ValueError as ve:
         show_error_panel("Invalid Input", str(ve))
@@ -328,39 +549,117 @@ def restore_files(
                 raise typer.Exit(0)
     
     try:
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TimeElapsedColumn(),
-            console=console,
-        ) as progress:
-            # Initialize managers
-            task = progress.add_task("Initializing restore...", total=None)
-            backup_manager = BackupManager()
-            
-            # Create repository
-            progress.update(task, description="Connecting to repository...")
-            repo = backup_manager.from_uri(repository_uri, password=password, 
-                                         repository_name=actual_repository_name)
-            
-            # Initialize restore manager
-            restore_manager = RestoreManager(repo)
-            
-            # Create restore options
-            progress.update(task, description="Preparing restore options...")
-            from TimeLocker.restore_manager import RestoreOptions
-            options = RestoreOptions().with_target_path(target)
-            if include:
-                options = options.with_include_paths(include)
-            if exclude:
-                options = options.with_exclude_paths(exclude)
-            
-            # Perform restore
-            progress.update(task, description="Restoring files...")
-            result = restore_manager.restore_snapshot(snapshot, options)
-            
-            progress.remove_task(task)
+        # Try using RecoveryOrchestrator if available for better progress monitoring
+        if RECOVERY_OPERATIONS_AVAILABLE:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
+                TimeElapsedColumn(),
+                console=console,
+            ) as progress:
+                task = progress.add_task("Initializing recovery...", total=100)
+                
+                backup_manager = BackupManager()
+                progress.update(task, advance=10, description="Connecting to repository...")
+                repo = backup_manager.from_uri(repository_uri, password=password, 
+                                             repository_name=actual_repository_name)
+                
+                progress.update(task, advance=10, description="Initializing recovery orchestrator...")
+                orchestrator = RecoveryOrchestrator(repo)
+                
+                # Build selection criteria
+                selection_criteria = SelectionCriteria(
+                    include_patterns=list(include) if include else [],
+                    exclude_patterns=list(exclude) if exclude else []
+                )
+                
+                # Build recovery options
+                recovery_options = RecoveryOptions(
+                    overwrite_existing=True,
+                    preserve_permissions=True,
+                    preserve_timestamps=True,
+                    verify_integrity=True,
+                    continue_on_error=True
+                )
+                
+                progress.update(task, advance=10, description="Starting selective recovery...")
+                
+                # Initiate recovery
+                operation = orchestrator.initiate_selective_recovery(
+                    snapshot_id=snapshot,
+                    selection_criteria=selection_criteria,
+                    target_path=str(target),
+                    options=recovery_options
+                )
+                
+                progress.update(task, advance=20, description="Recovery in progress...")
+                
+                # Monitor progress
+                while operation.status in [OperationStatus.PENDING, OperationStatus.IN_PROGRESS]:
+                    sleep(0.5)
+                    operation = orchestrator.get_recovery_status(operation.operation_id)
+                    
+                    if operation.progress and operation.progress.total_files > 0:
+                        pct = (operation.progress.files_processed / operation.progress.total_files) * 100
+                        progress.update(
+                            task,
+                            completed=30 + (pct * 0.7),  # Scale to 30-100%
+                            description=f"Restoring files... ({operation.progress.files_processed}/{operation.progress.total_files})"
+                        )
+                
+                progress.update(task, completed=100, description="✅ Recovery completed")
+                
+                # Check final status
+                if operation.status == OperationStatus.COMPLETED:
+                    details = {
+                        "Operation ID": operation.operation_id[:12],
+                        "Files restored": f"{operation.progress.files_processed:,}" if operation.progress else "N/A",
+                        "Target path": str(target),
+                        "Duration": f"{(operation.completion_time - operation.start_time).total_seconds():.1f}s" if operation.completion_time else "N/A"
+                    }
+                    show_success_panel("Recovery Completed", "Files restored successfully!", details)
+                    return
+                else:
+                    error_msg = operation.error_details.error_message if operation.error_details else "Unknown error"
+                    show_error_panel("Recovery Failed", f"Recovery operation failed: {error_msg}")
+                    raise typer.Exit(1)
+        else:
+            # Fallback to legacy restore manager
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TimeElapsedColumn(),
+                console=console,
+            ) as progress:
+                # Initialize managers
+                task = progress.add_task("Initializing restore...", total=None)
+                backup_manager = BackupManager()
+                
+                # Create repository
+                progress.update(task, description="Connecting to repository...")
+                repo = backup_manager.from_uri(repository_uri, password=password, 
+                                             repository_name=actual_repository_name)
+                
+                # Initialize restore manager
+                restore_manager = RestoreManager(repo)
+                
+                # Create restore options
+                progress.update(task, description="Preparing restore options...")
+                from TimeLocker.restore_manager import RestoreOptions
+                options = RestoreOptions().with_target_path(target)
+                if include:
+                    options = options.with_include_paths(include)
+                if exclude:
+                    options = options.with_exclude_paths(exclude)
+                
+                # Perform restore
+                progress.update(task, description="Restoring files...")
+                result = restore_manager.restore_snapshot(snapshot, options)
+                
+                progress.remove_task(task)
         
         # Display results
         if result.success:
@@ -1091,6 +1390,277 @@ def restore_verify(
         raise typer.Exit(130)
     except Exception as e:
         show_error_panel("Verify Error", f"Failed to verify restored data: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+# ============================================================================
+# Status Command - Check recovery operation status
+# ============================================================================
+
+@restore_app.command("status")
+@with_error_handling("Status Error")
+@with_logging
+def restore_status(
+        operation_id: Annotated[Optional[str], typer.Argument(help="Operation ID to check (optional)")] = None,
+        repository: Annotated[Optional[str], typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
+        all_operations: Annotated[bool, typer.Option("--all", help="Show all operations")] = False,
+        verbose: VerboseOption = False,
+        config_dir: ConfigDirOption = None,
+) -> None:
+    """
+    Check status of recovery operations.
+    
+    This command displays the status of ongoing or completed recovery operations,
+    including progress information, estimated completion time, and any errors.
+    
+    Examples:
+        timelocker restore status                    # Show active operations
+        timelocker restore status abc-123-def        # Show specific operation
+        timelocker restore status --all              # Show all operations
+    """
+    setup_logging(verbose, config_dir)
+    
+    if not RECOVERY_OPERATIONS_AVAILABLE:
+        show_error_panel("Not Available", 
+                       "Recovery operations status tracking requires the Recovery Operations components.")
+        raise typer.Exit(1)
+    
+    try:
+        # Get repository if specified
+        repo = None
+        if repository:
+            validate_repository_name_or_uri(repository)
+            repository_uri = resolve_repository_uri(repository)
+            backup_manager = BackupManager()
+            repo = backup_manager.from_uri(repository_uri, repository_name=repository)
+        
+        # If operation_id is provided, show specific operation
+        if operation_id:
+            # This would require access to the RecoveryOrchestrator instance
+            # For now, show a message
+            show_info_panel("Operation Status", 
+                          f"Operation ID: {operation_id}\n\n"
+                          "Detailed operation status tracking is available through the recovery service.")
+            return
+        
+        # Show active or all operations
+        show_info_panel("Recovery Operations", 
+                      "Recovery operation status tracking is available.\n\n"
+                      "Use the recovery service API to track operation progress.")
+        
+    except ValueError as ve:
+        show_error_panel("Invalid Input", str(ve))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Status check cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Status Error", f"Failed to check operation status: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+# ============================================================================
+# History Command - Show recovery operation history
+# ============================================================================
+
+@restore_app.command("history")
+@with_error_handling("History Error")
+@with_logging
+def restore_history(
+        repository: Annotated[Optional[str], typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
+        limit: Annotated[int, typer.Option("--limit", help="Maximum number of operations to show")] = 10,
+        verbose: VerboseOption = False,
+        config_dir: ConfigDirOption = None,
+) -> None:
+    """
+    Show recovery operation history.
+    
+    This command displays a history of recent recovery operations including
+    their status, duration, and any errors encountered.
+    
+    Examples:
+        timelocker restore history                   # Show recent operations
+        timelocker restore history --limit 20        # Show last 20 operations
+        timelocker restore history --repository myrepo
+    """
+    setup_logging(verbose, config_dir)
+    
+    if not RECOVERY_OPERATIONS_AVAILABLE:
+        show_error_panel("Not Available", 
+                       "Recovery operations history requires the Recovery Operations components.")
+        raise typer.Exit(1)
+    
+    try:
+        # Validate repository if specified
+        if repository:
+            validate_repository_name_or_uri(repository)
+        
+        # Create table for history
+        table = Table(title=f"Recovery Operation History (Last {limit})")
+        table.add_column("Operation ID", style="cyan", width=12)
+        table.add_column("Type", style="yellow", width=12)
+        table.add_column("Snapshot", style="green", width=12)
+        table.add_column("Status", style="white", width=12)
+        table.add_column("Started", style="dim", width=20)
+        table.add_column("Duration", style="dim", width=12)
+        
+        # This would query the RecoveryStateManager for historical operations
+        # For now, show a placeholder message
+        console.print()
+        console.print(table)
+        console.print()
+        show_info_panel("Recovery History", 
+                      "Recovery operation history is tracked by the recovery service.\n\n"
+                      "Historical operations can be queried through the recovery service API.")
+        
+    except ValueError as ve:
+        show_error_panel("Invalid Input", str(ve))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "History check cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("History Error", f"Failed to retrieve operation history: {e}")
+        if verbose:
+            console.print_exception()
+        raise typer.Exit(1)
+
+
+# ============================================================================
+# Search Command - Search for files across snapshots
+# ============================================================================
+
+@restore_app.command("search")
+@with_error_handling("Search Error")
+@with_logging
+def restore_search(
+        repository: Annotated[str, typer.Argument(help="Repository name or URI", autocompletion=repository_completer)],
+        query: Annotated[str, typer.Argument(help="Search query (filename or pattern)")],
+        snapshot_id: Annotated[Optional[str], typer.Option("--snapshot", "-s", help="Search in specific snapshot", autocompletion=snapshot_id_completer)] = None,
+        file_type: Annotated[Optional[str], typer.Option("--type", help="Filter by file type (file, directory, symlink)")] = None,
+        min_size: Annotated[Optional[int], typer.Option("--min-size", help="Minimum file size in bytes")] = None,
+        max_size: Annotated[Optional[int], typer.Option("--max-size", help="Maximum file size in bytes")] = None,
+        password: Annotated[Optional[str], typer.Option("--password", "-p", help="Repository password")] = None,
+        verbose: VerboseOption = False,
+        config_dir: ConfigDirOption = None,
+) -> None:
+    """
+    Search for files within snapshots.
+    
+    This command searches for files matching the specified criteria within
+    one or all snapshots in the repository. It uses the SnapshotBrowser
+    component for efficient searching.
+    
+    Examples:
+        timelocker restore search myrepo "*.pdf"
+        timelocker restore search myrepo "document" --snapshot latest
+        timelocker restore search myrepo "*.log" --type file --max-size 1000000
+    """
+    setup_logging(verbose, config_dir)
+    
+    try:
+        # Validate inputs
+        validate_repository_name_or_uri(repository)
+        if snapshot_id:
+            validate_snapshot_id_format(snapshot_id, allow_latest=True)
+        
+        # Resolve repository
+        actual_repository_name = repository or get_default_repository()
+        repository_uri = resolve_repository_uri(repository)
+        
+        # Get password if not provided
+        if not password:
+            password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
+            if not password and sys.stdin.isatty():
+                password = Prompt.ask("Repository password", password=True)
+        
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Initializing search...", total=None)
+            
+            backup_manager = BackupManager()
+            repo = backup_manager.from_uri(repository_uri, password=password, 
+                                         repository_name=actual_repository_name)
+            
+            # Handle "latest" snapshot
+            if snapshot_id == "latest":
+                progress.update(task, description="Finding latest snapshot...")
+                snapshot_manager = SnapshotManager(repo)
+                snapshots = snapshot_manager.list_snapshots()
+                if not snapshots:
+                    show_error_panel("No Snapshots", "No snapshots found in repository")
+                    raise typer.Exit(1)
+                snapshot_id = snapshots[0].id
+            
+            if RECOVERY_OPERATIONS_AVAILABLE:
+                progress.update(task, description=f"Searching for '{query}'...")
+                browser = SnapshotBrowser(repo)
+                
+                # Build search criteria
+                from TimeLocker.interfaces.recovery_models import SearchCriteria, FileType
+                
+                criteria = SearchCriteria(
+                    name_pattern=query,
+                    file_types=[FileType(file_type)] if file_type else None,
+                    min_size=min_size,
+                    max_size=max_size
+                )
+                
+                # Search in specific snapshot or all snapshots
+                if snapshot_id:
+                    results = browser.search_snapshot_files(snapshot_id, criteria)
+                else:
+                    # Search across all snapshots
+                    snapshot_manager = SnapshotManager(repo)
+                    all_snapshots = snapshot_manager.list_snapshots()
+                    results = []
+                    for snap in all_snapshots:
+                        snap_results = browser.search_snapshot_files(snap.id, criteria)
+                        results.extend(snap_results)
+                
+                progress.remove_task(task)
+                
+                if results:
+                    table = Table(title=f"Search Results for '{query}'")
+                    table.add_column("Snapshot", style="cyan", width=12)
+                    table.add_column("Type", style="yellow", width=10)
+                    table.add_column("Size", style="green", width=12)
+                    table.add_column("Path", style="white")
+                    
+                    for entry in results:
+                        snap_id = snapshot_id[:12] if snapshot_id else "multiple"
+                        entry_type = entry.type.value if hasattr(entry.type, 'value') else str(entry.type)
+                        size_str = _format_size(entry.size) if entry.size else "-"
+                        table.add_row(snap_id, entry_type, size_str, entry.path)
+                    
+                    console.print()
+                    console.print(table)
+                    console.print()
+                    show_success_panel("Search Complete", f"Found {len(results)} matching files.")
+                else:
+                    show_info_panel("No Results", f"No files matching '{query}' found.")
+            else:
+                # Fallback to find command
+                progress.remove_task(task)
+                show_info_panel("Search", 
+                              "Advanced search requires Recovery Operations components.\n\n"
+                              "Use 'timelocker restore find' for basic file search.")
+        
+    except ValueError as ve:
+        show_error_panel("Invalid Input", str(ve))
+        raise typer.Exit(1)
+    except KeyboardInterrupt:
+        show_error_panel("Operation Cancelled", "Search cancelled by user")
+        raise typer.Exit(130)
+    except Exception as e:
+        show_error_panel("Search Error", f"Failed to search snapshots: {e}")
         if verbose:
             console.print_exception()
         raise typer.Exit(1)

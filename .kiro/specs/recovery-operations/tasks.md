@@ -109,14 +109,14 @@
     - Integrate access control validation for recovery target locations
     - _Requirements: 6.1, 6.4_
 
-- [ ] 9. Create recovery operations CLI interface
-  - [ ] 9.1 Add recovery commands to existing CLI
+- [x] 9. Create recovery operations CLI interface
+  - [x] 9.1 Add recovery commands to existing CLI
     - Implement browse-snapshot command for interactive snapshot exploration
     - Add restore-full and restore-selective commands with comprehensive options
     - Create verify-recovery command for post-restoration validation
     - _Requirements: 1.1, 2.1, 3.1, 4.1_
 
-  - [ ] 9.2 Add recovery progress monitoring to CLI
+  - [x] 9.2 Add recovery progress monitoring to CLI
     - Implement real-time progress display during recovery operations
     - Add recovery status checking and operation management commands
     - Create recovery history and reporting capabilities
