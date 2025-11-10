@@ -24,11 +24,12 @@ from datetime import datetime
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from pathlib import Path
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass
 from enum import Enum
 
 from .status_reporter import OperationStatus, StatusLevel
+from .system_tray_integration import SystemTrayIntegration, TrayStatus, TrayStatusInfo
 from ..interfaces.service_interface import ServiceInterface
 from ..interfaces.integration_data_models import ServiceContext
 
@@ -45,6 +46,39 @@ class NotificationType(Enum):
     DESKTOP = "desktop"
     EMAIL = "email"
     LOG = "log"
+
+
+class NotificationEventType(Enum):
+    """Types of events that can trigger notifications"""
+    BACKUP_STARTED = "backup_started"
+    BACKUP_COMPLETED = "backup_completed"
+    BACKUP_FAILED = "backup_failed"
+    RESTORE_STARTED = "restore_started"
+    RESTORE_COMPLETED = "restore_completed"
+    RESTORE_FAILED = "restore_failed"
+    INTEGRITY_CHECK_PASSED = "integrity_check_passed"
+    INTEGRITY_CHECK_FAILED = "integrity_check_failed"
+    STORAGE_WARNING = "storage_warning"
+    STORAGE_CRITICAL = "storage_critical"
+
+
+@dataclass
+class NotificationPreferences:
+    """User preferences for notifications"""
+    enabled_event_types: List[str] = None
+    desktop_notification_enabled: bool = True
+    desktop_notification_sound: bool = True
+    desktop_notification_persistence: int = 5  # seconds
+    email_notification_enabled: bool = False
+    fallback_to_log: bool = True
+    quiet_hours_enabled: bool = False
+    quiet_hours_start: str = "22:00"
+    quiet_hours_end: str = "08:00"
+    
+    def __post_init__(self):
+        if self.enabled_event_types is None:
+            # Default to all event types
+            self.enabled_event_types = [e.value for e in NotificationEventType]
 
 
 @dataclass
@@ -64,10 +98,13 @@ class NotificationConfig:
     notify_on_error: bool = True
     notify_on_critical: bool = True
     min_operation_duration: int = 60  # Only notify for operations longer than this (seconds)
+    preferences: Optional[NotificationPreferences] = None
 
     def __post_init__(self):
         if self.email_to is None:
             self.email_to = []
+        if self.preferences is None:
+            self.preferences = NotificationPreferences()
 
 
 class NotificationService(ServiceInterface):
@@ -93,6 +130,19 @@ class NotificationService(ServiceInterface):
 
         self.config_file = self.config_dir / "notification_config.json"
         self.config = self._load_config()
+        
+        # System tray integration
+        self.system_tray: Optional[SystemTrayIntegration] = None
+        try:
+            self.system_tray = SystemTrayIntegration()
+            if self.system_tray.is_available():
+                logger.info("System tray integration initialized")
+            else:
+                logger.info("System tray not available on this platform")
+                self.system_tray = None
+        except Exception as e:
+            logger.warning(f"Failed to initialize system tray: {e}")
+            self.system_tray = None
         
         # ServiceInterface implementation
         self._context: Optional[ServiceContext] = None
@@ -135,6 +185,13 @@ class NotificationService(ServiceInterface):
                 self.save_config()
             except Exception as e:
                 logger.warning(f"Failed to save notification config during shutdown: {e}")
+            
+            # Shutdown system tray
+            if self.system_tray:
+                try:
+                    self.system_tray.shutdown()
+                except Exception as e:
+                    logger.warning(f"Failed to shutdown system tray: {e}")
             
             # Clean up resources
             self._context = None
@@ -191,6 +248,9 @@ class NotificationService(ServiceInterface):
             if self.config_file.exists():
                 with open(self.config_file, 'r') as f:
                     data = json.load(f)
+                    # Handle preferences separately
+                    if 'preferences' in data and isinstance(data['preferences'], dict):
+                        data['preferences'] = NotificationPreferences(**data['preferences'])
                     return NotificationConfig(**data)
         except Exception as e:
             logger.warning(f"Failed to load notification config: {e}")
@@ -202,7 +262,7 @@ class NotificationService(ServiceInterface):
         """Save current configuration to file"""
         try:
             with open(self.config_file, 'w') as f:
-                # Convert dataclass to dict, handling the email_to list
+                # Convert dataclass to dict, handling the email_to list and preferences
                 config_dict = {
                         'enabled':                self.config.enabled,
                         'desktop_enabled':        self.config.desktop_enabled,
@@ -217,7 +277,18 @@ class NotificationService(ServiceInterface):
                         'notify_on_warning':      self.config.notify_on_warning,
                         'notify_on_error':        self.config.notify_on_error,
                         'notify_on_critical':     self.config.notify_on_critical,
-                        'min_operation_duration': self.config.min_operation_duration
+                        'min_operation_duration': self.config.min_operation_duration,
+                        'preferences': {
+                            'enabled_event_types': self.config.preferences.enabled_event_types,
+                            'desktop_notification_enabled': self.config.preferences.desktop_notification_enabled,
+                            'desktop_notification_sound': self.config.preferences.desktop_notification_sound,
+                            'desktop_notification_persistence': self.config.preferences.desktop_notification_persistence,
+                            'email_notification_enabled': self.config.preferences.email_notification_enabled,
+                            'fallback_to_log': self.config.preferences.fallback_to_log,
+                            'quiet_hours_enabled': self.config.preferences.quiet_hours_enabled,
+                            'quiet_hours_start': self.config.preferences.quiet_hours_start,
+                            'quiet_hours_end': self.config.preferences.quiet_hours_end,
+                        }
                 }
                 json.dump(config_dict, f, indent=2)
         except Exception as e:
@@ -230,6 +301,55 @@ class NotificationService(ServiceInterface):
             if hasattr(self.config, key):
                 setattr(self.config, key, value)
         self.save_config()
+    
+    def update_preferences(self, **kwargs):
+        """
+        Update notification preferences
+        
+        Args:
+            **kwargs: Preference key-value pairs to update
+        """
+        for key, value in kwargs.items():
+            if hasattr(self.config.preferences, key):
+                setattr(self.config.preferences, key, value)
+        self.save_config()
+    
+    def is_event_type_enabled(self, event_type: str) -> bool:
+        """
+        Check if a specific event type is enabled for notifications
+        
+        Args:
+            event_type: Event type to check
+            
+        Returns:
+            bool: True if event type is enabled
+        """
+        return event_type in self.config.preferences.enabled_event_types
+    
+    def is_in_quiet_hours(self) -> bool:
+        """
+        Check if current time is within quiet hours
+        
+        Returns:
+            bool: True if in quiet hours
+        """
+        if not self.config.preferences.quiet_hours_enabled:
+            return False
+        
+        try:
+            from datetime import time
+            now = datetime.now().time()
+            start = datetime.strptime(self.config.preferences.quiet_hours_start, "%H:%M").time()
+            end = datetime.strptime(self.config.preferences.quiet_hours_end, "%H:%M").time()
+            
+            # Handle quiet hours that span midnight
+            if start <= end:
+                return start <= now <= end
+            else:
+                return now >= start or now <= end
+        except Exception as e:
+            logger.warning(f"Failed to check quiet hours: {e}")
+            return False
 
     def should_notify(self, status: OperationStatus) -> bool:
         """
@@ -276,6 +396,9 @@ class NotificationService(ServiceInterface):
             status: Operation status to notify about
             notification_types: Types of notifications to send (default: all enabled)
         """
+        # Update system tray status
+        self._update_system_tray_from_status(status)
+        
         if not self.should_notify(status):
             return
 
@@ -298,6 +421,78 @@ class NotificationService(ServiceInterface):
                     self._log_notification(title, message, status)
             except Exception as e:
                 logger.error(f"Failed to send {notification_type.value} notification: {e}")
+    
+    def _update_system_tray_from_status(self, status: OperationStatus):
+        """
+        Update system tray based on operation status
+        
+        Args:
+            status: Operation status
+        """
+        if not self.system_tray or not self.system_tray.is_available():
+            return
+        
+        # Map status level to tray status
+        status_map = {
+            StatusLevel.SUCCESS: TrayStatus.SUCCESS,
+            StatusLevel.WARNING: TrayStatus.WARNING,
+            StatusLevel.ERROR: TrayStatus.ERROR,
+            StatusLevel.CRITICAL: TrayStatus.ERROR,
+            StatusLevel.INFO: TrayStatus.RUNNING
+        }
+        
+        tray_status = status_map.get(status.status, TrayStatus.IDLE)
+        
+        # Create status info
+        status_info = TrayStatusInfo(
+            status=tray_status,
+            tooltip=f"{status.operation_type.title()}: {status.message}",
+            last_backup_time=status.timestamp,
+            last_backup_status=status.status.value,
+            repository_count=1 if status.repository_id else 0,
+            active_operations=1 if status.progress_percentage and status.progress_percentage < 100 else 0
+        )
+        
+        try:
+            self.system_tray.update_status_info(status_info)
+        except Exception as e:
+            logger.error(f"Failed to update system tray: {e}")
+    
+    def update_system_tray_status(self, status: TrayStatus, tooltip: Optional[str] = None):
+        """
+        Manually update system tray status
+        
+        Args:
+            status: Tray status
+            tooltip: Optional tooltip text
+        """
+        if not self.system_tray or not self.system_tray.is_available():
+            return
+        
+        try:
+            self.system_tray.update_status(status, tooltip)
+        except Exception as e:
+            logger.error(f"Failed to update system tray status: {e}")
+    
+    def set_system_tray_callbacks(self, on_click: Optional[Callable] = None, 
+                                  on_menu_action: Optional[Callable[[str], None]] = None):
+        """
+        Set system tray callbacks
+        
+        Args:
+            on_click: Callback for tray icon click
+            on_menu_action: Callback for menu actions
+        """
+        if not self.system_tray or not self.system_tray.is_available():
+            return
+        
+        try:
+            if on_click:
+                self.system_tray.set_on_click_callback(on_click)
+            if on_menu_action:
+                self.system_tray.set_on_menu_action_callback(on_menu_action)
+        except Exception as e:
+            logger.error(f"Failed to set system tray callbacks: {e}")
 
     def _format_notification(self, status: OperationStatus) -> tuple[str, str]:
         """Format notification title and message"""
@@ -334,7 +529,28 @@ class NotificationService(ServiceInterface):
         return title, "\n".join(message_parts)
 
     def _send_desktop_notification(self, title: str, message: str, status_level: StatusLevel):
-        """Send desktop notification"""
+        """
+        Send desktop notification with fallback mechanisms
+        
+        Args:
+            title: Notification title
+            message: Notification message
+            status_level: Status level for urgency
+        """
+        # Check if desktop notifications are enabled in preferences
+        if not self.config.preferences.desktop_notification_enabled:
+            logger.debug("Desktop notifications disabled in preferences")
+            if self.config.preferences.fallback_to_log:
+                self._fallback_to_log(title, message, status_level)
+            return
+        
+        # Check quiet hours
+        if self.is_in_quiet_hours():
+            logger.debug("Skipping notification during quiet hours")
+            if self.config.preferences.fallback_to_log:
+                self._fallback_to_log(title, message, status_level)
+            return
+        
         try:
             # Try different notification systems based on platform
             if sys.platform == "linux":
@@ -345,11 +561,43 @@ class NotificationService(ServiceInterface):
                 self._send_windows_notification(title, message)
             else:
                 logger.warning(f"Desktop notifications not supported on {sys.platform}")
+                if self.config.preferences.fallback_to_log:
+                    self._fallback_to_log(title, message, status_level)
         except Exception as e:
             logger.error(f"Failed to send desktop notification: {e}")
+            # Fallback to logging if enabled
+            if self.config.preferences.fallback_to_log:
+                self._fallback_to_log(title, message, status_level)
+    
+    def _fallback_to_log(self, title: str, message: str, status_level: StatusLevel):
+        """
+        Fallback mechanism when desktop notifications are unavailable
+        
+        Args:
+            title: Notification title
+            message: Notification message
+            status_level: Status level
+        """
+        log_level_map = {
+            StatusLevel.SUCCESS: logging.INFO,
+            StatusLevel.WARNING: logging.WARNING,
+            StatusLevel.ERROR: logging.ERROR,
+            StatusLevel.CRITICAL: logging.CRITICAL,
+            StatusLevel.INFO: logging.INFO
+        }
+        
+        log_level = log_level_map.get(status_level, logging.INFO)
+        logger.log(log_level, f"[NOTIFICATION] {title}: {message}")
 
     def _send_linux_notification(self, title: str, message: str, status_level: StatusLevel):
-        """Send notification on Linux using notify-send"""
+        """
+        Send notification on Linux using notify-send
+        
+        Args:
+            title: Notification title
+            message: Notification message
+            status_level: Status level for urgency
+        """
         urgency_map = {
                 StatusLevel.SUCCESS:  "normal",
                 StatusLevel.WARNING:  "normal",
@@ -359,20 +607,47 @@ class NotificationService(ServiceInterface):
         }
 
         urgency = urgency_map.get(status_level, "normal")
+        
+        # Build command with preferences
+        cmd = [
+            "notify-send",
+            "--urgency", urgency,
+            "--app-name", "TimeLocker",
+            "--expire-time", str(self.config.preferences.desktop_notification_persistence * 1000)  # milliseconds
+        ]
+        
+        # Add icon based on status
+        icon_map = {
+            StatusLevel.SUCCESS: "dialog-information",
+            StatusLevel.WARNING: "dialog-warning",
+            StatusLevel.ERROR: "dialog-error",
+            StatusLevel.CRITICAL: "dialog-error",
+            StatusLevel.INFO: "dialog-information"
+        }
+        cmd.extend(["--icon", icon_map.get(status_level, "dialog-information")])
+        
+        cmd.extend([title, message])
 
-        subprocess.run([
-                "notify-send",
-                "--urgency", urgency,
-                "--app-name", "TimeLocker",
-                title,
-                message
-        ], check=True)
+        subprocess.run(cmd, check=True)
 
     def _send_macos_notification(self, title: str, message: str):
-        """Send notification on macOS using osascript"""
-        script = f'''
-        display notification "{message}" with title "{title}" sound name "default"
-        '''
+        """
+        Send notification on macOS using osascript
+        
+        Args:
+            title: Notification title
+            message: Notification message
+        """
+        # Escape quotes for AppleScript
+        escaped_title = title.replace('"', '\\"')
+        escaped_message = message.replace('"', '\\"')
+        
+        # Build script with sound preference
+        if self.config.preferences.desktop_notification_sound:
+            script = f'''display notification "{escaped_message}" with title "{escaped_title}" sound name "default"'''
+        else:
+            script = f'''display notification "{escaped_message}" with title "{escaped_title}"'''
+        
         subprocess.run(["osascript", "-e", script], check=True)
 
     def _send_windows_notification(self, title: str, message: str):

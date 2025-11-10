@@ -16,7 +16,20 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 from .status_reporter import StatusReporter, OperationStatus, StatusLevel
-from .notification_service import NotificationService, NotificationError, NotificationType
+from .notification_service import (
+    NotificationService, 
+    NotificationError, 
+    NotificationType,
+    NotificationEventType,
+    NotificationPreferences,
+    NotificationConfig
+)
+from .system_tray_integration import (
+    SystemTrayIntegration,
+    SystemTrayError,
+    TrayStatus,
+    TrayStatusInfo
+)
 from .progress_monitor import (
     ProgressMonitor,
     ProgressData,
@@ -44,7 +57,9 @@ from .backup_history import (
 
 __all__ = [
         'StatusReporter', 'OperationStatus', 'StatusLevel',
-        'NotificationService', 'NotificationError', 'NotificationType',
+        'NotificationService', 'NotificationError', 'NotificationType', 
+        'NotificationEventType', 'NotificationPreferences', 'NotificationConfig',
+        'SystemTrayIntegration', 'SystemTrayError', 'TrayStatus', 'TrayStatusInfo',
         'ProgressMonitor', 'ProgressData', 'ProgressReport', 'ProgressState', 'PerformanceMetrics',
         'RecoveryProgressNotifier',
         'MonitoringService', 'HealthStatus', 'BackupEvent', 'RecoveryEvent', 

@@ -1,0 +1,630 @@
+"""
+Copyright ©  Bruce Cherrington
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
+"""
+
+import logging
+import sys
+import threading
+from datetime import datetime
+from enum import Enum
+from pathlib import Path
+from typing import Optional, Callable, Dict, Any
+from dataclasses import dataclass
+
+logger = logging.getLogger(__name__)
+
+
+class SystemTrayError(Exception):
+    """Base exception for system tray errors"""
+    pass
+
+
+class TrayStatus(Enum):
+    """System tray status indicators"""
+    IDLE = "idle"
+    RUNNING = "running"
+    SUCCESS = "success"
+    WARNING = "warning"
+    ERROR = "error"
+
+
+@dataclass
+class TrayStatusInfo:
+    """Information displayed in system tray"""
+    status: TrayStatus
+    tooltip: str
+    last_backup_time: Optional[datetime] = None
+    last_backup_status: Optional[str] = None
+    repository_count: int = 0
+    active_operations: int = 0
+
+
+class SystemTrayIntegration:
+    """
+    System tray integration for TimeLocker
+    Provides always-visible status information and quick actions
+    
+    Features:
+    - Status indicator icons (idle, running, success, error)
+    - Tooltip with last backup status
+    - Context menu with quick actions
+    - Click-to-open main interface
+    """
+    
+    def __init__(self, app_name: str = "TimeLocker"):
+        """
+        Initialize system tray integration
+        
+        Args:
+            app_name: Application name for tray icon
+        """
+        self.app_name = app_name
+        self.current_status = TrayStatus.IDLE
+        self.status_info = TrayStatusInfo(
+            status=TrayStatus.IDLE,
+            tooltip="TimeLocker - No recent activity"
+        )
+        
+        # Platform-specific implementation
+        self._tray_impl: Optional[Any] = None
+        self._initialized = False
+        self._lock = threading.Lock()
+        
+        # Callbacks
+        self._on_click_callback: Optional[Callable] = None
+        self._on_menu_action_callback: Optional[Callable[[str], None]] = None
+        
+        # Initialize platform-specific tray
+        self._initialize_platform_tray()
+    
+    def _initialize_platform_tray(self):
+        """Initialize platform-specific system tray implementation"""
+        try:
+            if sys.platform == "linux":
+                self._tray_impl = LinuxSystemTray(self.app_name)
+            elif sys.platform == "darwin":
+                self._tray_impl = MacOSSystemTray(self.app_name)
+            elif sys.platform == "win32":
+                self._tray_impl = WindowsSystemTray(self.app_name)
+            else:
+                logger.warning(f"System tray not supported on {sys.platform}")
+                return
+            
+            self._initialized = True
+            logger.info(f"System tray initialized for {sys.platform}")
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize system tray: {e}")
+            self._initialized = False
+    
+    def is_available(self) -> bool:
+        """
+        Check if system tray is available
+        
+        Returns:
+            bool: True if system tray is available
+        """
+        return self._initialized and self._tray_impl is not None
+    
+    def update_status(self, status: TrayStatus, tooltip: Optional[str] = None):
+        """
+        Update system tray status
+        
+        Args:
+            status: New status
+            tooltip: Optional tooltip text
+        """
+        if not self.is_available():
+            logger.debug("System tray not available, skipping status update")
+            return
+        
+        with self._lock:
+            self.current_status = status
+            self.status_info.status = status
+            
+            if tooltip:
+                self.status_info.tooltip = tooltip
+            
+            try:
+                self._tray_impl.update_icon(status)
+                self._tray_impl.update_tooltip(self.status_info.tooltip)
+            except Exception as e:
+                logger.error(f"Failed to update system tray status: {e}")
+    
+    def update_status_info(self, status_info: TrayStatusInfo):
+        """
+        Update complete status information
+        
+        Args:
+            status_info: Complete status information
+        """
+        if not self.is_available():
+            return
+        
+        with self._lock:
+            self.status_info = status_info
+            self.current_status = status_info.status
+            
+            try:
+                self._tray_impl.update_icon(status_info.status)
+                self._tray_impl.update_tooltip(self._format_tooltip(status_info))
+            except Exception as e:
+                logger.error(f"Failed to update system tray info: {e}")
+    
+    def _format_tooltip(self, status_info: TrayStatusInfo) -> str:
+        """
+        Format tooltip text from status info
+        
+        Args:
+            status_info: Status information
+            
+        Returns:
+            str: Formatted tooltip text
+        """
+        lines = [f"{self.app_name} - {status_info.status.value.title()}"]
+        
+        if status_info.last_backup_time:
+            time_str = status_info.last_backup_time.strftime("%Y-%m-%d %H:%M")
+            lines.append(f"Last backup: {time_str}")
+        
+        if status_info.last_backup_status:
+            lines.append(f"Status: {status_info.last_backup_status}")
+        
+        if status_info.repository_count > 0:
+            lines.append(f"Repositories: {status_info.repository_count}")
+        
+        if status_info.active_operations > 0:
+            lines.append(f"Active operations: {status_info.active_operations}")
+        
+        return "\n".join(lines)
+    
+    def set_on_click_callback(self, callback: Callable):
+        """
+        Set callback for tray icon click
+        
+        Args:
+            callback: Function to call when icon is clicked
+        """
+        self._on_click_callback = callback
+        if self.is_available():
+            self._tray_impl.set_on_click(callback)
+    
+    def set_on_menu_action_callback(self, callback: Callable[[str], None]):
+        """
+        Set callback for menu actions
+        
+        Args:
+            callback: Function to call with action name
+        """
+        self._on_menu_action_callback = callback
+        if self.is_available():
+            self._tray_impl.set_on_menu_action(callback)
+    
+    def show_context_menu(self):
+        """Show context menu with quick actions"""
+        if not self.is_available():
+            return
+        
+        try:
+            self._tray_impl.show_menu()
+        except Exception as e:
+            logger.error(f"Failed to show context menu: {e}")
+    
+    def shutdown(self):
+        """Shutdown system tray integration"""
+        if self.is_available():
+            try:
+                self._tray_impl.shutdown()
+                self._initialized = False
+                logger.info("System tray shutdown completed")
+            except Exception as e:
+                logger.error(f"Error during system tray shutdown: {e}")
+
+
+class LinuxSystemTray:
+    """Linux system tray implementation using GTK or Qt"""
+    
+    def __init__(self, app_name: str):
+        """
+        Initialize Linux system tray
+        
+        Args:
+            app_name: Application name
+        """
+        self.app_name = app_name
+        self._icon = None
+        self._menu = None
+        self._on_click_callback = None
+        self._on_menu_action_callback = None
+        
+        # Try to initialize with available toolkit
+        self._initialize_tray()
+    
+    def _initialize_tray(self):
+        """Initialize tray with available toolkit"""
+        # Try GTK first
+        try:
+            import gi
+            gi.require_version('Gtk', '3.0')
+            gi.require_version('AppIndicator3', '0.1')
+            from gi.repository import Gtk, AppIndicator3
+            
+            self._use_gtk = True
+            self._indicator = AppIndicator3.Indicator.new(
+                self.app_name,
+                "dialog-information",
+                AppIndicator3.IndicatorCategory.APPLICATION_STATUS
+            )
+            self._indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
+            self._create_gtk_menu()
+            logger.info("Using GTK for Linux system tray")
+            return
+        except (ImportError, ValueError) as e:
+            logger.debug(f"GTK not available: {e}")
+        
+        # Fallback: log that tray is not available
+        logger.warning("No suitable system tray toolkit found for Linux")
+        raise SystemTrayError("System tray not available on this Linux system")
+    
+    def _create_gtk_menu(self):
+        """Create GTK context menu"""
+        try:
+            from gi.repository import Gtk
+            
+            self._menu = Gtk.Menu()
+            
+            # Open item
+            open_item = Gtk.MenuItem(label="Open TimeLocker")
+            open_item.connect("activate", self._on_open_clicked)
+            self._menu.append(open_item)
+            
+            # Separator
+            self._menu.append(Gtk.SeparatorMenuItem())
+            
+            # Status item
+            status_item = Gtk.MenuItem(label="View Status")
+            status_item.connect("activate", lambda x: self._trigger_menu_action("status"))
+            self._menu.append(status_item)
+            
+            # Backup now item
+            backup_item = Gtk.MenuItem(label="Backup Now")
+            backup_item.connect("activate", lambda x: self._trigger_menu_action("backup_now"))
+            self._menu.append(backup_item)
+            
+            # Separator
+            self._menu.append(Gtk.SeparatorMenuItem())
+            
+            # Quit item
+            quit_item = Gtk.MenuItem(label="Quit")
+            quit_item.connect("activate", lambda x: self._trigger_menu_action("quit"))
+            self._menu.append(quit_item)
+            
+            self._menu.show_all()
+            self._indicator.set_menu(self._menu)
+            
+        except Exception as e:
+            logger.error(f"Failed to create GTK menu: {e}")
+    
+    def _on_open_clicked(self, widget):
+        """Handle open menu item click"""
+        if self._on_click_callback:
+            self._on_click_callback()
+    
+    def _trigger_menu_action(self, action: str):
+        """Trigger menu action callback"""
+        if self._on_menu_action_callback:
+            self._on_menu_action_callback(action)
+    
+    def update_icon(self, status: TrayStatus):
+        """Update tray icon based on status"""
+        if not hasattr(self, '_indicator'):
+            return
+        
+        icon_map = {
+            TrayStatus.IDLE: "dialog-information",
+            TrayStatus.RUNNING: "system-run",
+            TrayStatus.SUCCESS: "emblem-default",
+            TrayStatus.WARNING: "dialog-warning",
+            TrayStatus.ERROR: "dialog-error"
+        }
+        
+        icon_name = icon_map.get(status, "dialog-information")
+        try:
+            self._indicator.set_icon(icon_name)
+        except Exception as e:
+            logger.error(f"Failed to update icon: {e}")
+    
+    def update_tooltip(self, tooltip: str):
+        """Update tooltip text"""
+        # GTK AppIndicator doesn't support tooltips directly
+        # Tooltip is shown through the menu
+        pass
+    
+    def set_on_click(self, callback: Callable):
+        """Set click callback"""
+        self._on_click_callback = callback
+    
+    def set_on_menu_action(self, callback: Callable[[str], None]):
+        """Set menu action callback"""
+        self._on_menu_action_callback = callback
+    
+    def show_menu(self):
+        """Show context menu"""
+        # Menu is always visible in GTK AppIndicator
+        pass
+    
+    def shutdown(self):
+        """Shutdown tray"""
+        if hasattr(self, '_indicator'):
+            try:
+                from gi.repository import AppIndicator3
+                self._indicator.set_status(AppIndicator3.IndicatorStatus.PASSIVE)
+            except Exception as e:
+                logger.error(f"Failed to shutdown GTK tray: {e}")
+
+
+class MacOSSystemTray:
+    """macOS system tray implementation using rumps"""
+    
+    def __init__(self, app_name: str):
+        """
+        Initialize macOS system tray
+        
+        Args:
+            app_name: Application name
+        """
+        self.app_name = app_name
+        self._app = None
+        self._on_click_callback = None
+        self._on_menu_action_callback = None
+        
+        # Try to initialize with rumps
+        try:
+            import rumps
+            self._app = rumps.App(app_name, "⏰")
+            self._create_menu()
+            logger.info("Using rumps for macOS system tray")
+        except ImportError:
+            logger.warning("rumps not available for macOS system tray")
+            raise SystemTrayError("System tray not available on macOS (rumps not installed)")
+    
+    def _create_menu(self):
+        """Create macOS menu"""
+        if not self._app:
+            return
+        
+        try:
+            import rumps
+            
+            # Create menu items
+            self._app.menu = [
+                rumps.MenuItem("Open TimeLocker", callback=self._on_open_clicked),
+                None,  # Separator
+                rumps.MenuItem("View Status", callback=lambda _: self._trigger_menu_action("status")),
+                rumps.MenuItem("Backup Now", callback=lambda _: self._trigger_menu_action("backup_now")),
+                None,  # Separator
+                rumps.MenuItem("Quit", callback=lambda _: self._trigger_menu_action("quit"))
+            ]
+        except Exception as e:
+            logger.error(f"Failed to create macOS menu: {e}")
+    
+    def _on_open_clicked(self, sender):
+        """Handle open menu item click"""
+        if self._on_click_callback:
+            self._on_click_callback()
+    
+    def _trigger_menu_action(self, action: str):
+        """Trigger menu action callback"""
+        if self._on_menu_action_callback:
+            self._on_menu_action_callback(action)
+    
+    def update_icon(self, status: TrayStatus):
+        """Update tray icon based on status"""
+        if not self._app:
+            return
+        
+        icon_map = {
+            TrayStatus.IDLE: "⏰",
+            TrayStatus.RUNNING: "🔄",
+            TrayStatus.SUCCESS: "✅",
+            TrayStatus.WARNING: "⚠️",
+            TrayStatus.ERROR: "❌"
+        }
+        
+        icon = icon_map.get(status, "⏰")
+        try:
+            self._app.icon = icon
+        except Exception as e:
+            logger.error(f"Failed to update icon: {e}")
+    
+    def update_tooltip(self, tooltip: str):
+        """Update tooltip text"""
+        if not self._app:
+            return
+        
+        try:
+            self._app.title = tooltip
+        except Exception as e:
+            logger.error(f"Failed to update tooltip: {e}")
+    
+    def set_on_click(self, callback: Callable):
+        """Set click callback"""
+        self._on_click_callback = callback
+    
+    def set_on_menu_action(self, callback: Callable[[str], None]):
+        """Set menu action callback"""
+        self._on_menu_action_callback = callback
+    
+    def show_menu(self):
+        """Show context menu"""
+        # Menu is always visible in macOS
+        pass
+    
+    def shutdown(self):
+        """Shutdown tray"""
+        if self._app:
+            try:
+                self._app.quit_button = None
+            except Exception as e:
+                logger.error(f"Failed to shutdown macOS tray: {e}")
+
+
+class WindowsSystemTray:
+    """Windows system tray implementation using pystray"""
+    
+    def __init__(self, app_name: str):
+        """
+        Initialize Windows system tray
+        
+        Args:
+            app_name: Application name
+        """
+        self.app_name = app_name
+        self._icon = None
+        self._on_click_callback = None
+        self._on_menu_action_callback = None
+        
+        # Try to initialize with pystray
+        try:
+            import pystray
+            from PIL import Image, ImageDraw
+            
+            # Create a simple icon
+            image = self._create_icon_image()
+            
+            # Create menu
+            menu = self._create_menu()
+            
+            self._icon = pystray.Icon(
+                app_name,
+                image,
+                app_name,
+                menu
+            )
+            
+            # Start icon in background thread
+            threading.Thread(target=self._icon.run, daemon=True).start()
+            
+            logger.info("Using pystray for Windows system tray")
+        except ImportError:
+            logger.warning("pystray not available for Windows system tray")
+            raise SystemTrayError("System tray not available on Windows (pystray not installed)")
+    
+    def _create_icon_image(self):
+        """Create icon image"""
+        try:
+            from PIL import Image, ImageDraw
+            
+            # Create a simple 64x64 icon
+            image = Image.new('RGB', (64, 64), color='white')
+            draw = ImageDraw.Draw(image)
+            draw.ellipse([16, 16, 48, 48], fill='blue')
+            return image
+        except Exception as e:
+            logger.error(f"Failed to create icon image: {e}")
+            return None
+    
+    def _create_menu(self):
+        """Create Windows menu"""
+        try:
+            import pystray
+            from pystray import MenuItem as Item
+            
+            return pystray.Menu(
+                Item("Open TimeLocker", self._on_open_clicked),
+                Item("View Status", lambda: self._trigger_menu_action("status")),
+                Item("Backup Now", lambda: self._trigger_menu_action("backup_now")),
+                Item("Quit", lambda: self._trigger_menu_action("quit"))
+            )
+        except Exception as e:
+            logger.error(f"Failed to create Windows menu: {e}")
+            return None
+    
+    def _on_open_clicked(self, icon, item):
+        """Handle open menu item click"""
+        if self._on_click_callback:
+            self._on_click_callback()
+    
+    def _trigger_menu_action(self, action: str):
+        """Trigger menu action callback"""
+        if self._on_menu_action_callback:
+            self._on_menu_action_callback(action)
+    
+    def update_icon(self, status: TrayStatus):
+        """Update tray icon based on status"""
+        if not self._icon:
+            return
+        
+        # Update icon image based on status
+        try:
+            image = self._create_status_icon(status)
+            if image:
+                self._icon.icon = image
+        except Exception as e:
+            logger.error(f"Failed to update icon: {e}")
+    
+    def _create_status_icon(self, status: TrayStatus):
+        """Create status-specific icon"""
+        try:
+            from PIL import Image, ImageDraw
+            
+            color_map = {
+                TrayStatus.IDLE: 'gray',
+                TrayStatus.RUNNING: 'blue',
+                TrayStatus.SUCCESS: 'green',
+                TrayStatus.WARNING: 'orange',
+                TrayStatus.ERROR: 'red'
+            }
+            
+            color = color_map.get(status, 'gray')
+            image = Image.new('RGB', (64, 64), color='white')
+            draw = ImageDraw.Draw(image)
+            draw.ellipse([16, 16, 48, 48], fill=color)
+            return image
+        except Exception as e:
+            logger.error(f"Failed to create status icon: {e}")
+            return None
+    
+    def update_tooltip(self, tooltip: str):
+        """Update tooltip text"""
+        if not self._icon:
+            return
+        
+        try:
+            self._icon.title = tooltip
+        except Exception as e:
+            logger.error(f"Failed to update tooltip: {e}")
+    
+    def set_on_click(self, callback: Callable):
+        """Set click callback"""
+        self._on_click_callback = callback
+    
+    def set_on_menu_action(self, callback: Callable[[str], None]):
+        """Set menu action callback"""
+        self._on_menu_action_callback = callback
+    
+    def show_menu(self):
+        """Show context menu"""
+        # Menu is shown on right-click in Windows
+        pass
+    
+    def shutdown(self):
+        """Shutdown tray"""
+        if self._icon:
+            try:
+                self._icon.stop()
+            except Exception as e:
+                logger.error(f"Failed to shutdown Windows tray: {e}")
