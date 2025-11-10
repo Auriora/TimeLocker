@@ -1,10 +1,17 @@
 """
 Unit tests for TimeLocker CLI targets command group.
 
+DEPRECATED: The 'targets' command group has been replaced by 'selections'.
+These tests are kept for reference but are skipped.
+See test_selections_commands.py for current tests.
+
 Tests targets command parsing, parameter validation, help output, and error handling.
 """
 
 import pytest
+
+# Skip all tests in this module since targets are deprecated
+pytestmark = pytest.mark.skip(reason="Targets deprecated - replaced by selections. See test_selections_commands.py")
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock

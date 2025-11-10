@@ -41,6 +41,7 @@ from .base import (
 # Import from TimeLocker package
 from TimeLocker import cli as _cli_module
 from TimeLocker.cli_services import get_cli_service_manager
+from TimeLocker.cli import setup_logging, _create_credential_manager, _ensure_manager_unlocked
 
 # Module-specific imports
 from TimeLocker.security.credential_manager import (

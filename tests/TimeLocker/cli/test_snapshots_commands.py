@@ -77,20 +77,20 @@ class TestSnapshotsCommands:
         assert "search" in combined.lower()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    def test_snapshots_list_command(self, mock_service_manager):
+    @patch('TimeLocker.cli_modules.commands.base._get_service_manager_for_command')
+    def test_snapshots_list_command(self, mock_get_service_manager):
         mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager.list_snapshots.return_value = []
+        mock_manager.list_snapshots = Mock(return_value=[])
+        mock_get_service_manager.return_value = mock_manager
         result = runner.invoke(app, ["snapshots", "list"])
         assert_success(result)
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    def test_snapshots_list_with_repository(self, mock_service_manager):
+    @patch('TimeLocker.cli_modules.commands.base._get_service_manager_for_command')
+    def test_snapshots_list_with_repository(self, mock_get_service_manager):
         mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager.list_snapshots.return_value = []
+        mock_manager.list_snapshots = Mock(return_value=[])
+        mock_get_service_manager.return_value = mock_manager
         result = runner.invoke(app, ["snapshots", "list", "--repository", "test-repo"])
         assert_success(result)
 
@@ -102,11 +102,11 @@ class TestSnapshotsCommands:
         assert "invalid" in combined.lower()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    def test_snapshots_show_valid_id(self, mock_service_manager):
+    @patch('TimeLocker.cli_modules.commands.base._get_service_manager_for_command')
+    def test_snapshots_show_valid_id(self, mock_get_service_manager):
         mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager.get_snapshot_details.return_value = Mock()
+        mock_manager.get_snapshot_details = Mock(return_value=Mock())
+        mock_get_service_manager.return_value = mock_manager
         result = runner.invoke(app, ["snapshots", "show", "abc123def456"])
         assert_success(result)
 
@@ -118,11 +118,11 @@ class TestSnapshotsCommands:
         assert "invalid" in combined.lower()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    def test_snapshots_contents_with_path(self, mock_service_manager):
+    @patch('TimeLocker.cli_modules.commands.base._get_service_manager_for_command')
+    def test_snapshots_contents_with_path(self, mock_get_service_manager):
         mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager.list_snapshot_contents.return_value = []
+        mock_manager.list_snapshot_contents = Mock(return_value=[])
+        mock_get_service_manager.return_value = mock_manager
         result = runner.invoke(app, ["snapshots", "contents", "abc123def456", "--path", "/home/user"])
         assert_success(result)
 
@@ -135,11 +135,11 @@ class TestSnapshotsCommands:
             assert "invalid" in combined.lower()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    def test_snapshots_mount_valid_id(self, mock_service_manager):
+    @patch('TimeLocker.cli_modules.commands.base._get_service_manager_for_command')
+    def test_snapshots_mount_valid_id(self, mock_get_service_manager):
         mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager.mount_snapshot.return_value = Mock(success=True)
+        mock_manager.mount_snapshot = Mock(return_value=Mock(success=True))
+        mock_get_service_manager.return_value = mock_manager
         with tempfile.TemporaryDirectory() as temp_dir:
             result = runner.invoke(app, ["snapshots", "mount", "abc123def456", temp_dir])
             assert_success(result)
@@ -152,30 +152,30 @@ class TestSnapshotsCommands:
         assert "invalid" in combined.lower()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    def test_snapshots_restore_command(self, mock_service_manager):
+    @patch('TimeLocker.cli_modules.commands.base._get_service_manager_for_command')
+    def test_snapshots_restore_command(self, mock_get_service_manager):
         mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager.restore_snapshot.return_value = Mock(success=True)
+        mock_manager.restore_snapshot = Mock(return_value=Mock(success=True))
+        mock_get_service_manager.return_value = mock_manager
         with tempfile.TemporaryDirectory() as temp_dir:
             result = runner.invoke(app, ["snapshots", "restore", "abc123def456", temp_dir])
             assert_success(result)
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    def test_snapshots_find_command(self, mock_service_manager):
+    @patch('TimeLocker.cli_modules.commands.base._get_service_manager_for_command')
+    def test_snapshots_find_command(self, mock_get_service_manager):
         mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager.find_in_snapshots.return_value = []
+        mock_manager.find_in_snapshots = Mock(return_value=[])
+        mock_get_service_manager.return_value = mock_manager
         result = runner.invoke(app, ["snapshots", "find", "*.txt"])
         assert_success(result)
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    def test_snapshots_find_with_options(self, mock_service_manager):
+    @patch('TimeLocker.cli_modules.commands.base._get_service_manager_for_command')
+    def test_snapshots_find_with_options(self, mock_get_service_manager):
         mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager.find_in_snapshots.return_value = []
+        mock_manager.find_in_snapshots = Mock(return_value=[])
+        mock_get_service_manager.return_value = mock_manager
         result = runner.invoke(app, ["snapshots", "find", "*.txt", "--type", "name", "--host", "myhost", "--tag", "important", "--limit", "50"])
         assert_success(result)
 
@@ -187,19 +187,19 @@ class TestSnapshotsCommands:
         assert "invalid" in combined.lower()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    def test_snapshots_prune_command(self, mock_service_manager):
+    @patch('TimeLocker.cli_modules.commands.base._get_service_manager_for_command')
+    def test_snapshots_prune_command(self, mock_get_service_manager):
         mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager.prune_snapshots.return_value = Mock(success=True)
+        mock_manager.prune_snapshots = Mock(return_value=Mock(success=True))
+        mock_get_service_manager.return_value = mock_manager
         result = runner.invoke(app, ["snapshots", "prune"])
         assert_success(result)
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    def test_snapshots_diff_command(self, mock_service_manager):
+    @patch('TimeLocker.cli_modules.commands.base._get_service_manager_for_command')
+    def test_snapshots_diff_command(self, mock_get_service_manager):
         mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager.diff_snapshots.return_value = Mock()
+        mock_manager.diff_snapshots = Mock(return_value=Mock())
+        mock_get_service_manager.return_value = mock_manager
         result = runner.invoke(app, ["snapshots", "diff", "abc123def456", "def789ghi012"])
         assert_success(result)

@@ -2256,3 +2256,30 @@ try:
     app.add_typer(_restore_commands_app, name="restore")
 except ImportError as e:
     logging.getLogger(__name__).debug(f"Could not import restore commands: {e}")
+
+try:
+    from .cli_modules.commands.credentials import credentials_app as _credentials_commands_app
+    # Copy commands from the credentials module's app to our credentials_app
+    for command in _credentials_commands_app.registered_commands:
+        credentials_app.registered_commands.append(command)
+    for group in _credentials_commands_app.registered_groups:
+        credentials_app.registered_groups.append(group)
+except ImportError as e:
+    logging.getLogger(__name__).debug(f"Could not import credentials commands: {e}")
+
+try:
+    from .cli_modules.commands.config import config_app as _config_commands_app
+    # Copy commands from the config module's app to our config_app
+    for command in _config_commands_app.registered_commands:
+        config_app.registered_commands.append(command)
+    for group in _config_commands_app.registered_groups:
+        config_app.registered_groups.append(group)
+except ImportError as e:
+    logging.getLogger(__name__).debug(f"Could not import config commands: {e}")
+
+try:
+    from .cli_modules.commands.security import security_app as _security_commands_app
+    # Add security app to main app
+    app.add_typer(_security_commands_app, name="security")
+except ImportError as e:
+    logging.getLogger(__name__).debug(f"Could not import security commands: {e}")
