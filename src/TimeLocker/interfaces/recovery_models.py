@@ -482,6 +482,14 @@ class RecoveryOperation:
         )
     
     @property
+    def is_active(self) -> bool:
+        """Check if operation is currently active"""
+        return self.status in (
+            OperationStatus.PENDING,
+            OperationStatus.RUNNING
+        )
+    
+    @property
     def is_successful(self) -> bool:
         """Check if operation completed successfully"""
         return (

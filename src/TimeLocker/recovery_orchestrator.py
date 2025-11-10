@@ -429,7 +429,7 @@ class RecoveryOrchestrator:
                 logger.warning(f"Cannot cancel operation {operation_id}: not found")
                 return False
             
-            if not operation.is_active():
+            if not operation.is_active:
                 logger.warning(f"Cannot cancel operation {operation_id}: already complete")
                 return False
             
@@ -458,7 +458,7 @@ class RecoveryOrchestrator:
             operations = list(self._operations.values())
             
             if not include_completed:
-                operations = [op for op in operations if op.is_active()]
+                operations = [op for op in operations if op.is_active]
             
             return operations
     
@@ -1036,7 +1036,7 @@ class RecoveryOrchestrator:
                 logger.warning(f"Cannot cleanup operation {operation_id}: not found")
                 return False
             
-            if operation.is_active():
+            if operation.is_active:
                 logger.warning(f"Cannot cleanup operation {operation_id}: still active")
                 return False
             

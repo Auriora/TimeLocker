@@ -126,7 +126,7 @@ class RecoveryValidator:
                 snapshot = self.snapshot_manager.get_snapshot_by_id(snapshot_id)
                 if not snapshot:
                     result.add_failure(ValidationFailure(
-                        file_path="",
+                        file_path=f"snapshot:{snapshot_id}",
                         expected_checksum="",
                         actual_checksum="",
                         failure_type=FailureType.FILE_MISSING,
@@ -136,7 +136,7 @@ class RecoveryValidator:
             except Exception as e:
                 logger.error(f"Failed to retrieve snapshot {snapshot_id}: {e}")
                 result.add_failure(ValidationFailure(
-                    file_path="",
+                    file_path=f"snapshot:{snapshot_id}",
                     expected_checksum="",
                     actual_checksum="",
                     failure_type=FailureType.FILE_MISSING,

@@ -17,7 +17,7 @@ class MockRecoveryRepository(BackupRepository):
     """Enhanced mock repository for testing recovery operations"""
 
     def __init__(self):
-        self._initialized = False
+        self._initialized = True  # Initialize by default for testing
         self._snapshots = {}
         self._location = "/mock/recovery/repository"
         self._restore_results = {}
@@ -75,6 +75,10 @@ class MockRecoveryRepository(BackupRepository):
         return True
 
     def check(self) -> bool:
+        return self._initialized
+    
+    def is_repository_initialized(self) -> bool:
+        """Check if repository is initialized"""
         return self._initialized
 
     def backup_target(self, targets: List[BackupTarget], tags: Optional[List[str]] = None) -> Dict:
