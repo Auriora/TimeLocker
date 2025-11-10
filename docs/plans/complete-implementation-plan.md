@@ -225,7 +225,7 @@ CLI Refactoring:          ████████████░░░░░░
      - Task 6.3: Implement BorgAdapter (optional)
 
 7. **Error Handling**
-   - [ ] Task 7: Implement recovery error handling and retry logic
+   - [x] Task 7: Implement recovery error handling and retry logic
      - Task 7.1: Create RecoveryErrorHandler
      - Task 7.2: Add recovery-specific error types
 

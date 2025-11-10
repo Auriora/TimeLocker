@@ -77,14 +77,14 @@
     - Implement Borg-specific error handling and recovery
     - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 7. Implement recovery error handling and retry logic
-  - [ ] 7.1 Create RecoveryErrorHandler for centralized error management
+- [x] 7. Implement recovery error handling and retry logic
+  - [x] 7.1 Create RecoveryErrorHandler for centralized error management
     - Implement handle_recovery_error with configurable retry policies
     - Add should_retry logic for transient error classification
     - Create escalate_error for non-recoverable error handling
     - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
 
-  - [ ] 7.2 Add recovery-specific error types and handling
+  - [x] 7.2 Add recovery-specific error types and handling
     - Extend existing recovery error classes for new recovery scenarios
     - Implement network interruption handling and resume capabilities
     - Add file system error recovery and alternative path strategies
