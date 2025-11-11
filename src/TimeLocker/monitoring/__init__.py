@@ -112,6 +112,23 @@ from .monitoring_dashboard import (
     PerformanceTrendsWidget,
     TroubleshootingWidget
 )
+from .webhook_handler import (
+    WebhookHandler,
+    WebhookConfig,
+    WebhookResult,
+    WebhookError,
+    PayloadFormat,
+    RetryHandler
+)
+from .health_check_integration import (
+    HealthCheckIntegration,
+    HealthCheckConfig,
+    HealthCheckServiceConfig,
+    HealthCheckServiceType,
+    HealthStatus as HealthCheckHealthStatus,
+    PingResult,
+    HealthCheckError
+)
 
 __all__ = [
         'StatusReporter', 'OperationStatus', 'StatusLevel',
@@ -139,5 +156,9 @@ __all__ = [
         'ConfigurationTroubleshooter', 'ConfigurationIssue',
         'MonitoringDashboard', 'WidgetType', 'HealthOverviewWidget',
         'BackupHistoryWidget', 'StorageUsageWidget', 'PerformanceTrendsWidget',
-        'TroubleshootingWidget'
+        'TroubleshootingWidget',
+        'WebhookHandler', 'WebhookConfig', 'WebhookResult', 'WebhookError',
+        'PayloadFormat', 'RetryHandler',
+        'HealthCheckIntegration', 'HealthCheckConfig', 'HealthCheckServiceConfig',
+        'HealthCheckServiceType', 'HealthCheckHealthStatus', 'PingResult', 'HealthCheckError'
 ]
