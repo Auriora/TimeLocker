@@ -328,12 +328,12 @@ CLI Refactoring:          ████████████░░░░░░
      - Create abstract PlatformAdapter base class
 
 2. **Schedule Manager**
-   - [ ] Task 2: Implement Schedule Manager and core orchestration
+   - [x] Task 2: Implement Schedule Manager and core orchestration
      - Task 2.1: Create ScheduleManager class with CRUD operations
      - Task 2.2: Implement schedule status tracking
 
 3. **Platform Adapters**
-   - [ ] Task 3: Create platform-specific scheduler adapters
+   - [x] Task 3: Create platform-specific scheduler adapters
      - Task 3.1: Implement SystemdAdapter for Linux
      - Task 3.2: Implement CronAdapter for Unix-like systems
      - Task 3.3: Implement WindowsTaskSchedulerAdapter
