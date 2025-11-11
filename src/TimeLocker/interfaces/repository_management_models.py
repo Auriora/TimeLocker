@@ -43,6 +43,7 @@ class ConnectivityStatus(Enum):
     DISCONNECTED = "disconnected"
     TIMEOUT = "timeout"
     AUTHENTICATION_FAILED = "authentication_failed"
+    UNREACHABLE = "unreachable"
     UNKNOWN = "unknown"
 
 
@@ -87,6 +88,7 @@ class ConnectivityResult:
     status: ConnectivityStatus
     response_time: Optional[float] = None
     error_message: Optional[str] = None
+    recommendations: List[str] = field(default_factory=list)
     timestamp: datetime = field(default_factory=datetime.utcnow)
 
 

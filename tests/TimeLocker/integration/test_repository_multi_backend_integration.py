@@ -67,6 +67,12 @@ class TestMultiBackendRepositoryManagement:
             config_manager=mock_config
         )
         
+        # Mock the existing repository handler
+        manager._existing_repo_handler = Mock()
+        manager._existing_repo_handler.detect_existing_repository = AsyncMock(return_value=None)
+        manager._existing_repo_handler.connect_to_existing_repository = AsyncMock()
+        manager._existing_repo_handler.reinitialize_repository = AsyncMock()
+        
         return manager
     
     @pytest.mark.asyncio

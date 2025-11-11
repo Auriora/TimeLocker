@@ -297,21 +297,40 @@ class TimeLockerConfig:
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> 'TimeLockerConfig':
         """Create configuration from dictionary"""
-        # Extract main sections
-        general = GeneralConfig(**data.get('general', {}))
+        # Helper function to filter dict to only include valid dataclass fields
+        def filter_to_dataclass_fields(dataclass_type, data_dict):
+            import dataclasses
+            if not dataclasses.is_dataclass(dataclass_type):
+                return data_dict
+            valid_fields = {f.name for f in dataclasses.fields(dataclass_type)}
+            return {k: v for k, v in data_dict.items() if k in valid_fields}
+        
+        # Extract main sections, filtering unknown fields
+        general_data = filter_to_dataclass_fields(GeneralConfig, data.get('general', {}))
+        general = GeneralConfig(**general_data)
 
         # Filter out legacy retention fields from backup config
         backup_data = data.get('backup', {}).copy()
         legacy_retention_fields = ['retention_keep_last', 'retention_keep_daily', 'retention_keep_weekly', 'retention_keep_monthly']
         for field in legacy_retention_fields:
             backup_data.pop(field, None)
+        backup_data = filter_to_dataclass_fields(BackupConfig, backup_data)
         backup = BackupConfig(**backup_data)
 
-        restore = RestoreConfig(**data.get('restore', {}))
-        security = SecurityConfig(**data.get('security', {}))
-        ui = UIConfig(**data.get('ui', {}))
-        notifications = NotificationConfig(**data.get('notifications', {}))
-        monitoring = MonitoringConfig(**data.get('monitoring', {}))
+        restore_data = filter_to_dataclass_fields(RestoreConfig, data.get('restore', {}))
+        restore = RestoreConfig(**restore_data)
+        
+        security_data = filter_to_dataclass_fields(SecurityConfig, data.get('security', {}))
+        security = SecurityConfig(**security_data)
+        
+        ui_data = filter_to_dataclass_fields(UIConfig, data.get('ui', {}))
+        ui = UIConfig(**ui_data)
+        
+        notifications_data = filter_to_dataclass_fields(NotificationConfig, data.get('notifications', {}))
+        notifications = NotificationConfig(**notifications_data)
+        
+        monitoring_data = filter_to_dataclass_fields(MonitoringConfig, data.get('monitoring', {}))
+        monitoring = MonitoringConfig(**monitoring_data)
 
         # Convert repositories
         repositories = {}

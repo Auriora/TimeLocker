@@ -85,7 +85,7 @@ class TestNetworkFailureScenarios:
             result = await validation_service.validate_connectivity(repo)
             
             assert result.success is False
-            assert result.status in [ConnectivityStatus.UNREACHABLE, ConnectivityStatus.ERROR]
+            assert result.status == ConnectivityStatus.UNREACHABLE
     
     @pytest.mark.asyncio
     async def test_network_intermittent_failure_retry(self, validation_service, repository_config):

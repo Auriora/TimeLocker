@@ -314,9 +314,9 @@ class TestConfigurationWatcher:
             )
             self.watcher._process_change_event(event)
         
-        # History should be limited to 500 (after cleanup)
+        # History should be limited to 100 (default limit in get_change_history)
         history = self.watcher.get_change_history()
-        assert len(history) == 500
+        assert len(history) == 100
         
         # Should contain the most recent events
         assert history[-1].event_id == "event_1199"

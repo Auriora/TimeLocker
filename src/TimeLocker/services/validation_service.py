@@ -523,11 +523,34 @@ class ValidationService:
             )
         except Exception as e:
             response_time = time.time() - start_time
+            error_msg = str(e)
+            recommendations = []
+            
+            # Determine appropriate status based on error type
+            status = ConnectivityStatus.UNKNOWN
+            if "Connection refused" in error_msg or "ConnectionRefusedError" in str(type(e).__name__):
+                status = ConnectivityStatus.UNREACHABLE
+                recommendations.append("Check if the repository service is running")
+                recommendations.append("Verify the repository URL and port are correct")
+            elif "Name or service not known" in error_msg or "getaddrinfo failed" in error_msg:
+                status = ConnectivityStatus.UNREACHABLE
+                recommendations.append("Check DNS configuration and network connectivity")
+                recommendations.append("Verify the repository hostname is correct")
+            elif "authentication" in error_msg.lower() or "unauthorized" in error_msg.lower():
+                status = ConnectivityStatus.AUTHENTICATION_FAILED
+                recommendations.append("Verify repository credentials are correct")
+                recommendations.append("Check if credentials need to be refreshed")
+            elif "certificate" in error_msg.lower() or "ssl" in error_msg.lower():
+                recommendations.append("Verify SSL/TLS certificate is valid and trusted")
+                recommendations.append("Consider using --insecure-tls flag if certificate is self-signed")
+                recommendations.append("Check system certificate store is up to date")
+            
             return ConnectivityResult(
                 success=False,
-                status=ConnectivityStatus.UNKNOWN,
+                status=status,
                 response_time=response_time,
-                error_message=str(e)
+                error_message=error_msg,
+                recommendations=recommendations
             )
 
     async def validate_integrity(self, repo: Repository) -> IntegrityResult:
