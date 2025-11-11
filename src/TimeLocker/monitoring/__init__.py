@@ -71,6 +71,20 @@ from .integrity_checker import (
     RemediationGuide,
     CheckInterval
 )
+from .performance_tracker import (
+    PerformanceTracker,
+    BackupPerformanceMetrics,
+    PerformanceTrend,
+    PerformanceSummary,
+    PerformanceLevel
+)
+from .performance_optimizer import (
+    PerformanceOptimizer,
+    PerformanceRecommendation,
+    PerformanceIssue,
+    RecommendationType,
+    RecommendationPriority
+)
 
 __all__ = [
         'StatusReporter', 'OperationStatus', 'StatusLevel',
@@ -86,5 +100,9 @@ __all__ = [
         'StorageMonitor', 'StorageUsage', 'CapacityWarning', 'StorageTrends', 
         'OptimizationRecommendation', 'WarningLevel',
         'IntegrityChecker', 'IntegrityLevel', 'IntegrityStatus', 'IntegrityCheckResult',
-        'IntegrityIssue', 'RemediationGuide', 'CheckInterval'
+        'IntegrityIssue', 'RemediationGuide', 'CheckInterval',
+        'PerformanceTracker', 'BackupPerformanceMetrics', 'PerformanceTrend', 
+        'PerformanceSummary', 'PerformanceLevel',
+        'PerformanceOptimizer', 'PerformanceRecommendation', 'PerformanceIssue',
+        'RecommendationType', 'RecommendationPriority'
 ]

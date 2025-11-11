@@ -28,6 +28,8 @@ from .activity_logger import ActivityLogger, LogLevel as ActivityLogLevel
 from .backup_history import BackupHistory, BackupRecord, BackupStatus
 from .storage_monitor import StorageMonitor, StorageUsage, CapacityWarning, StorageTrends, OptimizationRecommendation
 from .integrity_checker import IntegrityChecker, IntegrityStatus, IntegrityLevel, CheckInterval
+from .performance_tracker import PerformanceTracker, BackupPerformanceMetrics, PerformanceSummary
+from .performance_optimizer import PerformanceOptimizer, PerformanceRecommendation
 from ..interfaces.service_interface import ServiceInterface
 from ..interfaces.integration_data_models import ServiceContext
 
@@ -134,6 +136,8 @@ class MonitoringService(ServiceInterface):
         self.backup_history = BackupHistory(config_dir / "history")
         self.storage_monitor = StorageMonitor(config_dir / "storage")
         self.integrity_checker = IntegrityChecker(config_dir / "integrity")
+        self.performance_tracker = PerformanceTracker(config_dir / "performance")
+        self.performance_optimizer = PerformanceOptimizer(self.performance_tracker)
         
         # Load monitoring preferences
         self.preferences = self._load_preferences()
@@ -236,7 +240,9 @@ class MonitoringService(ServiceInterface):
             'notifications',
             'health_monitoring',
             'operation_tracking',
-            'monitoring_preferences'
+            'monitoring_preferences',
+            'performance_tracking',
+            'performance_optimization'
         ]
 
     def handle_backup_event(self, event: BackupEvent) -> None:
@@ -284,6 +290,27 @@ class MonitoringService(ServiceInterface):
                     message=event.message,
                     metadata=event.details
                 )
+                
+                # Record performance metrics for completed backups
+                if (event.event_type.endswith('_completed') and 
+                    event.repository_id and
+                    event.details.get('start_time') and
+                    event.details.get('end_time')):
+                    try:
+                        start_time = datetime.fromisoformat(event.details['start_time'])
+                        end_time = datetime.fromisoformat(event.details['end_time'])
+                        
+                        self.performance_tracker.record_backup_performance(
+                            operation_id=event.operation_id,
+                            repository_id=event.repository_id,
+                            start_time=start_time,
+                            end_time=end_time,
+                            files_processed=event.details.get('files_processed', 0),
+                            bytes_processed=event.details.get('bytes_processed', 0),
+                            metadata=event.details
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to record performance metrics: {e}")
             else:
                 # Progress update
                 self.status_reporter.update_operation(
@@ -787,3 +814,159 @@ class MonitoringService(ServiceInterface):
         except Exception as e:
             logger.error(f"Failed to get repositories needing check: {e}")
             return []
+    
+    def record_backup_performance(
+        self,
+        operation_id: str,
+        repository_id: str,
+        start_time: datetime,
+        end_time: datetime,
+        files_processed: int,
+        bytes_processed: int,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> BackupPerformanceMetrics:
+        """
+        Record performance metrics for a completed backup operation.
+        
+        Args:
+            operation_id: Unique operation identifier
+            repository_id: Repository identifier
+            start_time: Operation start time
+            end_time: Operation end time
+            files_processed: Number of files processed
+            bytes_processed: Bytes processed
+            metadata: Additional metadata
+            
+        Returns:
+            BackupPerformanceMetrics: Recorded metrics
+            
+        Requirements: 6.1, 6.2
+        """
+        try:
+            return self.performance_tracker.record_backup_performance(
+                operation_id=operation_id,
+                repository_id=repository_id,
+                start_time=start_time,
+                end_time=end_time,
+                files_processed=files_processed,
+                bytes_processed=bytes_processed,
+                metadata=metadata
+            )
+        except Exception as e:
+            logger.error(f"Failed to record backup performance: {e}")
+            raise
+    
+    def get_performance_summary(self, repository_id: str) -> PerformanceSummary:
+        """
+        Get performance summary for a repository.
+        
+        Args:
+            repository_id: Repository identifier
+            
+        Returns:
+            PerformanceSummary: Performance summary
+            
+        Requirements: 6.1, 6.2, 6.3
+        """
+        try:
+            return self.performance_tracker.get_performance_summary(repository_id)
+        except Exception as e:
+            logger.error(f"Failed to get performance summary: {e}")
+            raise
+    
+    def get_performance_trends(
+        self,
+        repository_id: str,
+        days: int = 30
+    ) -> Optional['PerformanceTrend']:
+        """
+        Analyze performance trends over specified period.
+        
+        Args:
+            repository_id: Repository identifier
+            days: Number of days to analyze
+            
+        Returns:
+            PerformanceTrend: Trend analysis or None if insufficient data
+            
+        Requirements: 6.3
+        """
+        try:
+            return self.performance_tracker.get_performance_trends(repository_id, days)
+        except Exception as e:
+            logger.error(f"Failed to get performance trends: {e}")
+            raise
+    
+    def get_performance_recommendations(
+        self,
+        repository_id: str
+    ) -> List[PerformanceRecommendation]:
+        """
+        Get performance optimization recommendations for a repository.
+        
+        Args:
+            repository_id: Repository identifier
+            
+        Returns:
+            List of performance recommendations
+            
+        Requirements: 6.4, 6.5
+        """
+        try:
+            return self.performance_optimizer.get_optimization_recommendations(repository_id)
+        except Exception as e:
+            logger.error(f"Failed to get performance recommendations: {e}")
+            raise
+    
+    def analyze_slow_backup(
+        self,
+        operation_id: str
+    ) -> Optional['PerformanceIssue']:
+        """
+        Analyze a slow backup operation and provide detailed diagnosis.
+        
+        Args:
+            operation_id: Operation identifier
+            
+        Returns:
+            PerformanceIssue with analysis or None if operation not found
+            
+        Requirements: 6.5
+        """
+        try:
+            return self.performance_optimizer.analyze_slow_backup(operation_id)
+        except Exception as e:
+            logger.error(f"Failed to analyze slow backup: {e}")
+            raise
+    
+    def compare_backup_performance(
+        self,
+        operation_id1: str,
+        operation_id2: str
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Compare performance between two backup operations.
+        
+        Args:
+            operation_id1: First operation ID
+            operation_id2: Second operation ID
+            
+        Returns:
+            Comparison results with suggestions or None if operations not found
+            
+        Requirements: 6.4
+        """
+        try:
+            return self.performance_optimizer.compare_and_suggest(operation_id1, operation_id2)
+        except Exception as e:
+            logger.error(f"Failed to compare backup performance: {e}")
+            raise
+    
+    def get_performance_tracker(self) -> PerformanceTracker:
+        """
+        Get the performance tracker instance.
+        
+        Returns:
+            PerformanceTracker: Performance tracker instance
+        """
+        return self.performance_tracker
