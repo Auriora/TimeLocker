@@ -103,6 +103,15 @@ from .configuration_troubleshooter import (
     ConfigurationTroubleshooter,
     ConfigurationIssue
 )
+from .monitoring_dashboard import (
+    MonitoringDashboard,
+    WidgetType,
+    HealthOverviewWidget,
+    BackupHistoryWidget,
+    StorageUsageWidget,
+    PerformanceTrendsWidget,
+    TroubleshootingWidget
+)
 
 __all__ = [
         'StatusReporter', 'OperationStatus', 'StatusLevel',
@@ -127,5 +136,8 @@ __all__ = [
         'TroubleshootingStep', 'TroubleshootingGuide', 'EventCorrelation',
         'ProactiveRecommendation', 'BackupFailure', 'TroubleshootingReport',
         'EventCorrelator', 'IssueDetector',
-        'ConfigurationTroubleshooter', 'ConfigurationIssue'
+        'ConfigurationTroubleshooter', 'ConfigurationIssue',
+        'MonitoringDashboard', 'WidgetType', 'HealthOverviewWidget',
+        'BackupHistoryWidget', 'StorageUsageWidget', 'PerformanceTrendsWidget',
+        'TroubleshootingWidget'
 ]

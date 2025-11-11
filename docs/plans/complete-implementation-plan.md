@@ -299,11 +299,11 @@ CLI Refactoring:          ████████████░░░░░░
      - Task 7.1: Implement TroubleshootingService
 
 8. **CLI Integration**
-   - [ ] Task 8: Enhance CLI integration for monitoring operations
+   - [x] Task 8: Enhance CLI integration for monitoring operations
      - Task 8.1: Extend existing CLI services
 
 9. **Dashboard**
-   - [ ] Task 9: Create monitoring dashboard and user interface integration
+   - [x] Task 9: Create monitoring dashboard and user interface integration
      - Task 9.1: Implement MonitoringDashboard
 
 10. **External Integration (Optional)**
