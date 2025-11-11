@@ -84,14 +84,14 @@
     - Create step-by-step troubleshooting guides for different issue types
     - _Requirements: 9.4, 9.5_
 
-- [ ] 8. Enhance CLI integration for monitoring operations
-  - [ ] 8.1 Extend existing CLI services with monitoring integration
+- [x] 8. Enhance CLI integration for monitoring operations
+  - [x] 8.1 Extend existing CLI services with monitoring integration
     - Build upon existing cli_services.py to add monitoring data access and display
     - Add CLI-based log filtering and searching capabilities for troubleshooting
     - Implement CLI status feedback and monitoring information display
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-  - [ ] 8.2 Create CLI monitoring commands and integration
+  - [x] 8.2 Create CLI monitoring commands and integration
     - Add CLI commands for viewing logs, status, and monitoring information
     - Integrate with Integration Architecture to provide monitoring data to CLI service manager
     - Implement fallback mechanisms and error reporting for CLI monitoring operations

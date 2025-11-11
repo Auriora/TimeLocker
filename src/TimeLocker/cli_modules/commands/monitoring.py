@@ -125,6 +125,204 @@ def _get_system_health_data(config_dir: Optional[Path] = None) -> Dict[str, Any]
 
 # Monitor Commands
 
+@monitor_app.command("status")
+@with_error_handling("Status Error")
+@with_logging
+def monitor_status(
+    verbose: VerboseOption = False,
+    json_output: JsonOption = False,
+    config_dir: ConfigDirOption = None,
+) -> None:
+    """
+    Show current system monitoring status.
+    
+    Displays overall system health, current operations, and recent activity summary.
+    
+    Requirements: 8.1, 8.3, 8.5
+    """
+    try:
+        service_manager = _get_service_manager_for_command(config_dir)
+        
+        # Get system status
+        status = service_manager.get_system_monitoring_status()
+        
+        if json_output:
+            console.print(json.dumps(status, indent=2))
+            return
+        
+        if 'error' in status:
+            show_error_panel("Status Error", status['error'])
+            raise typer.Exit(1)
+        
+        # Display health status
+        health = status.get('health_status', 'unknown')
+        health_colors = {
+            'healthy': 'green',
+            'warning': 'yellow',
+            'error': 'red',
+            'unknown': 'dim'
+        }
+        health_color = health_colors.get(health, 'dim')
+        
+        console.print(Panel(
+            f"[{health_color}]System Health: {health.upper()}[/{health_color}]",
+            title="TimeLocker Monitoring Status",
+            border_style=health_color
+        ))
+        
+        # Display current operations
+        current_ops = status.get('current_operations', 0)
+        if current_ops > 0:
+            console.print(f"\n[yellow]⚡ {current_ops} operation(s) currently running[/yellow]")
+        else:
+            console.print("\n[dim]No operations currently running[/dim]")
+        
+        # Display recent activity
+        recent_ops = status.get('recent_operations_24h', 0)
+        console.print(f"\n📊 Recent Activity (24 hours): {recent_ops} operations")
+        
+        # Display status counts
+        if verbose:
+            status_counts = status.get('status_counts', {})
+            if status_counts:
+                console.print("\n[bold]Operation Status Breakdown:[/bold]")
+                
+                table = Table(show_header=True, header_style="bold")
+                table.add_column("Status", style="cyan")
+                table.add_column("Count", justify="right")
+                
+                status_display = {
+                    'success': ('✅ Success', 'green'),
+                    'warning': ('⚠️  Warning', 'yellow'),
+                    'error': ('❌ Error', 'red'),
+                    'critical': ('🚨 Critical', 'red bold')
+                }
+                
+                for status_key, (label, style) in status_display.items():
+                    count = status_counts.get(status_key, 0)
+                    table.add_row(f"[{style}]{label}[/{style}]", str(count))
+                
+                console.print(table)
+        
+        # Display timestamp
+        timestamp = status.get('timestamp', '')
+        if timestamp:
+            try:
+                dt = datetime.fromisoformat(timestamp)
+                console.print(f"\n[dim]Last updated: {dt.strftime('%Y-%m-%d %H:%M:%S')}[/dim]")
+            except Exception:
+                console.print(f"\n[dim]Last updated: {timestamp}[/dim]")
+    except Exception as e:
+        CommandBase.handle_error(e, verbose, "Status Error")
+
+
+@monitor_app.command("operations")
+@with_error_handling("Operations Error")
+@with_logging
+def monitor_operations(
+    operation_id: Annotated[Optional[str], typer.Argument(help="Specific operation ID to query")] = None,
+    verbose: VerboseOption = False,
+    json_output: JsonOption = False,
+    config_dir: ConfigDirOption = None,
+) -> None:
+    """
+    Show currently running operations or details of a specific operation.
+    
+    Requirements: 8.1, 8.3, 8.5
+    """
+    try:
+        service_manager = _get_service_manager_for_command(config_dir)
+        
+        if operation_id:
+            # Show specific operation
+            status = service_manager.get_cli_operation_status(operation_id)
+            
+            if not status:
+                show_info_panel("Not Found", f"Operation '{operation_id}' not found")
+                raise typer.Exit(1)
+            
+            if json_output:
+                console.print(json.dumps(status, indent=2))
+                return
+            
+            # Display operation details
+            console.print(Panel(
+                f"[bold]{status['operation_type'].upper()}[/bold]",
+                title=f"Operation: {operation_id}",
+                border_style="cyan"
+            ))
+            
+            console.print(f"\n[bold]Status:[/bold] {status['status']}")
+            console.print(f"[bold]Message:[/bold] {status['message']}")
+            
+            if status.get('repository_id'):
+                console.print(f"[bold]Repository:[/bold] {status['repository_id']}")
+            
+            if status.get('progress') is not None:
+                progress = status['progress']
+                console.print(f"\n[bold]Progress:[/bold] {progress}%")
+                
+                # Show progress bar
+                bar_width = 40
+                filled = int(bar_width * progress / 100)
+                bar = "█" * filled + "░" * (bar_width - filled)
+                console.print(f"[cyan]{bar}[/cyan]")
+            
+            if status.get('files_processed') and status.get('total_files'):
+                console.print(f"[bold]Files:[/bold] {status['files_processed']}/{status['total_files']}")
+            
+            if status.get('estimated_completion'):
+                try:
+                    dt = datetime.fromisoformat(status['estimated_completion'])
+                    console.print(f"[bold]Estimated Completion:[/bold] {dt.strftime('%Y-%m-%d %H:%M:%S')}")
+                except Exception:
+                    console.print(f"[bold]Estimated Completion:[/bold] {status['estimated_completion']}")
+            
+            try:
+                dt = datetime.fromisoformat(status['timestamp'])
+                console.print(f"\n[dim]Last updated: {dt.strftime('%Y-%m-%d %H:%M:%S')}[/dim]")
+            except Exception:
+                console.print(f"\n[dim]Last updated: {status['timestamp']}[/dim]")
+        else:
+            # Show all current operations
+            operations = service_manager.get_cli_current_operations()
+            
+            if json_output:
+                console.print(json.dumps(operations, indent=2))
+                return
+            
+            if not operations:
+                console.print("[dim]No operations currently running[/dim]")
+                return
+            
+            console.print(f"\n[bold]Current Operations ({len(operations)}):[/bold]\n")
+            
+            for op in operations:
+                status_colors = {
+                    'success': 'green',
+                    'warning': 'yellow',
+                    'error': 'red',
+                    'critical': 'red bold',
+                    'info': 'cyan'
+                }
+                status_color = status_colors.get(op['status'], 'dim')
+                
+                console.print(f"[{status_color}]●[/{status_color}] {op['operation_id']}")
+                console.print(f"  Type: {op['operation_type']}")
+                console.print(f"  Status: {op['status']}")
+                console.print(f"  Message: {op['message']}")
+                
+                if op.get('progress') is not None:
+                    console.print(f"  Progress: {op['progress']}%")
+                
+                if op.get('repository_id'):
+                    console.print(f"  Repository: {op['repository_id']}")
+                
+                console.print()
+    except Exception as e:
+        CommandBase.handle_error(e, verbose, "Operations Error")
+
+
 @monitor_app.command("health")
 @with_error_handling("Health Check Error")
 @with_logging
@@ -199,6 +397,88 @@ def monitor_health(
                 console.print(table)
     except Exception as e:
         CommandBase.handle_error(e, verbose, "Health Check Error")
+
+
+@monitor_app.command("history")
+@with_error_handling("History Error")
+@with_logging
+def monitor_history(
+    days: Annotated[Optional[int], typer.Option("--days", "-d", help="Number of days to look back")] = 7,
+    repository: Annotated[Optional[str], typer.Option("--repository", "-r", help="Filter by repository")] = None,
+    status: Annotated[Optional[str], typer.Option("--status", "-s", help="Filter by status (success, failed, partial)")] = None,
+    limit: Annotated[Optional[int], typer.Option("--limit", "-n", help="Limit number of results")] = 20,
+    verbose: VerboseOption = False,
+    json_output: JsonOption = False,
+    config_dir: ConfigDirOption = None,
+) -> None:
+    """
+    View backup operation history.
+    
+    Requirements: 8.1
+    """
+    try:
+        service_manager = _get_service_manager_for_command(config_dir)
+        
+        # Get backup history
+        history = service_manager.get_cli_backup_history(
+            days=days,
+            repository_id=repository,
+            status=status,
+            limit=limit
+        )
+        
+        if json_output:
+            console.print(json.dumps(history, indent=2))
+            return
+        
+        if not history:
+            console.print("[dim]No backup history found matching the specified filters[/dim]")
+            return
+        
+        console.print(f"\n[bold]Backup History ({len(history)} operations):[/bold]\n")
+        
+        # Create table
+        table = Table(show_header=True, header_style="bold cyan")
+        table.add_column("Time", style="dim")
+        table.add_column("Repository")
+        table.add_column("Status")
+        table.add_column("Files", justify="right")
+        table.add_column("Data", justify="right")
+        table.add_column("Duration", justify="right")
+        table.add_column("Throughput", justify="right")
+        
+        for record in history:
+            # Format status with color
+            status_val = record['status']
+            status_colors = {
+                'success': 'green',
+                'partial': 'yellow',
+                'failed': 'red',
+                'cancelled': 'dim'
+            }
+            status_color = status_colors.get(status_val, 'dim')
+            status_display = f"[{status_color}]{status_val}[/{status_color}]"
+            
+            # Format timestamp
+            try:
+                dt = datetime.fromisoformat(record['start_time'])
+                start_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+            except Exception:
+                start_time = record['start_time']
+            
+            table.add_row(
+                start_time,
+                record['repository_id'],
+                status_display,
+                str(record['files_processed']),
+                record['bytes_transferred_formatted'],
+                record['duration'],
+                f"{record['throughput_mbps']} MB/s"
+            )
+        
+        console.print(table)
+    except Exception as e:
+        CommandBase.handle_error(e, verbose, "History Error")
 
 
 @monitor_app.command("stats")
@@ -283,6 +563,132 @@ def monitor_stats(
 
 
 # Logs Commands
+
+@logs_app.command("search")
+@with_error_handling("Log Search Error")
+@with_logging
+def logs_search(
+    query: Annotated[str, typer.Argument(help="Search query string")],
+    hours: Annotated[Optional[int], typer.Option("--hours", "-h", help="Number of hours to look back")] = None,
+    days: Annotated[Optional[int], typer.Option("--days", "-d", help="Number of days to look back")] = 7,
+    repository: Annotated[Optional[str], typer.Option("--repository", "-r", help="Filter by repository")] = None,
+    limit: Annotated[Optional[int], typer.Option("--limit", "-n", help="Limit number of results")] = 50,
+    verbose: VerboseOption = False,
+    json_output: JsonOption = False,
+    config_dir: ConfigDirOption = None,
+) -> None:
+    """
+    Search monitoring logs for specific text.
+    
+    Requirements: 8.2
+    """
+    try:
+        service_manager = _get_service_manager_for_command(config_dir)
+        
+        # Search logs
+        logs = service_manager.search_monitoring_logs(
+            query=query,
+            hours=hours,
+            days=days,
+            repository_id=repository,
+            limit=limit
+        )
+        
+        if json_output:
+            console.print(json.dumps(logs, indent=2))
+            return
+        
+        if not logs:
+            console.print(f"[dim]No logs found matching '{query}'[/dim]")
+            return
+        
+        console.print(f"\n[bold]Search Results for '{query}' ({len(logs)} matches):[/bold]\n")
+        
+        # Get monitoring integration for formatting
+        monitoring_integration = service_manager.get_monitoring_integration()
+        
+        for log in logs:
+            if monitoring_integration:
+                formatted = monitoring_integration.format_log_entry_cli(log, verbose=verbose)
+                console.print(formatted)
+            else:
+                # Fallback formatting
+                try:
+                    dt = datetime.fromisoformat(log['timestamp'])
+                    timestamp_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+                except Exception:
+                    timestamp_str = log['timestamp']
+                
+                level_str = log['level'].upper()
+                console.print(f"[{level_str}] {timestamp_str} - {log['message']}")
+            
+            console.print()
+    except Exception as e:
+        CommandBase.handle_error(e, verbose, "Log Search Error")
+
+
+@logs_app.command("recent")
+@with_error_handling("Recent Logs Error")
+@with_logging
+def logs_recent(
+    hours: Annotated[Optional[int], typer.Option("--hours", "-h", help="Number of hours to look back")] = None,
+    days: Annotated[Optional[int], typer.Option("--days", "-d", help="Number of days to look back")] = 1,
+    repository: Annotated[Optional[str], typer.Option("--repository", "-r", help="Filter by repository")] = None,
+    level: Annotated[Optional[str], typer.Option("--level", "-l", help="Filter by log level (info, warning, error)")] = None,
+    limit: Annotated[Optional[int], typer.Option("--limit", "-n", help="Limit number of results")] = 50,
+    verbose: VerboseOption = False,
+    json_output: JsonOption = False,
+    config_dir: ConfigDirOption = None,
+) -> None:
+    """
+    View recent monitoring logs with filtering options.
+    
+    Requirements: 8.1, 8.2
+    """
+    try:
+        service_manager = _get_service_manager_for_command(config_dir)
+        
+        # Get logs with filters
+        logs = service_manager.get_cli_monitoring_logs(
+            hours=hours,
+            days=days,
+            repository_id=repository,
+            log_level=level,
+            limit=limit
+        )
+        
+        if json_output:
+            console.print(json.dumps(logs, indent=2))
+            return
+        
+        if not logs:
+            console.print("[dim]No logs found matching the specified filters[/dim]")
+            return
+        
+        console.print(f"\n[bold]Monitoring Logs ({len(logs)} entries):[/bold]\n")
+        
+        # Get monitoring integration for formatting
+        monitoring_integration = service_manager.get_monitoring_integration()
+        
+        for log in logs:
+            if monitoring_integration:
+                formatted = monitoring_integration.format_log_entry_cli(log, verbose=verbose)
+                console.print(formatted)
+            else:
+                # Fallback formatting
+                try:
+                    dt = datetime.fromisoformat(log['timestamp'])
+                    timestamp_str = dt.strftime("%Y-%m-%d %H:%M:%S")
+                except Exception:
+                    timestamp_str = log['timestamp']
+                
+                level_str = log['level'].upper()
+                console.print(f"[{level_str}] {timestamp_str} - {log['message']}")
+            
+            console.print()
+    except Exception as e:
+        CommandBase.handle_error(e, verbose, "Recent Logs Error")
+
 
 @logs_app.command("view")
 @with_error_handling("Log View Error")

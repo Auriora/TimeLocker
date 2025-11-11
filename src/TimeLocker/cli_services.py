@@ -62,6 +62,7 @@ from .security.credential_manager import CredentialManagerError
 from .integration.service_manager import ServiceManager, ServiceRegistry
 from .integration.dependency_injector import DependencyInjector
 from .integration.event_bus import EventBus
+from .cli_modules.monitoring_integration import CLIMonitoringIntegration
 
 logger = logging.getLogger(__name__)
 
@@ -264,6 +265,9 @@ class CLIServiceManager:
         self._event_bus: Optional[EventBus] = None
         self._service_manager: Optional[ServiceManager] = None
         
+        # Initialize monitoring integration for CLI
+        self._monitoring_integration: Optional[CLIMonitoringIntegration] = None
+        
         # Initialize the integration architecture
         self._initialize_integration_architecture()
 
@@ -320,6 +324,19 @@ class CLIServiceManager:
             
             # Register existing services with the new architecture
             self._register_legacy_services()
+            
+            # Initialize monitoring integration
+            try:
+                from .monitoring.monitoring_service import MonitoringService
+                monitoring_service = MonitoringService(self._config_dir / "monitoring" if self._config_dir else None)
+                self._monitoring_integration = CLIMonitoringIntegration(
+                    monitoring_service=monitoring_service,
+                    config_dir=self._config_dir
+                )
+                logger.info("CLI monitoring integration initialized")
+            except Exception as e:
+                logger.warning(f"Failed to initialize monitoring integration: {e}")
+                self._monitoring_integration = None
             
             logger.info("Integration architecture initialized successfully")
             
@@ -1411,6 +1428,193 @@ class CLIServiceManager:
         except Exception as e:
             logger.error(f"Failed to remove repository '{name}': {e}")
             raise
+    
+    # Monitoring Integration Methods (Requirements 8.1, 8.2, 8.3)
+    
+    def get_monitoring_integration(self) -> Optional[CLIMonitoringIntegration]:
+        """
+        Get the CLI monitoring integration instance.
+        
+        Returns:
+            CLIMonitoringIntegration instance or None if not available
+            
+        Requirements: 8.1
+        """
+        return self._monitoring_integration
+    
+    def get_system_monitoring_status(self) -> Dict[str, Any]:
+        """
+        Get current system monitoring status for CLI display.
+        
+        Returns:
+            Dict containing system monitoring status
+            
+        Requirements: 8.1, 8.3
+        """
+        if not self._monitoring_integration:
+            return {
+                'error': 'Monitoring integration not available',
+                'timestamp': datetime.now().isoformat()
+            }
+        
+        try:
+            return self._monitoring_integration.get_system_status()
+        except Exception as e:
+            logger.error(f"Failed to get system monitoring status: {e}")
+            return {
+                'error': str(e),
+                'timestamp': datetime.now().isoformat()
+            }
+    
+    def get_cli_monitoring_logs(self, hours: Optional[int] = None, days: Optional[int] = None,
+                                repository_id: Optional[str] = None, log_level: Optional[str] = None,
+                                limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """
+        Get monitoring logs for CLI display with filtering.
+        
+        Args:
+            hours: Number of hours to look back
+            days: Number of days to look back
+            repository_id: Optional filter by repository
+            log_level: Optional filter by log level
+            limit: Optional limit on number of results
+            
+        Returns:
+            List of log entry dictionaries
+            
+        Requirements: 8.1, 8.2
+        """
+        if not self._monitoring_integration:
+            logger.warning("Monitoring integration not available")
+            return []
+        
+        try:
+            from .cli_modules.monitoring_integration import CLIMonitoringFilters
+            
+            filters = CLIMonitoringFilters(
+                hours=hours,
+                days=days,
+                repository_id=repository_id,
+                log_level=log_level,
+                limit=limit
+            )
+            
+            return self._monitoring_integration.get_recent_logs(filters)
+        except Exception as e:
+            logger.error(f"Failed to get monitoring logs: {e}")
+            return []
+    
+    def search_monitoring_logs(self, query: str, hours: Optional[int] = None, days: Optional[int] = None,
+                               repository_id: Optional[str] = None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """
+        Search monitoring logs for specific text.
+        
+        Args:
+            query: Search query string
+            hours: Number of hours to look back
+            days: Number of days to look back
+            repository_id: Optional filter by repository
+            limit: Optional limit on number of results
+            
+        Returns:
+            List of matching log entry dictionaries
+            
+        Requirements: 8.2
+        """
+        if not self._monitoring_integration:
+            logger.warning("Monitoring integration not available")
+            return []
+        
+        try:
+            from .cli_modules.monitoring_integration import CLIMonitoringFilters
+            
+            filters = CLIMonitoringFilters(
+                hours=hours,
+                days=days,
+                repository_id=repository_id,
+                limit=limit
+            )
+            
+            return self._monitoring_integration.search_logs(query, filters)
+        except Exception as e:
+            logger.error(f"Failed to search monitoring logs: {e}")
+            return []
+    
+    def get_cli_backup_history(self, days: Optional[int] = None, repository_id: Optional[str] = None,
+                                status: Optional[str] = None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+        """
+        Get backup history for CLI display with filtering.
+        
+        Args:
+            days: Number of days to look back
+            repository_id: Optional filter by repository
+            status: Optional filter by status
+            limit: Optional limit on number of results
+            
+        Returns:
+            List of backup record dictionaries
+            
+        Requirements: 8.1
+        """
+        if not self._monitoring_integration:
+            logger.warning("Monitoring integration not available")
+            return []
+        
+        try:
+            from .cli_modules.monitoring_integration import CLIMonitoringFilters
+            
+            filters = CLIMonitoringFilters(
+                days=days,
+                repository_id=repository_id,
+                status=status,
+                limit=limit
+            )
+            
+            return self._monitoring_integration.get_backup_history(filters)
+        except Exception as e:
+            logger.error(f"Failed to get backup history: {e}")
+            return []
+    
+    def get_cli_current_operations(self) -> List[Dict[str, Any]]:
+        """
+        Get currently running operations for CLI display.
+        
+        Returns:
+            List of current operation dictionaries
+            
+        Requirements: 8.1, 8.3
+        """
+        if not self._monitoring_integration:
+            logger.warning("Monitoring integration not available")
+            return []
+        
+        try:
+            return self._monitoring_integration.get_current_operations()
+        except Exception as e:
+            logger.error(f"Failed to get current operations: {e}")
+            return []
+    
+    def get_cli_operation_status(self, operation_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get status of a specific operation for CLI display.
+        
+        Args:
+            operation_id: Operation ID to query
+            
+        Returns:
+            Operation status dictionary or None if not found
+            
+        Requirements: 8.1, 8.3
+        """
+        if not self._monitoring_integration:
+            logger.warning("Monitoring integration not available")
+            return None
+        
+        try:
+            return self._monitoring_integration.get_operation_status(operation_id)
+        except Exception as e:
+            logger.error(f"Failed to get operation status: {e}")
+            return None
 
 
 # Global CLI service manager instance
