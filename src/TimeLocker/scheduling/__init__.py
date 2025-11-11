@@ -95,6 +95,20 @@ from .scheduling_exceptions import (
     UnsupportedPlatformError
 )
 
+# Integration clients
+from .integration_clients import (
+    PolicyManagementClient,
+    DataSelectionClient,
+    RepositoryManagementClient,
+    MonitoringClient
+)
+
+# Audit logging
+from .audit_logger import SchedulingAuditLogger, AuditEventType, AuditEntry
+
+# Storage
+from .schedule_storage import ScheduleStorage
+
 __all__ = [
     # Core components
     'ScheduleManager',
@@ -143,5 +157,19 @@ __all__ = [
     'CredentialAccessError',
     'ExecutionTimeoutError',
     'ScheduleConflictError',
-    'UnsupportedPlatformError'
+    'UnsupportedPlatformError',
+    
+    # Integration clients
+    'PolicyManagementClient',
+    'DataSelectionClient',
+    'RepositoryManagementClient',
+    'MonitoringClient',
+    
+    # Audit logging
+    'SchedulingAuditLogger',
+    'AuditEventType',
+    'AuditEntry',
+    
+    # Storage
+    'ScheduleStorage'
 ]

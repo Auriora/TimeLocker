@@ -7,14 +7,14 @@
   - Set up configuration management for scheduling system with validation and persistence
   - _Requirements: 1.1, 9.2_
 
-- [ ] 2. Implement Schedule Manager and core orchestration
-  - [ ] 2.1 Create ScheduleManager class with CRUD operations for scheduled backups
+- [x] 2. Implement Schedule Manager and core orchestration
+  - [x] 2.1 Create ScheduleManager class with CRUD operations for scheduled backups
     - Implement schedule creation, update, deletion, and listing functionality
     - Add schedule validation against Policy Management, Data Selection, and Repository Management
     - Create integration clients for communicating with other TimeLocker systems
     - _Requirements: 2.1, 2.2, 9.2_
 
-  - [ ] 2.2 Implement schedule status tracking and monitoring integration
+  - [x] 2.2 Implement schedule status tracking and monitoring integration
     - Add schedule status reporting with next run times and health status
     - Integrate with Monitoring & Reporting system for status updates and notifications
     - Create audit logging system for all scheduling operations
