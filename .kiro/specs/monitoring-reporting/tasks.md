@@ -45,14 +45,14 @@
     - Create storage cleanup and expansion guidance for users
     - _Requirements: 4.4, 4.5_
 
-- [ ] 5. Enhance integrity checking with user-friendly reporting
-  - [ ] 5.1 Extend existing integrity checking with comprehensive verification
+- [x] 5. Enhance integrity checking with user-friendly reporting
+  - [x] 5.1 Extend existing integrity checking with comprehensive verification
     - Build upon existing integrity check functionality in backup_manager.py and security services
     - Add periodic integrity checks with user-configurable intervals from daily to weekly
     - Implement integrity status tracking and results display in user interface
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-  - [ ] 5.2 Create integrity issue remediation guidance
+  - [x] 5.2 Create integrity issue remediation guidance
     - Implement clear notification system for integrity issues with affected backup information
     - Add user-friendly guidance for integrity problems including re-running backups
     - Create manual integrity verification support for specific repositories

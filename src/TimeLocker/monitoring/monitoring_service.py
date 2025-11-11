@@ -27,6 +27,7 @@ from .notification_service import NotificationService
 from .activity_logger import ActivityLogger, LogLevel as ActivityLogLevel
 from .backup_history import BackupHistory, BackupRecord, BackupStatus
 from .storage_monitor import StorageMonitor, StorageUsage, CapacityWarning, StorageTrends, OptimizationRecommendation
+from .integrity_checker import IntegrityChecker, IntegrityStatus, IntegrityLevel, CheckInterval
 from ..interfaces.service_interface import ServiceInterface
 from ..interfaces.integration_data_models import ServiceContext
 
@@ -132,6 +133,7 @@ class MonitoringService(ServiceInterface):
         self.activity_logger = ActivityLogger(config_dir)
         self.backup_history = BackupHistory(config_dir / "history")
         self.storage_monitor = StorageMonitor(config_dir / "storage")
+        self.integrity_checker = IntegrityChecker(config_dir / "integrity")
         
         # Load monitoring preferences
         self.preferences = self._load_preferences()
@@ -642,3 +644,146 @@ class MonitoringService(ServiceInterface):
                 json.dump(asdict(self.preferences), f, indent=2)
         except Exception as e:
             logger.error(f"Failed to save monitoring preferences: {e}")
+
+    def schedule_integrity_check(self, repository_id: str, interval: CheckInterval) -> None:
+        """
+        Schedule periodic integrity checks for a repository.
+        
+        Args:
+            repository_id: Repository to schedule checks for
+            interval: Check interval (daily, weekly, etc.)
+            
+        Requirements: 5.1
+        """
+        try:
+            self.integrity_checker.schedule_integrity_check(repository_id, interval)
+            logger.info(f"Scheduled {interval.value} integrity checks for repository {repository_id}")
+        except Exception as e:
+            logger.error(f"Failed to schedule integrity check: {e}")
+            raise
+    
+    def run_integrity_check(self, repository, snapshot_id: Optional[str] = None) -> 'IntegrityCheckResult':
+        """
+        Run integrity check for a repository.
+        
+        Args:
+            repository: Repository instance to verify
+            snapshot_id: Specific snapshot to verify (optional)
+            
+        Returns:
+            IntegrityCheckResult: Result of the integrity check
+            
+        Requirements: 5.1, 5.3, 5.4
+        """
+        try:
+            # Run the integrity check
+            result = self.integrity_checker.run_integrity_check(repository, snapshot_id)
+            
+            # Log the check result as an operation status
+            status_level = StatusLevel.INFO if result.status == IntegrityLevel.HEALTHY else StatusLevel.ERROR
+            operation_status = OperationStatus(
+                operation_id=result.check_id,
+                operation_type="integrity_check",
+                status=status_level,
+                message=f"Integrity check {result.status.value}: {len(result.issues_found)} issues found",
+                timestamp=result.check_time,
+                repository_id=result.repository_id,
+                metadata={
+                    'check_id': result.check_id,
+                    'snapshots_checked': result.snapshots_checked,
+                    'duration_seconds': result.duration.total_seconds()
+                }
+            )
+            self.activity_logger.log_backup_event(operation_status)
+            
+            # Send notification if issues found
+            if result.issues_found:
+                from .notification_service import NotificationEventType
+                
+                status = OperationStatus(
+                    operation_id=result.check_id,
+                    operation_type="integrity_check",
+                    status=StatusLevel.ERROR if result.status == IntegrityLevel.ERROR else StatusLevel.WARNING,
+                    message=f"Integrity check found {len(result.issues_found)} issue(s)",
+                    timestamp=result.check_time,
+                    repository_id=result.repository_id,
+                    metadata={
+                        'issues_count': len(result.issues_found),
+                        'status': result.status.value
+                    }
+                )
+                
+                # Check if integrity check events are enabled
+                event_type = NotificationEventType.INTEGRITY_CHECK_FAILED.value
+                if self.notifier.is_event_type_enabled(event_type):
+                    self.notifier.send_notification(status)
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Failed to run integrity check: {e}")
+            raise
+    
+    def get_integrity_status(self, repository_id: str) -> IntegrityStatus:
+        """
+        Get current integrity status for a repository.
+        
+        Args:
+            repository_id: Repository to get status for
+            
+        Returns:
+            IntegrityStatus: Current integrity status
+            
+        Requirements: 5.3
+        """
+        try:
+            return self.integrity_checker.get_integrity_status(repository_id)
+        except Exception as e:
+            logger.error(f"Failed to get integrity status: {e}")
+            raise
+    
+    def get_remediation_guidance(self, repository_id: str) -> Optional['RemediationGuide']:
+        """
+        Get user-friendly remediation guidance for integrity issues.
+        
+        Args:
+            repository_id: Repository to get guidance for
+            
+        Returns:
+            RemediationGuide: Remediation guidance or None if no issues
+            
+        Requirements: 5.2, 5.5
+        """
+        try:
+            # Get recent check results
+            recent_checks = self.integrity_checker.get_recent_checks(repository_id, limit=1)
+            
+            if not recent_checks:
+                return None
+            
+            latest_check = recent_checks[0]
+            
+            if not latest_check.issues_found:
+                return None
+            
+            # Get remediation guidance
+            guidance = self.integrity_checker.get_remediation_guidance(latest_check.issues_found)
+            
+            return guidance
+            
+        except Exception as e:
+            logger.error(f"Failed to get remediation guidance: {e}")
+            raise
+    
+    def get_repositories_needing_integrity_check(self) -> List[str]:
+        """
+        Get list of repositories that need integrity checks.
+        
+        Returns:
+            List of repository IDs that need checking
+        """
+        try:
+            return self.integrity_checker.get_repositories_needing_check()
+        except Exception as e:
+            logger.error(f"Failed to get repositories needing check: {e}")
+            return []

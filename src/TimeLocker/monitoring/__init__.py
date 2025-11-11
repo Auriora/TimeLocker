@@ -62,6 +62,15 @@ from .storage_monitor import (
     OptimizationRecommendation,
     WarningLevel
 )
+from .integrity_checker import (
+    IntegrityChecker,
+    IntegrityLevel,
+    IntegrityStatus,
+    IntegrityCheckResult,
+    IntegrityIssue,
+    RemediationGuide,
+    CheckInterval
+)
 
 __all__ = [
         'StatusReporter', 'OperationStatus', 'StatusLevel',
@@ -75,5 +84,7 @@ __all__ = [
         'ActivityLogger', 'LogLevel', 'LogEntry',
         'BackupHistory', 'BackupRecord', 'BackupStatus', 'HistoryFilters', 'PerformanceTrends',
         'StorageMonitor', 'StorageUsage', 'CapacityWarning', 'StorageTrends', 
-        'OptimizationRecommendation', 'WarningLevel'
+        'OptimizationRecommendation', 'WarningLevel',
+        'IntegrityChecker', 'IntegrityLevel', 'IntegrityStatus', 'IntegrityCheckResult',
+        'IntegrityIssue', 'RemediationGuide', 'CheckInterval'
 ]
