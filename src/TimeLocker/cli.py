@@ -278,6 +278,20 @@ security_app.info.options_metavar = "⟨OPTIONS⟩"
 app.add_typer(backup_app, name="backup")
 
 app.add_typer(snapshots_app, name="snapshots")
+
+# Import and register restore app (use importlib to avoid circular import through __init__.py)
+try:
+    import importlib.util
+    restore_spec = importlib.util.spec_from_file_location(
+        "restore_commands",
+        Path(__file__).parent / "cli_modules" / "commands" / "restore.py"
+    )
+    restore_module = importlib.util.module_from_spec(restore_spec)
+    restore_spec.loader.exec_module(restore_module)
+    app.add_typer(restore_module.restore_app, name="restore")
+except Exception as e:
+    logger.warning(f"Failed to import restore commands: {e}")
+
 app.add_typer(repos_app, name="repos")
 app.add_typer(config_app, name="config")
 app.add_typer(credentials_app, name="credentials")

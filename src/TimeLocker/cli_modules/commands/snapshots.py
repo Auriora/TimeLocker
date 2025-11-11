@@ -77,11 +77,13 @@ snapshots_app = create_typer_app(
 
 
 # Commands
+# Note: restore, mount, umount, and contents commands have been moved to the 'restore' namespace
+# Use 'tl restore' commands instead
 
-@snapshots_app.command("restore")
+@snapshots_app.command("restore", deprecated=True, hidden=True)
 @with_error_handling("Restore Error")
 @with_logging
-def snapshots_restore(
+def snapshots_restore_deprecated(
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID", autocompletion=snapshot_id_completer)],
         target: Annotated[Path, typer.Argument(help="Target path for restore", autocompletion=file_path_completer)],
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
@@ -92,7 +94,15 @@ def snapshots_restore(
         confirm: Annotated[bool, typer.Option("--confirm", help="Skip confirmation prompts")] = False,
         verbose: VerboseOption = False,
 ) -> None:
-    """Restore files from this snapshot."""
+    """
+    [DEPRECATED] Restore files from this snapshot.
+    
+    This command has been moved to the 'restore' namespace.
+    Use 'tl restore full' or 'tl restore files' instead.
+    """
+    console.print("[yellow]⚠️  Warning: 'snapshots restore' is deprecated.[/yellow]")
+    console.print("[yellow]   Use 'tl restore full <repository> <snapshot-id> <target>' instead.[/yellow]")
+    console.print()
     setup_logging(verbose)
     interactive = sys.stdin.isatty()
 
@@ -519,15 +529,24 @@ def snapshots_show(
 
 
 
-@snapshots_app.command("contents")
+@snapshots_app.command("contents", deprecated=True, hidden=True)
 @with_error_handling("Contents Error")
 @with_logging
-def snapshots_contents(
+def snapshots_contents_deprecated(
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID", autocompletion=snapshot_id_completer)],
         repository: Annotated[Optional[str], typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
         path: Annotated[Optional[str], typer.Option("--path", help="Filter contents to a specific path prefix")] = None,
         verbose: VerboseOption = False,
 ) -> None:
+    """
+    [DEPRECATED] List contents of a snapshot.
+    
+    This command has been moved to the 'restore' namespace.
+    Use 'tl restore browse' instead.
+    """
+    console.print("[yellow]⚠️  Warning: 'snapshots contents' is deprecated.[/yellow]")
+    console.print("[yellow]   Use 'tl restore browse <repository> <snapshot-id>' instead.[/yellow]")
+    console.print()
     setup_logging(verbose)
     try:
         if repository:
@@ -598,16 +617,24 @@ def snapshots_contents(
 
 
 
-@snapshots_app.command("mount")
+@snapshots_app.command("mount", deprecated=True, hidden=True)
 @with_error_handling("Mount Error")
 @with_logging
-def snapshots_mount(
+def snapshots_mount_deprecated(
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID", autocompletion=snapshot_id_completer)],
         mount_point: Annotated[Path, typer.Argument(help="Mount point", autocompletion=file_path_completer)],
         repository: Annotated[Optional[str], typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
         verbose: VerboseOption = False,
 ) -> None:
-    """Mount a snapshot as a read-only filesystem for browsing."""
+    """
+    [DEPRECATED] Mount a snapshot as a read-only filesystem for browsing.
+    
+    This command has been moved to the 'restore' namespace.
+    Use 'tl restore mount' instead.
+    """
+    console.print("[yellow]⚠️  Warning: 'snapshots mount' is deprecated.[/yellow]")
+    console.print("[yellow]   Use 'tl restore mount <repository> <snapshot-id> <mountpoint>' instead.[/yellow]")
+    console.print()
     setup_logging(verbose)
     try:
         if repository:
@@ -647,13 +674,22 @@ def snapshots_mount(
 
 
 
-@snapshots_app.command("umount")
+@snapshots_app.command("umount", deprecated=True, hidden=True)
 @with_error_handling("Umount Error")
 @with_logging
-def snapshots_umount(
+def snapshots_umount_deprecated(
         snapshot_id: Annotated[str, typer.Argument(help="Snapshot ID", autocompletion=snapshot_id_completer)],
         verbose: VerboseOption = False,
 ) -> None:
+    """
+    [DEPRECATED] Unmount a previously mounted snapshot.
+    
+    This command has been moved to the 'restore' namespace.
+    Use 'tl restore umount' instead.
+    """
+    console.print("[yellow]⚠️  Warning: 'snapshots umount' is deprecated.[/yellow]")
+    console.print("[yellow]   Use 'tl restore umount <snapshot-id>' instead.[/yellow]")
+    console.print()
     setup_logging(verbose)
     try:
         validate_snapshot_id_format(snapshot_id, allow_latest=True)

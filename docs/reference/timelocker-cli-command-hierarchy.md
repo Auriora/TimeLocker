@@ -29,7 +29,8 @@ commands. Use this reference to maintain CLI documentation, implement shell comp
 
 - Repository operations consolidated under `repos` (configuration + actions).
 - Data selection operations unified under `selections` (replaces deprecated `targets`).
-- Snapshot commands standardized under `snapshots`.
+- Snapshot lifecycle management under `snapshots` (list, forget, prune).
+- Recovery operations under `restore` (browse, restore, verify) - separate from snapshot management.
 - Configuration, credentials, and version info exposed via dedicated namespaces.
 
 ### 2.2 Root Command Summary
@@ -48,15 +49,20 @@ timelocker/ (alias: tl)
 ├── snapshots/
 │   ├── list|ls                     # List snapshots from configured repos
 │   ├── show <id>                   # Show snapshot details
-│   ├── contents <id>               # List contents of snapshot
-│   ├── restore <id> <target>       # Restore snapshot
-│   ├── mount <id> <path>           # Mount snapshot
-│   ├── umount <id>                 # Unmount snapshot
-│   ├── find-in <id> <pattern>      # Search within a snapshot
 │   ├── forget <id>                 # Remove snapshot
-│   ├── prune                       # Retention across repositories
+│   ├── prune                       # Apply retention policies
 │   ├── diff <id1> <id2>            # Compare snapshots
 │   └── find <pattern>              # Search across repositories
+├── restore/
+│   ├── list <repository>           # List available snapshots for restoration
+│   ├── browse <repository> <id>    # Explore snapshot contents
+│   ├── files <repository> <id> <paths> # Restore specific files
+│   ├── full <repository> <id> <target> # Restore complete snapshot
+│   ├── mount <repository> <id> <mountpoint> # Mount snapshot as filesystem
+│   ├── umount <id>                 # Unmount snapshot
+│   ├── find <repository> <query>   # Search files for recovery
+│   ├── diff <repository> <id1> <id2> # Compare snapshots for recovery
+│   └── verify <target>             # Verify restored data integrity
 ├── repos/
 │   ├── list|ls                     # List repositories
 │   ├── add <name> <uri>            # Add repository configuration
@@ -108,11 +114,10 @@ timelocker/ (alias: tl)
 | `tl targets list`                       | `tl selections list`                |
 | `tl targets show mytarget`              | `tl selections show mytarget`       |
 | `tl snapshot abc123 show`               | `tl snapshots show abc123`          |
-| `tl snapshot abc123 list`               | `tl snapshots contents abc123`      |
-| `tl snapshot abc123 restore /path`      | `tl snapshots restore abc123 /path` |
-| `tl snapshot abc123 mount /mnt`         | `tl snapshots mount abc123 /mnt`    |
 | `tl snapshot abc123 forget`             | `tl snapshots forget abc123`        |
-| `tl snapshots find "*.pdf"` (unchanged) | `tl snapshots find "*.pdf"`         |
+| `tl snapshot abc123 restore /path`      | `tl restore files myrepo abc123 /path` |
+| `tl snapshot abc123 mount /mnt`         | `tl restore mount myrepo abc123 /mnt` |
+| `tl snapshots find "*.pdf"`             | `tl snapshots find "*.pdf"` OR `tl restore find myrepo "*.pdf"` |
 
 ### 2.6 Examples
 
@@ -120,12 +125,20 @@ timelocker/ (alias: tl)
 - Initialize repository: `tl repos init myrepo`
 - Create selection: `tl selections create documents --include '~/Documents/**' --exclude '*/temp/*'`
 - Backup create: `tl backup create --selection documents --repository myrepo`
-- Snapshot search: `tl snapshots find "*.pdf" --repository archive`
+- List snapshots: `tl snapshots list` (all repos) or `tl restore list myrepo` (specific repo)
+- Browse snapshot: `tl restore browse myrepo abc123`
+- Restore files: `tl restore files myrepo abc123 /path/to/file1 /path/to/file2 --target ~/restored`
+- Restore full: `tl restore full myrepo abc123 ~/restored`
+- Verify restore: `tl restore verify ~/restored --repository myrepo --snapshot abc123`
+- Snapshot search: `tl snapshots find "*.pdf"` (management) or `tl restore find myrepo "*.pdf"` (recovery)
 - Credential storage: `tl credentials set myrepo`
 
 ## 3. Usage Notes
 
-- Snapshot commands default to **all** repositories; specify `--repository` to scope to one repository.
+- **Snapshot Management** (`snapshots`): Use for lifecycle operations (list, forget, prune, search).
+- **Recovery Operations** (`restore`): Use for data restoration (browse, restore, verify, mount).
+- All `restore` commands require explicit `<repository>` parameter for clarity in multi-repository environments.
+- Snapshot commands in `snapshots` namespace default to **all** repositories; use `restore list <repository>` for repository-specific listing.
 - Retention (`prune`, `forget`) respects repository-level retention policies; use `tl repos forget` for repo-specific policies.
 - Shell completion generators consume this hierarchy; update completion scripts when modifying command namespaces.
 - The `targets` command has been deprecated and replaced by `selections` for more flexible data selection patterns.
@@ -133,6 +146,7 @@ timelocker/ (alias: tl)
 
 ## 4. Change Log
 
+- 11-11-2025: **Major restructure** - Separated `restore` namespace from `snapshots` for proper separation of concerns. Removed `restore`, `mount`, `umount`, `contents`, `find-in` from `snapshots`. Added complete `restore` namespace with 9 commands per CLI Interface Requirements. Updated to align with Recovery Operations architecture.
 - 11-11-2025: Removed deprecated `targets` command; replaced with `selections` for data selection management.
 - 01-11-2025: Applied reference template; reorganized sections and clarified aliases.
 - 15-12-2024: Documented merged `repos`/`targets` namespaces and default behaviors.
