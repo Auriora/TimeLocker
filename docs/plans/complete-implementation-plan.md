@@ -291,11 +291,11 @@ CLI Refactoring:          ████████████░░░░░░
      - Task 5.1: Extend existing integrity checking
 
 6. **Performance Tracking**
-   - [ ] Task 6: Enhance performance tracking with user-friendly metrics
+   - [x] Task 6: Enhance performance tracking with user-friendly metrics
      - Task 6.1: Extend existing PerformanceMetrics
 
 7. **Troubleshooting**
-   - [ ] Task 7: Create comprehensive troubleshooting and event correlation
+   - [x] Task 7: Create comprehensive troubleshooting and event correlation
      - Task 7.1: Implement TroubleshootingService
 
 8. **CLI Integration**

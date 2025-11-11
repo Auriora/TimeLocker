@@ -85,6 +85,24 @@ from .performance_optimizer import (
     RecommendationType,
     RecommendationPriority
 )
+from .troubleshooting_service import (
+    TroubleshootingService,
+    IssueType,
+    IssueSeverity,
+    DetectedIssue,
+    TroubleshootingStep,
+    TroubleshootingGuide,
+    EventCorrelation,
+    ProactiveRecommendation,
+    BackupFailure,
+    TroubleshootingReport,
+    EventCorrelator,
+    IssueDetector
+)
+from .configuration_troubleshooter import (
+    ConfigurationTroubleshooter,
+    ConfigurationIssue
+)
 
 __all__ = [
         'StatusReporter', 'OperationStatus', 'StatusLevel',
@@ -104,5 +122,10 @@ __all__ = [
         'PerformanceTracker', 'BackupPerformanceMetrics', 'PerformanceTrend', 
         'PerformanceSummary', 'PerformanceLevel',
         'PerformanceOptimizer', 'PerformanceRecommendation', 'PerformanceIssue',
-        'RecommendationType', 'RecommendationPriority'
+        'RecommendationType', 'RecommendationPriority',
+        'TroubleshootingService', 'IssueType', 'IssueSeverity', 'DetectedIssue',
+        'TroubleshootingStep', 'TroubleshootingGuide', 'EventCorrelation',
+        'ProactiveRecommendation', 'BackupFailure', 'TroubleshootingReport',
+        'EventCorrelator', 'IssueDetector',
+        'ConfigurationTroubleshooter', 'ConfigurationIssue'
 ]

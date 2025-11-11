@@ -30,6 +30,14 @@ from .storage_monitor import StorageMonitor, StorageUsage, CapacityWarning, Stor
 from .integrity_checker import IntegrityChecker, IntegrityStatus, IntegrityLevel, CheckInterval
 from .performance_tracker import PerformanceTracker, BackupPerformanceMetrics, PerformanceSummary
 from .performance_optimizer import PerformanceOptimizer, PerformanceRecommendation
+from .troubleshooting_service import (
+    TroubleshootingService,
+    BackupFailure,
+    TroubleshootingReport,
+    EventCorrelation,
+    ProactiveRecommendation,
+    DetectedIssue
+)
 from ..interfaces.service_interface import ServiceInterface
 from ..interfaces.integration_data_models import ServiceContext
 
@@ -139,6 +147,19 @@ class MonitoringService(ServiceInterface):
         self.performance_tracker = PerformanceTracker(config_dir / "performance")
         self.performance_optimizer = PerformanceOptimizer(self.performance_tracker)
         
+        # Initialize troubleshooting service with configuration integration
+        config_module = None
+        try:
+            from ..config import ConfigurationModule
+            config_module = ConfigurationModule(self.config_dir.parent)
+        except Exception as e:
+            logger.warning(f"Could not initialize configuration module for troubleshooting: {e}")
+        
+        self.troubleshooting_service = TroubleshootingService(
+            config_dir / "troubleshooting",
+            config_module=config_module
+        )
+        
         # Load monitoring preferences
         self.preferences = self._load_preferences()
         
@@ -242,7 +263,10 @@ class MonitoringService(ServiceInterface):
             'operation_tracking',
             'monitoring_preferences',
             'performance_tracking',
-            'performance_optimization'
+            'performance_optimization',
+            'troubleshooting',
+            'event_correlation',
+            'proactive_issue_detection'
         ]
 
     def handle_backup_event(self, event: BackupEvent) -> None:
@@ -970,3 +994,197 @@ class MonitoringService(ServiceInterface):
             PerformanceTracker: Performance tracker instance
         """
         return self.performance_tracker
+    
+    def analyze_backup_failure(
+        self,
+        operation_id: str,
+        error_message: str,
+        repository_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> TroubleshootingReport:
+        """
+        Analyze a backup failure and provide troubleshooting guidance.
+        
+        Args:
+            operation_id: Failed operation identifier
+            error_message: Error message from the failure
+            repository_id: Repository identifier (optional)
+            metadata: Additional failure metadata (optional)
+            
+        Returns:
+            Complete troubleshooting report
+            
+        Requirements: 9.1, 9.2
+        """
+        try:
+            # Create BackupFailure object
+            failure = BackupFailure(
+                operation_id=operation_id,
+                repository_id=repository_id,
+                timestamp=datetime.now(),
+                error_message=error_message,
+                metadata=metadata or {}
+            )
+            
+            # Get recent events for context
+            recent_events = self.status_reporter.get_operation_history(days=7)
+            
+            # Analyze the failure
+            report = self.troubleshooting_service.analyze_backup_failure(failure, recent_events)
+            
+            return report
+            
+        except Exception as e:
+            logger.error(f"Failed to analyze backup failure: {e}")
+            raise
+    
+    def correlate_events(
+        self,
+        time_window: Optional[timedelta] = None
+    ) -> List[EventCorrelation]:
+        """
+        Correlate recent events to identify patterns.
+        
+        Args:
+            time_window: Time window for correlation (default: 24 hours)
+            
+        Returns:
+            List of event correlations
+            
+        Requirements: 9.1
+        """
+        try:
+            # Get recent events
+            days = (time_window.days if time_window else 1) or 1
+            recent_events = self.status_reporter.get_operation_history(days=days)
+            
+            # Correlate events
+            correlations = self.troubleshooting_service.correlate_events(recent_events, time_window)
+            
+            return correlations
+            
+        except Exception as e:
+            logger.error(f"Failed to correlate events: {e}")
+            return []
+    
+    def detect_proactive_issues(
+        self,
+        time_window: timedelta = timedelta(days=7)
+    ) -> List[ProactiveRecommendation]:
+        """
+        Detect potential issues before they cause failures.
+        
+        Args:
+            time_window: Time window for analysis (default: 7 days)
+            
+        Returns:
+            List of proactive recommendations
+            
+        Requirements: 9.2, 9.3
+        """
+        try:
+            # Get recent events
+            recent_events = self.status_reporter.get_operation_history(days=time_window.days)
+            
+            # Detect proactive issues
+            recommendations = self.troubleshooting_service.detect_proactive_issues(
+                recent_events,
+                time_window
+            )
+            
+            return recommendations
+            
+        except Exception as e:
+            logger.error(f"Failed to detect proactive issues: {e}")
+            return []
+    
+    def get_detected_issues(
+        self,
+        time_window: timedelta = timedelta(days=7)
+    ) -> List[DetectedIssue]:
+        """
+        Get list of detected issues from recent events.
+        
+        Args:
+            time_window: Time window for analysis (default: 7 days)
+            
+        Returns:
+            List of detected issues
+            
+        Requirements: 9.1, 9.2
+        """
+        try:
+            # Get recent events
+            recent_events = self.status_reporter.get_operation_history(days=time_window.days)
+            
+            # Detect issues
+            issues = self.troubleshooting_service.issue_detector.detect_issues(
+                recent_events,
+                time_window
+            )
+            
+            return issues
+            
+        except Exception as e:
+            logger.error(f"Failed to get detected issues: {e}")
+            return []
+    
+    def get_troubleshooting_service(self) -> TroubleshootingService:
+        """
+        Get the troubleshooting service instance.
+        
+        Returns:
+            TroubleshootingService: Troubleshooting service instance
+        """
+        return self.troubleshooting_service
+    
+    def validate_configuration(self) -> List[Any]:
+        """
+        Validate configuration and identify issues.
+        
+        Returns:
+            List of configuration issues
+            
+        Requirements: 9.4
+        """
+        try:
+            return self.troubleshooting_service.validate_configuration()
+        except Exception as e:
+            logger.error(f"Failed to validate configuration: {e}")
+            return []
+    
+    def get_configuration_troubleshooting_guide(
+        self,
+        issue_type: str
+    ) -> Optional['TroubleshootingGuide']:
+        """
+        Get troubleshooting guide for configuration issues.
+        
+        Args:
+            issue_type: Type of configuration issue
+            
+        Returns:
+            Troubleshooting guide or None if not available
+            
+        Requirements: 9.4, 9.5
+        """
+        try:
+            return self.troubleshooting_service.get_configuration_troubleshooting_guide(issue_type)
+        except Exception as e:
+            logger.error(f"Failed to get configuration troubleshooting guide: {e}")
+            return None
+    
+    def get_setup_recommendations(self) -> List[ProactiveRecommendation]:
+        """
+        Get proactive recommendations for configuration setup.
+        
+        Returns:
+            List of setup recommendations
+            
+        Requirements: 9.4, 9.5
+        """
+        try:
+            return self.troubleshooting_service.get_setup_recommendations()
+        except Exception as e:
+            logger.error(f"Failed to get setup recommendations: {e}")
+            return []
