@@ -616,15 +616,20 @@ class NotificationService(ServiceInterface):
             "--expire-time", str(self.config.preferences.desktop_notification_persistence * 1000)  # milliseconds
         ]
         
-        # Add icon based on status
-        icon_map = {
-            StatusLevel.SUCCESS: "dialog-information",
-            StatusLevel.WARNING: "dialog-warning",
-            StatusLevel.ERROR: "dialog-error",
-            StatusLevel.CRITICAL: "dialog-error",
-            StatusLevel.INFO: "dialog-information"
-        }
-        cmd.extend(["--icon", icon_map.get(status_level, "dialog-information")])
+        # Try to use TimeLocker logo icon first, fallback to system icons
+        logo_path = Path(__file__).parent.parent.parent.parent / "resources" / "images" / "TimeLocker-Logo-Icon-Color-White.png"
+        if logo_path.exists():
+            cmd.extend(["--icon", str(logo_path)])
+        else:
+            # Fallback to system icons based on status
+            icon_map = {
+                StatusLevel.SUCCESS: "dialog-information",
+                StatusLevel.WARNING: "dialog-warning",
+                StatusLevel.ERROR: "dialog-error",
+                StatusLevel.CRITICAL: "dialog-error",
+                StatusLevel.INFO: "dialog-information"
+            }
+            cmd.extend(["--icon", icon_map.get(status_level, "dialog-information")])
         
         cmd.extend([title, message])
 
@@ -642,6 +647,10 @@ class NotificationService(ServiceInterface):
         escaped_title = title.replace('"', '\\"')
         escaped_message = message.replace('"', '\\"')
         
+        # Note: macOS notifications use the app bundle icon automatically
+        # For terminal-run scripts, we can't easily set a custom icon via osascript
+        # The icon would need to be set at the app bundle level or via a native app
+        
         # Build script with sound preference
         if self.config.preferences.desktop_notification_sound:
             script = f'''display notification "{escaped_message}" with title "{escaped_title}" sound name "default"'''
@@ -656,13 +665,30 @@ class NotificationService(ServiceInterface):
             # Escape quotes and special characters for PowerShell
             escaped_title = title.replace('"', '""').replace("'", "''")
             escaped_message = message.replace('"', '""').replace("'", "''")
+            
+            # Get logo path
+            logo_path = Path(__file__).parent.parent.parent.parent / "resources" / "images" / "TimeLocker-Logo-Icon-Color-White.png"
+            escaped_logo_path = str(logo_path).replace('\\', '\\\\').replace('"', '""')
 
-            # Use a more robust PowerShell approach with proper error handling
+            # Use a more robust PowerShell approach with proper error handling and custom icon
             script = f'''
             try {{
                 Add-Type -AssemblyName System.Windows.Forms
+                Add-Type -AssemblyName System.Drawing
                 $notification = New-Object System.Windows.Forms.NotifyIcon
-                $notification.Icon = [System.Drawing.SystemIcons]::Information
+                
+                # Try to load custom icon, fallback to system icon
+                $iconPath = "{escaped_logo_path}"
+                if (Test-Path $iconPath) {{
+                    try {{
+                        $notification.Icon = New-Object System.Drawing.Icon($iconPath)
+                    }} catch {{
+                        $notification.Icon = [System.Drawing.SystemIcons]::Information
+                    }}
+                }} else {{
+                    $notification.Icon = [System.Drawing.SystemIcons]::Information
+                }}
+                
                 $notification.BalloonTipTitle = "{escaped_title}"
                 $notification.BalloonTipText = "{escaped_message}"
                 $notification.Visible = $true
