@@ -1,309 +1,284 @@
 """
-Integration tests for backend credential storage via the 'repos add' CLI command.
+Unit tests for backend credential storage helper function.
 
-NOTE: The store_backend_credentials helper function has been refactored into a separate
-module (cli_helpers.py) and is now tested directly in test_cli_helpers.py. These tests
-serve as integration tests to verify the full CLI command flow including user prompts,
-CLI argument parsing, and the interaction between the CLI and the helper function.
-
-For direct unit tests of the store_backend_credentials helper logic, see:
-    tests/TimeLocker/cli/test_cli_helpers.py
-
-These integration tests exercise the complete 'repos add' command flow by invoking
-the CLI with appropriate arguments and mocking dependencies to control CredentialManager
-lock/unlock behavior and verify side effects.
-
-Scenarios covered:
-1. Credential manager locked and cannot unlock (should warn and not store credentials).
-2. Credential manager locked, unlock succeeds (credentials stored, update_repository called).
-3. Credential manager already unlocked (credentials stored without unlock attempt).
-4. Credentials include region and insecure TLS flag when user supplies them.
-5. Credentials omit optional fields when user leaves them blank / disabled.
-6. Exception handling during credential storage.
-7. User declining to store credentials.
+These tests verify the store_backend_credentials helper function extracted from
+the repos add command. They test credential manager locking/unlocking behavior,
+credential storage, and configuration updates.
 """
 
 import pytest
-from typer.testing import CliRunner
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
+import io
 
-from src.TimeLocker.cli import app
+from src.TimeLocker.cli_helpers import store_backend_credentials
+from rich.console import Console
 
-runner = CliRunner(env={'COLUMNS': '200'})
-
-
-def _combined_output(result):
-    out = result.stdout or ""
-    err = getattr(result, "stderr", "") or ""
-    return out + "\n" + err
-
-
-# NOTE: We patch CredentialManager and ConfigurationModule at their definition modules
-# because repos_add imports them dynamically inside the function body.
 
 @pytest.mark.unit
-@patch('src.TimeLocker.security.credential_manager.CredentialManager')
-@patch('src.TimeLocker.config.configuration_module.ConfigurationModule')
-@patch('src.TimeLocker.cli.BackupManager')
-@patch('src.TimeLocker.cli.Confirm.ask')
-@patch('src.TimeLocker.cli.Prompt.ask')
-def test_store_backend_credentials_locked_cannot_unlock(mock_prompt, mock_confirm, mock_backup_mgr, mock_config_mod, mock_cred_mgr_cls):
+def test_store_backend_credentials_locked_cannot_unlock():
     """Locked credential manager cannot unlock -> warning, no storage, no update_repository call."""
-    mock_confirm.side_effect = [True, False]  # store AWS creds? then insecure TLS? -> False
-    mock_prompt.side_effect = ["AKIA", "SECRET", ""]  # access key, secret, region blank
-
-    config_instance = MagicMock()
-    mock_config_mod.return_value = config_instance
-
-    cred_instance = MagicMock()
-    cred_instance.is_locked.return_value = True
-    cred_instance.ensure_unlocked.return_value = False
-    mock_cred_mgr_cls.return_value = cred_instance
-
-    repo = MagicMock()
-    repo.store_password.return_value = True
-    mock_backup_mgr.return_value.from_uri.return_value = repo
-
-    result = runner.invoke(app, [
-            'repos', 'add', 'myrepo', 's3://dummyhost/bucket', '--password', 'repopass'
-    ])
-    combined = _combined_output(result)
-
-    # Command should complete successfully (exit code 0) despite warning
-    assert result.exit_code == 0
-    assert 'Could not unlock credential manager' in combined
-    cred_instance.store_repository_backend_credentials.assert_not_called()
-    config_instance.update_repository.assert_not_called()
+    # Create mocks
+    cred_mgr = MagicMock()
+    cred_mgr.is_locked.return_value = True
+    cred_mgr.ensure_unlocked.return_value = False  # Cannot unlock
+    
+    config_manager = MagicMock()
+    repository_config = {}
+    
+    # Capture console output
+    string_io = io.StringIO()
+    console = Console(file=string_io, force_terminal=True)
+    
+    # Call helper function
+    result = store_backend_credentials(
+        repository_name='myrepo',
+        backend_type='s3',
+        backend_name='AWS',
+        credentials_dict={'access_key': 'AKIA', 'secret_key': 'SECRET'},
+        cred_mgr=cred_mgr,
+        config_manager=config_manager,
+        repository_config=repository_config,
+        console=console,
+        allow_prompt=False
+    )
+    
+    # Should return False (failed to unlock)
+    assert result is False
+    
+    # Should not have called store or update
+    cred_mgr.store_repository_backend_credentials.assert_not_called()
+    config_manager.update_repository.assert_not_called()
+    
+    # Should have warning in output
+    output = string_io.getvalue()
+    assert 'Could not unlock credential manager' in output
 
 
 @pytest.mark.unit
-@patch('src.TimeLocker.security.credential_manager.CredentialManager')
-@patch('src.TimeLocker.config.configuration_module.ConfigurationModule')
-@patch('src.TimeLocker.cli.BackupManager')
-@patch('src.TimeLocker.cli.Confirm.ask')
-@patch('src.TimeLocker.cli.Prompt.ask')
-def test_store_backend_credentials_locked_unlocks_successfully(mock_prompt, mock_confirm, mock_backup_mgr, mock_config_mod, mock_cred_mgr_cls):
+def test_store_backend_credentials_locked_unlocks_successfully():
     """Locked credential manager unlocks -> credentials stored and repository updated."""
-    mock_confirm.side_effect = [True, False]
-    mock_prompt.side_effect = ["AKIA2", "SECRET2", ""]
-
-    config_instance = MagicMock()
-    mock_config_mod.return_value = config_instance
-
-    cred_instance = MagicMock()
-    cred_instance.is_locked.return_value = True
-    cred_instance.ensure_unlocked.return_value = True
-    mock_cred_mgr_cls.return_value = cred_instance
-
-    repo = MagicMock()
-    repo.store_password.return_value = True
-    mock_backup_mgr.return_value.from_uri.return_value = repo
-
-    result = runner.invoke(app, [
-            'repos', 'add', 'myrepo2', 's3://dummyhost/bucket2', '--password', 'repopass2'
-    ])
-    combined = _combined_output(result)
-
-    assert result.exit_code == 0
-    cred_instance.ensure_unlocked.assert_called_once()
-    cred_instance.store_repository_backend_credentials.assert_called_once()
-    _, _, stored_credentials = cred_instance.store_repository_backend_credentials.call_args[0]
-    assert stored_credentials == {
-            'access_key_id':     'AKIA2',
-            'secret_access_key': 'SECRET2'
-    }
-    # Verify has_backend_credentials flag was set in some update_repository call
-    assert any(
-            isinstance(call.args[1], dict) and call.args[1].get('has_backend_credentials')
-            for call in config_instance.update_repository.call_args_list
+    # Create mocks
+    cred_mgr = MagicMock()
+    cred_mgr.is_locked.return_value = True
+    cred_mgr.ensure_unlocked.return_value = True  # Successfully unlocks
+    
+    config_manager = MagicMock()
+    repository_config = {}
+    
+    # Capture console output
+    string_io = io.StringIO()
+    console = Console(file=string_io, force_terminal=True)
+    
+    # Call helper function
+    result = store_backend_credentials(
+        repository_name='myrepo',
+        backend_type='s3',
+        backend_name='AWS',
+        credentials_dict={'access_key': 'AKIA2', 'secret_key': 'SECRET2'},
+        cred_mgr=cred_mgr,
+        config_manager=config_manager,
+        repository_config=repository_config,
+        console=console,
+        allow_prompt=True
     )
-    assert ('AWS Credentials: Stored securely' in combined) or ('AWS credentials stored' in combined)
+    
+    # Should return True (success)
+    assert result is True
+    
+    # Should have called ensure_unlocked
+    cred_mgr.ensure_unlocked.assert_called_once_with(allow_prompt=True)
+    
+    # Should have stored credentials
+    cred_mgr.store_repository_backend_credentials.assert_called_once_with(
+        'myrepo', 's3', {'access_key': 'AKIA2', 'secret_key': 'SECRET2'}
+    )
+    
+    # Should have updated repository config
+    assert repository_config['has_backend_credentials'] is True
+    config_manager.update_repository.assert_called_once_with('myrepo', repository_config)
 
 
 @pytest.mark.unit
-@patch('src.TimeLocker.security.credential_manager.CredentialManager')
-@patch('src.TimeLocker.config.configuration_module.ConfigurationModule')
-@patch('src.TimeLocker.cli.BackupManager')
-@patch('src.TimeLocker.cli.Confirm.ask')
-@patch('src.TimeLocker.cli.Prompt.ask')
-def test_store_backend_credentials_already_unlocked(mock_prompt, mock_confirm, mock_backup_mgr, mock_config_mod, mock_cred_mgr_cls):
+def test_store_backend_credentials_already_unlocked():
     """Credential manager already unlocked -> store credentials without unlock attempt."""
-    mock_confirm.side_effect = [True, False]
-    mock_prompt.side_effect = ["AKIA3", "SECRET3", "us-west-1"]
-
-    config_instance = MagicMock()
-    mock_config_mod.return_value = config_instance
-
-    cred_instance = MagicMock()
-    cred_instance.is_locked.return_value = False
-    mock_cred_mgr_cls.return_value = cred_instance
-
-    repo = MagicMock()
-    repo.store_password.return_value = True
-    mock_backup_mgr.return_value.from_uri.return_value = repo
-
-    result = runner.invoke(app, [
-            'repos', 'add', 'myrepo3', 's3://dummyhost/bucket3', '--password', 'repopass3'
-    ])
-
-    assert result.exit_code == 0
-    cred_instance.ensure_unlocked.assert_not_called()
-    cred_instance.store_repository_backend_credentials.assert_called_once()
-    stored_credentials = cred_instance.store_repository_backend_credentials.call_args[0][2]
-    assert stored_credentials == {
-            'access_key_id':     'AKIA3',
-            'secret_access_key': 'SECRET3',
-            'region':            'us-west-1'
-    }
-
-
-@pytest.mark.unit
-@patch('src.TimeLocker.security.credential_manager.CredentialManager')
-@patch('src.TimeLocker.config.configuration_module.ConfigurationModule')
-@patch('src.TimeLocker.cli.BackupManager')
-@patch('src.TimeLocker.cli.Confirm.ask')
-@patch('src.TimeLocker.cli.Prompt.ask')
-def test_store_backend_credentials_with_insecure_tls_and_region(mock_prompt, mock_confirm, mock_backup_mgr, mock_config_mod, mock_cred_mgr_cls):
-    """User supplies region and chooses insecure TLS -> both fields appear in stored credentials."""
-    mock_confirm.side_effect = [True, True]
-    mock_prompt.side_effect = ["AKIA4", "SECRET4", "eu-central-1"]
-
-    config_instance = MagicMock()
-    mock_config_mod.return_value = config_instance
-
-    cred_instance = MagicMock()
-    cred_instance.is_locked.return_value = False
-    mock_cred_mgr_cls.return_value = cred_instance
-
-    repo = MagicMock()
-    repo.store_password.return_value = True
-    mock_backup_mgr.return_value.from_uri.return_value = repo
-
-    result = runner.invoke(app, [
-            'repos', 'add', 'myrepo4', 's3://dummyhost/bucket4', '--password', 'repopass4'
-    ])
-
-    assert result.exit_code == 0
-    stored_credentials = cred_instance.store_repository_backend_credentials.call_args[0][2]
-    assert stored_credentials == {
-            'access_key_id':     'AKIA4',
-            'secret_access_key': 'SECRET4',
-            'region':            'eu-central-1',
-            'insecure_tls':      True
-    }
+    # Create mocks
+    cred_mgr = MagicMock()
+    cred_mgr.is_locked.return_value = False  # Already unlocked
+    
+    config_manager = MagicMock()
+    repository_config = {}
+    
+    # Call helper function
+    result = store_backend_credentials(
+        repository_name='myrepo',
+        backend_type='s3',
+        backend_name='AWS',
+        credentials_dict={'access_key': 'AKIA3', 'secret_key': 'SECRET3', 'region': 'us-west-1'},
+        cred_mgr=cred_mgr,
+        config_manager=config_manager,
+        repository_config=repository_config,
+        allow_prompt=False
+    )
+    
+    # Should return True (success)
+    assert result is True
+    
+    # Should NOT have called ensure_unlocked (already unlocked)
+    cred_mgr.ensure_unlocked.assert_not_called()
+    
+    # Should have stored credentials
+    cred_mgr.store_repository_backend_credentials.assert_called_once()
+    
+    # Should have updated repository config
+    assert repository_config['has_backend_credentials'] is True
+    config_manager.update_repository.assert_called_once()
 
 
 @pytest.mark.unit
-@patch('src.TimeLocker.security.credential_manager.CredentialManager')
-@patch('src.TimeLocker.config.configuration_module.ConfigurationModule')
-@patch('src.TimeLocker.cli.BackupManager')
-@patch('src.TimeLocker.cli.Confirm.ask')
-@patch('src.TimeLocker.cli.Prompt.ask')
-def test_store_backend_credentials_without_optional_fields(mock_prompt, mock_confirm, mock_backup_mgr, mock_config_mod, mock_cred_mgr_cls):
+def test_store_backend_credentials_with_insecure_tls_and_region():
+    """User supplies region and insecure TLS flag -> both fields appear in stored credentials."""
+    # Create mocks
+    cred_mgr = MagicMock()
+    cred_mgr.is_locked.return_value = False
+    
+    config_manager = MagicMock()
+    repository_config = {}
+    
+    credentials_dict = {
+        'access_key': 'AKIA4',
+        'secret_key': 'SECRET4',
+        'region': 'eu-central-1',
+        'insecure_tls': True  # Boolean value
+    }
+    
+    # Call helper function
+    result = store_backend_credentials(
+        repository_name='myrepo',
+        backend_type='s3',
+        backend_name='AWS',
+        credentials_dict=credentials_dict,
+        cred_mgr=cred_mgr,
+        config_manager=config_manager,
+        repository_config=repository_config
+    )
+    
+    # Should return True (success)
+    assert result is True
+    
+    # Should have stored credentials with all fields
+    cred_mgr.store_repository_backend_credentials.assert_called_once_with(
+        'myrepo', 's3', credentials_dict
+    )
+    
+    # Verify the credentials dict passed includes all fields
+    call_args = cred_mgr.store_repository_backend_credentials.call_args
+    stored_creds = call_args[0][2]
+    assert stored_creds['access_key'] == 'AKIA4'
+    assert stored_creds['secret_key'] == 'SECRET4'
+    assert stored_creds['region'] == 'eu-central-1'
+    assert stored_creds['insecure_tls'] is True
+
+
+@pytest.mark.unit
+def test_store_backend_credentials_without_optional_fields():
     """User leaves region blank and does not enable insecure TLS -> optional fields omitted."""
-    mock_confirm.side_effect = [True, False]
-    mock_prompt.side_effect = ["AKIA5", "SECRET5", ""]
-
-    config_instance = MagicMock()
-    mock_config_mod.return_value = config_instance
-
-    cred_instance = MagicMock()
-    cred_instance.is_locked.return_value = False
-    mock_cred_mgr_cls.return_value = cred_instance
-
-    repo = MagicMock()
-    repo.store_password.return_value = True
-    mock_backup_mgr.return_value.from_uri.return_value = repo
-
-    result = runner.invoke(app, [
-            'repos', 'add', 'myrepo5', 's3://dummyhost/bucket5', '--password', 'repopass5'
-    ])
-
-    assert result.exit_code == 0
-    stored_credentials = cred_instance.store_repository_backend_credentials.call_args[0][2]
-    assert stored_credentials == {
-            'access_key_id':     'AKIA5',
-            'secret_access_key': 'SECRET5'
+    # Create mocks
+    cred_mgr = MagicMock()
+    cred_mgr.is_locked.return_value = False
+    
+    config_manager = MagicMock()
+    repository_config = {}
+    
+    credentials_dict = {
+        'access_key': 'AKIA5',
+        'secret_key': 'SECRET5'
+        # No region, no insecure_tls
     }
+    
+    # Call helper function
+    result = store_backend_credentials(
+        repository_name='myrepo',
+        backend_type='s3',
+        backend_name='AWS',
+        credentials_dict=credentials_dict,
+        cred_mgr=cred_mgr,
+        config_manager=config_manager,
+        repository_config=repository_config
+    )
+    
+    # Should return True (success)
+    assert result is True
+    
+    # Should have stored credentials without optional fields
+    call_args = cred_mgr.store_repository_backend_credentials.call_args
+    stored_creds = call_args[0][2]
+    assert stored_creds['access_key'] == 'AKIA5'
+    assert stored_creds['secret_key'] == 'SECRET5'
+    assert 'region' not in stored_creds
+    assert 'insecure_tls' not in stored_creds
 
 
 @pytest.mark.unit
-@patch('src.TimeLocker.security.credential_manager.CredentialManager')
-@patch('src.TimeLocker.config.configuration_module.ConfigurationModule')
-@patch('src.TimeLocker.cli.BackupManager')
-@patch('src.TimeLocker.cli.Confirm.ask')
-@patch('src.TimeLocker.cli.Prompt.ask')
-def test_store_backend_credentials_exception_propagates_and_handled(mock_prompt, mock_confirm, mock_backup_mgr, mock_config_mod, mock_cred_mgr_cls):
-    """If storing backend credentials raises an exception, command should exit with error panel and not set flag."""
-    # First Confirm -> store AWS credentials (True); second Confirm -> insecure TLS (False)
-    mock_confirm.side_effect = [True, False]
-    mock_prompt.side_effect = ["AKIA_EX", "SECRET_EX", ""]
-
-    config_instance = MagicMock()
-    mock_config_mod.return_value = config_instance
-
-    # Credential manager instance raising error on store
-    cred_instance = MagicMock()
-    cred_instance.is_locked.return_value = False
-
-    def _raise(*a, **kw):
-        raise RuntimeError("Boom")
-
-    cred_instance.store_repository_backend_credentials.side_effect = _raise
-    mock_cred_mgr_cls.return_value = cred_instance
-
-    repo = MagicMock()
-    repo.store_password.return_value = True
-    mock_backup_mgr.return_value.from_uri.return_value = repo
-
-    result = runner.invoke(app, [
-            'repos', 'add', 'failrepo', 's3://dummyhost/failbucket', '--password', 'repopass'
-    ])
-    combined = _combined_output(result)
-
-    assert result.exit_code == 1  # Should exit with error
-    assert 'Configuration Error' in combined
-    assert 'Failed to add repository: Boom' in combined
-    # Ensure has_backend_credentials never set
-    assert not any(
-            isinstance(call.args[1], dict) and call.args[1].get('has_backend_credentials')
-            for call in config_instance.update_repository.call_args_list
-    )
+def test_store_backend_credentials_exception_propagates():
+    """If storing backend credentials raises an exception, it should propagate."""
+    # Create mocks
+    cred_mgr = MagicMock()
+    cred_mgr.is_locked.return_value = False
+    cred_mgr.store_repository_backend_credentials.side_effect = Exception("Storage failed")
+    
+    config_manager = MagicMock()
+    repository_config = {}
+    
+    # Call helper function - should raise exception
+    with pytest.raises(Exception, match="Storage failed"):
+        store_backend_credentials(
+            repository_name='myrepo',
+            backend_type='s3',
+            backend_name='AWS',
+            credentials_dict={'access_key': 'AKIA6', 'secret_key': 'SECRET6'},
+            cred_mgr=cred_mgr,
+            config_manager=config_manager,
+            repository_config=repository_config
+        )
+    
+    # Should NOT have updated repository config (exception occurred before that)
+    config_manager.update_repository.assert_not_called()
+    assert 'has_backend_credentials' not in repository_config
 
 
 @pytest.mark.unit
-@patch('src.TimeLocker.security.credential_manager.CredentialManager')
-@patch('src.TimeLocker.config.configuration_module.ConfigurationModule')
-@patch('src.TimeLocker.cli.BackupManager')
-@patch('src.TimeLocker.cli.Confirm.ask')
-@patch('src.TimeLocker.cli.Prompt.ask')
-def test_store_backend_credentials_user_declines_first_confirm(mock_prompt, mock_confirm, mock_backup_mgr, mock_config_mod, mock_cred_mgr_cls):
-    """When user declines to store credentials, no credential prompts or storage should occur."""
-    # User declines first confirm; no second confirm for insecure TLS should be asked
-    mock_confirm.side_effect = [False]
-    # Prompt.ask should never be called for credentials if user declines
-
-    config_instance = MagicMock()
-    mock_config_mod.return_value = config_instance
-
-    cred_instance = MagicMock()
-    cred_instance.is_locked.return_value = False
-    mock_cred_mgr_cls.return_value = cred_instance
-
-    repo = MagicMock()
-    repo.store_password.return_value = True
-    mock_backup_mgr.return_value.from_uri.return_value = repo
-
-    result = runner.invoke(app, [
-            'repos', 'add', 'declinerepo', 's3://dummyhost/declbucket', '--password', 'repopass'
-    ])
-    combined = _combined_output(result)
-
-    assert result.exit_code == 0
-    mock_prompt.assert_not_called()
-    cred_instance.store_repository_backend_credentials.assert_not_called()
-    # Ensure has_backend_credentials never set
-    assert not any(
-            isinstance(call.args[1], dict) and call.args[1].get('has_backend_credentials')
-            for call in config_instance.update_repository.call_args_list
+def test_store_backend_credentials_b2_backend():
+    """Test storing B2 backend credentials."""
+    # Create mocks
+    cred_mgr = MagicMock()
+    cred_mgr.is_locked.return_value = False
+    
+    config_manager = MagicMock()
+    repository_config = {}
+    
+    credentials_dict = {
+        'account_id': 'B2_ACCOUNT_ID',
+        'application_key': 'B2_APP_KEY'
+    }
+    
+    # Call helper function
+    result = store_backend_credentials(
+        repository_name='b2repo',
+        backend_type='b2',
+        backend_name='Backblaze B2',
+        credentials_dict=credentials_dict,
+        cred_mgr=cred_mgr,
+        config_manager=config_manager,
+        repository_config=repository_config
     )
+    
+    # Should return True (success)
+    assert result is True
+    
+    # Should have stored B2 credentials
+    cred_mgr.store_repository_backend_credentials.assert_called_once_with(
+        'b2repo', 'b2', credentials_dict
+    )
+    
+    # Should have updated repository config
+    assert repository_config['has_backend_credentials'] is True

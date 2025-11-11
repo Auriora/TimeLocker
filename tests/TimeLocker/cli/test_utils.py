@@ -259,3 +259,64 @@ def assert_help_quality(result, command_name: str):
     output_lower = output.lower()
     for indicator in error_indicators:
         assert indicator not in output_lower, f"Help for '{command_name}' should not contain '{indicator}'"
+
+
+def create_mock_cli_service_manager() -> Mock:
+    """
+    Create properly structured mock CLIServiceManager matching actual implementation.
+    
+    This factory creates a mock that matches the actual CLIServiceManager structure
+    with repository_service, snapshot_service, and config_module properties.
+    Also provides direct method access for CLI commands that use _get_service_method.
+    
+    Returns:
+        Mock CLIServiceManager with correct service structure
+    """
+    # Don't use spec as it prevents dynamic attribute assignment
+    mock_manager = Mock()
+    
+    # Repository service with common methods (no spec to allow dynamic attributes)
+    mock_manager.repository_service = Mock()
+    mock_manager.repository_service.list_repositories.return_value = []
+    mock_manager.repository_service.get_repository.return_value = None
+    mock_manager.repository_service.add_repository.return_value = {'success': True}
+    mock_manager.repository_service.remove_repository.return_value = {'success': True}
+    mock_manager.repository_service.update_repository.return_value = {'success': True}
+    mock_manager.repository_service.initialize_repository.return_value = {'success': True, 'already_initialized': False}
+    mock_manager.repository_service.check_repository.return_value = {'success': True}
+    mock_manager.repository_service.get_repository_stats.return_value = {}
+    
+    # Snapshot service with common methods (no spec to allow dynamic attributes)
+    mock_manager.snapshot_service = Mock()
+    mock_manager.snapshot_service.list_snapshots.return_value = []
+    mock_manager.snapshot_service.get_snapshot.return_value = None
+    mock_manager.snapshot_service.find_snapshots.return_value = []
+    mock_manager.snapshot_service.delete_snapshot.return_value = {'success': True}
+    
+    # Config module (no spec to allow dynamic attributes)
+    mock_manager.config_module = Mock()
+    mock_manager.config_module.get_repository.return_value = None
+    mock_manager.config_module.list_repositories.return_value = []
+    
+    # Backup orchestrator (currently not implemented in actual code)
+    mock_manager.backup_orchestrator = None
+    
+    # Service manager properties
+    mock_manager._is_initialized = True
+    mock_manager._config_dir = None
+    
+    # IMPORTANT: CLI commands use _get_service_method which looks for methods directly on the manager
+    # So we need to provide direct method access that delegates to the services
+    mock_manager.list_repositories = mock_manager.repository_service.list_repositories
+    mock_manager.get_repository = mock_manager.repository_service.get_repository
+    mock_manager.add_repository = mock_manager.repository_service.add_repository
+    mock_manager.remove_repository = mock_manager.repository_service.remove_repository
+    mock_manager.update_repository = mock_manager.repository_service.update_repository
+    mock_manager.initialize_repository = mock_manager.repository_service.initialize_repository
+    mock_manager.check_repository = mock_manager.repository_service.check_repository
+    mock_manager.get_repository_stats = mock_manager.repository_service.get_repository_stats
+    mock_manager.list_snapshots = mock_manager.snapshot_service.list_snapshots
+    mock_manager.get_snapshot = mock_manager.snapshot_service.get_snapshot
+    mock_manager.find_snapshots = mock_manager.snapshot_service.find_snapshots
+    
+    return mock_manager

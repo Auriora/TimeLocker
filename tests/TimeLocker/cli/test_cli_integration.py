@@ -43,24 +43,28 @@ class TestCLIIntegrationWorkflows:
             yield Path(temp_dir)
 
     @pytest.mark.integration
-    @patch('TimeLocker.cli_modules.commands.base._get_service_manager_for_command')
+    @patch('src.TimeLocker.cli.get_cli_service_manager')
     def test_repository_management_workflow(self, mock_get_service_manager, temp_repo_dir):
         """Test complete repository management workflow."""
-        # Mock the service manager
-        mock_manager = Mock()
+        # Mock the service manager with proper structure
+        from .test_utils import create_mock_cli_service_manager
+        mock_manager = create_mock_cli_service_manager()
         mock_get_service_manager.return_value = mock_manager
         
         # Mock repository operations with proper return values
-        mock_manager.add_repository.return_value = {"success": True}
-        mock_manager.list_repositories.return_value = [
+        mock_manager.repository_service.add_repository.return_value = {"success": True}
+        mock_manager.repository_service.list_repositories.return_value = [
             {"name": "test-repo", "uri": f"file://{temp_repo_dir}", "description": "Test repository"}
         ]
-        mock_manager.get_repository_by_name.return_value = Mock(
+        mock_manager.repository_service.get_repository.return_value = Mock(
             name="test-repo", uri=f"file://{temp_repo_dir}", description="Test repository"
         )
-        mock_manager.initialize_repository.return_value = {"success": True, "already_initialized": False}
-        mock_manager.check_repository.return_value = {"success": True}
-        mock_manager.remove_repository.return_value = {"success": True}
+        mock_manager.config_module.get_repository.return_value = Mock(
+            name="test-repo", location=f"file://{temp_repo_dir}", description="Test repository"
+        )
+        mock_manager.repository_service.initialize_repository.return_value = {"success": True, "already_initialized": False}
+        mock_manager.repository_service.check_repository.return_value = {"success": True}
+        mock_manager.repository_service.remove_repository.return_value = {"success": True}
 
         # Step 1: Add repository
         result = runner.invoke(app, [
