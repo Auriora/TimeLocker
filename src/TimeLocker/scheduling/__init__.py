@@ -109,6 +109,16 @@ from .audit_logger import SchedulingAuditLogger, AuditEventType, AuditEntry
 # Storage
 from .schedule_storage import ScheduleStorage
 
+# Script generation
+from .script_generator import ScriptGenerator
+
+# Credential integration
+from .credential_integration import (
+    PlatformCredentialStore,
+    SchedulingCredentialManager,
+    SecureEnvironmentHandler
+)
+
 __all__ = [
     # Core components
     'ScheduleManager',
@@ -171,5 +181,13 @@ __all__ = [
     'AuditEntry',
     
     # Storage
-    'ScheduleStorage'
+    'ScheduleStorage',
+    
+    # Script generation
+    'ScriptGenerator',
+    
+    # Credential integration
+    'PlatformCredentialStore',
+    'SchedulingCredentialManager',
+    'SecureEnvironmentHandler'
 ]
