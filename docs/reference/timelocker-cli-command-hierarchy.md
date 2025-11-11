@@ -28,7 +28,7 @@ commands. Use this reference to maintain CLI documentation, implement shell comp
 ### 2.1 Design Philosophy
 
 - Repository operations consolidated under `repos` (configuration + actions).
-- Target operations unified under `targets`.
+- Data selection operations unified under `selections` (replaces deprecated `targets`).
 - Snapshot commands standardized under `snapshots`.
 - Configuration, credentials, and version info exposed via dedicated namespaces.
 
@@ -71,12 +71,15 @@ timelocker/ (alias: tl)
 │   ├── forget <name>               # Apply retention policy
 │   ├── check-all                   # Check all repositories
 │   └── stats-all                   # Stats across repositories
-├── targets/
-│   ├── list|ls                     # List backup targets
-│   ├── add <name> <paths...>       # Add target
-│   ├── show <name>                 # Show target details
-│   ├── edit <name>                 # Edit target configuration
-│   └── remove|rm <name>            # Remove target
+├── selections/
+│   ├── list|ls                     # List data selection templates
+│   ├── create <name>               # Create selection template
+│   ├── show <name>                 # Show selection details
+│   ├── edit <name>                 # Edit selection template
+│   ├── delete <name>               # Delete selection template
+│   ├── test <name> [path]          # Test selection against path
+│   ├── export <name>               # Export selection template
+│   └── import <file>               # Import selection template
 ├── config/
 │   ├── show                        # Configuration info and validation
 │   ├── setup                       # Interactive setup wizard
@@ -92,7 +95,7 @@ timelocker/ (alias: tl)
 ### 2.4 Command Aliases
 
 - Global alias: `tl` → `timelocker`
-- Namespace aliases: `repos` ↔ `repositories`, `targets` ↔ `target(s)` (legacy), `ls` ↔ `list`, `rm` ↔ `remove`.
+- Namespace aliases: `repos` ↔ `repositories`, `ls` ↔ `list`, `rm` ↔ `remove`.
 
 ### 2.5 Migration Guide
 
@@ -101,7 +104,9 @@ timelocker/ (alias: tl)
 | `tl repo myrepo init`                   | `tl repos init myrepo`              |
 | `tl repo myrepo check`                  | `tl repos check myrepo`             |
 | `tl config repositories add`            | `tl repos add`                      |
-| `tl config target mytarget show`        | `tl targets show mytarget`          |
+| `tl targets add mytarget /path`         | `tl selections create mytarget --include '/path/**'` |
+| `tl targets list`                       | `tl selections list`                |
+| `tl targets show mytarget`              | `tl selections show mytarget`       |
 | `tl snapshot abc123 show`               | `tl snapshots show abc123`          |
 | `tl snapshot abc123 list`               | `tl snapshots contents abc123`      |
 | `tl snapshot abc123 restore /path`      | `tl snapshots restore abc123 /path` |
@@ -113,7 +118,8 @@ timelocker/ (alias: tl)
 
 - Repository list: `tl repos list`
 - Initialize repository: `tl repos init myrepo`
-- Backup create: `tl backup create documents --repository myrepo`
+- Create selection: `tl selections create documents --include '~/Documents/**' --exclude '*/temp/*'`
+- Backup create: `tl backup create --selection documents --repository myrepo`
 - Snapshot search: `tl snapshots find "*.pdf" --repository archive`
 - Credential storage: `tl credentials set myrepo`
 
@@ -122,10 +128,12 @@ timelocker/ (alias: tl)
 - Snapshot commands default to **all** repositories; specify `--repository` to scope to one repository.
 - Retention (`prune`, `forget`) respects repository-level retention policies; use `tl repos forget` for repo-specific policies.
 - Shell completion generators consume this hierarchy; update completion scripts when modifying command namespaces.
-- When migrating documentation or support scripts, map legacy `config repositories|targets` commands to the consolidated `repos` and `targets` namespaces.
+- The `targets` command has been deprecated and replaced by `selections` for more flexible data selection patterns.
+- When migrating documentation or support scripts, map legacy `targets` commands to `selections` commands.
 
 ## 4. Change Log
 
+- 11-11-2025: Removed deprecated `targets` command; replaced with `selections` for data selection management.
 - 01-11-2025: Applied reference template; reorganized sections and clarified aliases.
 - 15-12-2024: Documented merged `repos`/`targets` namespaces and default behaviors.
 

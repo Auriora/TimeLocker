@@ -58,7 +58,6 @@ from TimeLocker.completion import (
     snapshot_id_completer,
     repository_completer,
     file_path_completer,
-    target_name_completer
 )
 from TimeLocker.utils.repository_resolver import (
     validate_repository_name_or_uri,
@@ -806,7 +805,7 @@ def snapshots_find(
         repository: Annotated[Optional[str], typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
         search_type: Annotated[Optional[str], typer.Option("--type", help="Search type: name, path, content")] = None,
         host: Annotated[Optional[str], typer.Option("--host", help="Filter by host name")] = None,
-        tags: Annotated[Optional[List[str]], typer.Option("--tag", help="Filter by tag", autocompletion=target_name_completer)] = None,
+        tags: Annotated[Optional[List[str]], typer.Option("--tag", help="Filter by tag")] = None,
         limit: Annotated[Optional[int], typer.Option("--limit", help="Maximum results to return")] = None,
         verbose: VerboseOption = False,
 ) -> None:

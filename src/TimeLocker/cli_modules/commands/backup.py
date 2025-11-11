@@ -32,7 +32,7 @@ from TimeLocker.cli_services import get_cli_service_manager, CLIBackupRequest
 from TimeLocker.completion import (
     file_path_completer,
     repository_completer,
-    target_name_completer,
+    selection_name_completer,
     snapshot_id_completer,
 )
 from TimeLocker.backup_manager import BackupManager
@@ -57,7 +57,8 @@ def backup_create(
         sources: Annotated[Optional[List[Path]], typer.Argument(help="Source paths to backup", autocompletion=file_path_completer)] = None,
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
         password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
-        target: Annotated[Optional[str], typer.Option("--target", "-t", help="Use configured backup target", autocompletion=target_name_completer)] = None,
+        selection: Annotated[Optional[str], typer.Option("--selection", "-s", help="Use configured data selection template", autocompletion=selection_name_completer)] = None,
+        target: Annotated[Optional[str], typer.Option("--target", "-t", help="(Deprecated: use --selection) Use configured backup target", autocompletion=selection_name_completer, hidden=True)] = None,
         name: Annotated[Optional[str], typer.Option("--name", "-n", help="Backup target name")] = None,
         exclude: Annotated[Optional[List[str]], typer.Option("--exclude", "-e", help="Exclude pattern")] = None,
         include: Annotated[Optional[List[str]], typer.Option("--include", "-i", help="Include pattern")] = None,
@@ -70,8 +71,13 @@ def backup_create(
     setup_logging(verbose, config_dir)
     interactive = sys.stdin.isatty()
 
-    # Handle target-based backup
-    if target:
+    # Handle deprecated --target parameter
+    if target and not selection:
+        console.print("[yellow]⚠️  Warning: --target is deprecated. Use --selection instead.[/yellow]")
+        selection = target
+    
+    # Handle selection-based backup
+    if selection:
         try:
             config_module = None
             service_manager = _get_service_manager_for_command(config_dir)
@@ -97,7 +103,7 @@ def backup_create(
                 target_by_name = _get_service_method(service_manager, "get_backup_target_by_name")
                 if target_by_name:
                     try:
-                        backup_target = _call_service_method(target_by_name, name=target, target_name=target)
+                        backup_target = _call_service_method(target_by_name, name=selection, target_name=selection)
                     except Exception as exc:
                         logging.getLogger(__name__).debug("Service target lookup failed: %s", exc)
 
@@ -108,7 +114,7 @@ def backup_create(
                         targets = _call_service_method(list_method) or []
                         for candidate in targets:
                             candidate_name = _extract_target_value(candidate, 'name')
-                            if candidate_name == target:
+                            if candidate_name == selection:
                                 backup_target = candidate
                                 break
                     except Exception as exc:
@@ -118,13 +124,13 @@ def backup_create(
                 generic_method = _get_service_method(service_manager, "get_backup_target")
                 if generic_method:
                     try:
-                        backup_target = _call_service_method(generic_method, name=target, target_name=target)
+                        backup_target = _call_service_method(generic_method, name=selection, target_name=selection)
                     except Exception as exc:
                         logging.getLogger(__name__).debug("Service target lookup (generic) failed: %s", exc)
 
             if backup_target is None:
                 config_module = _create_configuration_module(config_dir)
-                backup_target = config_module.get_backup_target(target)
+                backup_target = config_module.get_backup_target(selection)
 
         except ValueError as e:
             show_error_panel("Target Not Found", str(e))
@@ -139,7 +145,7 @@ def backup_create(
         logger.debug(f"backup_target type: {type(backup_target)}")
         logger.debug(f"backup_target content: {backup_target}")
         normalized_target = {
-                "name":             _extract_target_value(backup_target, "name", target),
+                "name":             _extract_target_value(backup_target, "name", selection),
                 "paths":            _target_paths(backup_target),
                 "include_patterns": _extract_target_value(backup_target, "include_patterns", []),
                 "exclude_patterns": _extract_target_value(backup_target, "exclude_patterns", []),

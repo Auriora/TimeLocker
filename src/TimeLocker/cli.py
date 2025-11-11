@@ -45,7 +45,6 @@ from .interfaces.exceptions import ConfigurationError
 from .cli_services import get_cli_service_manager, CLIBackupRequest
 from .completion import (
     repository_name_completer,
-    target_name_completer,
     snapshot_id_completer,
     repository_uri_completer,
     repository_completer,
@@ -242,11 +241,11 @@ app = typer.Typer(
         name="timelocker",
         help=(
                 "TimeLocker — Beautiful backup and restore with a clear CLI.\n\n"
-                "Key groups: repos, targets, snapshots (restore under snapshots).\n\n"
+                "Key groups: repos, selections, snapshots, policy, schedule.\n\n"
                 "Examples:\n"
                 "  tl repos add <name> file:///path/to/repo\n"
-                "  tl targets add <name> --path ~/Documents\n"
-                "  tl backup run --target <name>\n"
+                "  tl selections create <name> --include '~/Documents/**'\n"
+                "  tl backup run --selection <name>\n"
                 "  tl snapshots list  # lists snapshots (see --repository)\n"
                 "  tl snapshots restore <id|latest> /restore/path --repository <name>\n\n"
                 "Note: Local repository paths must use the file:// prefix (e.g., file:///path/to/repo).\n"
@@ -266,8 +265,6 @@ snapshots_app = typer.Typer(help="Snapshot operations", context_settings=CLI_CON
 snapshots_app.info.options_metavar = "⟨OPTIONS⟩"
 repos_app = typer.Typer(help="Repository operations", context_settings=CLI_CONTEXT_SETTINGS)
 repos_app.info.options_metavar = "⟨OPTIONS⟩"
-targets_app = typer.Typer(help="Backup target operations", context_settings=CLI_CONTEXT_SETTINGS)
-targets_app.info.options_metavar = "⟨OPTIONS⟩"
 config_app = typer.Typer(help="Configuration management commands", context_settings=CLI_CONTEXT_SETTINGS)
 config_app.info.options_metavar = "⟨OPTIONS⟩"
 credentials_app = typer.Typer(help="Credential management commands", context_settings=CLI_CONTEXT_SETTINGS)
@@ -282,7 +279,6 @@ app.add_typer(backup_app, name="backup")
 
 app.add_typer(snapshots_app, name="snapshots")
 app.add_typer(repos_app, name="repos")
-app.add_typer(targets_app, name="targets")
 app.add_typer(config_app, name="config")
 app.add_typer(credentials_app, name="credentials")
 app.add_typer(security_app, name="security")
@@ -360,10 +356,10 @@ def cli_help(
         console.print("[bold]Quick Start:[/bold]")
         console.print("  1. Create a repository:")
         console.print("     timelocker repos create myrepo file:///backup/repo\n")
-        console.print("  2. Create a backup target:")
-        console.print("     timelocker targets add documents --path ~/Documents\n")
+        console.print("  2. Create a data selection:")
+        console.print("     timelocker selections create documents --include '~/Documents/**'\n")
         console.print("  3. Run a backup:")
-        console.print("     timelocker backup run --target documents\n")
+        console.print("     timelocker backup run --selection documents\n")
         console.print("  4. List snapshots:")
         console.print("     timelocker snapshots list\n")
         console.print("  5. Restore files:")
@@ -431,8 +427,8 @@ def cli_help(
         console.print("  [cyan]backup cancel[/cyan] <job-id>     - Cancel a running backup\n")
         
         console.print("[bold]Examples:[/bold]")
-        console.print("  # Run a backup with a target")
-        console.print("  timelocker backup run --target documents\n")
+        console.print("  # Run a backup with a selection")
+        console.print("  timelocker backup run --selection documents\n")
         console.print("  # Run a backup with a policy")
         console.print("  timelocker backup run daily-backup\n")
         console.print("  # Check backup status")

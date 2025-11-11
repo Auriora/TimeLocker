@@ -140,12 +140,13 @@ mkdir -p /tmp/test-backup-source
 echo "Test file 1" > /tmp/test-backup-source/file1.txt
 echo "Test file 2" > /tmp/test-backup-source/file2.txt
 
-# Add backup target
-tl targets add test-backup /tmp/test-backup-source \
-  --description "Test backup target"
+# Create data selection
+tl selections create test-backup \
+  --include '/tmp/test-backup-source/**' \
+  --description "Test backup selection"
 
 # Run backup
-tl backup create test-backup --repository minio-test
+tl backup create --selection test-backup --repository minio-test
 ```
 
 ### 3. List Snapshots

@@ -4,7 +4,8 @@ Auto-completion support for TimeLocker CLI commands.
 This module provides intelligent auto-completion for:
 - Repository names from configuration
 - Snapshot IDs from repositories
-- Target names from configuration
+- Selection template names from configuration
+- Policy and schedule names from configuration
 - URI paths for repositories
 - Command-specific parameters
 """
@@ -88,24 +89,6 @@ def complete_repository_names(incomplete: str) -> List[str]:
     try:
         repositories = list_available_repositories()
         return [name for name in repositories.keys() if name.startswith(incomplete)]
-    except Exception:
-        return []
-
-
-def complete_target_names(incomplete: str) -> List[str]:
-    """
-    Complete backup target names from configuration.
-    
-    Args:
-        incomplete: Partial target name being typed
-        
-    Returns:
-        List of matching target names
-    """
-    try:
-        config_module = ConfigurationModule()
-        config = config_module.get_config()
-        return [name for name in config.backup_targets.keys() if name.startswith(incomplete)]
     except Exception:
         return []
 
@@ -397,11 +380,6 @@ def repository_name_completer(incomplete: str) -> List[str]:
     return complete_repository_names(incomplete)
 
 
-def target_name_completer(incomplete: str) -> List[str]:
-    """Typer completer for target names."""
-    return complete_target_names(incomplete)
-
-
 def snapshot_id_completer(incomplete: str) -> List[str]:
     """Typer completer for snapshot IDs."""
     return complete_snapshot_ids(incomplete)
@@ -464,7 +442,6 @@ class ContextAwareCompleters:
 # Export completion functions for use in CLI
 __all__ = [
         'complete_repository_names',
-        'complete_target_names',
         'complete_snapshot_ids',
         'complete_repository_uris',
         'complete_repositories',
@@ -473,7 +450,6 @@ __all__ = [
         'complete_policy_names',
         'complete_schedule_names',
         'repository_name_completer',
-        'target_name_completer',
         'snapshot_id_completer',
         'repository_uri_completer',
         'repository_completer',
