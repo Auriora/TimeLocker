@@ -26,6 +26,7 @@ from .status_reporter import StatusReporter, OperationStatus, StatusLevel
 from .notification_service import NotificationService
 from .activity_logger import ActivityLogger, LogLevel as ActivityLogLevel
 from .backup_history import BackupHistory, BackupRecord, BackupStatus
+from .storage_monitor import StorageMonitor, StorageUsage, CapacityWarning, StorageTrends, OptimizationRecommendation
 from ..interfaces.service_interface import ServiceInterface
 from ..interfaces.integration_data_models import ServiceContext
 
@@ -130,6 +131,7 @@ class MonitoringService(ServiceInterface):
         self.notifier = NotificationService(config_dir / "notifications")
         self.activity_logger = ActivityLogger(config_dir)
         self.backup_history = BackupHistory(config_dir / "history")
+        self.storage_monitor = StorageMonitor(config_dir / "storage")
         
         # Load monitoring preferences
         self.preferences = self._load_preferences()
@@ -512,6 +514,15 @@ class MonitoringService(ServiceInterface):
             BackupHistory: Backup history instance
         """
         return self.backup_history
+
+    def get_storage_monitor(self) -> StorageMonitor:
+        """
+        Get the storage monitor instance.
+        
+        Returns:
+            StorageMonitor: Storage monitor instance
+        """
+        return self.storage_monitor
 
     def _handle_status_update(self, status: OperationStatus) -> None:
         """

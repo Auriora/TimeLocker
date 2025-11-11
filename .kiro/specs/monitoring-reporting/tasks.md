@@ -32,14 +32,14 @@
     - Create platform-specific system tray implementations for Linux, macOS, and Windows
     - _Requirements: 2.4, 7.4_
 
-- [ ] 4. Implement storage monitoring and capacity management
-  - [ ] 4.1 Create StorageMonitor component for repository usage tracking
+- [x] 4. Implement storage monitoring and capacity management
+  - [x] 4.1 Create StorageMonitor component for repository usage tracking
     - Implement storage usage tracking with used and available space information
     - Add capacity warnings when repositories approach 90% capacity
     - Create storage growth trends analysis over 30-day periods
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-  - [ ] 4.2 Add deduplication and compression reporting
+  - [x] 4.2 Add deduplication and compression reporting
     - Integrate with backup tool capabilities to show deduplication and compression ratios
     - Provide storage optimization recommendations based on usage patterns
     - Create storage cleanup and expansion guidance for users

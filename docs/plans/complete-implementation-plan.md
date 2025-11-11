@@ -283,7 +283,7 @@ CLI Refactoring:          ████████████░░░░░░
      - Task 3.1: Extend NotificationService with desktop features
 
 4. **Storage Monitoring**
-   - [ ] Task 4: Implement storage monitoring and capacity management
+   - [x] Task 4: Implement storage monitoring and capacity management
      - Task 4.1: Create StorageMonitor component
 
 5. **Integrity Checking**

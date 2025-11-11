@@ -54,6 +54,14 @@ from .backup_history import (
     HistoryFilters,
     PerformanceTrends
 )
+from .storage_monitor import (
+    StorageMonitor,
+    StorageUsage,
+    CapacityWarning,
+    StorageTrends,
+    OptimizationRecommendation,
+    WarningLevel
+)
 
 __all__ = [
         'StatusReporter', 'OperationStatus', 'StatusLevel',
@@ -65,5 +73,7 @@ __all__ = [
         'MonitoringService', 'HealthStatus', 'BackupEvent', 'RecoveryEvent', 
         'MonitoringSummary', 'MonitoringPreferences',
         'ActivityLogger', 'LogLevel', 'LogEntry',
-        'BackupHistory', 'BackupRecord', 'BackupStatus', 'HistoryFilters', 'PerformanceTrends'
+        'BackupHistory', 'BackupRecord', 'BackupStatus', 'HistoryFilters', 'PerformanceTrends',
+        'StorageMonitor', 'StorageUsage', 'CapacityWarning', 'StorageTrends', 
+        'OptimizationRecommendation', 'WarningLevel'
 ]
