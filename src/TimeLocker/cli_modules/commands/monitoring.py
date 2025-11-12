@@ -32,6 +32,8 @@ from .base import (
     console,
     _get_service_manager_for_command,
     _create_configuration_module,
+    _create_config_service,
+    ConfigService,
     VerboseOption,
     JsonOption,
     YesOption,
@@ -71,10 +73,10 @@ def _get_system_health_data(config_dir: Optional[Path] = None) -> Dict[str, Any]
     """Get system health data."""
     try:
         service_manager = _get_service_manager_for_command(config_dir)
-        config_module = _create_configuration_module(config_dir)
+        config_service = _create_config_service(config_dir)
         
         # Get repositories
-        repositories = config_module.list_repositories()
+        repositories = list(config_service.get_repositories().keys())
         
         health_data = {
             "timestamp": datetime.now().isoformat(),
@@ -493,7 +495,7 @@ def monitor_stats(
     """Display statistics summary across all repositories."""
     try:
         service_manager = _get_service_manager_for_command(config_dir)
-        config_module = _create_configuration_module(config_dir)
+        config_service = _create_config_service(config_dir)
         
         if repository:
             # Get stats for specific repository
@@ -514,7 +516,7 @@ def monitor_stats(
                 ))
         else:
             # Get stats for all repositories
-            repositories = config_module.list_repositories()
+            repositories = list(config_service.get_repositories().keys())
             
             if json_output:
                 all_stats = {}
@@ -838,7 +840,7 @@ def reports_generate(
     """Generate backup history, storage usage, or performance reports."""
     try:
         service_manager = _get_service_manager_for_command(config_dir)
-        config_module = _create_configuration_module(config_dir)
+        config_service = _create_config_service(config_dir)
         
         report_type = report_type.lower()
         
@@ -858,7 +860,7 @@ def reports_generate(
         
         if report_type == "backup-history":
             # Get backup history
-            repositories = [repository] if repository else [r.get('name') for r in config_module.list_repositories()]
+            repositories = [repository] if repository else list(config_service.get_repositories().keys())
             
             history = []
             for repo_name in repositories:

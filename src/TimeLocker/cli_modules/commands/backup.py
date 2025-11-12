@@ -129,8 +129,9 @@ def backup_create(
                         logging.getLogger(__name__).debug("Service target lookup (generic) failed: %s", exc)
 
             if backup_target is None:
-                config_module = _create_configuration_module(config_dir)
-                backup_target = config_module.get_backup_target(selection)
+                from .base import _create_config_service
+                config_service = _create_config_service(config_dir)
+                backup_target = config_service.get_backup_target(selection)
 
         except ValueError as e:
             show_error_panel("Target Not Found", str(e))
@@ -174,12 +175,12 @@ def backup_create(
                         except Exception as exc:
                             logging.getLogger(__name__).debug("Service default repository lookup failed: %s", exc)
                 if default_repo_name is None:
-                    if config_module is None:
-                        config_module = _create_configuration_module(config_dir)
                     try:
-                        default_repo_name = config_module.get_default_repository()
+                        from .base import _create_config_service
+                        config_service = _create_config_service(config_dir)
+                        default_repo_name = config_service.get_default_repository()
                     except Exception as exc:
-                        logging.getLogger(__name__).debug("Config default repository lookup failed: %s", exc)
+                        logging.getLogger(__name__).debug("ConfigService default repository lookup failed: %s", exc)
                 if not isinstance(default_repo_name, (str, Path)):
                     default_repo_name = None
                 if isinstance(default_repo_name, Path):

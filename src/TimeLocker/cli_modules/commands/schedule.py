@@ -32,6 +32,8 @@ from .base import (
     console,
     _get_service_manager_for_command,
     _create_configuration_module,
+    _create_config_service,
+    ConfigService,
     VerboseOption,
     JsonOption,
     YesOption,

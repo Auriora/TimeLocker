@@ -12,7 +12,7 @@
     - Add configuration change notification system
     - _Impact: ~150 lines saved across commands_
 
-  - [ ] 1.2 Update commands to use ConfigService
+  - [x] 1.2 Update commands to use ConfigService
     - Refactor all commands using direct config access
     - Replace repeated config loading patterns
     - Add error handling for config operations

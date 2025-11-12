@@ -33,6 +33,8 @@ from .base import (
     _call_service_method,
     _get_service_manager_for_command,
     _create_configuration_module,
+    _create_config_service,
+    ConfigService,
     VerboseOption,
     JsonOption,
     YesOption,
@@ -652,25 +654,25 @@ def repos_add(
                 config_manager = ConfigurationManager(config_dir=config_dir)
                 config_manager.set_default_repository(name)
 
-        config_module_for_credentials = None
+        config_service = None
         try:
-            config_module_for_credentials = _create_configuration_module(config_dir)
+            config_service = _create_config_service(config_dir)
             try:
-                config_module_for_credentials.get_repository(name)
+                config_service.get_repository(name)
             except Exception:
                 try:
-                    repo_payload = {
-                            "name":        name,
-                            "location":    uri,
-                            "description": description or f"{name} repository",
-                    }
-                    if password:
-                        repo_payload["password"] = password
-                    config_module_for_credentials.add_repository(repo_payload)
+                    from TimeLocker.config.configuration_schema import RepositoryConfig
+                    repo_config = RepositoryConfig(
+                        name=name,
+                        location=uri,
+                        description=description or f"{name} repository",
+                        password=password if password else None
+                    )
+                    config_service.add_repository(repo_config)
                 except Exception as repo_exc:
-                    logging.getLogger(__name__).debug("Failed to persist repository via configuration module: %s", repo_exc)
+                    logging.getLogger(__name__).debug("Failed to persist repository via ConfigService: %s", repo_exc)
         except Exception as module_exc:
-            logging.getLogger(__name__).debug("Configuration module unavailable for repository persistence: %s", module_exc)
+            logging.getLogger(__name__).debug("ConfigService unavailable for repository persistence: %s", module_exc)
 
         if backend_type == "s3":
             try:
@@ -683,14 +685,14 @@ def repos_add(
             if store_credentials:
                 try:
                     repository_obj = None
-                    if config_module_for_credentials and hasattr(config_module_for_credentials, "get_repository"):
+                    if config_service:
                         try:
-                            repository_obj = config_module_for_credentials.get_repository(name)
+                            repository_obj = config_service.get_repository(name)
                         except Exception as repo_exc:
                             logging.getLogger(__name__).debug("Failed to load repository for credential storage: %s", repo_exc)
-                    if config_module_for_credentials is None:
-                        logging.getLogger(__name__).debug("Skipping credential storage; configuration module unavailable.")
-                        raise RuntimeError("Configuration module unavailable for credential storage")
+                    if config_service is None:
+                        logging.getLogger(__name__).debug("Skipping credential storage; ConfigService unavailable.")
+                        raise RuntimeError("ConfigService unavailable for credential storage")
 
                     repository_config = _repository_config_to_dict(repository_obj, name)
 
@@ -719,7 +721,7 @@ def repos_add(
                             backend_name=_backend_display_name(backend_type),
                             credentials_dict=credentials_payload,
                             cred_mgr=credential_manager,
-                            config_manager=config_module_for_credentials,
+                            config_manager=config_service._config_module,  # Pass underlying module for compatibility
                             repository_config=repository_config,
                             console=console,
                             logger=logging.getLogger(__name__),

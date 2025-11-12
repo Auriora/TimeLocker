@@ -31,6 +31,8 @@ from .base import (
     _call_service_method,
     _get_service_manager_for_command,
     _create_configuration_module,
+    _create_config_service,
+    ConfigService,
     VerboseOption,
     JsonOption,
     YesOption,
@@ -87,9 +89,10 @@ def config_show(
     """Display TimeLocker configuration details."""
     setup_logging(verbose, config_dir)
     try:
-        config_module = _create_configuration_module(config_dir)
-        config = config_module.get_config()
-        config_dict = config.to_dict() if hasattr(config, "to_dict") else {}
+        # Use ConfigService for centralized configuration access
+        config_service = _create_config_service(config_dir)
+        config = config_service.get_config()
+        config_dict = config_service.get_config_dict()
         validation_result = None
         validation_errors: List[str] = []
         validation_warnings: List[str] = []
@@ -120,7 +123,7 @@ def config_show(
         table.add_column("Value", style="green")
 
         default_repo = getattr(getattr(config, "general", None), "default_repository", None)
-        table.add_row("Config File", str(config_module.config_file))
+        table.add_row("Config File", str(config_service.config_file))
         table.add_row("Repositories", str(len(getattr(config, "repositories", {}))))
         table.add_row("Backup Targets", str(len(getattr(config, "backup_targets", {}))))
         table.add_row("Default Repository", default_repo or "Not set")

@@ -30,6 +30,25 @@ _call_service_method = _cli_module._call_service_method
 _get_service_manager_for_command = _cli_module._get_service_manager_for_command
 _create_configuration_module = _cli_module._create_configuration_module
 
+# Import ConfigService
+from ..services.config_service import ConfigService
+
+
+def _create_config_service(config_dir: Optional[Path] = None) -> ConfigService:
+    """
+    Factory for ConfigService.
+    
+    This provides centralized configuration access for all CLI commands,
+    replacing direct ConfigurationModule usage.
+    
+    Args:
+        config_dir: Optional configuration directory
+        
+    Returns:
+        ConfigService: Configured service instance
+    """
+    return ConfigService(config_dir=config_dir)
+
 # CLI context settings
 CLI_CONTEXT_SETTINGS = {"max_content_width": 110}
 
@@ -49,6 +68,23 @@ class CommandBase:
     def setup(verbose: bool = False, config_dir: Optional[Path] = None):
         """
         Common setup for all commands.
+        
+        Args:
+            verbose: Enable verbose logging
+            config_dir: Optional configuration directory
+            
+        Returns:
+            Tuple of (service_manager, config_service)
+        """
+        setup_logging(verbose, config_dir)
+        service_manager = _get_service_manager_for_command(config_dir)
+        config_service = _create_config_service(config_dir)
+        return service_manager, config_service
+    
+    @staticmethod
+    def setup_legacy(verbose: bool = False, config_dir: Optional[Path] = None):
+        """
+        Legacy setup for commands not yet migrated to ConfigService.
         
         Args:
             verbose: Enable verbose logging
@@ -329,6 +365,8 @@ __all__ = [
     '_call_service_method',
     '_get_service_manager_for_command',
     '_create_configuration_module',
+    '_create_config_service',
+    'ConfigService',
     'VerboseOption',
     'JsonOption',
     'FormatOption',
