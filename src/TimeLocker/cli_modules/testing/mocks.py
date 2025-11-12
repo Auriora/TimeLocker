@@ -99,7 +99,8 @@ def create_mock_service_manager(
     Create a properly structured mock service manager.
     
     This creates a mock that matches the actual CLIServiceManager structure
-    with repository_service, snapshot_service, and config_module properties.
+    with repository_service, snapshot_service, config_module, recovery_service,
+    selection_service, monitoring_service, and credential_service properties.
     
     Args:
         repositories: List of mock repositories to return
@@ -123,7 +124,12 @@ def create_mock_service_manager(
         'already_initialized': False
     }
     mock_manager.repository_service.check_repository.return_value = {'success': True}
-    mock_manager.repository_service.get_repository_stats.return_value = {}
+    mock_manager.repository_service.get_repository_stats.return_value = {
+        'size': 1024,
+        'snapshots': 5,
+        'total_file_count': 100
+    }
+    mock_manager.repository_service.set_default_repository.return_value = None
     
     # Snapshot service
     mock_manager.snapshot_service = Mock()
@@ -136,6 +142,8 @@ def create_mock_service_manager(
     mock_manager.config_module = Mock()
     mock_manager.config_module.get_repository.return_value = None
     mock_manager.config_module.list_repositories.return_value = repositories or []
+    mock_manager.config_module.set_repository.return_value = None
+    mock_manager.config_module.remove_repository.return_value = None
     
     # Backup orchestrator
     mock_manager.backup_orchestrator = Mock()
@@ -146,6 +154,40 @@ def create_mock_service_manager(
     
     # Configuration service
     mock_manager.configuration_service = Mock()
+    
+    # Recovery service (for restore commands)
+    mock_manager.recovery_service = Mock()
+    mock_manager.recovery_service.restore_files.return_value = {'success': True}
+    mock_manager.recovery_service.restore_full.return_value = {'success': True}
+    mock_manager.recovery_service.browse_snapshot.return_value = []
+    mock_manager.recovery_service.mount_snapshot.return_value = {'success': True, 'mount_point': '/tmp/mount'}
+    mock_manager.recovery_service.unmount_snapshot.return_value = {'success': True}
+    
+    # Selection service (for data selection commands)
+    mock_manager.selection_service = Mock()
+    mock_template = Mock()
+    mock_template.name = "test-template"
+    mock_template.patterns = []
+    mock_manager.selection_service.get_template.return_value = mock_template
+    mock_manager.selection_service.save_template.return_value = None
+    mock_manager.selection_service.list_templates.return_value = []
+    mock_manager.selection_service.delete_template.return_value = None
+    mock_manager.selection_service.validate_template.return_value = {'valid': True, 'errors': []}
+    
+    # Monitoring service (for monitoring commands)
+    mock_manager.monitoring_service = Mock()
+    mock_manager.monitoring_service.get_health.return_value = {'status': 'healthy'}
+    mock_manager.monitoring_service.get_stats.return_value = {'backups': 10, 'total_size': 1024}
+    mock_manager.monitoring_service.get_backup_history.return_value = []
+    mock_manager.monitoring_service.get_performance_metrics.return_value = {}
+    
+    # Credential service (for credential commands)
+    mock_manager.credential_service = Mock()
+    mock_manager.credential_service.store_credentials.return_value = None
+    mock_manager.credential_service.get_credentials.return_value = {'password': 'test_password'}
+    mock_manager.credential_service.remove_credentials.return_value = None
+    mock_manager.credential_service.list_credentials.return_value = []
+    mock_manager.credential_service.has_credentials.return_value = True
     
     # Direct method access for CLI commands
     mock_manager.list_repositories = mock_manager.repository_service.list_repositories
