@@ -126,6 +126,9 @@ class ScheduleManager:
         self.repository_client = RepositoryManagementClient()
         self.monitoring_client = MonitoringClient()
         
+        # Register for policy update notifications
+        self.policy_client.register_policy_update_callback(self._handle_policy_update)
+        
         # Initialize audit logger
         self.audit_logger = SchedulingAuditLogger(
             self.config_dir,
@@ -1599,6 +1602,487 @@ class ScheduleManager:
             
         except Exception as e:
             self.logger.error(f"Failed to get optimization summary: {e}")
+            return {
+                'error': str(e),
+                'timestamp': datetime.utcnow().isoformat()
+            }
+    
+    async def _handle_policy_update(self, policy_id: str, updates: Dict[str, Any]) -> None:
+        """
+        Handle policy update notifications and synchronize affected schedules.
+        
+        This method is called when a policy is updated to automatically
+        update any schedules that use the policy.
+        
+        Args:
+            policy_id: Policy identifier that was updated
+            updates: Dictionary of updates made to the policy
+        """
+        try:
+            self.logger.info(f"Handling policy update for {policy_id}")
+            
+            # Find all schedules using this policy
+            affected_schedules = [
+                s for s in self._schedules.values()
+                if s.policy_id == policy_id
+            ]
+            
+            if not affected_schedules:
+                self.logger.debug(f"No schedules affected by policy update: {policy_id}")
+                return
+            
+            self.logger.info(f"Found {len(affected_schedules)} schedules affected by policy update")
+            
+            # Validate policy is still suitable for scheduling
+            is_valid, errors = self.policy_client.validate_policy_for_scheduling(policy_id)
+            
+            if not is_valid:
+                # Policy is no longer valid for scheduling - disable affected schedules
+                self.logger.warning(
+                    f"Policy {policy_id} is no longer valid for scheduling. "
+                    f"Disabling {len(affected_schedules)} affected schedules."
+                )
+                
+                for schedule in affected_schedules:
+                    try:
+                        await self.disable_schedule(schedule.schedule_id)
+                        
+                        # Log audit event
+                        self.audit_logger.log_schedule_auto_disabled(
+                            schedule.schedule_id,
+                            {
+                                'reason': 'policy_invalid',
+                                'policy_id': policy_id,
+                                'validation_errors': errors
+                            }
+                        )
+                        
+                        # Report to monitoring
+                        self.monitoring_client.report_schedule_updated(
+                            schedule.schedule_id,
+                            {
+                                'auto_disabled': True,
+                                'reason': 'policy_invalid',
+                                'policy_id': policy_id
+                            }
+                        )
+                        
+                    except Exception as e:
+                        self.logger.error(
+                            f"Failed to disable schedule {schedule.schedule_id} "
+                            f"after policy invalidation: {e}"
+                        )
+            else:
+                # Policy is still valid - check if schedules need updates
+                for schedule in affected_schedules:
+                    try:
+                        # Re-validate schedule configuration
+                        validation_result = await self.validate_schedule_configuration(schedule)
+                        
+                        if not validation_result.is_valid:
+                            self.logger.warning(
+                                f"Schedule {schedule.schedule_id} is no longer valid "
+                                f"after policy update. Disabling."
+                            )
+                            
+                            await self.disable_schedule(schedule.schedule_id)
+                            
+                            # Log audit event
+                            self.audit_logger.log_schedule_auto_disabled(
+                                schedule.schedule_id,
+                                {
+                                    'reason': 'schedule_invalid_after_policy_update',
+                                    'policy_id': policy_id,
+                                    'validation_errors': validation_result.errors
+                                }
+                            )
+                        else:
+                            # Schedule is still valid - log the policy update
+                            self.audit_logger.log_policy_update_processed(
+                                schedule.schedule_id,
+                                {
+                                    'policy_id': policy_id,
+                                    'updates': updates,
+                                    'schedule_remains_valid': True
+                                }
+                            )
+                            
+                            # Report to monitoring
+                            self.monitoring_client.report_schedule_updated(
+                                schedule.schedule_id,
+                                {
+                                    'policy_updated': True,
+                                    'policy_id': policy_id,
+                                    'schedule_validated': True
+                                }
+                            )
+                            
+                    except Exception as e:
+                        self.logger.error(
+                            f"Failed to process policy update for schedule {schedule.schedule_id}: {e}"
+                        )
+            
+            self.logger.info(f"Completed processing policy update for {policy_id}")
+            
+        except Exception as e:
+            self.logger.error(f"Error handling policy update for {policy_id}: {e}", exc_info=True)
+    
+    async def synchronize_policy_schedules(self, policy_id: str) -> Dict[str, Any]:
+        """
+        Synchronize all schedules using a specific policy.
+        
+        This method validates and updates all schedules that use the specified
+        policy, ensuring they are still valid and compatible.
+        
+        Args:
+            policy_id: Policy identifier to synchronize
+            
+        Returns:
+            Dictionary with synchronization results
+        """
+        try:
+            self.logger.info(f"Synchronizing schedules for policy {policy_id}")
+            
+            # Find all schedules using this policy
+            affected_schedules = [
+                s for s in self._schedules.values()
+                if s.policy_id == policy_id
+            ]
+            
+            if not affected_schedules:
+                return {
+                    'policy_id': policy_id,
+                    'schedules_found': 0,
+                    'schedules_validated': 0,
+                    'schedules_disabled': 0,
+                    'errors': []
+                }
+            
+            validated_count = 0
+            disabled_count = 0
+            errors = []
+            
+            # Validate policy
+            is_valid, policy_errors = self.policy_client.validate_policy_for_scheduling(policy_id)
+            
+            if not is_valid:
+                # Disable all schedules using invalid policy
+                for schedule in affected_schedules:
+                    try:
+                        await self.disable_schedule(schedule.schedule_id)
+                        disabled_count += 1
+                    except Exception as e:
+                        errors.append(f"Failed to disable schedule {schedule.schedule_id}: {str(e)}")
+            else:
+                # Validate each schedule
+                for schedule in affected_schedules:
+                    try:
+                        validation_result = await self.validate_schedule_configuration(schedule)
+                        
+                        if validation_result.is_valid:
+                            validated_count += 1
+                        else:
+                            await self.disable_schedule(schedule.schedule_id)
+                            disabled_count += 1
+                            errors.append(
+                                f"Schedule {schedule.schedule_id} disabled: "
+                                f"{', '.join(validation_result.errors)}"
+                            )
+                    except Exception as e:
+                        errors.append(f"Error validating schedule {schedule.schedule_id}: {str(e)}")
+            
+            result = {
+                'policy_id': policy_id,
+                'schedules_found': len(affected_schedules),
+                'schedules_validated': validated_count,
+                'schedules_disabled': disabled_count,
+                'errors': errors
+            }
+            
+            # Log audit event
+            self.audit_logger.log_policy_synchronization(policy_id, result)
+            
+            self.logger.info(
+                f"Policy synchronization complete for {policy_id}: "
+                f"{validated_count} validated, {disabled_count} disabled"
+            )
+            
+            return result
+            
+        except Exception as e:
+            error_msg = f"Failed to synchronize policy schedules: {e}"
+            self.logger.error(error_msg)
+            raise SchedulingError(error_msg) from e
+    
+    def get_schedules_by_policy(self, policy_id: str) -> List[ScheduleInfo]:
+        """
+        Get all schedules that use a specific policy.
+        
+        Args:
+            policy_id: Policy identifier
+            
+        Returns:
+            List of ScheduleInfo for schedules using the policy
+        """
+        try:
+            schedules = [
+                s for s in self._schedules.values()
+                if s.policy_id == policy_id
+            ]
+            
+            schedule_infos = []
+            for schedule in schedules:
+                schedule_info = ScheduleInfo(
+                    schedule_id=schedule.schedule_id,
+                    name=schedule.name,
+                    description=schedule.description,
+                    policy_id=schedule.policy_id,
+                    enabled=schedule.enabled,
+                    next_execution_time=None,  # Would need to query platform
+                    health_status=ScheduleHealthStatus.HEALTHY if schedule.enabled else ScheduleHealthStatus.UNKNOWN,
+                    created_at=schedule.created_at,
+                    updated_at=schedule.updated_at
+                )
+                schedule_infos.append(schedule_info)
+            
+            self.logger.debug(f"Found {len(schedule_infos)} schedules for policy {policy_id}")
+            return schedule_infos
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get schedules by policy: {e}")
+            return []
+    
+    def register_health_check_webhook(
+        self,
+        webhook_url: str,
+        schedule_id: Optional[str] = None
+    ) -> None:
+        """
+        Register a health check webhook for monitoring integration.
+        
+        Args:
+            webhook_url: URL to call for health checks
+            schedule_id: Optional schedule ID to associate with webhook
+        """
+        self.monitoring_client.register_health_check_webhook(webhook_url, schedule_id)
+        self.logger.info(f"Registered health check webhook for schedule {schedule_id or 'all'}")
+    
+    def unregister_health_check_webhook(self, webhook_url: str) -> None:
+        """
+        Unregister a health check webhook.
+        
+        Args:
+            webhook_url: URL to unregister
+        """
+        self.monitoring_client.unregister_health_check_webhook(webhook_url)
+        self.logger.info(f"Unregistered health check webhook: {webhook_url}")
+    
+    async def send_health_check_pings(self) -> Dict[str, Any]:
+        """
+        Send health check pings for all enabled schedules.
+        
+        Returns:
+            Dictionary with ping results
+        """
+        try:
+            enabled_schedules = [s for s in self._schedules.values() if s.enabled]
+            
+            ping_results = {
+                'total_schedules': len(enabled_schedules),
+                'pings_sent': 0,
+                'errors': []
+            }
+            
+            for schedule in enabled_schedules:
+                try:
+                    # Get schedule status
+                    status = await self.get_schedule_status(schedule.schedule_id)
+                    
+                    # Determine health status
+                    health_status = 'healthy'
+                    if status.health_status == ScheduleHealthStatus.WARNING:
+                        health_status = 'warning'
+                    elif status.health_status == ScheduleHealthStatus.ERROR:
+                        health_status = 'error'
+                    elif status.health_status == ScheduleHealthStatus.UNKNOWN:
+                        health_status = 'unknown'
+                    
+                    # Send ping
+                    await self.monitoring_client.send_health_check_ping(
+                        schedule.schedule_id,
+                        health_status,
+                        {
+                            'schedule_name': schedule.name,
+                            'policy_id': schedule.policy_id,
+                            'next_execution': status.next_execution_time.isoformat() if status.next_execution_time else None
+                        }
+                    )
+                    
+                    ping_results['pings_sent'] += 1
+                    
+                except Exception as e:
+                    error_msg = f"Failed to send ping for schedule {schedule.schedule_id}: {str(e)}"
+                    ping_results['errors'].append(error_msg)
+                    self.logger.error(error_msg)
+            
+            self.logger.info(
+                f"Sent {ping_results['pings_sent']} health check pings "
+                f"({len(ping_results['errors'])} errors)"
+            )
+            
+            return ping_results
+            
+        except Exception as e:
+            error_msg = f"Failed to send health check pings: {e}"
+            self.logger.error(error_msg)
+            return {
+                'error': str(e),
+                'timestamp': datetime.utcnow().isoformat()
+            }
+    
+    async def report_scheduling_metrics(self) -> None:
+        """
+        Report comprehensive scheduling metrics to monitoring system.
+        """
+        try:
+            # Gather metrics
+            health_summary = await self.get_schedule_health_summary()
+            next_runs = await self.get_next_scheduled_runs(limit=10)
+            conflict_summary = self.get_conflict_summary()
+            optimization_summary = self.get_optimization_summary()
+            
+            metrics = {
+                'health_summary': health_summary,
+                'next_runs_count': len(next_runs),
+                'next_runs': next_runs,
+                'conflict_summary': conflict_summary,
+                'optimization_summary': optimization_summary,
+                'timestamp': datetime.utcnow().isoformat()
+            }
+            
+            # Report to monitoring
+            self.monitoring_client.report_scheduling_metrics(metrics)
+            
+            # Report next scheduled runs
+            if next_runs:
+                self.monitoring_client.report_next_scheduled_runs(next_runs)
+            
+            self.logger.info("Reported scheduling metrics to monitoring system")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to report scheduling metrics: {e}")
+    
+    async def monitor_schedule_health(self, schedule_id: str) -> None:
+        """
+        Monitor and report health status for a specific schedule.
+        
+        Args:
+            schedule_id: Schedule identifier
+        """
+        try:
+            if schedule_id not in self._schedules:
+                raise SchedulingError(f"Schedule not found: {schedule_id}")
+            
+            # Get schedule status
+            status = await self.get_schedule_status(schedule_id)
+            
+            # Map health status to string
+            health_status_map = {
+                ScheduleHealthStatus.HEALTHY: 'healthy',
+                ScheduleHealthStatus.WARNING: 'warning',
+                ScheduleHealthStatus.ERROR: 'error',
+                ScheduleHealthStatus.UNKNOWN: 'unknown'
+            }
+            
+            health_status = health_status_map.get(status.health_status, 'unknown')
+            
+            # Prepare details
+            details = {
+                'schedule_name': self._schedules[schedule_id].name,
+                'policy_id': self._schedules[schedule_id].policy_id,
+                'enabled': status.enabled,
+                'next_execution': status.next_execution_time.isoformat() if status.next_execution_time else None,
+                'platform_active': status.platform_status.is_active if status.platform_status else False
+            }
+            
+            # Report to monitoring
+            self.monitoring_client.report_schedule_health_status(
+                schedule_id,
+                health_status,
+                details
+            )
+            
+            # Send health check ping
+            await self.monitoring_client.send_health_check_ping(
+                schedule_id,
+                health_status,
+                details
+            )
+            
+            self.logger.debug(f"Monitored health for schedule {schedule_id}: {health_status}")
+            
+        except SchedulingError:
+            raise
+        except Exception as e:
+            error_msg = f"Failed to monitor schedule health: {e}"
+            self.logger.error(error_msg)
+            raise SchedulingError(error_msg) from e
+    
+    async def monitor_all_schedules(self) -> Dict[str, Any]:
+        """
+        Monitor health status for all schedules and report to monitoring system.
+        
+        Returns:
+            Dictionary with monitoring results
+        """
+        try:
+            enabled_schedules = [s for s in self._schedules.values() if s.enabled]
+            
+            results = {
+                'total_schedules': len(enabled_schedules),
+                'monitored': 0,
+                'healthy': 0,
+                'warning': 0,
+                'error': 0,
+                'unknown': 0,
+                'errors': []
+            }
+            
+            for schedule in enabled_schedules:
+                try:
+                    await self.monitor_schedule_health(schedule.schedule_id)
+                    results['monitored'] += 1
+                    
+                    # Get status to update counts
+                    status = await self.get_schedule_status(schedule.schedule_id)
+                    if status.health_status == ScheduleHealthStatus.HEALTHY:
+                        results['healthy'] += 1
+                    elif status.health_status == ScheduleHealthStatus.WARNING:
+                        results['warning'] += 1
+                    elif status.health_status == ScheduleHealthStatus.ERROR:
+                        results['error'] += 1
+                    else:
+                        results['unknown'] += 1
+                        
+                except Exception as e:
+                    error_msg = f"Failed to monitor schedule {schedule.schedule_id}: {str(e)}"
+                    results['errors'].append(error_msg)
+                    self.logger.error(error_msg)
+            
+            # Report overall metrics
+            await self.report_scheduling_metrics()
+            
+            self.logger.info(
+                f"Monitored {results['monitored']} schedules: "
+                f"{results['healthy']} healthy, {results['warning']} warning, "
+                f"{results['error']} error, {results['unknown']} unknown"
+            )
+            
+            return results
+            
+        except Exception as e:
+            error_msg = f"Failed to monitor all schedules: {e}"
+            self.logger.error(error_msg)
             return {
                 'error': str(e),
                 'timestamp': datetime.utcnow().isoformat()

@@ -131,6 +131,14 @@ from .schedule_testing import (
     DiagnosticResult
 )
 
+# Integration testing
+from .integration_testing import (
+    SchedulingIntegrationTester,
+    IntegrationTestResult,
+    IntegrationTestSuite,
+    run_integration_tests
+)
+
 # Schedule utilities
 from .schedule_utilities import (
     ScheduleConflictDetector,
@@ -231,6 +239,12 @@ __all__ = [
     'TestExecutionResult',
     'HealthCheckResult',
     'DiagnosticResult',
+    
+    # Integration testing
+    'SchedulingIntegrationTester',
+    'IntegrationTestResult',
+    'IntegrationTestSuite',
+    'run_integration_tests',
     
     # Schedule utilities
     'ScheduleConflictDetector',
