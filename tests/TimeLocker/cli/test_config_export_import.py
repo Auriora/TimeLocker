@@ -47,7 +47,7 @@ class TestConfigExportCommands:
         assert "export" in combined.lower()
         assert "configuration" in combined.lower()
         assert "--repositories" in combined or "repositories" in combined.lower()
-        assert "--targets" in combined or "targets" in combined.lower()
+        assert "--selections" in combined or "selections" in combined.lower()
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli._create_configuration_module')

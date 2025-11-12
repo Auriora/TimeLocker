@@ -43,7 +43,7 @@ class TestCLIErrorHandling:
                 ["backup", "invalid-subcmd"],
                 ["snapshots", "invalid-subcmd"],
                 ["repos", "invalid-subcmd"],
-                ["targets", "invalid-subcmd"],
+                ["selections", "invalid-subcmd"],
                 ["config", "invalid-subcmd"],
                 ["credentials", "invalid-subcmd"]
         ]
@@ -64,8 +64,8 @@ class TestCLIErrorHandling:
                 ["repos", "show"],
                 ["repos", "check"],
                 ["repos", "stats"],
-                ["targets", "show"],
-                ["targets", "remove"],
+                ["selections", "show"],
+                ["selections", "delete"],
                 ["credentials", "store"],
                 ["credentials", "remove"]
         ]
@@ -207,7 +207,7 @@ class TestCLIErrorHandling:
         empty_input_scenarios = [
                 ["repos", "add", "", "file:///tmp/repo"],
                 ["repos", "add", "   ", "file:///tmp/repo"],
-                ["targets", "add", "", "--path", "/tmp"],
+                ["selections", "create", "", "--paths", "/tmp"],
                 ["snapshots", "find", ""],
                 ["snapshots", "find", "   "]
         ]
@@ -221,7 +221,7 @@ class TestCLIErrorHandling:
         very_long_string = "a" * 1000
         long_input_scenarios = [
                 ["repos", "add", very_long_string, "file:///tmp/repo"],
-                ["targets", "add", very_long_string, "--path", "/tmp"],
+                ["selections", "create", very_long_string, "--paths", "/tmp"],
                 ["snapshots", "find", very_long_string]
         ]
         for cmd in long_input_scenarios:

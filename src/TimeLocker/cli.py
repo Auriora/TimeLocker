@@ -1751,7 +1751,7 @@ def _ensure_manager_unlocked(manager, master_password: Optional[str], interactiv
 def config_export_config(
         file: Annotated[Path, typer.Argument(help="Output file path for configuration export")],
         include_repositories: Annotated[bool, typer.Option("--repositories/--no-repositories", help="Include repository configurations")] = True,
-        include_targets: Annotated[bool, typer.Option("--targets/--no-targets", help="Include backup target configurations")] = True,
+        include_selections: Annotated[bool, typer.Option("--selections/--no-selections", help="Include data selection configurations")] = True,
         include_policies: Annotated[bool, typer.Option("--policies/--no-policies", help="Include policy configurations")] = True,
         include_schedules: Annotated[bool, typer.Option("--schedules/--no-schedules", help="Include schedule configurations")] = True,
         include_credentials: Annotated[bool, typer.Option("--credentials/--no-credentials", help="Include credential references (not actual secrets)")] = False,
@@ -1763,7 +1763,7 @@ def config_export_config(
     Export TimeLocker configuration to a file.
     
     This command exports the complete TimeLocker configuration including repositories,
-    backup targets, policies, and schedules to a JSON file. The exported configuration
+    data selections, policies, and schedules to a JSON file. The exported configuration
     can be used for backup, migration, or sharing configurations between systems.
     
     By default, credential secrets are NOT exported for security reasons. Only credential
@@ -1772,7 +1772,7 @@ def config_export_config(
     Examples:
         timelocker config export config backup.json
         timelocker config export config full-config.json --credentials
-        timelocker config export config repos-only.json --no-targets --no-policies --no-schedules
+        timelocker config export config repos-only.json --no-selections --no-policies --no-schedules
     """
     setup_logging(verbose, config_dir)
     
@@ -1797,7 +1797,7 @@ def config_export_config(
             "metadata": {
                 "exported_at": datetime.now().isoformat(),
                 "timelocker_version": __version__,
-                "export_type": "full" if all([include_repositories, include_targets, include_policies, include_schedules]) else "selective"
+                "export_type": "full" if all([include_repositories, include_selections, include_policies, include_schedules]) else "selective"
             },
             "general": config.general.to_dict() if hasattr(config.general, 'to_dict') else {}
         }
@@ -1814,13 +1814,14 @@ def config_export_config(
                 repos_data[name] = repo_dict
             export_data["repositories"] = repos_data
         
-        # Add backup targets if requested
-        if include_targets:
-            targets_data = {}
-            for name, target in config.backup_targets.items():
-                target_dict = target.to_dict() if hasattr(target, 'to_dict') else {}
-                targets_data[name] = target_dict
-            export_data["backup_targets"] = targets_data
+        # Add data selections if requested
+        if include_selections:
+            selections_data = {}
+            if hasattr(config, 'data_selections'):
+                for name, selection in config.data_selections.items():
+                    selection_dict = selection.to_dict() if hasattr(selection, 'to_dict') else {}
+                    selections_data[name] = selection_dict
+            export_data["data_selections"] = selections_data
         
         # Add policies if requested (if they exist in config)
         if include_policies and hasattr(config, 'policies'):
@@ -1859,9 +1860,9 @@ def config_export_config(
         if include_repositories:
             repo_count = len(export_data.get("repositories", {}))
             summary_parts.append(f"{repo_count} repositories")
-        if include_targets:
-            target_count = len(export_data.get("backup_targets", {}))
-            summary_parts.append(f"{target_count} targets")
+        if include_selections:
+            selection_count = len(export_data.get("data_selections", {}))
+            summary_parts.append(f"{selection_count} selections")
         if include_policies:
             policy_count = len(export_data.get("policies", {}))
             summary_parts.append(f"{policy_count} policies")

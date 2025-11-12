@@ -36,8 +36,8 @@ class TestCLIHelpSystem:
         assert "timelocker" in combined.lower()
         assert "backup" in combined.lower()
         
-        # Check for command groups
-        expected_groups = ["backup", "snapshots", "repos", "targets", "config", "credentials"]
+        # Check for command groups (targets replaced with selections)
+        expected_groups = ["backup", "snapshots", "repos", "selections", "config", "credentials"]
         for group in expected_groups:
             assert group in combined.lower(), f"Command group '{group}' not found in help"
         
@@ -54,7 +54,7 @@ class TestCLIHelpSystem:
             "backup",
             "snapshots", 
             "repos",
-            "targets",
+            "selections",
             "config",
             "credentials"
         ]
@@ -205,7 +205,7 @@ class TestCLIHelpSystem:
         result = runner.invoke(app, ["--help"])
         combined = _combined_output(result)
         
-        command_groups = ["backup", "snapshots", "repos", "targets", "config", "credentials"]
+        command_groups = ["backup", "snapshots", "repos", "selections", "config", "credentials"]
         for group in command_groups:
             assert group in combined, f"Command group '{group}' not discoverable in main help"
 
@@ -242,7 +242,7 @@ class TestCLIHelpSystem:
             # Missing required arguments
             ["snapshots", "show"],  # Missing snapshot ID
             ["repos", "init"],      # Missing repository name
-            ["targets", "show"],    # Missing target name
+            ["selections", "show"],    # Missing selection name
             ["credentials", "set"]  # Missing repository name
         ]
         

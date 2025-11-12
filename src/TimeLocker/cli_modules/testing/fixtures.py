@@ -64,7 +64,7 @@ class CLITestFixtures:
 
 def create_test_config(
     repositories: Optional[List[Dict[str, Any]]] = None,
-    targets: Optional[List[Dict[str, Any]]] = None,
+    selections: Optional[List[Dict[str, Any]]] = None,
     policies: Optional[List[Dict[str, Any]]] = None,
     **kwargs
 ) -> Dict[str, Any]:
@@ -73,7 +73,7 @@ def create_test_config(
     
     Args:
         repositories: List of repository configurations
-        targets: List of backup target configurations
+        selections: List of data selection configurations
         policies: List of policy configurations
         **kwargs: Additional configuration properties
     
@@ -83,7 +83,7 @@ def create_test_config(
     config = {
         'version': '1.0',
         'repositories': repositories or [],
-        'targets': targets or [],
+        'selections': selections or [],
         'policies': policies or [],
         'settings': {
             'default_repository': None,

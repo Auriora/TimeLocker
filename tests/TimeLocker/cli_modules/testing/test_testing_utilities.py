@@ -66,7 +66,7 @@ class TestFixtures:
         
         assert 'version' in config
         assert 'repositories' in config
-        assert 'targets' in config
+        assert 'selections' in config
         assert 'policies' in config
         assert 'settings' in config
     
