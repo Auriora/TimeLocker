@@ -676,3 +676,137 @@ class SchedulingAuditLogger:
         
         self._write_audit_entry(entry)
         self.logger.info(f"Audit: Diagnostic run - {schedule_id}")
+
+    
+    def log_conflict_detection(
+        self,
+        conflict_details: Dict[str, Any]
+    ) -> None:
+        """
+        Log schedule conflict detection event.
+        
+        Args:
+            conflict_details: Details about detected conflicts
+        """
+        entry = AuditEntry(
+            timestamp=datetime.utcnow(),
+            event_type=AuditEventType.VALIDATION_FAILED,  # Reuse existing type
+            schedule_id=None,
+            execution_id=None,
+            user=None,
+            details={
+                'conflict_detection': True,
+                **conflict_details
+            }
+        )
+        
+        self._write_audit_entry(entry)
+        self.logger.info(f"Audit: Conflict detection - {conflict_details.get('conflict_count', 0)} conflicts")
+    
+    def log_conflict_resolution(
+        self,
+        resolution_details: Dict[str, Any]
+    ) -> None:
+        """
+        Log conflict resolution event.
+        
+        Args:
+            resolution_details: Details about conflict resolutions
+        """
+        entry = AuditEntry(
+            timestamp=datetime.utcnow(),
+            event_type=AuditEventType.SCHEDULE_UPDATED,  # Reuse existing type
+            schedule_id=None,
+            execution_id=None,
+            user=None,
+            details={
+                'conflict_resolution': True,
+                **resolution_details
+            }
+        )
+        
+        self._write_audit_entry(entry)
+        self.logger.info(
+            f"Audit: Conflict resolution - {resolution_details.get('resolutions_applied', 0)} applied"
+        )
+    
+    def log_optimization(
+        self,
+        optimization_details: Dict[str, Any]
+    ) -> None:
+        """
+        Log schedule optimization event.
+        
+        Args:
+            optimization_details: Details about optimizations
+        """
+        entry = AuditEntry(
+            timestamp=datetime.utcnow(),
+            event_type=AuditEventType.SCHEDULE_UPDATED,  # Reuse existing type
+            schedule_id=None,
+            execution_id=None,
+            user=None,
+            details={
+                'optimization': True,
+                **optimization_details
+            }
+        )
+        
+        self._write_audit_entry(entry)
+        self.logger.info(
+            f"Audit: Optimization - {optimization_details.get('optimizations_applied', 0)} applied"
+        )
+    
+    def log_distribution_optimization(
+        self,
+        distribution_details: Dict[str, Any]
+    ) -> None:
+        """
+        Log schedule distribution optimization event.
+        
+        Args:
+            distribution_details: Details about distribution optimization
+        """
+        entry = AuditEntry(
+            timestamp=datetime.utcnow(),
+            event_type=AuditEventType.SCHEDULE_UPDATED,  # Reuse existing type
+            schedule_id=None,
+            execution_id=None,
+            user=None,
+            details={
+                'distribution_optimization': True,
+                **distribution_details
+            }
+        )
+        
+        self._write_audit_entry(entry)
+        self.logger.info(
+            f"Audit: Distribution optimization - {distribution_details.get('schedules_updated', 0)} updated"
+        )
+    
+    def log_automatic_reschedule(
+        self,
+        schedule_id: str,
+        reschedule_details: Dict[str, Any]
+    ) -> None:
+        """
+        Log automatic rescheduling event.
+        
+        Args:
+            schedule_id: Schedule identifier
+            reschedule_details: Details about rescheduling
+        """
+        entry = AuditEntry(
+            timestamp=datetime.utcnow(),
+            event_type=AuditEventType.SCHEDULE_UPDATED,
+            schedule_id=schedule_id,
+            execution_id=None,
+            user=None,
+            details={
+                'automatic_reschedule': True,
+                **reschedule_details
+            }
+        )
+        
+        self._write_audit_entry(entry)
+        self.logger.info(f"Audit: Automatic reschedule - {schedule_id}")

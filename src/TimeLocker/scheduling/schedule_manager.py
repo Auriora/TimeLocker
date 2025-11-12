@@ -56,6 +56,14 @@ from .audit_logger import SchedulingAuditLogger
 from .schedule_storage import ScheduleStorage
 from .schedule_validator import ScheduleValidator
 from .schedule_testing import ScheduleTester, TestExecutionResult, HealthCheckResult, DiagnosticResult
+from .schedule_utilities import (
+    ScheduleConflictDetector,
+    AutomaticRescheduler,
+    ScheduleOptimizer,
+    ScheduleConflict,
+    ConflictResolution,
+    ScheduleOptimization
+)
 
 logger = logging.getLogger(__name__)
 
@@ -149,6 +157,13 @@ class ScheduleManager:
             data_selection_client=self.data_selection_client,
             repository_client=self.repository_client
         )
+        
+        # Initialize schedule utilities
+        self.conflict_detector = ScheduleConflictDetector(
+            max_concurrent_executions=self.config.max_concurrent_executions
+        )
+        self.auto_rescheduler = AutomaticRescheduler(self.conflict_detector)
+        self.optimizer = ScheduleOptimizer()
         
         # In-memory cache of schedules
         self._schedules: Dict[str, ScheduleConfig] = {}
@@ -1196,3 +1211,395 @@ class ScheduleManager:
         except Exception as e:
             self.logger.error(f"Failed to export audit trail: {e}")
             return False
+
+    
+    async def detect_schedule_conflicts(
+        self,
+        time_window_hours: int = 24
+    ) -> List[ScheduleConflict]:
+        """
+        Detect conflicts between all scheduled backups.
+        
+        Args:
+            time_window_hours: Time window to analyze for conflicts
+            
+        Returns:
+            List of detected conflicts
+        """
+        try:
+            schedules = list(self._schedules.values())
+            conflicts = self.conflict_detector.detect_conflicts(schedules, time_window_hours)
+            
+            self.logger.info(f"Detected {len(conflicts)} schedule conflicts in {time_window_hours}h window")
+            
+            # Log conflicts for audit
+            if conflicts:
+                self.audit_logger.log_conflict_detection(
+                    {
+                        'conflict_count': len(conflicts),
+                        'time_window_hours': time_window_hours,
+                        'critical_count': sum(1 for c in conflicts if c.severity.value == 'critical'),
+                        'high_count': sum(1 for c in conflicts if c.severity.value == 'high')
+                    }
+                )
+            
+            return conflicts
+            
+        except Exception as e:
+            error_msg = f"Failed to detect schedule conflicts: {e}"
+            self.logger.error(error_msg)
+            raise SchedulingError(error_msg) from e
+    
+    async def resolve_schedule_conflicts(
+        self,
+        conflicts: Optional[List[ScheduleConflict]] = None,
+        auto_apply: bool = False
+    ) -> List[ConflictResolution]:
+        """
+        Generate resolutions for schedule conflicts.
+        
+        Args:
+            conflicts: Optional list of conflicts (detects if not provided)
+            auto_apply: If True, automatically apply resolutions
+            
+        Returns:
+            List of conflict resolutions
+            
+        Raises:
+            SchedulingError: If resolution fails
+        """
+        try:
+            # Detect conflicts if not provided
+            if conflicts is None:
+                conflicts = await self.detect_schedule_conflicts()
+            
+            if not conflicts:
+                self.logger.info("No conflicts to resolve")
+                return []
+            
+            # Generate resolutions
+            schedules = list(self._schedules.values())
+            resolutions = self.auto_rescheduler.resolve_conflicts(schedules, conflicts)
+            
+            self.logger.info(f"Generated {len(resolutions)} conflict resolutions")
+            
+            # Apply resolutions if requested
+            if auto_apply:
+                applied_count = 0
+                for resolution in resolutions:
+                    try:
+                        # Find the schedule to modify
+                        schedule_id = resolution.conflict.schedule_id_1
+                        if schedule_id in self._schedules:
+                            schedule = self._schedules[schedule_id]
+                            modified_schedule = self.auto_rescheduler.apply_resolution(schedule, resolution)
+                            
+                            # Update the schedule
+                            await self.update_scheduled_backup(
+                                schedule_id,
+                                ScheduleUpdates(
+                                    schedule_pattern=modified_schedule.schedule_pattern
+                                )
+                            )
+                            
+                            applied_count += 1
+                            self.logger.info(f"Applied resolution for schedule {schedule_id}")
+                            
+                    except Exception as e:
+                        self.logger.error(f"Failed to apply resolution for {schedule_id}: {e}")
+                
+                self.logger.info(f"Applied {applied_count}/{len(resolutions)} resolutions")
+                
+                # Log audit event
+                self.audit_logger.log_conflict_resolution(
+                    {
+                        'resolutions_generated': len(resolutions),
+                        'resolutions_applied': applied_count,
+                        'auto_apply': auto_apply
+                    }
+                )
+            
+            return resolutions
+            
+        except Exception as e:
+            error_msg = f"Failed to resolve schedule conflicts: {e}"
+            self.logger.error(error_msg)
+            raise SchedulingError(error_msg) from e
+    
+    async def optimize_schedules(
+        self,
+        auto_apply: bool = False
+    ) -> List[ScheduleOptimization]:
+        """
+        Analyze and optimize schedule configurations.
+        
+        Args:
+            auto_apply: If True, automatically apply optimizations
+            
+        Returns:
+            List of optimization suggestions
+            
+        Raises:
+            SchedulingError: If optimization fails
+        """
+        try:
+            schedules = list(self._schedules.values())
+            optimizations = self.optimizer.analyze_schedules(schedules)
+            
+            self.logger.info(f"Generated {len(optimizations)} optimization suggestions")
+            
+            # Apply optimizations if requested
+            if auto_apply:
+                applied_count = 0
+                for optimization in optimizations:
+                    try:
+                        schedule_id = optimization.schedule_id
+                        if schedule_id not in self._schedules:
+                            continue
+                        
+                        schedule = self._schedules[schedule_id]
+                        
+                        # Apply optimization based on type
+                        if optimization.optimization_type == "load_distribution":
+                            # Update randomize_delay_minutes
+                            schedule.schedule_pattern.randomize_delay_minutes = optimization.suggested_value
+                            
+                        elif optimization.optimization_type == "resource_usage":
+                            # Update execution_timeout
+                            schedule.execution_timeout = optimization.suggested_value
+                            
+                        elif optimization.optimization_type == "timing":
+                            # Update interval_minutes
+                            if schedule.schedule_pattern.interval_minutes:
+                                schedule.schedule_pattern.interval_minutes = optimization.suggested_value
+                        
+                        # Update the schedule
+                        await self.update_scheduled_backup(
+                            schedule_id,
+                            ScheduleUpdates(
+                                schedule_pattern=schedule.schedule_pattern,
+                                execution_timeout=schedule.execution_timeout
+                            )
+                        )
+                        
+                        applied_count += 1
+                        self.logger.info(f"Applied optimization for schedule {schedule_id}")
+                        
+                    except Exception as e:
+                        self.logger.error(f"Failed to apply optimization for {schedule_id}: {e}")
+                
+                self.logger.info(f"Applied {applied_count}/{len(optimizations)} optimizations")
+                
+                # Log audit event
+                self.audit_logger.log_optimization(
+                    {
+                        'optimizations_generated': len(optimizations),
+                        'optimizations_applied': applied_count,
+                        'auto_apply': auto_apply
+                    }
+                )
+            
+            return optimizations
+            
+        except Exception as e:
+            error_msg = f"Failed to optimize schedules: {e}"
+            self.logger.error(error_msg)
+            raise SchedulingError(error_msg) from e
+    
+    async def optimize_schedule_distribution(
+        self,
+        time_window_hours: int = 24
+    ) -> bool:
+        """
+        Optimize distribution of schedules across time window.
+        
+        Args:
+            time_window_hours: Time window for distribution
+            
+        Returns:
+            True if optimization was successful
+            
+        Raises:
+            SchedulingError: If optimization fails
+        """
+        try:
+            schedules = list(self._schedules.values())
+            
+            # Optimize distribution
+            optimized_schedules = self.optimizer.optimize_schedule_distribution(
+                schedules,
+                time_window_hours
+            )
+            
+            # Update schedules
+            updated_count = 0
+            for optimized in optimized_schedules:
+                if optimized.schedule_id in self._schedules:
+                    original = self._schedules[optimized.schedule_id]
+                    
+                    # Check if schedule pattern changed
+                    if optimized.schedule_pattern != original.schedule_pattern:
+                        await self.update_scheduled_backup(
+                            optimized.schedule_id,
+                            ScheduleUpdates(
+                                schedule_pattern=optimized.schedule_pattern
+                            )
+                        )
+                        updated_count += 1
+            
+            self.logger.info(f"Optimized distribution: updated {updated_count} schedules")
+            
+            # Log audit event
+            self.audit_logger.log_distribution_optimization(
+                {
+                    'time_window_hours': time_window_hours,
+                    'schedules_updated': updated_count,
+                    'total_schedules': len(schedules)
+                }
+            )
+            
+            return True
+            
+        except Exception as e:
+            error_msg = f"Failed to optimize schedule distribution: {e}"
+            self.logger.error(error_msg)
+            raise SchedulingError(error_msg) from e
+    
+    async def reschedule_failed_backup(
+        self,
+        schedule_id: str,
+        failure_reason: str
+    ) -> bool:
+        """
+        Automatically reschedule a failed backup.
+        
+        Args:
+            schedule_id: Schedule identifier
+            failure_reason: Reason for failure
+            
+        Returns:
+            True if rescheduling was successful
+            
+        Raises:
+            SchedulingError: If rescheduling fails
+        """
+        try:
+            if schedule_id not in self._schedules:
+                raise SchedulingError(f"Schedule not found: {schedule_id}")
+            
+            schedule = self._schedules[schedule_id]
+            
+            # Check if schedule has retry configuration
+            if not schedule.retry_config:
+                self.logger.warning(f"No retry configuration for schedule {schedule_id}")
+                return False
+            
+            # Calculate next retry time based on retry config
+            from datetime import datetime, timedelta
+            
+            retry_delay = timedelta(minutes=schedule.retry_config.initial_delay_minutes)
+            next_retry_time = datetime.utcnow() + retry_delay
+            
+            self.logger.info(
+                f"Rescheduling failed backup {schedule_id} for {next_retry_time.isoformat()}"
+            )
+            
+            # Log audit event
+            self.audit_logger.log_automatic_reschedule(
+                schedule_id,
+                {
+                    'failure_reason': failure_reason,
+                    'next_retry_time': next_retry_time.isoformat(),
+                    'retry_delay_minutes': schedule.retry_config.initial_delay_minutes
+                }
+            )
+            
+            # Report to monitoring
+            self.monitoring_client.report_schedule_rescheduled(
+                schedule_id,
+                {
+                    'reason': 'failure',
+                    'next_run_time': next_retry_time.isoformat()
+                }
+            )
+            
+            return True
+            
+        except SchedulingError:
+            raise
+        except Exception as e:
+            error_msg = f"Failed to reschedule failed backup: {e}"
+            self.logger.error(error_msg)
+            raise SchedulingError(error_msg) from e
+    
+    def get_conflict_summary(self) -> Dict[str, Any]:
+        """
+        Get summary of schedule conflicts.
+        
+        Returns:
+            Dictionary with conflict summary
+        """
+        try:
+            import asyncio
+            
+            # Run conflict detection
+            conflicts = asyncio.run(self.detect_schedule_conflicts())
+            
+            # Categorize by severity
+            critical = [c for c in conflicts if c.severity.value == 'critical']
+            high = [c for c in conflicts if c.severity.value == 'high']
+            medium = [c for c in conflicts if c.severity.value == 'medium']
+            low = [c for c in conflicts if c.severity.value == 'low']
+            
+            return {
+                'total_conflicts': len(conflicts),
+                'critical_conflicts': len(critical),
+                'high_conflicts': len(high),
+                'medium_conflicts': len(medium),
+                'low_conflicts': len(low),
+                'requires_immediate_action': len(critical) > 0,
+                'timestamp': datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get conflict summary: {e}")
+            return {
+                'error': str(e),
+                'timestamp': datetime.utcnow().isoformat()
+            }
+    
+    def get_optimization_summary(self) -> Dict[str, Any]:
+        """
+        Get summary of optimization opportunities.
+        
+        Returns:
+            Dictionary with optimization summary
+        """
+        try:
+            schedules = list(self._schedules.values())
+            optimizations = self.optimizer.analyze_schedules(schedules)
+            
+            # Categorize by type
+            load_dist = [o for o in optimizations if o.optimization_type == 'load_distribution']
+            resource = [o for o in optimizations if o.optimization_type == 'resource_usage']
+            timing = [o for o in optimizations if o.optimization_type == 'timing']
+            
+            # Calculate potential improvement
+            total_improvement = sum(o.estimated_improvement for o in optimizations)
+            avg_improvement = total_improvement / len(optimizations) if optimizations else 0
+            
+            return {
+                'total_optimizations': len(optimizations),
+                'load_distribution_opportunities': len(load_dist),
+                'resource_usage_opportunities': len(resource),
+                'timing_opportunities': len(timing),
+                'average_improvement_potential': round(avg_improvement, 2),
+                'timestamp': datetime.utcnow().isoformat()
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get optimization summary: {e}")
+            return {
+                'error': str(e),
+                'timestamp': datetime.utcnow().isoformat()
+            }

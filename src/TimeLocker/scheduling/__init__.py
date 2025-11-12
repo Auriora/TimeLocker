@@ -131,6 +131,24 @@ from .schedule_testing import (
     DiagnosticResult
 )
 
+# Schedule utilities
+from .schedule_utilities import (
+    ScheduleConflictDetector,
+    AutomaticRescheduler,
+    ScheduleOptimizer,
+    ScheduleConflict,
+    ConflictResolution,
+    ScheduleOptimization,
+    ConflictSeverity
+)
+
+# Configuration management
+from .scheduling_configuration import (
+    ConfigurationMigrator,
+    ConfigurationManager,
+    CURRENT_CONFIG_VERSION
+)
+
 __all__ = [
     # Core components
     'ScheduleManager',
@@ -212,5 +230,19 @@ __all__ = [
     'ScheduleTester',
     'TestExecutionResult',
     'HealthCheckResult',
-    'DiagnosticResult'
+    'DiagnosticResult',
+    
+    # Schedule utilities
+    'ScheduleConflictDetector',
+    'AutomaticRescheduler',
+    'ScheduleOptimizer',
+    'ScheduleConflict',
+    'ConflictResolution',
+    'ScheduleOptimization',
+    'ConflictSeverity',
+    
+    # Configuration management
+    'ConfigurationMigrator',
+    'ConfigurationManager',
+    'CURRENT_CONFIG_VERSION'
 ]
