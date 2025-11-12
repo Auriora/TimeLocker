@@ -260,7 +260,7 @@ class CommandBuilder:
             str: Command output
 
         Raises:
-            subprocess.CalledProcessError: If command fails
+            RuntimeError: If command fails (with details from subprocess)
             FileNotFoundError: If command executable not found
         """
         command_list = self.build(synopsis_values, use_short_form)
@@ -272,12 +272,29 @@ class CommandBuilder:
             process_env.update(env)  # Add/override with provided env vars
 
         # Execute command
-        result = subprocess.run(
-                command_list,
-                capture_output=True,
-                text=True,
-                env=process_env,
-                check=True
-        )
-
-        return result.stdout
+        try:
+            result = subprocess.run(
+                    command_list,
+                    capture_output=True,
+                    text=True,
+                    env=process_env,
+                    check=True
+            )
+            return result.stdout
+        except subprocess.CalledProcessError as e:
+            # Extract only string data to avoid pickle issues with exception objects
+            # that may contain threading locks or other non-serializable objects
+            cmd_str = ' '.join(e.cmd) if isinstance(e.cmd, list) else str(e.cmd)
+            stdout_str = e.stdout if e.stdout else ""
+            stderr_str = e.stderr if e.stderr else ""
+            
+            # Create a new exception with only string data
+            error_msg = f"Command failed with exit code {e.returncode}: {cmd_str}"
+            if stderr_str:
+                error_msg += f"\nStderr: {stderr_str}"
+            if stdout_str:
+                error_msg += f"\nStdout: {stdout_str}"
+            
+            # Raise a new RuntimeError instead of re-raising CalledProcessError
+            # This avoids any pickle issues with the original exception object
+            raise RuntimeError(error_msg) from None

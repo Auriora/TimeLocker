@@ -225,13 +225,13 @@ class RepositoryService(IRepositoryService, ServiceInterface):
                 logger.info(f"Repository check completed with status: {check_results['status']}")
                 return check_results
 
-            except subprocess.CalledProcessError as e:
-                # Handle subprocess errors (restic command failures) gracefully
-                error_message = self._parse_restic_error(e.stderr if hasattr(e, 'stderr') else str(e))
+            except RuntimeError as e:
+                # Handle command execution errors (from CommandBuilder.run())
+                error_message = self._parse_restic_error(str(e))
                 logger.debug(f"Repository check failed: {error_message}")  # Use debug instead of error
                 return {
                         'status':     'failed',
-                        'exit_code':  e.returncode if hasattr(e, 'returncode') else 1,
+                        'exit_code':  1,
                         'errors':     [error_message],
                         'warnings':   [],
                         'statistics': {}

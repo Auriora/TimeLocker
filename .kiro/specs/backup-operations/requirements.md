@@ -17,6 +17,10 @@ The Backup Operations feature provides the core functionality for orchestrating 
 - **Backup Execution**: The process of running backup operations either on-demand or triggered by external schedulers
 - **Tool Capability**: A feature or function supported natively by a specific backup tool
 - **Orchestration Layer**: The TimeLocker system layer that manages backup tool execution and provides unified interfaces
+- **Data Selection Template**: A named configuration that defines which files and directories to include or exclude from backup operations
+- **Selection Manager**: The component responsible for managing data selection templates and applying selection rules
+- **CLI Command**: A command-line interface command that users invoke to interact with the TimeLocker System
+- **Backup Target**: (Deprecated) The legacy system for defining backup sources, replaced by Data Selection Templates
 
 ## Requirements
 
@@ -127,3 +131,27 @@ The Backup Operations feature provides the core functionality for orchestrating 
 3. THE TimeLocker System SHALL monitor and report backup performance metrics including throughput, duration, and resource utilization as provided by backup tools
 4. THE TimeLocker System SHALL provide performance comparison between different backup tools for similar workloads to aid in tool selection
 5. WHERE backup performance degrades significantly, THE TimeLocker System SHALL alert administrators and suggest backup tool configuration adjustments or alternative tools
+
+### Requirement 10
+
+**User Story:** As a backup administrator, I want the backup CLI commands to use data selection templates instead of deprecated backup targets, so that I can leverage the modern data selection system for defining backup sources.
+
+#### Acceptance Criteria
+
+1. THE TimeLocker System SHALL provide a CLI command to create backups using data selection templates specified by name
+2. WHEN a user specifies a selection template name with the backup create command, THE TimeLocker System SHALL retrieve the template from the Selection Manager
+3. THE TimeLocker System SHALL translate data selection template rules into backup tool-specific parameters during backup execution
+4. THE TimeLocker System SHALL provide clear error messages when a specified selection template does not exist with suggestions to create one
+5. THE TimeLocker System SHALL deprecate and remove all references to backup targets in favor of data selection templates
+
+### Requirement 11
+
+**User Story:** As a user, I want accurate and helpful CLI documentation, so that I can understand which commands are available and how to use them correctly.
+
+#### Acceptance Criteria
+
+1. THE TimeLocker System SHALL provide a help command that displays accurate information about all available backup commands
+2. WHEN displaying help text, THE TimeLocker System SHALL show the correct command names and syntax for all operations
+3. THE TimeLocker System SHALL include examples in help text that demonstrate common backup workflows using data selection templates
+4. THE TimeLocker System SHALL provide command-specific help that explains all available options and their purposes
+5. THE TimeLocker System SHALL ensure help text is consistent with actual command implementations and does not reference deprecated features

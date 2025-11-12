@@ -82,3 +82,31 @@
   - Document plugin wrapper development guide for adding new backup tool support
   - Add troubleshooting guide for common backup operation issues and solutions
   - _Requirements: 8.4, 8.5_
+
+- [ ] 13. Implement BackupCLIHandler for data selection integration
+  - Create BackupCLIHandler class that integrates with SelectionManager
+  - Implement selection template resolution and validation
+  - Add method to translate selection templates to backup job configurations
+  - Create user-friendly error messages for missing or invalid templates
+  - _Requirements: 10.1, 10.2, 10.3, 10.4_
+
+- [ ] 14. Update backup CLI commands to use data selections
+  - Modify backup create command to use SelectionManager instead of backup targets
+  - Remove all references to get_backup_target and related legacy methods
+  - Update command to call BackupCLIHandler for selection-based backups
+  - Add proper error handling for template not found scenarios
+  - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
+
+- [ ] 15. Fix CLI help text and documentation
+  - Update main help command to show correct backup command names
+  - Ensure all examples use "backup create" not "backup run"
+  - Update command descriptions to reference data selection templates
+  - Remove any references to deprecated backup targets from help text
+  - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
+
+- [ ] 16. Add CLI integration tests for data selection workflows
+  - Write tests for backup create with selection templates
+  - Test error handling when selection template doesn't exist
+  - Test selection template resolution and parameter translation
+  - Verify help text accuracy and consistency
+  - _Requirements: 10.1, 10.2, 10.3, 10.4, 11.1, 11.2_

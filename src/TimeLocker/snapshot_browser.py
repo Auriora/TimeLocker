@@ -515,9 +515,10 @@ class SnapshotBrowser:
             
             return entries
             
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to list snapshot path: {e.stderr}")
-            raise RecoveryError(f"Failed to list snapshot contents: {e.stderr}") from e
+        except RuntimeError as e:
+            error_str = str(e)
+            logger.error(f"Failed to list snapshot path: {error_str}")
+            raise RecoveryError(f"Failed to list snapshot contents: {error_str}") from None
         except Exception as e:
             logger.error(f"Failed to list snapshot path: {e}")
             raise

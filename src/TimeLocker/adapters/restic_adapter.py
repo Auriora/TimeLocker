@@ -203,10 +203,10 @@ class ResticAdapter(BackupToolAdapter):
             logger.info(f"Successfully browsed snapshot {snapshot_id}: {len(entries)} entries")
             return listing
             
-        except subprocess.CalledProcessError as e:
-            error_msg = f"Failed to browse snapshot: {e.stderr}"
+        except RuntimeError as e:
+            error_msg = f"Failed to browse snapshot: {str(e)}"
             logger.error(error_msg)
-            raise RecoveryError(error_msg) from e
+            raise RecoveryError(error_msg) from None
         except Exception as e:
             error_msg = f"Failed to browse snapshot: {str(e)}"
             logger.error(error_msg)
@@ -300,12 +300,12 @@ class ResticAdapter(BackupToolAdapter):
             
             return operation
             
-        except subprocess.CalledProcessError as e:
+        except RuntimeError as e:
             operation.is_complete = True
             operation.success = False
-            operation.error_message = f"Restore failed: {e.stderr}"
-            logger.error(f"Restore operation {operation_id} failed: {e.stderr}")
-            raise RecoveryError(operation.error_message) from e
+            operation.error_message = f"Restore failed: {str(e)}"
+            logger.error(f"Restore operation {operation_id} failed: {str(e)}")
+            raise RecoveryError(operation.error_message) from None
         except Exception as e:
             operation.is_complete = True
             operation.success = False
@@ -400,8 +400,8 @@ class ResticAdapter(BackupToolAdapter):
             logger.info(f"Repository validated: {repository_path}")
             return True
             
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Repository validation failed: {e.stderr}")
+        except RuntimeError as e:
+            logger.error(f"Repository validation failed: {str(e)}")
             return False
         except Exception as e:
             logger.error(f"Repository validation failed: {str(e)}")
@@ -451,10 +451,10 @@ class ResticAdapter(BackupToolAdapter):
             else:
                 raise RecoveryError(f"Snapshot {snapshot_id} not found")
                 
-        except subprocess.CalledProcessError as e:
-            error_msg = f"Failed to get snapshot metadata: {e.stderr}"
+        except RuntimeError as e:
+            error_msg = f"Failed to get snapshot metadata: {str(e)}"
             logger.error(error_msg)
-            raise RecoveryError(error_msg) from e
+            raise RecoveryError(error_msg) from None
         except Exception as e:
             error_msg = f"Failed to get snapshot metadata: {str(e)}"
             logger.error(error_msg)
@@ -506,10 +506,10 @@ class ResticAdapter(BackupToolAdapter):
             logger.info(f"Estimated restore size: {total_size} bytes")
             return total_size
             
-        except subprocess.CalledProcessError as e:
-            error_msg = f"Failed to estimate restore size: {e.stderr}"
+        except RuntimeError as e:
+            error_msg = f"Failed to estimate restore size: {str(e)}"
             logger.error(error_msg)
-            raise RecoveryError(error_msg) from e
+            raise RecoveryError(error_msg) from None
         except Exception as e:
             error_msg = f"Failed to estimate restore size: {str(e)}"
             logger.error(error_msg)

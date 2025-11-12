@@ -219,6 +219,44 @@ class ProgressMonitor:
         """Get comprehensive progress report for job."""
 ```
 
+### Backup CLI Handler
+
+Provides CLI-specific integration with data selection and backup orchestration.
+
+```python
+class BackupCLIHandler:
+    """
+    Handles CLI commands for backup operations with data selection integration.
+    
+    Responsibilities:
+    - Selection template resolution and validation
+    - CLI parameter translation to backup job configuration
+    - User-friendly error handling and messaging
+    - Help text generation and consistency
+    """
+    
+    def __init__(
+        self, 
+        selection_manager: SelectionManager,
+        backup_orchestrator: BackupOrchestrator
+    ):
+        """Initialize CLI handler with required services."""
+        
+    def execute_backup_with_selection(
+        self,
+        selection_name: str,
+        repository: str,
+        **cli_options
+    ) -> BackupResult:
+        """Execute backup using a named data selection template."""
+        
+    def validate_selection_exists(self, selection_name: str) -> bool:
+        """Check if a selection template exists."""
+        
+    def get_selection_summary(self, selection_name: str) -> str:
+        """Get human-readable summary of selection template."""
+```
+
 ## Data Models
 
 ### Core Data Structures
@@ -438,6 +476,73 @@ Coordination with Repository Service includes:
 - **Capacity Management**: Check available storage capacity before backup execution
 - **Connection Management**: Manage repository connections and authentication
 - **Health Monitoring**: Monitor repository health and performance
+
+### CLI Integration with Data Selection
+
+The backup CLI commands integrate with the Data Selection system to provide a seamless user experience:
+
+#### Selection Template Resolution
+
+```python
+class BackupCLIHandler:
+    """
+    Handles CLI-specific backup operations with data selection integration.
+    
+    Responsibilities:
+    - Resolve selection template names to configurations
+    - Translate selection rules to backup parameters
+    - Provide user-friendly error messages
+    - Deprecate backup target references
+    """
+    
+    def resolve_selection_template(self, template_name: str) -> SelectionConfig:
+        """Resolve a selection template name to its configuration."""
+        
+    def create_backup_from_selection(
+        self, 
+        template_name: str, 
+        repository: str,
+        **options
+    ) -> BackupResult:
+        """Execute backup using a data selection template."""
+```
+
+#### Command Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant CLI
+    participant SelectionManager
+    participant BackupOrchestrator
+    participant BackupTool
+    
+    User->>CLI: tl backup create --selection template-name
+    CLI->>SelectionManager: get_template(template_name)
+    
+    alt Template exists
+        SelectionManager-->>CLI: SelectionConfig
+        CLI->>SelectionManager: evaluate_selection(config)
+        SelectionManager-->>CLI: Resolved paths and patterns
+        CLI->>BackupOrchestrator: execute_backup(job_config)
+        BackupOrchestrator->>BackupTool: Run backup
+        BackupTool-->>BackupOrchestrator: Result
+        BackupOrchestrator-->>CLI: BackupResult
+        CLI-->>User: Success message
+    else Template not found
+        SelectionManager-->>CLI: TemplateNotFoundError
+        CLI-->>User: Error with suggestion to create template
+    end
+```
+
+#### Help System Integration
+
+The CLI help system provides accurate, up-to-date information:
+
+- **Dynamic Help Generation**: Help text is generated from actual command definitions
+- **Example Integration**: Help includes working examples using data selection templates
+- **Deprecation Warnings**: Old features show deprecation notices with migration guidance
+- **Consistent Terminology**: All help text uses "data selection templates" not "backup targets"
 
 ## Future Enhancements
 

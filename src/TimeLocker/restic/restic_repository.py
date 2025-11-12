@@ -74,7 +74,7 @@ class ResticRepository(BackupRepository):
                 raise ResticError(f"restic version {restic_version} is below the required minimum version {min_version}.")
 
             return restic_version
-        except (json.JSONDecodeError, subprocess.CalledProcessError) as e:
+        except (json.JSONDecodeError, RuntimeError) as e:
             logger.debug("JSON version check failed (%s), trying text output", e)
             try:
                 basic_command = CommandBuilder(restic_command_def).command("version")
@@ -93,7 +93,7 @@ class ResticRepository(BackupRepository):
                 raise ResticError("Could not parse restic version from output")
             except FileNotFoundError:
                 raise ResticError("restic executable not found. Please ensure it is installed and in the PATH.")
-            except subprocess.CalledProcessError as e2:
+            except RuntimeError as e2:
                 raise ResticError(f"restic executable failed to run for version check: {e2}") from e2
             except Exception as e2:
                 raise ResticError(f"Failed to verify restic executable: {e2}")
@@ -197,36 +197,36 @@ class ResticRepository(BackupRepository):
             result = self._command.command("init").run(self.to_env())
             logger.info("Repository initialized successfully")
             return True
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to initialize repository: {e}")
-            logger.error(f"Command: {e.cmd}")
-            logger.error(f"Return code: {e.returncode}")
-            if e.stdout:
-                logger.error(f"Stdout: {e.stdout}")
-            if e.stderr:
-                logger.error(f"Stderr: {e.stderr}")
-
-            # Parse JSON error from restic if available
+        except RuntimeError as e:
+            # CommandBuilder.run() now raises RuntimeError instead of CalledProcessError
+            # to avoid pickle issues with subprocess exception objects
+            error_str = str(e)
+            logger.error(f"Failed to initialize repository: {error_str}")
+            
+            # Try to parse JSON error from restic if present in error message
             error_message = "Repository initialization failed"
-            if e.stderr:
-                try:
-                    import json
-                    error_data = json.loads(e.stderr)
-                    if "message" in error_data:
-                        error_message = error_data["message"]
-                except (json.JSONDecodeError, KeyError):
-                    # If not JSON or no message field, use stderr as-is
-                    error_message = e.stderr.strip()
-
-            raise Exception(error_message)
-        except subprocess.CalledProcessError:
-            # Already handled above, re-raise
-            raise
+            if "Stderr:" in error_str:
+                # Extract stderr portion
+                stderr_part = error_str.split("Stderr:", 1)[1].strip()
+                if stderr_part:
+                    try:
+                        import json
+                        error_data = json.loads(stderr_part)
+                        if "message" in error_data:
+                            error_message = error_data["message"]
+                    except (json.JSONDecodeError, KeyError, ValueError):
+                        # If not JSON or no message field, use the full error
+                        error_message = error_str
+            else:
+                error_message = error_str
+            
+            # Raise new exception with only string data
+            raise Exception(error_message) from None
         except Exception as e:
             # Convert exception to string to avoid serialization issues
             error_str = str(e)
             logger.error(f"Failed to initialize repository: {error_str}")
-            raise Exception(f"Repository initialization failed: {error_str}")
+            raise Exception(f"Repository initialization failed: {error_str}") from None
 
     def check(self) -> bool:
         """Check if the backup repository is available"""
@@ -340,10 +340,10 @@ class ResticRepository(BackupRepository):
                         "data_added":       0
                 }
 
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Backup command failed with exit code {e.returncode}")
-            logger.error(f"Error output: {e.stderr}")
-            raise RepositoryError(f"Backup failed: {e.stderr}")
+        except RuntimeError as e:
+            error_str = str(e)
+            logger.error(f"Backup command failed: {error_str}")
+            raise RepositoryError(f"Backup failed: {error_str}") from None
         except Exception as e:
             logger.error(f"Backup operation failed: {e}")
             raise RepositoryError(f"Backup failed: {e}")
@@ -403,9 +403,9 @@ class ResticRepository(BackupRepository):
             logger.info("Backup verification completed successfully")
             return True
 
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Backup verification failed with exit code {e.returncode}")
-            logger.error(f"Error output: {e.stderr}")
+        except RuntimeError as e:
+            error_str = str(e)
+            logger.error(f"Backup verification failed: {error_str}")
             return False
         except Exception as e:
             logger.error(f"Backup verification failed: {e}")
@@ -589,8 +589,9 @@ class ResticRepository(BackupRepository):
         try:
             cmdline.run(self.to_env())
             return True
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to implement Retention Policy: {e.stderr}")
+        except RuntimeError as e:
+            error_str = str(e)
+            logger.error(f"Failed to implement Retention Policy: {error_str}")
             return False
         except Exception as e:
             logger.error(f"Failed to implement Retention Policy: {e}")
@@ -611,8 +612,9 @@ class ResticRepository(BackupRepository):
         try:
             cmdline.run(self.to_env())
             return True
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Failed to forget snapshot: {e.stderr}")
+        except RuntimeError as e:
+            error_str = str(e)
+            logger.error(f"Failed to forget snapshot: {error_str}")
             return False
         except Exception as e:
             logger.error(f"Failed to forget snapshot: {e}")

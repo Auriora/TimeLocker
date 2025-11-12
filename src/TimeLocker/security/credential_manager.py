@@ -101,6 +101,22 @@ class CredentialManager:
         # Initialize audit logging
         self._initialize_audit_log()
 
+    def __getstate__(self):
+        """
+        Support for pickling by excluding non-picklable objects.
+        This is needed when exceptions that reference this object are serialized.
+        """
+        state = self.__dict__.copy()
+        # Remove the unpicklable RLock
+        state['_file_lock'] = None
+        return state
+
+    def __setstate__(self, state):
+        """Restore state after unpickling and recreate the RLock"""
+        self.__dict__.update(state)
+        # Recreate the RLock
+        self._file_lock = threading.RLock()
+
     def _initialize_audit_log(self):
         """Initialize audit logging for credential operations"""
         if not self.audit_log_file.exists():

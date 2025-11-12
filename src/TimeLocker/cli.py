@@ -296,6 +296,19 @@ try:
 except Exception as e:
     logger.warning(f"Failed to import restore commands: {e}")
 
+# Import and register selections app
+try:
+    import importlib.util
+    selections_spec = importlib.util.spec_from_file_location(
+        "selections_commands",
+        Path(__file__).parent / "cli_modules" / "commands" / "selections.py"
+    )
+    selections_module = importlib.util.module_from_spec(selections_spec)
+    selections_spec.loader.exec_module(selections_module)
+    app.add_typer(selections_module.selections_app, name="selections")
+except Exception as e:
+    logger.warning(f"Failed to import selections commands: {e}")
+
 app.add_typer(repos_app, name="repos")
 app.add_typer(config_app, name="config")
 app.add_typer(credentials_app, name="credentials")

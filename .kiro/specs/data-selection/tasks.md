@@ -104,11 +104,12 @@
     - Add selection creation, evaluation, and optimization workflows
     - _Requirements: 1.5, 2.3, 4.4, 5.4, 6.2, 7.1_
 
-  - [x] 9.2 Add integration with backup operations
-    - Integrate SelectionManager with existing BackupTarget class
-    - Add template resolution and override functionality
-    - Create service interfaces for backup workflow integration
-    - _Requirements: 9.1, 9.2, 9.3, 9.4, 9.5_
+  - [x] 9.2 Wire up CLI commands to SelectionManager
+    - Replace placeholder CLI command implementations with actual SelectionManager integration
+    - Implement selections create, list, show, edit, delete commands
+    - Implement selections test, export, import commands
+    - Add proper error handling and user feedback
+    - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 8.1, 8.2, 8.3, 11.1_
 
 - [x] 10. Update existing FileSelection class
   - [x] 10.1 Migrate existing functionality to new architecture
