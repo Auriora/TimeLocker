@@ -34,15 +34,15 @@
     - Update tests for RepositoryResolver integration
     - _Impact: Eliminates duplication in 30+ commands_
 
-- [ ] 3. Create ServiceFacade for simplified service manager interface
-  - [ ] 3.1 Implement ServiceFacade class
+- [x] 3. Create ServiceFacade for simplified service manager interface
+  - [x] 3.1 Implement ServiceFacade class
     - Create simplified service manager wrapper
     - Add consistent error handling patterns
     - Implement service initialization helpers
     - Create service health check utilities
     - _Impact: ~120 lines saved across commands_
 
-  - [ ] 3.2 Update commands to use ServiceFacade
+  - [x] 3.2 Update commands to use ServiceFacade
     - Refactor all commands using service manager directly
     - Replace repeated service access patterns
     - Add consistent error handling

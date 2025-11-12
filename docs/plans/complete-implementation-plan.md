@@ -409,12 +409,12 @@ CLI Refactoring:          ████████████░░░░░░
      - Backend detection
 
 3. **ServiceFacade**
-   - [ ] Create ServiceFacade
+   - [x] Create ServiceFacade
      - Simplified service manager interface
      - Consistent error handling
 
 4. **Command Updates**
-   - [ ] Update commands to use new services
+   - [x] Update commands to use new services
      - Refactor existing commands
      - Test integration
 

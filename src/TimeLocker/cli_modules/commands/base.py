@@ -30,9 +30,28 @@ _call_service_method = _cli_module._call_service_method
 _get_service_manager_for_command = _cli_module._get_service_manager_for_command
 _create_configuration_module = _cli_module._create_configuration_module
 
-# Import ConfigService and RepositoryResolver
+# Import ConfigService, RepositoryResolver, and ServiceFacade
 from ..services.config_service import ConfigService
 from ..services.repository_resolver import RepositoryResolver
+from TimeLocker.utils.service_facade import ServiceFacade, create_service_facade
+
+
+def _create_service_facade(config_dir: Optional[Path] = None, 
+                           service_manager: Optional[Any] = None) -> ServiceFacade:
+    """
+    Factory for ServiceFacade.
+    
+    This provides simplified service access for all CLI commands,
+    reducing code duplication and providing consistent error handling.
+    
+    Args:
+        config_dir: Optional configuration directory
+        service_manager: Optional existing service manager instance
+        
+    Returns:
+        ServiceFacade: Configured facade instance
+    """
+    return create_service_facade(config_dir=config_dir, service_manager=service_manager)
 
 
 def _create_config_service(config_dir: Optional[Path] = None) -> ConfigService:
@@ -97,6 +116,25 @@ class CommandBase:
         service_manager = _get_service_manager_for_command(config_dir)
         config_service = _create_config_service(config_dir)
         return service_manager, config_service
+    
+    @staticmethod
+    def setup_with_facade(verbose: bool = False, config_dir: Optional[Path] = None):
+        """
+        Modern setup for commands using ServiceFacade.
+        
+        This is the recommended setup method for new commands and refactored commands.
+        It provides simplified service access through the ServiceFacade.
+        
+        Args:
+            verbose: Enable verbose logging
+            config_dir: Optional configuration directory
+            
+        Returns:
+            ServiceFacade: Configured service facade instance
+        """
+        setup_logging(verbose, config_dir)
+        service_manager = _get_service_manager_for_command(config_dir)
+        return _create_service_facade(config_dir=config_dir, service_manager=service_manager)
     
     @staticmethod
     def setup_legacy(verbose: bool = False, config_dir: Optional[Path] = None):

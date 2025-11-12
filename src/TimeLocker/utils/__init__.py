@@ -29,6 +29,14 @@ from .platform_compatibility import (
     get_platform_compatibility
 )
 
+from .service_facade import (
+    ServiceFacade,
+    ServiceFacadeError,
+    ServiceInitializationError,
+    ServiceAccessError,
+    create_service_facade
+)
+
 __all__ = [
         # Performance utilities
         'PerformanceModule',
@@ -49,5 +57,12 @@ __all__ = [
         # Platform compatibility utilities
         'PlatformCompatibility',
         'Platform',
-        'get_platform_compatibility'
+        'get_platform_compatibility',
+        
+        # Service facade utilities
+        'ServiceFacade',
+        'ServiceFacadeError',
+        'ServiceInitializationError',
+        'ServiceAccessError',
+        'create_service_facade'
 ]
