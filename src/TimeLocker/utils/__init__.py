@@ -20,7 +20,9 @@ from .error_handling import (
     error_handler,
     handle_error,
     with_error_handling,
-    with_retry
+    with_retry,
+    format_error_with_context,
+    suggest_recovery
 )
 
 from .platform_compatibility import (
@@ -73,6 +75,8 @@ __all__ = [
         'handle_error',
         'with_error_handling',
         'with_retry',
+        'format_error_with_context',
+        'suggest_recovery',
         
         # Platform compatibility utilities
         'PlatformCompatibility',

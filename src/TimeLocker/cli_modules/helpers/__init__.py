@@ -104,6 +104,14 @@ from .platform_compat import (
     get_platform_capabilities,
     check_platform_compatibility,
 )
+from .error_context_helpers import (
+    with_cli_error_context,
+    show_cli_error,
+    add_common_recovery_suggestions,
+    handle_config_error,
+    handle_repository_error,
+    handle_validation_error,
+)
 
 __all__ = [
     # Display
@@ -205,4 +213,11 @@ __all__ = [
     "format_error_message",
     "get_platform_capabilities",
     "check_platform_compatibility",
+    # Error context helpers
+    "with_cli_error_context",
+    "show_cli_error",
+    "add_common_recovery_suggestions",
+    "handle_config_error",
+    "handle_repository_error",
+    "handle_validation_error",
 ]
