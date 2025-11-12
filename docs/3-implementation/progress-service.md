@@ -287,7 +287,7 @@ The following commands have been updated to use ProgressService:
 
 ## Testing
 
-### Test Coverage
+### Unit Tests
 
 **Location**: `tests/TimeLocker/utils/test_progress_service.py`
 
@@ -300,6 +300,26 @@ The following commands have been updated to use ProgressService:
 6. Singleton behavior
 
 **Results**: 19 tests, all passing
+
+### Integration Tests
+
+**Location**: `tests/TimeLocker/integration/test_ux_components_integration.py`
+
+**Integration Test Categories**:
+1. Spinner progress workflows
+2. Bar progress workflows with updates
+3. Nested progress for multi-step operations
+4. Backup operation templates
+5. Restore operation templates
+6. Repository operation templates
+7. Batch operation templates
+8. Validation operation templates
+9. Dynamic total updates
+10. Disabled mode behavior
+11. Multiple sequential operations
+12. Error handling
+
+**Results**: 13 integration tests, all passing
 
 ### Key Test Cases
 

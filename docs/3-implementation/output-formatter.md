@@ -245,6 +245,39 @@ These functions remain available for backward compatibility, but new code should
 
 ## Testing
 
+### Unit Tests
+
+**Location**: `tests/TimeLocker/cli/test_output_formatting.py`
+
+**Test Categories**:
+1. Formatter creation and configuration
+2. JSON output formatting
+3. Non-interactive mode handling
+4. Output filtering
+5. Pagination
+6. Sensitive field filtering
+7. Exit codes
+
+**Results**: All tests passing
+
+### Integration Tests
+
+**Location**: `tests/TimeLocker/integration/test_ux_components_integration.py`
+
+**Integration Test Categories**:
+1. Table formatting workflows
+2. JSON output consistency
+3. Panel formatting for various message types
+4. Success/error/warning/info message formatting
+5. Tree formatting for hierarchical data
+6. Format switching (RICH/JSON/PLAIN)
+7. Graceful degradation
+8. Complete workflows with multiple components
+
+**Results**: 11 integration tests, all passing
+
+### Example Tests
+
 ```python
 # Test basic functionality
 from TimeLocker.utils.output_formatter import OutputFormatter, OutputFormat
