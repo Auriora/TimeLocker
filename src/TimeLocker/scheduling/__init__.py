@@ -119,6 +119,9 @@ from .credential_integration import (
     SecureEnvironmentHandler
 )
 
+# Automation engine
+from .automation_engine import AutomationEngine, ErrorSeverity
+
 __all__ = [
     # Core components
     'ScheduleManager',
@@ -189,5 +192,9 @@ __all__ = [
     # Credential integration
     'PlatformCredentialStore',
     'SchedulingCredentialManager',
-    'SecureEnvironmentHandler'
+    'SecureEnvironmentHandler',
+    
+    # Automation engine
+    'AutomationEngine',
+    'ErrorSeverity'
 ]
