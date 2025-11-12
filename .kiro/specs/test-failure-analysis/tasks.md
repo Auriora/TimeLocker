@@ -66,11 +66,11 @@ See `IMPLEMENTATION_STATUS.md` for detailed breakdown.
     - `tests/TimeLocker/cli/test_restore_commands_enhanced.py`
   - _Requirements: 2.2, 2.3_
 
-- [ ] 3. Fix Async Tests (6 tests)
+- [x] 3. Fix Async Tests (6 tests)
   - Update backup CLI handler tests to properly await async functions
   - _Requirements: 3.1, 3.2_
 
-- [ ] 3.1 Fix backup CLI handler async tests
+- [x] 3.1 Fix backup CLI handler async tests
   - Update `tests/TimeLocker/cli_modules/helpers/test_backup_cli_handler.py`
   - Import: `from tests.TimeLocker.fixtures.async_helpers import await_if_coroutine`
   - Update test functions to either:

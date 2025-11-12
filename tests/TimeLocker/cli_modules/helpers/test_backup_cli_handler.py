@@ -25,6 +25,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock, MagicMock
 from pathlib import Path
 
+from tests.TimeLocker.fixtures.async_helpers import await_if_coroutine
 from TimeLocker.cli_modules.helpers.backup_cli_handler import (
     BackupCLIHandler,
     BackupCLIHandlerError,
@@ -68,47 +69,50 @@ class TestBackupCLIHandlerInitialization:
 class TestValidateSelectionExists:
     """Test validate_selection_exists method"""
     
-    def test_validate_existing_template(self):
+    @pytest.mark.asyncio
+    async def test_validate_existing_template(self):
         """Test validation of existing template"""
         selection_manager = Mock(spec=SelectionManager)
         backup_orchestrator = Mock(spec=IBackupOrchestrator)
         
-        # Mock template manager
+        # Mock template manager with async method
         template_manager = Mock()
-        template_manager.get_template.return_value = Mock()
+        template_manager.get_template = AsyncMock(return_value=Mock())
         selection_manager.template_manager = template_manager
         
         handler = BackupCLIHandler(selection_manager, backup_orchestrator)
         
-        result = handler.validate_selection_exists("test-template")
+        result = await handler.validate_selection_exists("test-template")
         
         assert result is True
-        template_manager.get_template.assert_called_once_with("test-template")
+        template_manager.get_template.assert_called_once_with("test-template", by_name=True)
     
-    def test_validate_nonexistent_template(self):
+    @pytest.mark.asyncio
+    async def test_validate_nonexistent_template(self):
         """Test validation of non-existent template"""
         selection_manager = Mock(spec=SelectionManager)
         backup_orchestrator = Mock(spec=IBackupOrchestrator)
         
-        # Mock template manager
+        # Mock template manager with async method
         template_manager = Mock()
-        template_manager.get_template.return_value = None
+        template_manager.get_template = AsyncMock(return_value=None)
         selection_manager.template_manager = template_manager
         
         handler = BackupCLIHandler(selection_manager, backup_orchestrator)
         
-        result = handler.validate_selection_exists("nonexistent")
+        result = await handler.validate_selection_exists("nonexistent")
         
         assert result is False
     
-    def test_validate_empty_name(self):
+    @pytest.mark.asyncio
+    async def test_validate_empty_name(self):
         """Test validation with empty template name"""
         selection_manager = Mock(spec=SelectionManager)
         backup_orchestrator = Mock(spec=IBackupOrchestrator)
         
         handler = BackupCLIHandler(selection_manager, backup_orchestrator)
         
-        result = handler.validate_selection_exists("")
+        result = await handler.validate_selection_exists("")
         
         assert result is False
 
@@ -116,7 +120,8 @@ class TestValidateSelectionExists:
 class TestGetSelectionSummary:
     """Test get_selection_summary method"""
     
-    def test_get_summary_for_existing_template(self):
+    @pytest.mark.asyncio
+    async def test_get_summary_for_existing_template(self):
         """Test getting summary for existing template"""
         selection_manager = Mock(spec=SelectionManager)
         backup_orchestrator = Mock(spec=IBackupOrchestrator)
@@ -128,34 +133,38 @@ class TestGetSelectionSummary:
         config.exclude_paths = [Path("/home/user/.cache")]
         config.include_patterns = []
         config.exclude_patterns = ["*.tmp"]
-        template.config = config
+        template.selection_config = config
         
         template_manager = Mock()
-        template_manager.get_template.return_value = template
+        template_manager.get_template = AsyncMock(return_value=template)
         selection_manager.template_manager = template_manager
         
         handler = BackupCLIHandler(selection_manager, backup_orchestrator)
         
-        summary = handler.get_selection_summary("test-template")
+        summary = await handler.get_selection_summary("test-template")
         
         assert "test-template" in summary
         assert "Include paths: 1" in summary
         assert "Exclude paths: 1" in summary
         assert "Exclude patterns: 1" in summary
     
-    def test_get_summary_for_nonexistent_template(self):
+    @pytest.mark.asyncio
+    async def test_get_summary_for_nonexistent_template(self):
         """Test getting summary for non-existent template"""
         selection_manager = Mock(spec=SelectionManager)
         backup_orchestrator = Mock(spec=IBackupOrchestrator)
         
+        # Import the exception that get_template raises
+        from TimeLocker.selection_template_manager import TemplateNotFoundError
+        
         template_manager = Mock()
-        template_manager.get_template.return_value = None
+        template_manager.get_template = AsyncMock(side_effect=TemplateNotFoundError("Template not found"))
         selection_manager.template_manager = template_manager
         
         handler = BackupCLIHandler(selection_manager, backup_orchestrator)
         
         with pytest.raises(SelectionTemplateNotFoundError, match="not found"):
-            handler.get_selection_summary("nonexistent")
+            await handler.get_selection_summary("nonexistent")
 
 
 class TestExecuteBackupWithSelection:
@@ -174,10 +183,10 @@ class TestExecuteBackupWithSelection:
         config.exclude_paths = []
         config.include_patterns = []
         config.exclude_patterns = []
-        template.config = config
+        template.selection_config = config
         
         template_manager = Mock()
-        template_manager.get_template.return_value = template
+        template_manager.get_template = AsyncMock(return_value=template)
         selection_manager.template_manager = template_manager
         
         # Mock validation
@@ -212,7 +221,7 @@ class TestExecuteBackupWithSelection:
         backup_orchestrator = Mock(spec=IBackupOrchestrator)
         
         template_manager = Mock()
-        template_manager.get_template.return_value = None
+        template_manager.get_template = AsyncMock(return_value=None)
         selection_manager.template_manager = template_manager
         
         handler = BackupCLIHandler(selection_manager, backup_orchestrator)
@@ -232,10 +241,10 @@ class TestExecuteBackupWithSelection:
         # Mock template
         template = Mock()
         config = Mock(spec=SelectionConfig)
-        template.config = config
+        template.selection_config = config
         
         template_manager = Mock()
-        template_manager.get_template.return_value = template
+        template_manager.get_template = AsyncMock(return_value=template)
         selection_manager.template_manager = template_manager
         
         # Mock validation with errors
