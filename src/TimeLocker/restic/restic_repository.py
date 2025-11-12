@@ -219,9 +219,14 @@ class ResticRepository(BackupRepository):
                     error_message = e.stderr.strip()
 
             raise Exception(error_message)
-        except Exception as e:
-            logger.error(f"Failed to initialize repository: {e}")
+        except subprocess.CalledProcessError:
+            # Already handled above, re-raise
             raise
+        except Exception as e:
+            # Convert exception to string to avoid serialization issues
+            error_str = str(e)
+            logger.error(f"Failed to initialize repository: {error_str}")
+            raise Exception(f"Repository initialization failed: {error_str}")
 
     def check(self) -> bool:
         """Check if the backup repository is available"""

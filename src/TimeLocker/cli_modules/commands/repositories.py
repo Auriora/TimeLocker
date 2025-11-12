@@ -1668,28 +1668,93 @@ def repos_init(
                 show_error_panel("Confirmation Required", "Use --yes to confirm initialization in non-interactive mode.")
                 raise typer.Exit(2)
 
+        # Get repository configuration to check URI
         manager = _get_service_manager_for_command(config_dir)
+        config_manager = ConfigurationManager(config_dir=config_dir)
+        
+        try:
+            repo_config = config_manager.get_repository(name)
+            repo_uri = repository or repo_config.get("uri")
+        except Exception as e:
+            show_error_panel("Configuration Error", f"Repository '{name}' not found in configuration.")
+            raise typer.Exit(1)
+        
+        # Check if directory exists for file:// URIs
+        if repo_uri and repo_uri.startswith("file://"):
+            repo_path = Path(repo_uri.replace("file://", ""))
+            if not repo_path.exists():
+                show_error_panel(
+                    "Directory Not Found",
+                    f"Repository directory does not exist: {repo_path}\n\n"
+                    f"Create it with: mkdir -p {repo_path}"
+                )
+                raise typer.Exit(1)
+            if not os.access(repo_path, os.W_OK):
+                show_error_panel(
+                    "Permission Denied",
+                    f"No write permission for directory: {repo_path}\n\n"
+                    f"Check permissions with: ls -la {repo_path.parent}"
+                )
+                raise typer.Exit(1)
+        
+        # Prompt for password if not provided and in interactive mode
+        if not password and interactive:
+            from rich.prompt import Prompt
+            password = Prompt.ask("Enter password for repository", password=True)
+            password_confirm = Prompt.ask("Confirm password", password=True)
+            if password != password_confirm:
+                show_error_panel("Password Mismatch", "Passwords do not match.")
+                raise typer.Exit(1)
+        elif not password and not interactive:
+            show_error_panel("Password Required", "Password must be provided with --password in non-interactive mode.")
+            raise typer.Exit(1)
+
         init_method = _get_service_method(manager, "initialize_repository")
         if not init_method:
             show_error_panel("Not Implemented", "Repository initialization is not available in this build.")
             raise typer.Exit(1)
 
-        result = _call_service_method(
-                init_method,
-                name=name,
-                repository=repository or name,
-                repository_uri=repository,
-                repository_name=name,
-                password=password
-        )
+        try:
+            result = _call_service_method(
+                    init_method,
+                    name=name,
+                    repository=repository or name,
+                    repository_uri=repository,
+                    repository_name=name,
+                    password=password
+            )
+        except Exception as e:
+            # Capture the actual error from the service
+            error_msg = str(e)
+            if verbose:
+                console.print_exception()
+            show_error_panel(
+                "Initialization Failed",
+                f"Failed to initialize repository '{name}'.",
+                [error_msg]
+            )
+            raise typer.Exit(1)
 
         already_initialized = False
         success = True
         errors = None
+        error_message = None
+        
+        # Log the raw result for debugging
+        if verbose:
+            console.print(f"[dim]Debug: init result = {result}[/dim]")
+            console.print(f"[dim]Debug: result type = {type(result)}[/dim]")
+        
         if isinstance(result, dict):
             success = result.get("success", True)
             already_initialized = result.get("already_initialized", False)
             errors = result.get("errors")
+            error_message = result.get("error") or result.get("message")
+            
+            if verbose:
+                console.print(f"[dim]Debug: success = {success}[/dim]")
+                console.print(f"[dim]Debug: errors = {errors}[/dim]")
+                console.print(f"[dim]Debug: error_message = {error_message}[/dim]")
         else:
             success = bool(result)
 
@@ -1701,8 +1766,23 @@ def repos_init(
         if success:
             show_success_panel("Repository Initialized", f"Repository '{name}' initialized successfully.")
         else:
-            detail_list = errors if isinstance(errors, list) else [errors] if errors else None
-            show_error_panel("Initialization Failed", f"Failed to initialize repository '{name}'.", detail_list)
+            # Build detailed error message
+            details = []
+            if errors:
+                if isinstance(errors, list):
+                    details.extend(errors)
+                else:
+                    details.append(str(errors))
+            if error_message and error_message not in details:
+                details.append(str(error_message))
+            
+            # If still no details, add a helpful message
+            if not details:
+                details.append("The repository location may not be accessible.")
+                details.append("Check that the directory exists and you have write permissions.")
+                details.append("For remote repositories, verify network connectivity and credentials.")
+            
+            show_error_panel("Initialization Failed", f"Failed to initialize repository '{name}'.", details)
             raise typer.Exit(1)
     except ConfigurationError as e:
         show_error_panel("Configuration Error", str(e))

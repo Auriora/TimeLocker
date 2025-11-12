@@ -110,43 +110,44 @@ class LocalResticRepository(ResticRepository):
 
         Returns:
             bool: True if initialization successful, False otherwise
+            
+        Raises:
+            Exception: If initialization fails, re-raises the exception with details
         """
+        # Ensure directory exists
+        if not self.create_repository_directory():
+            raise Exception(f"Failed to create repository directory: {self._location}")
+
+        # Use provided password or fall back to configured password
+        if password:
+            original_password = self._explicit_password
+            self._explicit_password = password
+            # Clear cached environment to force regeneration with new password
+            self._cached_env = None
+
         try:
-            # Ensure directory exists
-            if not self.create_repository_directory():
-                return False
+            # Check if repository is already initialized
+            if self.is_repository_initialized():
+                logger.warning(f"Repository at {self._location} is already initialized")
+                return True
 
-            # Use provided password or fall back to configured password
-            if password:
-                original_password = self._explicit_password
-                self._explicit_password = password
-                # Clear cached environment to force regeneration with new password
-                self._cached_env = None
+            # Initialize the repository (this will raise exception on failure)
+            result = self.initialize()
 
-            try:
-                # Check if repository is already initialized
-                if self.is_repository_initialized():
-                    logger.warning(f"Repository at {self._location} is already initialized")
-                    return True
-
-                # Initialize the repository
-                result = self.initialize()
-
-                if result and password:
-                    # Store the password in credential manager if available
+            if result and password:
+                # Store the password in credential manager if available
+                try:
                     self.store_password(password)
+                except Exception as e:
+                    logger.warning(f"Failed to store password: {e}")
 
-                return result
+            return result
 
-            finally:
-                # Restore original password if we changed it
-                if password:
-                    self._explicit_password = original_password
-                    self._cached_env = None
-
-        except Exception as e:
-            logger.error(f"Failed to initialize repository: {e}")
-            return False
+        finally:
+            # Restore original password if we changed it
+            if password:
+                self._explicit_password = original_password
+                self._cached_env = None
 
     def is_repository_initialized(self) -> bool:
         """

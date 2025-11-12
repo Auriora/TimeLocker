@@ -815,10 +815,22 @@ class CLIServiceManager:
         if already_initialized:
             return {"success": True, "already_initialized": True, "uri": resolved_uri}
 
-        if hasattr(repo, "initialize_repository"):
-            success = bool(repo.initialize_repository(password))
-        else:
-            success = bool(repo.initialize())
+        try:
+            if hasattr(repo, "initialize_repository"):
+                success = bool(repo.initialize_repository(password))
+            else:
+                success = bool(repo.initialize())
+        except Exception as exc:
+            # Capture initialization errors
+            error_msg = str(exc)
+            logger.error(f"Repository initialization failed for {resolved_name}: {error_msg}")
+            return {
+                "success": False,
+                "already_initialized": False,
+                "uri": resolved_uri,
+                "error": error_msg,
+                "errors": [error_msg]
+            }
 
         if success and password and hasattr(repo, "store_password"):
             try:
