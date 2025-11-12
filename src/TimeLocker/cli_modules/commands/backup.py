@@ -211,30 +211,29 @@ def backup_create(
         actual_repository_name = repository or "dry-run"
     else:
         try:
+            # Use RepositoryResolver for unified repository resolution
+            from .base import _create_repository_resolver
+            
+            resolver = _create_repository_resolver(config_dir)
+            
             # Resolve repository name to URI
-            from TimeLocker.utils.repository_resolver import resolve_repository_uri, get_default_repository
-
-            # Get the actual repository name (for credential manager)
-            actual_repository_name = repository or get_default_repository()
-            repository_uri = resolve_repository_uri(repository)
-
-            # Create repository instance to leverage full password resolution chain
-            # (explicit password → credential manager → environment → prompt)
-            backup_manager = BackupManager()
-            repo = backup_manager.from_uri(repository_uri, password=password, repository_name=actual_repository_name)
-
-            # Get password from repository (uses full resolution chain)
-            resolved_password = repo.password() or ""
-            if not resolved_password:
-                if interactive:
-                    # Only prompt if repository couldn't resolve password
-                    resolved_password = Prompt.ask("Repository password", password=True)
-                else:
-                    show_error_panel(
-                            "Repository Error",
-                            "Repository password is required; provide --password or set an environment variable when running non-interactively."
-                    )
-                    raise typer.Exit(1)
+            actual_repository_name = repository or resolver.get_default_repository()
+            repository_uri = resolver.resolve_repository_uri(repository)
+            
+            # Resolve credentials through credential chain
+            resolved_password = resolver.resolve_credentials(
+                repository_name=actual_repository_name,
+                explicit_password=password,
+                allow_prompt=interactive
+            )
+            
+            if not resolved_password and not interactive:
+                show_error_panel(
+                    "Repository Error",
+                    "Repository password is required; provide --password or set an environment variable when running non-interactively."
+                )
+                raise typer.Exit(1)
+                
         except (RepositoryNotFoundError, ConfigurationError) as e:
             if dry_run:
                 logger = logging.getLogger(__name__)

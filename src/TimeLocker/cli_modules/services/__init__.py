@@ -6,7 +6,9 @@ and improve maintainability.
 """
 
 from .config_service import ConfigService
+from .repository_resolver import RepositoryResolver
 
 __all__ = [
     'ConfigService',
+    'RepositoryResolver',
 ]

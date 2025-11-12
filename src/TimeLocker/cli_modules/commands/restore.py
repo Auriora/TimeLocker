@@ -74,24 +74,16 @@ restore_app.info.options_metavar = "⟨OPTIONS⟩"
 
 
 def _get_repository(repository_input: str, config_dir: Optional[Path] = None):
-    """Get repository instance from name or URI."""
+    """Get repository instance from name or URI using RepositoryResolver."""
     try:
-        service_manager = _get_service_manager_for_command(config_dir)
+        from .base import _create_repository_resolver
         
-        # Try to get by name first
-        try:
-            repo_config = service_manager.get_repository_by_name(repository_input)
-            repository = service_manager.repository_factory.create_repository(
-                repo_config['uri'],
-                repo_config.get('password')
-            )
-            return repository
-        except Exception:
-            # Try as URI
-            repository = service_manager.repository_factory.create_repository(
-                repository_input
-            )
-            return repository
+        resolver = _create_repository_resolver(config_dir)
+        repository = resolver.resolve_repository(
+            name_or_uri=repository_input,
+            allow_prompt=True
+        )
+        return repository
     except Exception as e:
         logger.error(f"Failed to get repository: {e}")
         raise typer.Exit(1)

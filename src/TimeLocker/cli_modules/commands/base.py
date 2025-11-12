@@ -30,8 +30,9 @@ _call_service_method = _cli_module._call_service_method
 _get_service_manager_for_command = _cli_module._get_service_manager_for_command
 _create_configuration_module = _cli_module._create_configuration_module
 
-# Import ConfigService
+# Import ConfigService and RepositoryResolver
 from ..services.config_service import ConfigService
+from ..services.repository_resolver import RepositoryResolver
 
 
 def _create_config_service(config_dir: Optional[Path] = None) -> ConfigService:
@@ -48,6 +49,22 @@ def _create_config_service(config_dir: Optional[Path] = None) -> ConfigService:
         ConfigService: Configured service instance
     """
     return ConfigService(config_dir=config_dir)
+
+
+def _create_repository_resolver(config_dir: Optional[Path] = None) -> RepositoryResolver:
+    """
+    Factory for RepositoryResolver.
+    
+    This provides centralized repository resolution for all CLI commands,
+    replacing repeated repository lookup patterns.
+    
+    Args:
+        config_dir: Optional configuration directory
+        
+    Returns:
+        RepositoryResolver: Configured resolver instance
+    """
+    return RepositoryResolver(config_dir=config_dir)
 
 # CLI context settings
 CLI_CONTEXT_SETTINGS = {"max_content_width": 110}
@@ -366,7 +383,9 @@ __all__ = [
     '_get_service_manager_for_command',
     '_create_configuration_module',
     '_create_config_service',
+    '_create_repository_resolver',
     'ConfigService',
+    'RepositoryResolver',
     'VerboseOption',
     'JsonOption',
     'FormatOption',

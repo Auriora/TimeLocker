@@ -148,23 +148,26 @@ def snapshots_restore_deprecated(
                 logging.getLogger(__name__).debug("Service restore failed, falling back to local flow: %s", exc)
 
     try:
+        # Use RepositoryResolver for unified repository resolution
+        from .base import _create_repository_resolver
+        
+        resolver = _create_repository_resolver(config_dir)
+        
         # Resolve repository name to URI
-        from .utils.repository_resolver import resolve_repository_uri, get_default_repository
-
-        # Get the actual repository name (for credential manager)
-        actual_repository_name = repository or get_default_repository()
-        repository_uri = resolve_repository_uri(repository)
-
-        if not password:
-            # Check TimeLocker environment variable first, then fall back to RESTIC_PASSWORD
-            password = os.getenv("TIMELOCKER_PASSWORD") or os.getenv("RESTIC_PASSWORD")
-            if not password:
-                if interactive:
-                    password = Prompt.ask("Repository password", password=True)
-                else:
-                    show_error_panel("Repository Error",
-                                     "Repository password is required; provide --password or set RESTIC_PASSWORD when running non-interactively.")
-                    raise typer.Exit(1)
+        actual_repository_name = repository or resolver.get_default_repository()
+        repository_uri = resolver.resolve_repository_uri(repository)
+        
+        # Resolve credentials through credential chain
+        password = resolver.resolve_credentials(
+            repository_name=actual_repository_name,
+            explicit_password=password,
+            allow_prompt=interactive
+        )
+        
+        if not password and not interactive:
+            show_error_panel("Repository Error",
+                           "Repository password is required; provide --password or set RESTIC_PASSWORD when running non-interactively.")
+            raise typer.Exit(1)
     except Exception as e:
         show_error_panel("Repository Error", str(e))
         raise typer.Exit(1)
@@ -359,10 +362,14 @@ def snapshots_list(
         raise typer.Exit(1)
 
     try:
-        from .utils.repository_resolver import resolve_repository_uri, get_repository_info, get_default_repository
-
-        actual_repository_name = repository or get_default_repository()
-        repository_uri = resolve_repository_uri(repository)
+        # Use RepositoryResolver for unified repository resolution
+        from .base import _create_repository_resolver
+        from TimeLocker.utils.repository_resolver import get_repository_info
+        
+        resolver = _create_repository_resolver(config_dir)
+        
+        actual_repository_name = repository or resolver.get_default_repository()
+        repository_uri = resolver.resolve_repository_uri(repository)
         repo_info = get_repository_info(actual_repository_name or repository_uri)
 
         if verbose or not repository:
@@ -371,10 +378,13 @@ def snapshots_list(
             else:
                 console.print(f"[dim]Using repository: {repository_uri}[/dim]")
 
-        backup_manager = BackupManager()
-        repo = backup_manager.from_uri(repository_uri, password=password, repository_name=actual_repository_name)
-
-        resolved_password = repo.password()
+        # Resolve credentials through credential chain
+        resolved_password = resolver.resolve_credentials(
+            repository_name=actual_repository_name,
+            explicit_password=password,
+            allow_prompt=interactive
+        )
+        
         if not resolved_password:
             if repo_info.get("is_named"):
                 console.print(f"[yellow]Repository '{repo_info.get('name')}' requires a password.[/yellow]")
@@ -382,12 +392,10 @@ def snapshots_list(
             else:
                 console.print(f"[yellow]Repository {repository_uri} requires a password.[/yellow]")
 
-            if interactive:
-                resolved_password = Prompt.ask("Repository password", password=True)
-            else:
+            if not interactive:
                 show_error_panel(
-                        "Repository Error",
-                        "Repository password is required; provide --password or set RESTIC_PASSWORD when running non-interactively."
+                    "Repository Error",
+                    "Repository password is required; provide --password or set RESTIC_PASSWORD when running non-interactively."
                 )
                 raise typer.Exit(1)
 

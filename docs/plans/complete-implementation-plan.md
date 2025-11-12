@@ -403,7 +403,7 @@ CLI Refactoring:          ████████████░░░░░░
      - Single source of truth for config
 
 2. **RepositoryResolver**
-   - [ ] Create RepositoryResolver
+   - [x] Create RepositoryResolver
      - Centralized repository resolution
      - Credential resolution chain
      - Backend detection

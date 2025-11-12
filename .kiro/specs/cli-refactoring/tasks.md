@@ -4,7 +4,7 @@
 
 **Impact**: ~450 lines saved, significant complexity reduction
 
-- [-] 1. Create ConfigService for unified configuration access
+- [x] 1. Create ConfigService for unified configuration access
   - [x] 1.1 Implement ConfigService class
     - Create centralized configuration access layer
     - Add configuration validation and caching
@@ -19,15 +19,15 @@
     - Update tests for ConfigService integration
     - _Impact: Eliminates duplication in 40+ commands_
 
-- [ ] 2. Create RepositoryResolver for centralized repository resolution
-  - [ ] 2.1 Implement RepositoryResolver class
+- [x] 2. Create RepositoryResolver for centralized repository resolution
+  - [x] 2.1 Implement RepositoryResolver class
     - Create unified repository resolution logic
     - Implement credential resolution chain
     - Add backend detection and validation
     - Create repository caching mechanism
     - _Impact: ~180 lines saved across commands_
 
-  - [ ] 2.2 Update commands to use RepositoryResolver
+  - [x] 2.2 Update commands to use RepositoryResolver
     - Refactor all commands with repository resolution
     - Replace repeated repository lookup patterns
     - Add consistent error handling
