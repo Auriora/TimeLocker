@@ -40,12 +40,12 @@ See `IMPLEMENTATION_STATUS.md` for detailed breakdown.
   - Configure default return values for all repository operations
   - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-- [ ] 2. Fix Import Paths (47 tests - just update imports, no new code)
+- [x] 2. Fix Import Paths (47 tests - just update imports, no new code)
   - Fix Prompt/Confirm imports and patches
   - Fix get_cli_service_manager patch paths
   - _Requirements: 2.1, 2.2, 2.3_
 
-- [ ] 2.1 Fix Prompt/Confirm imports (8 tests)
+- [x] 2.1 Fix Prompt/Confirm imports (8 tests)
   - Update `tests/TimeLocker/cli/test_repos_credentials_commands.py`
   - Remove: `from src.TimeLocker.cli import Prompt, Confirm`
   - Add: `from src.TimeLocker.utils import PromptService`
@@ -53,7 +53,7 @@ See `IMPLEMENTATION_STATUS.md` for detailed breakdown.
   - Update test code to use `PromptService.ask()` instead of `Prompt.ask()`
   - _Requirements: 2.1, 7.1_
 
-- [ ] 2.2 Fix get_cli_service_manager patches (30+ tests)
+- [x] 2.2 Fix get_cli_service_manager patches (30+ tests)
   - Update patch decorators in multiple test files
   - Change: `@patch('src.TimeLocker.cli.get_cli_service_manager')` to `@patch('src.TimeLocker.cli_services.get_cli_service_manager')`
   - Files to update:

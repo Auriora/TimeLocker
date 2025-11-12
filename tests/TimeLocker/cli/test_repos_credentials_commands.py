@@ -39,18 +39,11 @@ def mock_cm():
         yield m
 
 
-# Fixture: patch Prompt class globally for tests needing dynamic side effects
+# Fixture: patch PromptService class globally for tests needing dynamic side effects
 @pytest.fixture
-def mock_prompt():
-    with patch('src.TimeLocker.cli.Prompt') as p:
+def mock_prompt_service():
+    with patch('src.TimeLocker.utils.PromptService') as p:
         yield p
-
-
-# Fixture: patch Confirm class globally
-@pytest.fixture
-def mock_confirm():
-    with patch('src.TimeLocker.cli.Confirm') as c:
-        yield c
 
 
 # New fixture to DRY up repeated ConfigurationModule/CredentialManager S3 repo setup
@@ -83,10 +76,10 @@ def test_repos_credentials_group_help():
 
 @pytest.mark.unit
 def test_repos_credentials_set_s3_success(repo_s3_mocks):
-    from src.TimeLocker.cli import Prompt, Confirm  # runtime imports to allow patch interference avoidance
-    # Patch interactive prompts locally
-    with patch.object(Prompt, 'ask', side_effect=["AKIA123", "SECRET456", "us-east-1"]), \
-            patch.object(Confirm, 'ask', return_value=False):
+    # Patch PromptService methods
+    with patch('src.TimeLocker.utils.PromptService.prompt_text', side_effect=["AKIA123", "us-east-1"]), \
+            patch('src.TimeLocker.utils.PromptService.prompt_password', return_value="SECRET456"), \
+            patch('src.TimeLocker.utils.PromptService.prompt_confirm', return_value=False):
         result = runner.invoke(app, ["repos", "credentials", "set", "myrepo"])  # type: ignore[arg-type]
     combined = (result.stdout or "").lower()
     # Mocked prompts and credential manager should succeed
@@ -101,10 +94,10 @@ def test_repos_credentials_set_s3_success(repo_s3_mocks):
 
 @pytest.mark.unit
 def test_repos_credentials_set_s3_insecure_tls(repo_s3_mocks):
-    from src.TimeLocker.cli import Prompt, Confirm  # runtime imports to allow patch interference avoidance
-    # Patch interactive prompts locally
-    with patch.object(Prompt, 'ask', side_effect=["AKIAKEY", "SECRETKEY", ""]), \
-            patch.object(Confirm, 'ask', return_value=True):
+    # Patch PromptService methods
+    with patch('src.TimeLocker.utils.PromptService.prompt_text', side_effect=["AKIAKEY", ""]), \
+            patch('src.TimeLocker.utils.PromptService.prompt_password', return_value="SECRETKEY"), \
+            patch('src.TimeLocker.utils.PromptService.prompt_confirm', return_value=True):
         result = runner.invoke(app, ["repos", "credentials", "set", "myrepo"])  # type: ignore[arg-type]
     repo_s3_mocks['cm_instance'].store_repository_backend_credentials.assert_called_once_with('myrepo', 's3', {
             'access_key_id':     'AKIAKEY',
@@ -130,9 +123,8 @@ def test_repos_credentials_set_unsupported_type(mock_config_module, mock_cm):
 
 @pytest.mark.unit
 def test_repos_credentials_remove_found(repo_s3_mocks):
-    from src.TimeLocker.cli import Confirm
     repo_s3_mocks['cm_instance'].remove_repository_backend_credentials.return_value = True
-    with patch.object(Confirm, 'ask', return_value=True):
+    with patch('src.TimeLocker.utils.PromptService.prompt_confirm', return_value=True):
         result = runner.invoke(app, ["repos", "credentials", "remove", "myrepo", "--yes"])  # type: ignore[arg-type]
     # Mocked credential manager returns True (found and removed), should succeed
     assert_success(result)
@@ -201,39 +193,41 @@ def test_repos_credentials_show_non_backend_repo(mock_config_module, mock_cm):
 
 
 @pytest.mark.unit
-def test_repos_credentials_set_locked_manager_then_fail_to_unlock(mock_confirm, mock_prompt, mock_config_module, mock_cm):
+def test_repos_credentials_set_locked_manager_then_fail_to_unlock(mock_config_module, mock_cm):
     repo_obj = Mock()
     repo_obj.uri = 's3://bucket/path'
     mock_config_module.return_value.get_repository.return_value = repo_obj
-
-    mock_prompt.ask.side_effect = ["AKIA1", "SECRET2", "us-east-1"]
-    mock_confirm.ask.return_value = False
 
     cm_instance = Mock()
     cm_instance.is_locked.return_value = True
     cm_instance.ensure_unlocked.return_value = False
     mock_cm.return_value = cm_instance
 
-    result = runner.invoke(app, ["repos", "credentials", "set", "myrepo"])  # type: ignore[arg-type]
+    # Patch PromptService methods directly
+    with patch('src.TimeLocker.utils.PromptService.prompt_text', side_effect=["AKIA1", "us-east-1"]), \
+            patch('src.TimeLocker.utils.PromptService.prompt_password', return_value="SECRET2"), \
+            patch('src.TimeLocker.utils.PromptService.prompt_confirm', return_value=False):
+        result = runner.invoke(app, ["repos", "credentials", "set", "myrepo"])  # type: ignore[arg-type]
     assert result.exit_code != 0
     cm_instance.store_repository_backend_credentials.assert_not_called()
 
 
 @pytest.mark.unit
-def test_repos_credentials_set_locked_manager_then_unlock(mock_confirm, mock_prompt, mock_config_module, mock_cm):
+def test_repos_credentials_set_locked_manager_then_unlock(mock_config_module, mock_cm):
     repo_obj = Mock()
     repo_obj.uri = 's3://bucket/path'
     mock_config_module.return_value.get_repository.return_value = repo_obj
-
-    mock_prompt.ask.side_effect = ["AKIAZ", "SECRETZ", "us-west-2"]
-    mock_confirm.ask.return_value = False
 
     cm_instance = Mock()
     cm_instance.is_locked.side_effect = [True, False]
     cm_instance.ensure_unlocked.return_value = True
     mock_cm.return_value = cm_instance
 
-    result = runner.invoke(app, ["repos", "credentials", "set", "myrepo"])  # type: ignore[arg-type]
+    # Patch PromptService methods directly
+    with patch('src.TimeLocker.utils.PromptService.prompt_text', side_effect=["AKIAZ", "us-west-2"]), \
+            patch('src.TimeLocker.utils.PromptService.prompt_password', return_value="SECRETZ"), \
+            patch('src.TimeLocker.utils.PromptService.prompt_confirm', return_value=False):
+        result = runner.invoke(app, ["repos", "credentials", "set", "myrepo"])  # type: ignore[arg-type]
     # Mocked credential manager successfully unlocks and stores credentials, should succeed
     assert_success(result)
     cm_instance.store_repository_backend_credentials.assert_called_once()
