@@ -98,18 +98,18 @@ See `IMPLEMENTATION_STATUS.md` for detailed breakdown.
   - Remove 'events' parameter if not in actual constructor
   - _Requirements: 4.2, 12.2_
 
-- [ ] 5. Fix Repository Command Tests (15 tests)
+- [x] 5. Fix Repository Command Tests (15 tests)
   - Update repository command tests to use enhanced mock service manager
   - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-- [ ] 5.1 Fix repos command tests
+- [x] 5.1 Fix repos command tests
   - Update `tests/TimeLocker/cli/test_repos_commands.py`
   - Fix patch path (already done in task 2.2)
   - Ensure mock service manager has all required methods configured (already done in task 1.3)
   - Tests should now pass with enhanced mock
   - _Requirements: 6.1, 6.2, 6.3, 6.4_
 
-- [ ] 5.2 Fix repos integration tests
+- [x] 5.2 Fix repos integration tests
   - Update `tests/TimeLocker/cli/test_repos_commands_integration.py`
   - Fix patch path (already done in task 2.2)
   - Update test expectations to match actual mock return values

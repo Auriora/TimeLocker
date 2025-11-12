@@ -175,7 +175,7 @@ class TestReposCommands:
         mock_service_manager.return_value = mock_manager
         mock_manager.remove_repository.return_value = Mock(success=True)
 
-        result = runner.invoke(app, ["repos", "remove", "test-repo"])
+        result = runner.invoke(app, ["repos", "remove", "test-repo", "--yes"])
 
         # Mocked service manager returns success, should exit 0
         assert_success(result)
@@ -187,7 +187,19 @@ class TestReposCommands:
         # Mock the service manager
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
-        mock_manager.get_repository_by_name.return_value = Mock()
+        
+        # Mock repository with proper attributes
+        mock_repo = Mock()
+        mock_repo.name = "test-repo"
+        mock_repo.uri = "file:///tmp/test-repo"
+        mock_repo.description = "Test repository"
+        mock_repo.type = "local"
+        mock_repo.engine = "restic"
+        mock_repo.status = "active"
+        mock_repo.is_default = False
+        
+        mock_manager.get_repository_by_name.return_value = mock_repo
+        mock_manager.config_module.get_repository.return_value = mock_repo
 
         result = runner.invoke(app, ["repos", "show", "test-repo"])
 
@@ -201,6 +213,12 @@ class TestReposCommands:
         # Mock the service manager
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
+        
+        # Mock repository exists
+        mock_repo = Mock()
+        mock_repo.name = "test-repo"
+        mock_manager.config_module.get_repository.return_value = mock_repo
+        mock_manager.set_default_repository.return_value = None
 
         result = runner.invoke(app, ["repos", "default", "test-repo"])
 
@@ -209,15 +227,27 @@ class TestReposCommands:
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_services.get_cli_service_manager')
-    def test_repos_init_command(self, mock_service_manager):
+    def test_repos_init_command(self, mock_service_manager, tmp_path):
         """Test repos init command execution."""
+        # Create temporary directory for repository
+        repo_dir = tmp_path / "test-repo"
+        repo_dir.mkdir()
+        
         # Mock the service manager
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
+        
+        # Mock repository exists in config
+        mock_repo = Mock()
+        mock_repo.name = "test-repo"
+        mock_repo.uri = f"file://{repo_dir}"
+        mock_repo.path = str(repo_dir)
+        mock_manager.config_module.get_repository.return_value = mock_repo
         mock_manager.initialize_repository.return_value = Mock(success=True)
 
         result = runner.invoke(app, [
             "repos", "init", "test-repo",
+            "--repository", f"file://{repo_dir}",
             "--yes"  # Skip confirmation
         ])
 
@@ -226,16 +256,27 @@ class TestReposCommands:
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_services.get_cli_service_manager')
-    def test_repos_init_with_repository_uri(self, mock_service_manager):
+    def test_repos_init_with_repository_uri(self, mock_service_manager, tmp_path):
         """Test repos init command with repository URI."""
+        # Create temporary directory for repository
+        repo_dir = tmp_path / "test-repo"
+        repo_dir.mkdir()
+        
         # Mock the service manager
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
+        
+        # Mock repository exists in config
+        mock_repo = Mock()
+        mock_repo.name = "test-repo"
+        mock_repo.uri = f"file://{repo_dir}"
+        mock_repo.path = str(repo_dir)
+        mock_manager.config_module.get_repository.return_value = mock_repo
         mock_manager.initialize_repository.return_value = Mock(success=True)
 
         result = runner.invoke(app, [
             "repos", "init", "test-repo",
-            "--repository", "file:///tmp/test-repo",
+            "--repository", f"file://{repo_dir}",
             "--yes"
         ])
 
@@ -244,11 +285,23 @@ class TestReposCommands:
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_services.get_cli_service_manager')
-    def test_repos_check_command(self, mock_service_manager):
+    def test_repos_check_command(self, mock_service_manager, tmp_path):
         """Test repos check command execution."""
-        # Mock the service manager
+        # Create temporary directory for repository
+        repo_dir = tmp_path / "test-repo"
+        repo_dir.mkdir()
+        
+        # Mock the service manager and repository
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
+        
+        # Mock repository with proper attributes
+        mock_repo = Mock()
+        mock_repo.name = "test-repo"
+        mock_repo.uri = f"file://{repo_dir}"
+        mock_repo.path = str(repo_dir)
+        mock_manager.get_repository_by_name.return_value = mock_repo
+        mock_manager.config_module.get_repository.return_value = mock_repo
         mock_manager.check_repository.return_value = Mock(success=True)
 
         result = runner.invoke(app, ["repos", "check", "test-repo"])
@@ -258,12 +311,27 @@ class TestReposCommands:
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_services.get_cli_service_manager')
-    def test_repos_stats_command(self, mock_service_manager):
+    def test_repos_stats_command(self, mock_service_manager, tmp_path):
         """Test repos stats command execution."""
-        # Mock the service manager
+        # Create temporary directory for repository
+        repo_dir = tmp_path / "test-repo"
+        repo_dir.mkdir()
+        
+        # Mock the service manager and repository
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
-        mock_manager.get_repository_stats.return_value = Mock()
+        
+        # Mock repository with proper attributes
+        mock_repo = Mock()
+        mock_repo.name = "test-repo"
+        mock_repo.uri = f"file://{repo_dir}"
+        mock_repo.path = str(repo_dir)
+        mock_manager.get_repository_by_name.return_value = mock_repo
+        mock_manager.get_repository_stats.return_value = {
+            'size': 1024,
+            'snapshots': 5,
+            'total_file_count': 100
+        }
 
         result = runner.invoke(app, ["repos", "stats", "test-repo"])
 
