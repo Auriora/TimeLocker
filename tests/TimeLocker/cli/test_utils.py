@@ -3,6 +3,10 @@ Shared utilities for CLI testing.
 
 This module provides common utilities and helper functions used across
 all CLI test files to reduce code duplication and ensure consistency.
+
+Note: This module now re-exports utilities from the centralized
+TimeLocker.cli_modules.testing package for backward compatibility.
+New tests should import directly from TimeLocker.cli_modules.testing.
 """
 
 from typer.testing import CliRunner
@@ -11,6 +15,18 @@ from typing import Any, Dict, Optional
 from TimeLocker.cli_services import CLIServiceManager
 from TimeLocker.services.snapshot_service import SnapshotService
 from TimeLocker.services.repository_service import RepositoryService
+
+# Import from centralized testing utilities
+from TimeLocker.cli_modules.testing import (
+    create_mock_service_manager as _create_mock_service_manager,
+    create_test_snapshot,
+    create_test_repository,
+    create_test_target,
+    assert_cli_success as _assert_cli_success,
+    assert_cli_error as _assert_cli_error,
+    assert_cli_output_contains as _assert_cli_output_contains,
+    assert_cli_help_quality as _assert_cli_help_quality,
+)
 
 
 def get_cli_runner(columns: int = 200) -> CliRunner:
@@ -97,6 +113,8 @@ def create_mock_snapshot(snapshot_id: str = "abc123def", **kwargs) -> Dict[str, 
     """
     Create a mock snapshot object for testing.
     
+    Note: This function now delegates to the centralized testing utilities.
+    
     Args:
         snapshot_id: Snapshot identifier
         **kwargs: Additional snapshot properties
@@ -104,22 +122,14 @@ def create_mock_snapshot(snapshot_id: str = "abc123def", **kwargs) -> Dict[str, 
     Returns:
         Mock snapshot dictionary
     """
-    snapshot = {
-            'id':       snapshot_id,
-            'time':     '2024-01-01T12:00:00Z',
-            'hostname': 'test-host',
-            'username': 'test-user',
-            'paths':    ['/home/user'],
-            'tags':     [],
-            'short_id': snapshot_id[:8] if len(snapshot_id) >= 8 else snapshot_id,
-            **kwargs
-    }
-    return snapshot
+    return create_test_snapshot(snapshot_id=snapshot_id, **kwargs)
 
 
 def create_mock_repository(name: str = "test-repo", **kwargs) -> Dict[str, Any]:
     """
     Create a mock repository object for testing.
+    
+    Note: This function now delegates to the centralized testing utilities.
     
     Args:
         name: Repository name
@@ -128,19 +138,14 @@ def create_mock_repository(name: str = "test-repo", **kwargs) -> Dict[str, Any]:
     Returns:
         Mock repository dictionary
     """
-    repository = {
-            'name':        name,
-            'uri':         f'file:///tmp/{name}',
-            'initialized': True,
-            'locked':      False,
-            **kwargs
-    }
-    return repository
+    return create_test_repository(name=name, **kwargs)
 
 
 def create_mock_target(name: str = "test-target", **kwargs) -> Dict[str, Any]:
     """
     Create a mock backup target object for testing.
+    
+    Note: This function now delegates to the centralized testing utilities.
     
     Args:
         name: Target name
@@ -149,121 +154,97 @@ def create_mock_target(name: str = "test-target", **kwargs) -> Dict[str, Any]:
     Returns:
         Mock target dictionary
     """
-    target = {
-            'name':             name,
-            'paths':            ['/home/user/Documents'],
-            'exclude_patterns': [],
-            'include_patterns': [],
-            'tags':             [],
-            **kwargs
-    }
-    return target
+    return create_test_target(name=name, **kwargs)
 
 
 def assert_exit_code(result, expected_code: int, message: Optional[str] = None):
     """
     Assert specific exit code with helpful error message.
     
+    Note: This function now delegates to the centralized testing utilities.
+    
     Args:
         result: CliRunner result object
         expected_code: Expected exit code
         message: Optional custom error message
     """
-    if result.exit_code != expected_code:
-        output = combined_output(result)
-        error_msg = (
-                f"Expected exit code {expected_code}, got {result.exit_code}\n"
-                f"Output: {output}"
-        )
-        if message:
-            error_msg = f"{message}\n{error_msg}"
-        raise AssertionError(error_msg)
+    if expected_code == 0:
+        _assert_cli_success(result, message)
+    else:
+        _assert_cli_error(result, expected_code, message)
 
 
 def assert_success(result, message: Optional[str] = None):
     """
     Assert command succeeded (exit code 0).
     
+    Note: This function now delegates to the centralized testing utilities.
+    
     Args:
         result: CliRunner result object
         message: Optional custom error message
     """
-    assert_exit_code(result, 0, message)
+    _assert_cli_success(result, message)
 
 
 def assert_command_error(result, message: Optional[str] = None):
     """
     Assert command failed with command error (exit code 2).
     
+    Note: This function now delegates to the centralized testing utilities.
+    
     Args:
         result: CliRunner result object
         message: Optional custom error message
     """
-    assert_exit_code(result, 2, message)
+    _assert_cli_error(result, 2, message)
 
 
 def assert_handled_error(result, message: Optional[str] = None):
     """
     Assert command failed with handled error (exit code 1).
     
+    Note: This function now delegates to the centralized testing utilities.
+    
     Args:
         result: CliRunner result object
         message: Optional custom error message
     """
-    assert_exit_code(result, 1, message)
+    _assert_cli_error(result, 1, message)
 
 
 def assert_output_contains(result, expected_text: str, case_sensitive: bool = False):
     """
     Assert that command output contains expected text.
     
+    Note: This function now delegates to the centralized testing utilities.
+    
     Args:
         result: CliRunner result object
         expected_text: Text that should be in output
         case_sensitive: Whether to perform case-sensitive matching
     """
-    output = combined_output(result)
-    if not case_sensitive:
-        output = output.lower()
-        expected_text = expected_text.lower()
-
-    if expected_text not in output:
-        raise AssertionError(
-                f"Expected text '{expected_text}' not found in output:\n{output}"
-        )
+    _assert_cli_output_contains(result, expected_text, case_sensitive)
 
 
 def assert_help_quality(result, command_name: str):
     """
     Assert that help output meets quality standards.
+    
+    Note: This function now delegates to the centralized testing utilities.
 
     Args:
         result: CliRunner result object from --help command
         command_name: Name of the command being tested
     """
-    assert_success(result, f"Help for '{command_name}' should succeed")
-
-    output = combined_output(result)
-
-    # Check for basic help structure
-    assert "Usage:" in output, f"Help for '{command_name}' should show usage"
-    assert "Options" in output or "Arguments" in output, f"Help for '{command_name}' should show options/arguments"
-
-    # Check for helpful content (minimum 50 chars ensures more than just a basic stub)
-    # This threshold was chosen to catch cases where help text is missing or truncated
-    # while allowing for simple commands with minimal documentation
-    assert len(output.strip()) > 50, f"Help for '{command_name}' should be substantial"
-
-    # Check that help doesn't contain error indicators
-    error_indicators = ["error", "failed", "exception", "traceback"]
-    output_lower = output.lower()
-    for indicator in error_indicators:
-        assert indicator not in output_lower, f"Help for '{command_name}' should not contain '{indicator}'"
+    _assert_cli_help_quality(result, command_name)
 
 
 def create_mock_cli_service_manager() -> Mock:
     """
     Create properly structured mock CLIServiceManager matching actual implementation.
+    
+    Note: This function now delegates to the centralized testing utilities.
     
     This factory creates a mock that matches the actual CLIServiceManager structure
     with repository_service, snapshot_service, and config_module properties.
@@ -272,51 +253,4 @@ def create_mock_cli_service_manager() -> Mock:
     Returns:
         Mock CLIServiceManager with correct service structure
     """
-    # Don't use spec as it prevents dynamic attribute assignment
-    mock_manager = Mock()
-    
-    # Repository service with common methods (no spec to allow dynamic attributes)
-    mock_manager.repository_service = Mock()
-    mock_manager.repository_service.list_repositories.return_value = []
-    mock_manager.repository_service.get_repository.return_value = None
-    mock_manager.repository_service.add_repository.return_value = {'success': True}
-    mock_manager.repository_service.remove_repository.return_value = {'success': True}
-    mock_manager.repository_service.update_repository.return_value = {'success': True}
-    mock_manager.repository_service.initialize_repository.return_value = {'success': True, 'already_initialized': False}
-    mock_manager.repository_service.check_repository.return_value = {'success': True}
-    mock_manager.repository_service.get_repository_stats.return_value = {}
-    
-    # Snapshot service with common methods (no spec to allow dynamic attributes)
-    mock_manager.snapshot_service = Mock()
-    mock_manager.snapshot_service.list_snapshots.return_value = []
-    mock_manager.snapshot_service.get_snapshot.return_value = None
-    mock_manager.snapshot_service.find_snapshots.return_value = []
-    mock_manager.snapshot_service.delete_snapshot.return_value = {'success': True}
-    
-    # Config module (no spec to allow dynamic attributes)
-    mock_manager.config_module = Mock()
-    mock_manager.config_module.get_repository.return_value = None
-    mock_manager.config_module.list_repositories.return_value = []
-    
-    # Backup orchestrator (currently not implemented in actual code)
-    mock_manager.backup_orchestrator = None
-    
-    # Service manager properties
-    mock_manager._is_initialized = True
-    mock_manager._config_dir = None
-    
-    # IMPORTANT: CLI commands use _get_service_method which looks for methods directly on the manager
-    # So we need to provide direct method access that delegates to the services
-    mock_manager.list_repositories = mock_manager.repository_service.list_repositories
-    mock_manager.get_repository = mock_manager.repository_service.get_repository
-    mock_manager.add_repository = mock_manager.repository_service.add_repository
-    mock_manager.remove_repository = mock_manager.repository_service.remove_repository
-    mock_manager.update_repository = mock_manager.repository_service.update_repository
-    mock_manager.initialize_repository = mock_manager.repository_service.initialize_repository
-    mock_manager.check_repository = mock_manager.repository_service.check_repository
-    mock_manager.get_repository_stats = mock_manager.repository_service.get_repository_stats
-    mock_manager.list_snapshots = mock_manager.snapshot_service.list_snapshots
-    mock_manager.get_snapshot = mock_manager.snapshot_service.get_snapshot
-    mock_manager.find_snapshots = mock_manager.snapshot_service.find_snapshots
-    
-    return mock_manager
+    return _create_mock_service_manager()

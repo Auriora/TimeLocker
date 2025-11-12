@@ -177,15 +177,15 @@
     - Update tests for CommandRegistry integration
     - _Impact: Plugin-ready architecture_
 
-- [ ] 12. Create TestingUtilities for shared test patterns
-  - [ ] 12.1 Implement TestingUtilities
+- [x] 12. Create TestingUtilities for shared test patterns
+  - [x] 12.1 Implement TestingUtilities
     - Create shared test fixtures
     - Add mock service factories
     - Implement test data generators
     - Create assertion helpers
     - _Impact: Better test quality_
 
-  - [ ] 12.2 Update tests to use TestingUtilities
+  - [x] 12.2 Update tests to use TestingUtilities
     - Refactor all CLI tests
     - Replace repeated test patterns
     - Add consistent test structure
