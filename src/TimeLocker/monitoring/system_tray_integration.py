@@ -107,7 +107,7 @@ class SystemTrayIntegration:
             logger.info(f"System tray initialized for {sys.platform}")
             
         except Exception as e:
-            logger.error(f"Failed to initialize system tray: {e}")
+            logger.warning(f"Failed to initialize system tray: {e}")
             self._initialized = False
     
     def is_available(self) -> bool:

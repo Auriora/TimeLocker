@@ -569,12 +569,24 @@ def cli_completion(
     Examples:
         timelocker completion                    # Show general completion info
         timelocker completion bash               # Show bash completion instructions
-        timelocker completion install bash       # Install bash completion
+        timelocker completion --install bash     # Install bash completion
         timelocker completion --verify bash      # Verify bash completion
         timelocker completion --uninstall bash   # Uninstall bash completion
         timelocker --install-completion          # Auto-detect and install
     """
     supported_shells = ["bash", "zsh", "fish", "powershell"]
+
+    # Check if any action flag is set
+    action_requested = install or uninstall or verify
+    
+    if action_requested and shell is None:
+        show_error_panel(
+            "Missing Shell Argument",
+            "Please specify a shell when using --install, --uninstall, or --verify.\n\n"
+            f"Example: timelocker completion --install bash\n"
+            f"Supported shells: {', '.join(supported_shells)}"
+        )
+        raise typer.Exit(1)
 
     if shell is None:
         # Show general completion information
@@ -592,7 +604,7 @@ def cli_completion(
         
         console.print("\n[bold]Quick Install:[/bold]")
         console.print("  timelocker --install-completion          # Auto-detect and install")
-        console.print("  timelocker completion install bash       # Install for specific shell\n")
+        console.print("  timelocker completion --install bash     # Install for specific shell\n")
         
         console.print("[bold]Manual Installation:[/bold]")
         console.print("  timelocker --show-completion > ~/.timelocker-complete.sh")
@@ -706,7 +718,7 @@ def cli_completion(
                 for issue in issues:
                     console.print(f"  • {issue}")
                 console.print()
-            console.print(f"To install, run: [cyan]timelocker completion install {shell}[/cyan]\n")
+            console.print(f"To install, run: [cyan]timelocker completion --install {shell}[/cyan]\n")
         
         raise typer.Exit(0 if is_installed else 1)
 
@@ -734,8 +746,23 @@ def cli_completion(
                     with open(rc_file, 'r') as f:
                         lines = f.readlines()
                     
-                    # Filter out the source line
-                    new_lines = [line for line in lines if config["source_line"] not in line]
+                    # Filter out the source line and TimeLocker completion comment
+                    new_lines = []
+                    skip_next = False
+                    for i, line in enumerate(lines):
+                        # Skip TimeLocker completion comment and following blank line
+                        if "# TimeLocker completion" in line:
+                            skip_next = True
+                            continue
+                        # Skip the source line
+                        if config["source_line"] in line:
+                            continue
+                        # Skip blank line after comment if it's the next line
+                        if skip_next and line.strip() == "":
+                            skip_next = False
+                            continue
+                        skip_next = False
+                        new_lines.append(line)
                     
                     if len(new_lines) < len(lines):
                         with open(rc_file, 'w') as f:
@@ -775,11 +802,31 @@ def cli_completion(
             if completion_file:
                 completion_file.parent.mkdir(parents=True, exist_ok=True)
             
-            # Generate completion script using typer's built-in functionality
-            # This would normally use: typer.completion.show_callback()
-            # For now, show instructions
+            # Generate completion script
             console.print("[bold]Step 1:[/bold] Generate completion script")
-            console.print(f"  Run: [cyan]{config['generate_cmd']}[/cyan]\n")
+            try:
+                import subprocess
+                result = subprocess.run(
+                    ["timelocker", "--show-completion", shell],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                
+                # Write completion script to file
+                with open(completion_file, 'w') as f:
+                    f.write(result.stdout)
+                    # Add completion for 'tl' alias
+                    if shell == "bash":
+                        f.write("\ncomplete -o default -F _timelocker_completion tl\n")
+                    elif shell == "zsh":
+                        f.write("\ncompdef _timelocker_completion tl\n")
+                
+                console.print(f"  [green]✓[/green] Generated: {completion_file}\n")
+            except Exception as e:
+                console.print(f"  [red]✗[/red] Failed to generate completion script: {e}")
+                console.print(f"  Run manually: [cyan]{config['generate_cmd']}[/cyan]\n")
+                raise
             
             # For bash/zsh, add source line to rc file
             if config["rc_file"] and config["source_line"]:
@@ -791,7 +838,7 @@ def cli_completion(
                     with open(rc_file, 'r') as f:
                         rc_content = f.read()
                     
-                    if config["source_line"] in rc_content:
+                    if config["source_line"] in rc_content or "# TimeLocker completion" in rc_content:
                         console.print(f"  [green]✓[/green] Already configured in {rc_file}\n")
                     else:
                         # Add source line
@@ -822,7 +869,7 @@ def cli_completion(
         console.print(f"To view the completion script for {shell}:")
         console.print(f"  timelocker --show-completion {shell}\n")
         console.print(f"To install completion for {shell}:")
-        console.print(f"  timelocker completion install {shell}\n")
+        console.print(f"  timelocker completion --install {shell}\n")
         console.print("Or use the automatic installer:")
         console.print("  timelocker --install-completion\n")
 
@@ -1083,6 +1130,10 @@ class CLILogHandler(RichHandler):
         try:
             # Format the message
             message = self.format(record)
+
+            # Skip system tray warnings - these are expected in CLI-only environments
+            if record.levelno == logging.WARNING and "system tray" in message.lower():
+                return
 
             # Determine panel style based on log level
             if record.levelno >= logging.CRITICAL:
