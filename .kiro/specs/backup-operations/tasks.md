@@ -104,7 +104,7 @@
   - Remove any references to deprecated backup targets from help text
   - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5_
 
-- [ ] 16. Add CLI integration tests for data selection workflows
+- [x] 16. Add CLI integration tests for data selection workflows
   - Write tests for backup create with selection templates
   - Test error handling when selection template doesn't exist
   - Test selection template resolution and parameter translation
