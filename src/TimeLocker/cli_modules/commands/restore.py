@@ -50,7 +50,7 @@ from TimeLocker.snapshot_manager import SnapshotManager
 from TimeLocker.restore_manager import RestoreManager
 
 # Validation imports
-from ..validation import validate_path, ValidationError
+from TimeLocker.cli_modules.validation import validate_path, ValidationError
 from TimeLocker.utils import get_progress_service, ProgressTemplates
 from TimeLocker.interfaces.recovery_models import (
     RecoveryOptions,

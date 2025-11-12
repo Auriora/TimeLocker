@@ -109,6 +109,9 @@ console = Console(width=100)
 
 _rich_print = console.print
 
+# Initialize logger early to avoid NameError in exception handlers
+logger = logging.getLogger(__name__)
+
 
 def _stream_is_interactive(stream: Optional[TextIO]) -> bool:
     """
