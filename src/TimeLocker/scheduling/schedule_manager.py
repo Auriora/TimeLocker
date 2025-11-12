@@ -124,6 +124,13 @@ class ScheduleManager:
             retention_days=self.config.audit_retention_days
         )
         
+        # Initialize compliance reporter
+        from .compliance_reporter import ComplianceReporter
+        self.compliance_reporter = ComplianceReporter(
+            audit_logger=self.audit_logger,
+            policy_client=self.policy_client
+        )
+        
         # Initialize schedule storage
         self.storage = ScheduleStorage(self.config_dir / "schedules")
         
@@ -1038,3 +1045,154 @@ class ScheduleManager:
             error_msg = f"Failed to check schedule conflicts: {e}"
             self.logger.error(error_msg)
             raise SchedulingError(error_msg) from e
+
+    def generate_compliance_report(
+        self,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        schedule_ids: Optional[List[str]] = None
+    ):
+        """
+        Generate comprehensive compliance report for scheduled backups.
+        
+        Args:
+            start_date: Start of reporting period (default: 30 days ago)
+            end_date: End of reporting period (default: now)
+            schedule_ids: Optional list of specific schedule IDs to report on
+            
+        Returns:
+            ComplianceReport instance
+        """
+        try:
+            report = self.compliance_reporter.generate_compliance_report(
+                start_date=start_date,
+                end_date=end_date,
+                schedule_ids=schedule_ids
+            )
+            
+            self.logger.info(
+                f"Generated compliance report: {report.compliant_schedules} compliant, "
+                f"{report.violation_schedules} violations"
+            )
+            
+            return report
+            
+        except Exception as e:
+            error_msg = f"Failed to generate compliance report: {e}"
+            self.logger.error(error_msg)
+            raise SchedulingError(error_msg) from e
+    
+    def export_compliance_report(
+        self,
+        report,
+        output_file: Path,
+        format: str = 'json'
+    ) -> bool:
+        """
+        Export compliance report to file.
+        
+        Args:
+            report: ComplianceReport instance
+            output_file: Path to output file
+            format: Output format ('json' or 'html')
+            
+        Returns:
+            True if export successful, False otherwise
+        """
+        try:
+            success = self.compliance_reporter.export_compliance_report(
+                report,
+                output_file,
+                format
+            )
+            
+            if success:
+                self.logger.info(f"Exported compliance report to {output_file}")
+            
+            return success
+            
+        except Exception as e:
+            self.logger.error(f"Failed to export compliance report: {e}")
+            return False
+    
+    def get_policy_compliance_summary(self, policy_id: str) -> Dict[str, Any]:
+        """
+        Get compliance summary for all schedules using a specific policy.
+        
+        Args:
+            policy_id: Policy identifier
+            
+        Returns:
+            Dictionary with policy compliance summary
+        """
+        try:
+            summary = self.compliance_reporter.get_policy_compliance_summary(policy_id)
+            
+            self.logger.info(
+                f"Policy compliance summary for {policy_id}: "
+                f"{summary.get('compliant_count', 0)}/{summary.get('schedule_count', 0)} compliant"
+            )
+            
+            return summary
+            
+        except Exception as e:
+            error_msg = f"Failed to get policy compliance summary: {e}"
+            self.logger.error(error_msg)
+            return {
+                'policy_id': policy_id,
+                'error': str(e)
+            }
+    
+    def get_audit_statistics(self) -> Dict[str, Any]:
+        """
+        Get statistics about audit logs.
+        
+        Returns:
+            Dictionary containing audit log statistics
+        """
+        try:
+            stats = self.audit_logger.get_audit_statistics()
+            
+            self.logger.debug(f"Audit statistics: {stats.get('total_entries', 0)} entries")
+            
+            return stats
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get audit statistics: {e}")
+            return {'error': str(e)}
+    
+    def export_audit_trail(
+        self,
+        output_file: Path,
+        schedule_id: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None
+    ) -> bool:
+        """
+        Export audit trail to a file for compliance reporting.
+        
+        Args:
+            output_file: Path to output file
+            schedule_id: Optional filter by schedule ID
+            start_date: Optional start date filter
+            end_date: Optional end date filter
+            
+        Returns:
+            True if export successful, False otherwise
+        """
+        try:
+            success = self.audit_logger.export_audit_trail(
+                output_file,
+                schedule_id,
+                start_date,
+                end_date
+            )
+            
+            if success:
+                self.logger.info(f"Exported audit trail to {output_file}")
+            
+            return success
+            
+        except Exception as e:
+            self.logger.error(f"Failed to export audit trail: {e}")
+            return False

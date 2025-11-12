@@ -85,6 +85,7 @@ class SchedulingAuditLogger:
     - Maintain audit trail with retention
     - Provide audit query capabilities
     - Ensure compliance with audit requirements
+    - Protect audit logs from tampering
     """
     
     # Default audit log retention period (365 days)
@@ -92,6 +93,9 @@ class SchedulingAuditLogger:
     
     # Maximum audit log file size (50MB)
     MAX_LOG_SIZE = 50 * 1024 * 1024
+    
+    # Minimum retention period (30 days) - cannot be set lower
+    MIN_RETENTION_DAYS = 30
     
     def __init__(self, config_dir: Path, retention_days: int = DEFAULT_RETENTION_DAYS):
         """
@@ -105,9 +109,19 @@ class SchedulingAuditLogger:
         self.audit_dir.mkdir(parents=True, exist_ok=True)
         
         self.audit_log = self.audit_dir / "scheduling_audit.log"
-        self.retention_days = retention_days
+        
+        # Enforce minimum retention period
+        self.retention_days = max(retention_days, self.MIN_RETENTION_DAYS)
+        if retention_days < self.MIN_RETENTION_DAYS:
+            logger.warning(
+                f"Requested retention period {retention_days} days is below minimum. "
+                f"Using {self.MIN_RETENTION_DAYS} days instead."
+            )
         
         self.logger = logging.getLogger(f"{__name__}.SchedulingAuditLogger")
+        
+        # Initialize audit log protection
+        self._protect_audit_directory()
         
         # Perform initial cleanup
         self._cleanup_old_logs()
@@ -453,6 +467,7 @@ class SchedulingAuditLogger:
         """Clean up audit logs older than retention period."""
         try:
             cutoff_date = datetime.now() - timedelta(days=self.retention_days)
+            deleted_count = 0
             
             for log_file in self.audit_dir.glob("scheduling_audit_*.log"):
                 try:
@@ -462,13 +477,151 @@ class SchedulingAuditLogger:
                     
                     if file_date < cutoff_date:
                         log_file.unlink()
+                        deleted_count += 1
                         self.logger.info(f"Deleted old audit log: {log_file}")
                         
                 except (ValueError, OSError) as e:
                     self.logger.warning(f"Failed to process audit log {log_file}: {e}")
+            
+            if deleted_count > 0:
+                self.logger.info(f"Cleanup completed: {deleted_count} old audit logs deleted")
                     
         except Exception as e:
             self.logger.error(f"Failed to cleanup old audit logs: {e}")
+    
+    def _protect_audit_directory(self) -> None:
+        """
+        Apply protection to audit directory to prevent unauthorized modifications.
+        
+        Sets restrictive permissions on the audit directory to ensure only
+        the owner can read and write audit logs.
+        """
+        try:
+            import os
+            import stat
+            
+            # Set directory permissions to 0700 (owner read/write/execute only)
+            # This prevents other users from reading or modifying audit logs
+            os.chmod(self.audit_dir, stat.S_IRWXU)
+            
+            self.logger.debug(f"Applied protection to audit directory: {self.audit_dir}")
+            
+        except Exception as e:
+            self.logger.warning(f"Failed to protect audit directory: {e}")
+    
+    def get_audit_statistics(self) -> Dict[str, Any]:
+        """
+        Get statistics about audit logs.
+        
+        Returns:
+            Dictionary containing audit log statistics
+        """
+        try:
+            stats = {
+                'total_entries': 0,
+                'total_size_bytes': 0,
+                'oldest_entry': None,
+                'newest_entry': None,
+                'event_type_counts': {},
+                'log_files': 0,
+                'retention_days': self.retention_days
+            }
+            
+            # Count entries in current log
+            if self.audit_log.exists():
+                stats['log_files'] += 1
+                stats['total_size_bytes'] += self.audit_log.stat().st_size
+                
+                with open(self.audit_log, 'r') as f:
+                    for line in f:
+                        try:
+                            data = json.loads(line.strip())
+                            stats['total_entries'] += 1
+                            
+                            # Track event types
+                            event_type = data.get('event_type', 'unknown')
+                            stats['event_type_counts'][event_type] = \
+                                stats['event_type_counts'].get(event_type, 0) + 1
+                            
+                            # Track timestamps
+                            timestamp = datetime.fromisoformat(data['timestamp'])
+                            if stats['oldest_entry'] is None or timestamp < stats['oldest_entry']:
+                                stats['oldest_entry'] = timestamp
+                            if stats['newest_entry'] is None or timestamp > stats['newest_entry']:
+                                stats['newest_entry'] = timestamp
+                                
+                        except (json.JSONDecodeError, ValueError, KeyError):
+                            continue
+            
+            # Count rotated logs
+            for log_file in self.audit_dir.glob("scheduling_audit_*.log"):
+                stats['log_files'] += 1
+                stats['total_size_bytes'] += log_file.stat().st_size
+            
+            # Convert timestamps to ISO format for JSON serialization
+            if stats['oldest_entry']:
+                stats['oldest_entry'] = stats['oldest_entry'].isoformat()
+            if stats['newest_entry']:
+                stats['newest_entry'] = stats['newest_entry'].isoformat()
+            
+            return stats
+            
+        except Exception as e:
+            self.logger.error(f"Failed to get audit statistics: {e}")
+            return {
+                'error': str(e),
+                'retention_days': self.retention_days
+            }
+    
+    def export_audit_trail(
+        self,
+        output_file: Path,
+        schedule_id: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None
+    ) -> bool:
+        """
+        Export audit trail to a file for compliance reporting.
+        
+        Args:
+            output_file: Path to output file
+            schedule_id: Optional filter by schedule ID
+            start_date: Optional start date filter
+            end_date: Optional end date filter
+            
+        Returns:
+            True if export successful, False otherwise
+        """
+        try:
+            entries = self.get_audit_trail(
+                schedule_id=schedule_id,
+                start_date=start_date,
+                end_date=end_date,
+                limit=10000  # Large limit for export
+            )
+            
+            with open(output_file, 'w') as f:
+                json.dump(
+                    {
+                        'export_timestamp': datetime.utcnow().isoformat(),
+                        'filters': {
+                            'schedule_id': schedule_id,
+                            'start_date': start_date.isoformat() if start_date else None,
+                            'end_date': end_date.isoformat() if end_date else None
+                        },
+                        'entry_count': len(entries),
+                        'entries': [entry.to_dict() for entry in entries]
+                    },
+                    f,
+                    indent=2
+                )
+            
+            self.logger.info(f"Exported {len(entries)} audit entries to {output_file}")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to export audit trail: {e}")
+            return False
 
     def log_test_execution(
         self,
