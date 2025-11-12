@@ -35,6 +35,19 @@ from ..services.config_service import ConfigService
 from ..services.repository_resolver import RepositoryResolver
 from TimeLocker.utils.service_facade import ServiceFacade, create_service_facade
 
+# Import CommandRegistry
+from ..command_registry import (
+    CommandRegistry,
+    CommandMetadata,
+    CommandCategory,
+    get_command_registry,
+)
+from ..registry_integration import (
+    register_core_commands,
+    register_optional_commands,
+    register_all_commands,
+)
+
 
 def _create_service_facade(config_dir: Optional[Path] = None, 
                            service_manager: Optional[Any] = None) -> ServiceFacade:
@@ -426,6 +439,13 @@ __all__ = [
     '_create_repository_resolver',
     'ConfigService',
     'RepositoryResolver',
+    'CommandRegistry',
+    'CommandMetadata',
+    'CommandCategory',
+    'get_command_registry',
+    'register_core_commands',
+    'register_optional_commands',
+    'register_all_commands',
     'VerboseOption',
     'JsonOption',
     'FormatOption',

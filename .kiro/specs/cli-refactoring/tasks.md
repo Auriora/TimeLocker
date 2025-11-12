@@ -162,15 +162,15 @@
     - Update tests for ErrorContext integration
     - _Impact: Better debugging experience_
 
-- [ ] 11. Create CommandRegistry for centralized command metadata
-  - [ ] 11.1 Implement CommandRegistry
+- [x] 11. Create CommandRegistry for centralized command metadata
+  - [x] 11.1 Implement CommandRegistry
     - Create command registration system
     - Add command metadata management
     - Implement command discovery
     - Create plugin foundation
     - _Impact: Enables extensibility_
 
-  - [ ] 11.2 Update CLI to use CommandRegistry
+  - [x] 11.2 Update CLI to use CommandRegistry
     - Refactor command loading to use registry
     - Add dynamic command discovery
     - Implement command validation
