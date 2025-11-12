@@ -11,6 +11,7 @@ This module provides intelligent auto-completion for:
 """
 
 import os
+import json
 import logging
 from pathlib import Path
 from typing import List, Optional, Dict, Any
@@ -294,21 +295,31 @@ def complete_selection_names(incomplete: str) -> List[str]:
         List of matching selection names
     """
     try:
-        # Try to load selections from configuration
-        from .config.configuration_path_resolver import ConfigurationPathResolver
-        import json
+        # Templates are stored in XDG_DATA_HOME/timelocker/templates
+        xdg_data_home = os.environ.get('XDG_DATA_HOME')
+        if xdg_data_home:
+            data_dir = Path(xdg_data_home) / "timelocker"
+        else:
+            data_dir = Path.home() / ".local" / "share" / "timelocker"
         
-        # Check for selections in data directory
-        data_dir = ConfigurationPathResolver.get_data_directory()
-        selections_file = data_dir / "selections" / "selections.json"
+        templates_dir = data_dir / "templates"
         
-        if not selections_file.exists():
+        if not templates_dir.exists():
             return []
         
-        with open(selections_file, 'r') as f:
-            selections = json.load(f)
+        # List all template files and extract names
+        template_names = []
+        for template_file in templates_dir.glob("*.json"):
+            try:
+                with open(template_file, 'r') as f:
+                    template_data = json.load(f)
+                    if 'name' in template_data:
+                        template_names.append(template_data['name'])
+            except Exception:
+                # Skip files that can't be read or parsed
+                continue
         
-        return [name for name in selections.keys() if name.startswith(incomplete)]
+        return [name for name in template_names if name.startswith(incomplete)]
     except Exception:
         return []
 

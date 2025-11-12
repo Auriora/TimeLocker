@@ -17,7 +17,7 @@ class CommandAliasResolver:
     Resolves command aliases and abbreviations to full command names.
     
     This class provides functionality for:
-    - Command shortcuts (e.g., 'backup' -> 'backup run')
+    - Command shortcuts (e.g., 'backup' -> 'backup create')
     - Command abbreviations (e.g., 'repo' -> 'repos', 'sel' -> 'selections')
     - Unambiguous prefix matching
     """
@@ -25,7 +25,7 @@ class CommandAliasResolver:
     # Command shortcuts - map short forms to full command paths
     SHORTCUTS: Dict[str, str] = {
         # Main command shortcuts
-        "backup": "backup run",
+        "backup": "backup create",
         "restore": "restore browse",
         "repos": "repos list",
         

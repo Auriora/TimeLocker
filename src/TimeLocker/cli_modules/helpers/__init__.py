@@ -112,6 +112,12 @@ from .error_context_helpers import (
     handle_repository_error,
     handle_validation_error,
 )
+from .backup_cli_handler import (
+    BackupCLIHandler,
+    BackupCLIHandlerError,
+    SelectionTemplateNotFoundError,
+    InvalidSelectionConfigError,
+)
 
 __all__ = [
     # Display
@@ -220,4 +226,9 @@ __all__ = [
     "handle_config_error",
     "handle_repository_error",
     "handle_validation_error",
+    # Backup CLI handler
+    "BackupCLIHandler",
+    "BackupCLIHandlerError",
+    "SelectionTemplateNotFoundError",
+    "InvalidSelectionConfigError",
 ]

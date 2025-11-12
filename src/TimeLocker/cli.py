@@ -249,7 +249,7 @@ app = typer.Typer(
                 "Examples:\n"
                 "  tl repos add <name> file:///path/to/repo\n"
                 "  tl selections create <name> --include '~/Documents/**'\n"
-                "  tl backup run --selection <name>\n"
+                "  tl backup create --selection <name>\n"
                 "  tl snapshots list  # lists snapshots (see --repository)\n"
                 "  tl snapshots restore <id|latest> /restore/path --repository <name>\n\n"
                 "Note: Local repository paths must use the file:// prefix (e.g., file:///path/to/repo).\n"
@@ -391,8 +391,8 @@ def cli_help(
         console.print("     timelocker repos init myrepo\n")
         console.print("  3. Create a data selection:")
         console.print("     timelocker selections create documents --include '~/Documents/**'\n")
-        console.print("  4. Run a backup:")
-        console.print("     timelocker backup run --selection documents\n")
+        console.print("  4. Create a backup:")
+        console.print("     timelocker backup create --selection documents\n")
         console.print("  5. List snapshots:")
         console.print("     timelocker snapshots list\n")
         console.print("  6. Restore files:")
@@ -408,7 +408,7 @@ def cli_help(
         console.print("[bold]Command Help:[/bold]")
         console.print("  timelocker <command> --help    # Show help for any command")
         console.print("  timelocker repos --help        # Show repos command help")
-        console.print("  timelocker backup run --help   # Show backup run help\n")
+        console.print("  timelocker backup create --help   # Show backup create help\n")
         
         console.print("[bold]Aliases:[/bold]")
         console.print("  'tl' can be used as a short alias for 'timelocker'")
@@ -457,16 +457,16 @@ def cli_help(
         console.print("Backup operations create snapshots of your data in repositories.\n")
         
         console.print("[bold]Common Commands:[/bold]")
-        console.print("  [cyan]backup run[/cyan] <policy>        - Run a backup using a policy")
+        console.print("  [cyan]backup create[/cyan]              - Create a backup using a selection template")
         console.print("  [cyan]backup status[/cyan]              - Show current backup status")
         console.print("  [cyan]backup list[/cyan]                - List backup history")
         console.print("  [cyan]backup cancel[/cyan] <job-id>     - Cancel a running backup\n")
         
         console.print("[bold]Examples:[/bold]")
-        console.print("  # Run a backup with a selection")
-        console.print("  timelocker backup run --selection documents\n")
-        console.print("  # Run a backup with a policy")
-        console.print("  timelocker backup run daily-backup\n")
+        console.print("  # Create a backup with a selection template")
+        console.print("  timelocker backup create --selection documents --repository myrepo\n")
+        console.print("  # Create a backup from direct paths")
+        console.print("  timelocker backup create /path/to/backup --repository myrepo\n")
         console.print("  # Check backup status")
         console.print("  timelocker backup status\n")
         console.print("  # List recent backups")

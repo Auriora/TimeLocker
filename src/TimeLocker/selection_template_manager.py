@@ -413,12 +413,37 @@ class SelectionTemplateManager:
         logger.info(f"Created template: {template.name} ({template.id})")
         return template.id
     
-    async def get_template(self, template_id: str) -> SelectionTemplate:
+    async def get_template_by_name(self, name: str) -> Optional[SelectionTemplate]:
         """
-        Get a template by ID.
+        Get a template by name.
         
         Args:
-            template_id: The ID of the template to retrieve
+            name: The name of the template to retrieve
+            
+        Returns:
+            SelectionTemplate if found, None otherwise
+            
+        Note:
+            This method searches through all templates to find a match by name.
+            For better performance with large template collections, consider
+            maintaining a name-to-ID index.
+        """
+        for template in self.templates_cache.values():
+            if template.name == name:
+                # Increment usage count
+                template.usage_count += 1
+                template.updated_at = datetime.utcnow()
+                self._save_template_to_file(template)
+                return template
+        return None
+    
+    async def get_template(self, identifier: str, by_name: bool = False) -> SelectionTemplate:
+        """
+        Get a template by ID or name.
+        
+        Args:
+            identifier: Template ID or name
+            by_name: If True, treat identifier as name; if False, treat as ID
             
         Returns:
             SelectionTemplate: The requested template
@@ -426,18 +451,25 @@ class SelectionTemplateManager:
         Raises:
             TemplateNotFoundError: If the template is not found
         """
-        if template_id not in self.templates_cache:
-            raise TemplateNotFoundError(f"Template with ID '{template_id}' not found")
-        
-        # Increment usage count
-        template = self.templates_cache[template_id]
-        template.usage_count += 1
-        template.updated_at = datetime.utcnow()
-        
-        # Save updated usage count
-        self._save_template_to_file(template)
-        
-        return template
+        if by_name:
+            template = await self.get_template_by_name(identifier)
+            if template is None:
+                raise TemplateNotFoundError(f"Template with name '{identifier}' not found")
+            return template
+        else:
+            # Existing ID-based lookup
+            if identifier not in self.templates_cache:
+                raise TemplateNotFoundError(f"Template with ID '{identifier}' not found")
+            
+            # Increment usage count
+            template = self.templates_cache[identifier]
+            template.usage_count += 1
+            template.updated_at = datetime.utcnow()
+            
+            # Save updated usage count
+            self._save_template_to_file(template)
+            
+            return template
     
     async def list_templates(self, filters: Optional[Dict[str, Any]] = None) -> List[SelectionTemplate]:
         """

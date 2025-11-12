@@ -212,10 +212,10 @@ def _generate_cron_script(schedule_name: str, schedule: Dict[str, Any], config_d
 
 # Cron expression: {cron_expr}
 # Add this line to your crontab (crontab -e):
-# {cron_expr} {timelocker_path} backup run {policy} --non-interactive >> /var/log/timelocker/{schedule_name}.log 2>&1
+# {cron_expr} {timelocker_path} backup create --policy {policy} --non-interactive >> /var/log/timelocker/{schedule_name}.log 2>&1
 
 # Or run this script directly:
-{timelocker_path} backup run {policy} --non-interactive
+{timelocker_path} backup create --policy {policy} --non-interactive
 """
     return script
 
@@ -255,7 +255,7 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart={timelocker_path} backup run {policy} --non-interactive
+ExecStart={timelocker_path} backup create --policy {policy} --non-interactive
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=timelocker-{schedule_name}
@@ -306,7 +306,7 @@ REM Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
 REM Policy: {policy}
 
 REM Create scheduled task
-schtasks /CREATE /TN "TimeLocker\\{schedule_name}" {trigger} /TR "timelocker backup run {policy} --non-interactive" /F
+schtasks /CREATE /TN "TimeLocker\\{schedule_name}" {trigger} /TR "timelocker backup create --policy {policy} --non-interactive" /F
 
 echo Scheduled task created: TimeLocker\\{schedule_name}
 echo Run 'schtasks /Query /TN "TimeLocker\\{schedule_name}"' to verify

@@ -170,7 +170,7 @@ class ConfigurationTroubleshooter:
     
     def _validate_backup_target(self, name: str, target_config) -> List[ConfigurationIssue]:
         """
-        Validate a backup target configuration.
+        Validate a backup target configuration (deprecated - use data selection templates).
         
         Args:
             name: Target name
@@ -186,9 +186,9 @@ class ConfigurationTroubleshooter:
             issues.append(ConfigurationIssue(
                 issue_type="missing_target_paths",
                 severity=IssueSeverity.MEDIUM,
-                description=f"Backup target '{name}' has no paths configured",
+                description=f"Backup target '{name}' has no paths configured (deprecated - use data selection templates)",
                 affected_section=f"backup_targets.{name}.paths",
-                recommended_value="List of paths to backup"
+                recommended_value="Migrate to data selection templates using 'timelocker selections create'"
             ))
         else:
             # Validate paths exist
@@ -197,10 +197,10 @@ class ConfigurationTroubleshooter:
                     issues.append(ConfigurationIssue(
                         issue_type="target_path_not_found",
                         severity=IssueSeverity.LOW,
-                        description=f"Backup target '{name}' path does not exist: {path}",
+                        description=f"Backup target '{name}' path does not exist: {path} (deprecated - use data selection templates)",
                         affected_section=f"backup_targets.{name}.paths",
                         current_value=path,
-                        recommended_value="Verify path exists or remove from configuration"
+                        recommended_value="Migrate to data selection templates using 'timelocker selections create'"
                     ))
         
         return issues
@@ -290,17 +290,17 @@ class ConfigurationTroubleshooter:
                     estimated_impact="Simplified backup operations"
                 ))
             
-            # Recommend configuring backup targets
+            # Recommend configuring data selection templates
             if not config.backup_targets:
                 recommendations.append(ProactiveRecommendation(
-                    recommendation_id="configure_backup_targets",
-                    title="Configure Backup Targets",
-                    description="Define backup targets to organize what gets backed up",
+                    recommendation_id="configure_data_selections",
+                    title="Configure Data Selection Templates",
+                    description="Define data selection templates to organize what gets backed up",
                     priority=IssueSeverity.MEDIUM,
                     action_items=[
                         "Identify directories to backup",
-                        "Create backup target configurations",
-                        "Test backup with: timelocker backup <target_name>"
+                        "Create data selection template configurations",
+                        "Test backup with: timelocker backup create --selection <template_name>"
                     ],
                     estimated_impact="Organized and repeatable backups"
                 ))
@@ -466,43 +466,43 @@ class ConfigurationTroubleshooter:
         )
     
     def _create_missing_paths_guide(self) -> TroubleshootingGuide:
-        """Create guide for missing backup target paths"""
+        """Create guide for missing data selection template paths"""
         return TroubleshootingGuide(
             issue_type=IssueType.CONFIGURATION_ERROR,
-            title="Missing Backup Target Paths",
-            description="Backup target has no paths configured.",
+            title="Missing Data Selection Template Paths",
+            description="Data selection template has no paths configured.",
             possible_causes=[
-                "Incomplete target configuration",
+                "Incomplete selection template configuration",
                 "Paths were removed",
                 "Configuration error"
             ],
             steps=[
                 TroubleshootingStep(
                     step_number=1,
-                    description="Add paths to backup target",
-                    command="timelocker target add-path <target_name> <path>",
-                    expected_result="Path is added to target configuration",
-                    additional_info="Can add multiple paths to same target"
+                    description="Add paths to data selection template",
+                    command="timelocker selections create <name> --include <path>",
+                    expected_result="Selection template is created with configured paths",
+                    additional_info="Can add multiple include/exclude patterns to same template"
                 ),
                 TroubleshootingStep(
                     step_number=2,
-                    description="Verify target configuration",
-                    command="timelocker target show <target_name>",
-                    expected_result="Shows target with configured paths"
+                    description="Verify selection template configuration",
+                    command="timelocker selections show <name>",
+                    expected_result="Shows selection template with configured paths"
                 ),
                 TroubleshootingStep(
                     step_number=3,
-                    description="Test backup with target",
-                    command="timelocker backup <target_name>",
+                    description="Test backup with selection template",
+                    command="timelocker backup create --selection <selection_name>",
                     expected_result="Backup runs successfully"
                 )
             ],
             additional_resources=[
-                "Backup target configuration guide"
+                "Data selection template configuration guide"
             ],
             prevention_tips=[
-                "Verify target configuration before first use",
-                "Document backup target purposes"
+                "Verify selection template configuration before first use",
+                "Document data selection template purposes"
             ]
         )
     
@@ -527,28 +527,28 @@ class ConfigurationTroubleshooter:
                 ),
                 TroubleshootingStep(
                     step_number=2,
-                    description="If path was moved, update configuration",
-                    command="timelocker target update-path <target_name> <old_path> <new_path>",
-                    expected_result="Path is updated in configuration"
+                    description="If path was moved, update selection template",
+                    command="timelocker selections update <name> --include <new_path>",
+                    expected_result="Path is updated in selection template"
                 ),
                 TroubleshootingStep(
                     step_number=3,
-                    description="If path no longer needed, remove from target",
-                    command="timelocker target remove-path <target_name> <path>",
-                    expected_result="Path is removed from configuration"
+                    description="If path no longer needed, remove from template",
+                    command="timelocker selections update <name> --remove-include <path>",
+                    expected_result="Path is removed from selection template"
                 ),
                 TroubleshootingStep(
                     step_number=4,
-                    description="Verify target configuration",
-                    command="timelocker target show <target_name>",
-                    expected_result="Shows updated target configuration"
+                    description="Verify selection template configuration",
+                    command="timelocker selections show <name>",
+                    expected_result="Shows updated selection template configuration"
                 )
             ],
             additional_resources=[
-                "Backup target management guide"
+                "Data selection template management guide"
             ],
             prevention_tips=[
-                "Use stable paths for backup targets",
+                "Use stable paths for data selection templates",
                 "Document path dependencies",
                 "Review configuration when moving files"
             ]

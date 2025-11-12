@@ -252,12 +252,24 @@ class CLIServiceManager:
         )
         self._configure_repository_factory_credentials()
 
-        # TODO: BackupOrchestrator does not exist yet, needs to be implemented
-        # self._backup_orchestrator = BackupOrchestrator(
-        #         repository_factory=self._repository_factory,
-        #         configuration_provider=self._config_service
-        # )
-        self._backup_orchestrator = None  # Placeholder until BackupOrchestrator is implemented
+        # Initialize BackupOrchestrator with proper dependencies
+        try:
+            from .services.backup_orchestrator import BackupOrchestrator
+            from .services.configuration_service import ConfigurationService
+            
+            # Create configuration service as provider
+            config_provider = ConfigurationService(
+                config_path=self._config_module.config_file
+            )
+            
+            self._backup_orchestrator = BackupOrchestrator(
+                configuration_provider=config_provider,
+                repository_factory=self._repository_factory
+            )
+            logger.debug("BackupOrchestrator initialized successfully")
+        except Exception as e:
+            logger.warning(f"BackupOrchestrator failed to initialize: {e}")
+            self._backup_orchestrator = None
         
         # Initialize new integration architecture components
         self._service_registry = ServiceRegistry()

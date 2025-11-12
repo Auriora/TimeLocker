@@ -5,6 +5,7 @@ This module contains CLI commands for creating and verifying backups.
 """
 
 import sys
+import asyncio
 import logging
 from typing import Optional, List, Annotated
 from pathlib import Path
@@ -59,8 +60,7 @@ def backup_create(
         repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
         password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
         selection: Annotated[Optional[str], typer.Option("--selection", "-s", help="Use configured data selection template", autocompletion=selection_name_completer)] = None,
-        target: Annotated[Optional[str], typer.Option("--target", "-t", help="(Deprecated: use --selection) Use configured backup target", autocompletion=selection_name_completer, hidden=True)] = None,
-        name: Annotated[Optional[str], typer.Option("--name", "-n", help="Backup target name")] = None,
+        name: Annotated[Optional[str], typer.Option("--name", "-n", help="Backup name")] = None,
         exclude: Annotated[Optional[List[str]], typer.Option("--exclude", "-e", help="Exclude pattern")] = None,
         include: Annotated[Optional[List[str]], typer.Option("--include", "-i", help="Include pattern")] = None,
         tags: Annotated[Optional[List[str]], typer.Option("--tags", help="Backup tags")] = None,
@@ -68,138 +68,175 @@ def backup_create(
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
-    """Create a backup with beautiful progress tracking."""
+    """
+    Create a backup using data selection templates or direct paths.
+    
+    Examples:
+        # Create backup using a selection template
+        tl backup create --selection documents --repository myrepo
+        
+        # Create backup from direct paths
+        tl backup create /path/to/backup --repository myrepo
+        
+        # Create backup with custom patterns
+        tl backup create /home/user --include '*.txt' --exclude 'temp/*' --repository myrepo
+    """
     setup_logging(verbose, config_dir)
     interactive = sys.stdin.isatty()
-
-    # Handle deprecated --target parameter
-    if target and not selection:
-        console.print("[yellow]⚠️  Warning: --target is deprecated. Use --selection instead.[/yellow]")
-        selection = target
     
-    # Handle selection-based backup
+    logger = logging.getLogger(__name__)
+    logger.info(f"backup_create called with selection={selection}, repository={repository}")
+    
+    # Handle selection-based backup using BackupCLIHandler
     if selection:
         try:
-            config_module = None
+            from TimeLocker.cli_modules.helpers.backup_cli_handler import (
+                BackupCLIHandler,
+                SelectionTemplateNotFoundError,
+                InvalidSelectionConfigError
+            )
+            from TimeLocker.selection_manager import SelectionManager
+            from TimeLocker.services.backup_orchestrator import BackupOrchestrator
+            from .base import _create_config_service
+            
+            logger = logging.getLogger(__name__)
+            logger.debug(f"Using selection template: {selection}")
+            
+            # Initialize required services
+            config_service = _create_config_service(config_dir)
+            selection_manager = SelectionManager()
+            
+            # Get service manager with backup orchestrator
             service_manager = _get_service_manager_for_command(config_dir)
-            backup_target = None
-
-            def _extract_target_value(obj, key, default=None):
-                if obj is None:
-                    return default
-                if isinstance(obj, dict):
-                    return obj.get(key, default)
-                return getattr(obj, key, default)
-
-            def _target_paths(obj):
-                value = _extract_target_value(obj, 'paths', [])
-                if isinstance(value, (list, tuple, set)):
-                    return list(value)
-                return []
-
-            def _valid_target(obj):
-                return len(_target_paths(obj)) > 0
-
-            if service_manager:
-                target_by_name = _get_service_method(service_manager, "get_backup_target_by_name")
-                if target_by_name:
-                    try:
-                        backup_target = _call_service_method(target_by_name, name=selection, target_name=selection)
-                    except Exception as exc:
-                        logging.getLogger(__name__).debug("Service target lookup failed: %s", exc)
-
-            if not _valid_target(backup_target) and service_manager:
-                list_method = _get_service_method(service_manager, "list_backup_targets")
-                if list_method:
-                    try:
-                        targets = _call_service_method(list_method) or []
-                        for candidate in targets:
-                            candidate_name = _extract_target_value(candidate, 'name')
-                            if candidate_name == selection:
-                                backup_target = candidate
-                                break
-                    except Exception as exc:
-                        logging.getLogger(__name__).debug("Service target listing failed: %s", exc)
-
-            if not _valid_target(backup_target) and service_manager:
-                generic_method = _get_service_method(service_manager, "get_backup_target")
-                if generic_method:
-                    try:
-                        backup_target = _call_service_method(generic_method, name=selection, target_name=selection)
-                    except Exception as exc:
-                        logging.getLogger(__name__).debug("Service target lookup (generic) failed: %s", exc)
-
-            if backup_target is None:
-                from .base import _create_config_service
-                config_service = _create_config_service(config_dir)
-                backup_target = config_service.get_backup_target(selection)
-
-        except ValueError as e:
-            show_error_panel("Target Not Found", str(e))
-            console.print("💡 Run [bold]tl config add-target[/bold] to create a backup target")
-            raise typer.Exit(1)
-        except Exception as e:
-            show_error_panel("Configuration Error", f"Failed to load configuration: {e}")
-            raise typer.Exit(1)
-
-        # Extract backup target configuration
-        logger = logging.getLogger(__name__)
-        logger.debug(f"backup_target type: {type(backup_target)}")
-        logger.debug(f"backup_target content: {backup_target}")
-        normalized_target = {
-                "name":             _extract_target_value(backup_target, "name", selection),
-                "paths":            _target_paths(backup_target),
-                "include_patterns": _extract_target_value(backup_target, "include_patterns", []),
-                "exclude_patterns": _extract_target_value(backup_target, "exclude_patterns", []),
-                "description":      _extract_target_value(backup_target, "description", ""),
-                "tags":             _extract_target_value(backup_target, "tags", []),
-        }
-        sources = [Path(p) for p in normalized_target["paths"]]
-        name = name or normalized_target["name"] or target
-        include_patterns = normalized_target["include_patterns"] or []
-        exclude_patterns = normalized_target["exclude_patterns"] or []
-
-        # Use patterns from target config if not overridden
-        if not include and include_patterns:
-            include = include_patterns
-        if not exclude and exclude_patterns:
-            exclude = exclude_patterns
-
-            # Use default repository if not specified
+            
+            # Verify backup orchestrator is available
+            if not hasattr(service_manager, '_backup_orchestrator') or service_manager._backup_orchestrator is None:
+                show_error_panel(
+                    "Service Initialization Error",
+                    "Backup orchestrator is not available.\n\n"
+                    "This may be due to a configuration issue. Please check your configuration:\n"
+                    "  tl config show"
+                )
+                raise typer.Exit(1)
+            
+            # Create BackupCLIHandler with service manager's orchestrator
+            cli_handler = BackupCLIHandler(
+                selection_manager=selection_manager,
+                backup_orchestrator=service_manager._backup_orchestrator
+            )
+            
+            # Validate selection template exists (async)
+            async def validate_template():
+                return await cli_handler.validate_selection_exists(selection)
+            
+            if not asyncio.run(validate_template()):
+                error_msg = cli_handler.suggest_template_creation(selection)
+                show_error_panel("Selection Template Not Found", error_msg)
+                raise typer.Exit(1)
+            
+            # Get default repository if not specified
             if not repository:
                 default_repo_name = None
-                if service_manager:
-                    default_method = _get_service_method(service_manager, "get_default_repository")
-                    if default_method:
-                        try:
-                            default_repo_name = _call_service_method(default_method)
-                        except Exception as exc:
-                            logging.getLogger(__name__).debug("Service default repository lookup failed: %s", exc)
-                if default_repo_name is None:
+                default_method = _get_service_method(service_manager, "get_default_repository")
+                if default_method:
                     try:
-                        from .base import _create_config_service
-                        config_service = _create_config_service(config_dir)
+                        default_repo_name = _call_service_method(default_method)
+                    except Exception as exc:
+                        logger.debug("Service default repository lookup failed: %s", exc)
+                
+                if not default_repo_name:
+                    try:
                         default_repo_name = config_service.get_default_repository()
                     except Exception as exc:
-                        logging.getLogger(__name__).debug("ConfigService default repository lookup failed: %s", exc)
-                if not isinstance(default_repo_name, (str, Path)):
-                    default_repo_name = None
+                        logger.debug("ConfigService default repository lookup failed: %s", exc)
+                
                 if isinstance(default_repo_name, Path):
                     default_repo_name = str(default_repo_name)
                 if isinstance(default_repo_name, str) and default_repo_name.strip():
                     repository = default_repo_name
-
-        console.print(f"📁 Using backup target: [bold cyan]{target}[/bold cyan]")
-        console.print(f"📂 Backing up {len(sources)} path(s)")
+                else:
+                    show_error_panel(
+                        "Repository Required",
+                        "No repository specified and no default repository configured.\n\n"
+                        "💡 Specify a repository with --repository or set a default:\n"
+                        "   tl repos set-default <name>"
+                    )
+                    raise typer.Exit(1)
+            
+            # Display selection info
+            console.print(f"📁 Using selection template: [bold cyan]{selection}[/bold cyan]")
+            try:
+                async def get_summary():
+                    return await cli_handler.get_selection_summary(selection)
+                
+                summary = asyncio.run(get_summary())
+                console.print(f"[dim]{summary}[/dim]")
+            except Exception as e:
+                logger.debug(f"Could not get selection summary: {e}")
+            
+            # Execute backup using BackupCLIHandler
+            cli_options = {
+                'tool_type': 'restic',
+                'max_retries': 3,
+                'notify_on_success': True,
+                'notify_on_failure': True,
+                'notifications_enabled': True,
+                'priority': 0
+            }
+            
+            result = asyncio.run(cli_handler.execute_backup_with_selection(
+                selection_name=selection,
+                repository=repository,
+                tags=tags,
+                dry_run=dry_run,
+                **cli_options
+            ))
+            
+            # Display results
+            if result.status.value in ['completed', 'success']:
+                details = {
+                    "Snapshot ID": result.snapshot_id or "Unknown",
+                    "Files processed": f"{result.files_processed:,}" if result.files_processed else "Unknown",
+                    "Data processed": f"{result.bytes_transferred:,} bytes" if result.bytes_transferred else "Unknown",
+                    "Duration": f"{result.duration.total_seconds():.1f}s" if result.duration else "Unknown"
+                }
+                
+                success_msg = "Backup operation completed successfully!"
+                if result.warnings:
+                    success_msg += f" ({len(result.warnings)} warnings)"
+                
+                show_success_panel("Backup Completed", success_msg, details)
+                
+                # Show warnings if any
+                for warning in result.warnings:
+                    console.print(f"⚠️  [yellow]Warning:[/yellow] {warning}")
+            else:
+                error_msg = "Backup operation failed"
+                if result.errors:
+                    error_msg += f": {'; '.join(str(err) for err in result.errors)}"
+                
+                show_error_panel("Backup Failed", error_msg)
+                raise typer.Exit(1)
+            
+            return
+            
+        except SelectionTemplateNotFoundError as e:
+            show_error_panel("Selection Template Not Found", str(e))
+            raise typer.Exit(1)
+        except InvalidSelectionConfigError as e:
+            show_error_panel("Invalid Selection Configuration", str(e))
+            raise typer.Exit(1)
+        except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f"Selection-based backup failed: {e}", exc_info=True)
+            show_error_panel("Backup Error", f"Failed to execute selection-based backup: {e}")
+            raise typer.Exit(1)
 
     # Validate sources
     if not sources:
-        if target:
-            console.print("⚠️  Could not resolve target paths locally; proceeding with service-managed backup.")
-        else:
-            show_error_panel("No Sources", "No source paths specified for backup")
-            console.print("💡 Either provide source paths or use --target to specify a configured backup target")
-            raise typer.Exit(1)
+        show_error_panel("No Sources", "No source paths specified for backup")
+        console.print("💡 Either provide source paths or use --selection to specify a data selection template")
+        raise typer.Exit(1)
 
     repository_uri = repository
     actual_repository_name = repository
@@ -267,13 +304,13 @@ def backup_create(
 
             # Create backup request
             progress.update(description="Preparing backup request...")
-            logger.debug(f"Creating CLIBackupRequest with sources={sources}, repository_uri={repository_uri}, target_name={target}")
+            logger.debug(f"Creating CLIBackupRequest with sources={sources}, repository_uri={repository_uri}")
             logger.debug(f"CLI collected password: {'***' if password else 'None'}")
             backup_request = CLIBackupRequest(
                     sources=sources,
                     repository_uri=repository_uri,
                     password=password,
-                    target_name=target,
+                    target_name=None,  # No longer using backup targets
                     backup_name=name,
                     tags=tags or [],
                     include_patterns=include or [],
