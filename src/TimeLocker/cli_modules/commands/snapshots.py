@@ -40,6 +40,9 @@ from .base import (
     DryRunOption,
 )
 
+# Import OutputFormatter for standardized output
+from TimeLocker.utils import get_output_formatter
+
 # Import from TimeLocker package
 from TimeLocker import cli as _cli_module
 from TimeLocker.cli_services import get_cli_service_manager
@@ -327,12 +330,8 @@ def snapshots_list(
             show_info_panel("No Snapshots", "No snapshots found in repository")
             return
 
-        table = Table(title=f"Snapshots ({len(service_snapshots)})")
-        table.add_column("ID", style="cyan", no_wrap=True)
-        table.add_column("Date", style="green")
-        table.add_column("Host", style="yellow")
-        table.add_column("Paths", style="white")
-
+        # Format snapshot data for table display
+        table_data = []
         for entry in service_snapshots:
             if isinstance(entry, dict):
                 snapshot_id = str(entry.get("id") or entry.get("short_id") or "unknown")
@@ -349,9 +348,19 @@ def snapshots_list(
             if paths and len(paths) > 2:
                 path_display += f" (+{len(paths) - 2} more)"
 
-            table.add_row(snapshot_id, str(timestamp), str(host), path_display)
+            table_data.append({
+                "ID": snapshot_id,
+                "Date": str(timestamp),
+                "Host": str(host),
+                "Paths": path_display
+            })
 
-        console.print(table)
+        formatter = get_output_formatter(console=console)
+        formatter.format_table(
+            data=table_data,
+            columns=["ID", "Date", "Host", "Paths"],
+            title=f"Snapshots ({len(service_snapshots)})"
+        )
         return
 
     try:

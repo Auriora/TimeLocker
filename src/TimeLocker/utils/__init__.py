@@ -43,6 +43,12 @@ from .prompt_service import (
     get_prompt_service
 )
 
+from .output_formatter import (
+    OutputFormatter,
+    OutputFormat,
+    get_output_formatter
+)
+
 __all__ = [
         # Performance utilities
         'PerformanceModule',
@@ -75,5 +81,10 @@ __all__ = [
         # Prompt service utilities
         'PromptService',
         'PromptError',
-        'get_prompt_service'
+        'get_prompt_service',
+        
+        # Output formatter utilities
+        'OutputFormatter',
+        'OutputFormat',
+        'get_output_formatter'
 ]

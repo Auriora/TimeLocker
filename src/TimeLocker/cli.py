@@ -32,7 +32,7 @@ from rich.tree import Tree
 from rich import print as rprint
 from rich.logging import RichHandler
 
-from .utils import PromptService, PromptError
+from .utils import PromptService, PromptError, OutputFormatter, get_output_formatter
 
 from . import __version__
 from .backup_manager import BackupManager
@@ -1178,58 +1178,20 @@ def format_file_size(size_bytes: int) -> str:
 
 def show_success_panel(title: str, message: str, details: Optional[dict] = None) -> None:
     """Display a success panel with optional details."""
-    content = f"✅ {message}"
-    if details:
-        content += "\n\n"
-        for key, value in details.items():
-            content += f"[bold]{key}:[/bold] {value}\n"
-
-    panel = Panel(
-            content.strip(),
-            title=f"[bold green]{title}[/bold green]",
-            border_style="green",
-            padding=(1, 2)
-    )
-    console.print(panel)
+    formatter = get_output_formatter(console=console)
+    formatter.format_success(title, message, details)
 
 
 def show_error_panel(title: str, message: str, details: Optional[List[str]] = None) -> None:
     """Display an error panel with optional details."""
-    # Escape Rich markup in message to prevent markup errors
-    safe_message = message.replace("[", "\\[").replace("]", "\\]")
-    content = f"❌ {safe_message}"
-
-    if details:
-        content += "\n\n[bold]Details:[/bold]\n"
-        for detail in details:
-            # Escape Rich markup in details too
-            safe_detail = detail.replace("[", "\\[").replace("]", "\\]")
-            content += f"• {safe_detail}\n"
-
-    panel = Panel(
-            content.strip(),
-            title=f"[bold red]{title}[/bold red]",
-            border_style="red",
-            padding=(1, 2),
-            width=100
-    )
-    console.print(panel)
-
-    summary = f"{title}: {message}"
-    if details:
-        summary += " | " + " | ".join(details)
-    typer.echo(summary)
+    formatter = get_output_formatter(console=console)
+    formatter.format_error(title, message, details)
 
 
 def show_info_panel(title: str, message: str) -> None:
     """Display an info panel."""
-    panel = Panel(
-            f"ℹ️  {message}",
-            title=f"[bold blue]{title}[/bold blue]",
-            border_style="blue",
-            padding=(1, 2)
-    )
-    console.print(panel)
+    formatter = get_output_formatter(console=console)
+    formatter.format_info(title, message)
 
 
 def _get_service_method(manager, method_name: str):
@@ -1657,10 +1619,8 @@ def repos_credentials_show(
             show_info_panel("No Credentials", f"No {_backend_display_name(backend_type)} credentials stored for '{name}'.")
             return
 
-        table = Table(title=f"{_backend_display_name(backend_type)} Credentials for {name}")
-        table.add_column("Field", style="cyan")
-        table.add_column("Value", style="green")
-
+        # Format credentials data for table display
+        table_data = []
         for key, value in credentials.items():
             display_key = key.replace('_', ' ').title()
             if isinstance(value, str):
@@ -1671,9 +1631,14 @@ def repos_credentials_show(
                 display_value = masked
             else:
                 display_value = str(value)
-            table.add_row(display_key, display_value)
+            table_data.append({"Field": display_key, "Value": display_value})
 
-        console.print(table)
+        formatter = get_output_formatter(console=console)
+        formatter.format_table(
+            data=table_data,
+            columns=["Field", "Value"],
+            title=f"{_backend_display_name(backend_type)} Credentials for {name}"
+        )
     except RepositoryNotFoundError as e:
         show_error_panel("Repository Not Found", str(e))
         raise typer.Exit(1)

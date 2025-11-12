@@ -83,15 +83,15 @@
     - Update tests for PromptService integration
     - _Impact: Eliminates duplication in 25+ commands_
 
-- [ ] 6. Create OutputFormatter for standardized output
-  - [ ] 6.1 Implement OutputFormatter class
+- [x] 6. Create OutputFormatter for standardized output
+  - [x] 6.1 Implement OutputFormatter class
     - Create standardized table/panel creation
     - Add consistent styling and formatting
     - Implement JSON output support
     - Create output templates for common patterns
     - _Impact: ~70 lines saved across commands_
 
-  - [ ] 6.2 Update commands to use OutputFormatter
+  - [x] 6.2 Update commands to use OutputFormatter
     - Refactor all commands with custom output
     - Replace repeated formatting patterns
     - Add consistent styling
