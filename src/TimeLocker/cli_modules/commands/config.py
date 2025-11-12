@@ -68,6 +68,9 @@ from datetime import datetime
 import json
 from difflib import unified_diff
 
+# Validation imports
+from ..validation import validate_path, ValidationError
+
 # Create Typer app
 config_app = create_typer_app(
     name="config",
@@ -306,8 +309,10 @@ def config_validate(
             resolver = ConfigurationPathResolver(config_dir)
             target_file = resolver.get_config_file()
         
-        if not target_file.exists():
-            show_error_panel("Configuration Not Found", f"Configuration file not found: {target_file}")
+        try:
+            validate_path(target_file, must_exist=True, must_be_file=True, field_name="configuration file")
+        except ValidationError as e:
+            show_error_panel("Configuration Not Found", str(e))
             raise typer.Exit(1)
         
         # Load configuration
@@ -414,12 +419,16 @@ def config_diff(
             backup_dir = resolver.get_config_directory() / "backups"
             backup_file = backup_dir / f"{backup_id}.json"
             
-            if not current_file.exists():
-                show_error_panel("Configuration Not Found", f"Current configuration file not found: {current_file}")
+            try:
+                validate_path(current_file, must_exist=True, must_be_file=True, field_name="current configuration file")
+            except ValidationError as e:
+                show_error_panel("Configuration Not Found", str(e))
                 raise typer.Exit(1)
             
-            if not backup_file.exists():
-                show_error_panel("Backup Not Found", f"Backup file not found: {backup_file}")
+            try:
+                validate_path(backup_file, must_exist=True, must_be_file=True, field_name="backup file")
+            except ValidationError as e:
+                show_error_panel("Backup Not Found", str(e))
                 raise typer.Exit(1)
             
             file1, file2 = current_file, backup_file
@@ -429,12 +438,16 @@ def config_diff(
             # Compare two specific files
             file1, file2 = Path(file1), Path(file2)
             
-            if not file1.exists():
-                show_error_panel("File Not Found", f"First configuration file not found: {file1}")
+            try:
+                validate_path(file1, must_exist=True, must_be_file=True, field_name="first configuration file")
+            except ValidationError as e:
+                show_error_panel("File Not Found", str(e))
                 raise typer.Exit(1)
             
-            if not file2.exists():
-                show_error_panel("File Not Found", f"Second configuration file not found: {file2}")
+            try:
+                validate_path(file2, must_exist=True, must_be_file=True, field_name="second configuration file")
+            except ValidationError as e:
+                show_error_panel("File Not Found", str(e))
                 raise typer.Exit(1)
             
             comparison_title = f"{file1.name} vs {file2.name}"

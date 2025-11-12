@@ -41,6 +41,9 @@ from .base import (
     DryRunOption,
 )
 
+# Validation imports
+from ..validation import validate_path, ValidationError
+
 # Create Typer apps
 monitor_app = create_typer_app(
     name="monitor",
@@ -712,7 +715,9 @@ def logs_view(
         log_dir = ConfigurationPathResolver.get_cache_directory() / "logs"
         log_file = log_dir / "timelocker.log"
         
-        if not log_file.exists():
+        try:
+            validate_path(log_file, must_exist=True, must_be_file=True, field_name="log file")
+        except ValidationError:
             show_info_panel("No Logs", f"Log file not found: {log_file}")
             return
         
@@ -804,7 +809,9 @@ def logs_clear(
         log_dir = ConfigurationPathResolver.get_cache_directory() / "logs"
         log_file = log_dir / "timelocker.log"
         
-        if not log_file.exists():
+        try:
+            validate_path(log_file, must_exist=True, must_be_file=True, field_name="log file")
+        except ValidationError:
             show_info_panel("No Logs", "No log file to clear.")
             return
         

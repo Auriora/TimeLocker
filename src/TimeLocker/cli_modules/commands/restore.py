@@ -48,6 +48,9 @@ from TimeLocker.snapshot_browser import SnapshotBrowser, PaginationOptions, Sear
 from TimeLocker.recovery_validator import RecoveryValidator
 from TimeLocker.snapshot_manager import SnapshotManager
 from TimeLocker.restore_manager import RestoreManager
+
+# Validation imports
+from ..validation import validate_path, ValidationError
 from TimeLocker.utils import get_progress_service, ProgressTemplates
 from TimeLocker.interfaces.recovery_models import (
     RecoveryOptions,
@@ -625,12 +628,11 @@ def restore_mount(
     
     try:
         mountpoint_path = Path(mountpoint)
-        if not mountpoint_path.exists():
-            show_error_panel(
-                "Invalid Mount Point",
-                f"Mount point {mountpoint} does not exist"
-            )
-            raise typer.Exit(2)
+        try:
+            validate_path(mountpoint_path, must_exist=True, must_be_directory=True, field_name="mount point")
+        except ValidationError as e:
+            show_error_panel("Invalid Mount Point", str(e))
+            raise typer.Exit(1)
         
         repo = _get_repository(repository, config_dir)
         restore_manager = RestoreManager(repo)

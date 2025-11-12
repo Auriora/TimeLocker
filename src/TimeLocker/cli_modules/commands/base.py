@@ -277,10 +277,12 @@ def validate_not_empty(value: Optional[str], field_name: str) -> str:
         
     Raises:
         ValidationError: If value is None or empty
+        
+    Note:
+        This function is deprecated. Use validation.validate_required_string instead.
     """
-    if not value or not value.strip():
-        raise ValidationError(f"{field_name} cannot be empty")
-    return value.strip()
+    from ..validation import validate_required_string
+    return validate_required_string(value, field_name)
 
 
 def validate_path_exists(path: Path, must_exist: bool = True) -> Path:
@@ -296,12 +298,12 @@ def validate_path_exists(path: Path, must_exist: bool = True) -> Path:
         
     Raises:
         ValidationError: If validation fails
+        
+    Note:
+        This function is deprecated. Use validation.validate_path instead.
     """
-    if must_exist and not path.exists():
-        raise ValidationError(f"Path does not exist: {path}")
-    if not must_exist and path.exists():
-        raise ValidationError(f"Path already exists: {path}")
-    return path
+    from ..validation import validate_path
+    return validate_path(path, must_exist=must_exist, must_not_exist=not must_exist)
 
 
 def create_typer_app(

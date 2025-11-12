@@ -48,6 +48,9 @@ from TimeLocker.cli_services import get_cli_service_manager
 
 # Module-specific imports
 from TimeLocker.services.repository_manager import RepositoryManager
+
+# Validation imports
+from ..validation import validate_repository_name, validate_required_string, ValidationError
 from TimeLocker.services.repository_service import RepositoryService
 from TimeLocker.services.repository_factory import RepositoryFactory
 from TimeLocker.config.configuration_manager import (
@@ -470,12 +473,11 @@ def repos_add(
             else:
                 show_error_panel("Missing Parameter", "Repository name is required in non-interactive mode")
                 raise typer.Exit(2)
-        if not name.strip():
-            show_error_panel("Invalid Repository Name", "Repository name cannot be empty or whitespace")
+        try:
+            name = validate_repository_name(name)
+        except ValidationError as e:
+            show_error_panel("Invalid Repository Name", str(e))
             raise typer.Exit(2)
-        if not re.match(r"^[A-Za-z0-9._-]+$", name):
-            show_error_panel("Invalid Repository Name", "Repository name contains unsupported characters. Use letters, numbers, dashes, underscores, or dots.")
-            raise typer.Exit(1)
         
         # Validate repository URI
         if not uri:
@@ -484,8 +486,10 @@ def repos_add(
             else:
                 show_error_panel("Missing Parameter", "Repository URI is required in non-interactive mode")
                 raise typer.Exit(2)
-        if not uri.strip():
-            show_error_panel("Invalid Repository URI", "Repository URI cannot be empty or whitespace")
+        try:
+            uri = validate_required_string(uri, "Repository URI")
+        except ValidationError as e:
+            show_error_panel("Invalid Repository URI", str(e))
             raise typer.Exit(1)
         if "::" in uri or ("://" not in uri and not uri.startswith(("s3:", "b2:", "rclone:", "rest:", "/"))):
             show_error_panel("Invalid Repository URI", f"Invalid repository URI format: '{uri}'.")
@@ -1331,8 +1335,10 @@ def repos_edit(
         # Update URI if provided
         if uri and uri != current_uri:
             # Validate new URI
-            if not uri.strip():
-                show_error_panel("Invalid URI", "Repository URI cannot be empty")
+            try:
+                uri = validate_required_string(uri, "Repository URI")
+            except ValidationError as e:
+                show_error_panel("Invalid URI", str(e))
                 raise typer.Exit(1)
             
             # Validate URI format
