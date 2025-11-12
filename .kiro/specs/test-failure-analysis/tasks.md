@@ -80,18 +80,18 @@ See `IMPLEMENTATION_STATUS.md` for detailed breakdown.
   - Tests to fix: validate_selection_exists (3 tests), get_selection_summary (2 tests), execute_backup_with_selection (2 tests)
   - _Requirements: 3.1, 3.2, 3.4_
 
-- [ ] 4. Fix Configuration Model Tests (14 tests)
+- [x] 4. Fix Configuration Model Tests (14 tests)
   - Update tests to use correct config model constructors
   - _Requirements: 4.1, 4.2_
 
-- [ ] 4.1 Fix HealthCheckServiceConfig tests (8 tests)
+- [x] 4.1 Fix HealthCheckServiceConfig tests (8 tests)
   - Update `tests/TimeLocker/monitoring/test_health_check_integration.py`
   - Import fixture: `from tests.TimeLocker.fixtures.config_models import health_check_config`
   - Replace inline config creation with fixture usage
   - Remove 'check_id' parameter if not in actual constructor
   - _Requirements: 4.1, 12.1_
 
-- [ ] 4.2 Fix WebhookConfig tests (6 tests)
+- [x] 4.2 Fix WebhookConfig tests (6 tests)
   - Update `tests/TimeLocker/monitoring/test_webhook_integration.py`
   - Import fixture: `from tests.TimeLocker.fixtures.config_models import webhook_config`
   - Replace inline config creation with fixture usage

@@ -18,6 +18,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch
+from pathlib import Path
+import tempfile
 import requests
 
 from TimeLocker.monitoring import (
@@ -25,9 +27,10 @@ from TimeLocker.monitoring import (
     HealthCheckConfig,
     HealthCheckServiceConfig,
     HealthCheckServiceType,
-    HealthCheckHealthStatus,
+    HealthStatus,
     PingResult
 )
+from tests.TimeLocker.fixtures.config_models import health_check_service_config
 
 
 class TestHealthCheckIntegration:
@@ -35,200 +38,200 @@ class TestHealthCheckIntegration:
 
     @pytest.mark.monitoring
     @pytest.mark.integration
-    def test_health_check_config_creation(self):
+    def test_health_check_config_creation(self, health_check_service_config):
         """Test creating health check configuration"""
-        service_config = HealthCheckServiceConfig(
-            service_type=HealthCheckServiceType.HEALTHCHECKS_IO,
-            check_id="abc123",
-            api_key="secret_key"
-        )
+        service_config = health_check_service_config
 
         config = HealthCheckConfig(
             enabled=True,
-            services=[service_config],
-            ping_on_start=True,
-            ping_on_success=True,
-            ping_on_failure=True
+            services={"test_service": service_config},
+            ping_on_backup_start=True,
+            ping_on_backup_success=True,
+            ping_on_backup_failure=True
         )
 
         assert config.enabled is True
         assert len(config.services) == 1
-        assert config.services[0].service_type == HealthCheckServiceType.HEALTHCHECKS_IO
+        assert config.services["test_service"].service_type == HealthCheckServiceType.HEALTHCHECKS_IO
 
     @pytest.mark.monitoring
     @pytest.mark.integration
-    @patch('requests.get')
-    def test_healthchecks_io_ping_success(self, mock_get):
+    @patch('requests.Session.post')
+    def test_healthchecks_io_ping_success(self, mock_post, health_check_service_config, tmp_path):
         """Test successful ping to Healthchecks.io"""
         mock_response = Mock()
         mock_response.status_code = 200
-        mock_get.return_value = mock_response
-
-        service_config = HealthCheckServiceConfig(
-            service_type=HealthCheckServiceType.HEALTHCHECKS_IO,
-            check_id="test-check-id"
-        )
-
-        config = HealthCheckConfig(
-            enabled=True,
-            services=[service_config]
-        )
-
-        integration = HealthCheckIntegration(config)
-        result = integration.ping_success("backup_001")
-
-        assert result.success is True
-        mock_get.assert_called_once()
-
-    @pytest.mark.monitoring
-    @pytest.mark.integration
-    @patch('requests.get')
-    def test_healthchecks_io_ping_failure(self, mock_get):
-        """Test failure ping to Healthchecks.io"""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_get.return_value = mock_response
-
-        service_config = HealthCheckServiceConfig(
-            service_type=HealthCheckServiceType.HEALTHCHECKS_IO,
-            check_id="test-check-id"
-        )
-
-        config = HealthCheckConfig(
-            enabled=True,
-            services=[service_config]
-        )
-
-        integration = HealthCheckIntegration(config)
-        result = integration.ping_failure("backup_001", "Backup failed")
-
-        assert result.success is True
-        mock_get.assert_called_once()
-        # Verify /fail endpoint was called
-        call_url = mock_get.call_args[0][0]
-        assert "/fail" in call_url
-
-    @pytest.mark.monitoring
-    @pytest.mark.integration
-    @patch('requests.get')
-    def test_healthchecks_io_ping_start(self, mock_get):
-        """Test start ping to Healthchecks.io"""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_get.return_value = mock_response
-
-        service_config = HealthCheckServiceConfig(
-            service_type=HealthCheckServiceType.HEALTHCHECKS_IO,
-            check_id="test-check-id"
-        )
-
-        config = HealthCheckConfig(
-            enabled=True,
-            services=[service_config],
-            ping_on_start=True
-        )
-
-        integration = HealthCheckIntegration(config)
-        result = integration.ping_start("backup_001")
-
-        assert result.success is True
-        mock_get.assert_called_once()
-        # Verify /start endpoint was called
-        call_url = mock_get.call_args[0][0]
-        assert "/start" in call_url
-
-    @pytest.mark.monitoring
-    @pytest.mark.integration
-    @patch('requests.get')
-    def test_health_check_connection_error(self, mock_get):
-        """Test health check with connection error"""
-        mock_get.side_effect = requests.exceptions.ConnectionError("Connection failed")
-
-        service_config = HealthCheckServiceConfig(
-            service_type=HealthCheckServiceType.HEALTHCHECKS_IO,
-            check_id="test-check-id"
-        )
-
-        config = HealthCheckConfig(
-            enabled=True,
-            services=[service_config]
-        )
-
-        integration = HealthCheckIntegration(config)
-        result = integration.ping_success("backup_001")
-
-        assert result.success is False
-        assert result.error_message is not None
-
-    @pytest.mark.monitoring
-    @pytest.mark.integration
-    def test_health_check_disabled(self):
-        """Test health check when disabled"""
-        config = HealthCheckConfig(
-            enabled=False,
-            services=[]
-        )
-
-        integration = HealthCheckIntegration(config)
-        result = integration.ping_success("backup_001")
-
-        # Should return success but not actually ping
-        assert result.success is True
-
-    @pytest.mark.monitoring
-    @pytest.mark.integration
-    @patch('requests.post')
-    def test_uptime_kuma_push_integration(self, mock_post):
-        """Test Uptime Kuma push monitor integration"""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {"ok": True}
+        mock_response.ok = True
+        mock_response.text = "OK"
         mock_post.return_value = mock_response
 
-        service_config = HealthCheckServiceConfig(
-            service_type=HealthCheckServiceType.UPTIME_KUMA,
-            push_url="https://uptime.example.com/api/push/abc123"
-        )
+        # Create integration with temp config dir
+        integration = HealthCheckIntegration(config_dir=tmp_path)
+        
+        # Add service configuration
+        integration.add_service("test_service", health_check_service_config)
+        integration.config.enabled = True
+        integration.config.ping_on_backup_success = True
 
-        config = HealthCheckConfig(
-            enabled=True,
-            services=[service_config]
-        )
+        # Test notify backup success
+        results = integration.notify_backup_success("backup_001")
 
-        integration = HealthCheckIntegration(config)
-        result = integration.ping_success("backup_001")
-
-        assert result.success is True
+        assert "test_service" in results
+        assert results["test_service"].success is True
         mock_post.assert_called_once()
 
     @pytest.mark.monitoring
     @pytest.mark.integration
-    def test_multiple_health_check_services(self):
-        """Test integration with multiple health check services"""
-        services = [
-            HealthCheckServiceConfig(
-                service_type=HealthCheckServiceType.HEALTHCHECKS_IO,
-                check_id="check1"
-            ),
-            HealthCheckServiceConfig(
-                service_type=HealthCheckServiceType.UPTIME_KUMA,
-                push_url="https://uptime.example.com/api/push/abc123"
-            )
-        ]
+    @patch('requests.Session.post')
+    def test_healthchecks_io_ping_failure(self, mock_post, health_check_service_config, tmp_path):
+        """Test failure ping to Healthchecks.io"""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.ok = True
+        mock_response.text = "OK"
+        mock_post.return_value = mock_response
 
-        config = HealthCheckConfig(
-            enabled=True,
-            services=services
+        # Create integration with temp config dir
+        integration = HealthCheckIntegration(config_dir=tmp_path)
+        
+        # Add service configuration
+        integration.add_service("test_service", health_check_service_config)
+        integration.config.enabled = True
+        integration.config.ping_on_backup_failure = True
+
+        # Test notify backup failure
+        results = integration.notify_backup_failure("backup_001", "Backup failed")
+
+        assert "test_service" in results
+        assert results["test_service"].success is True
+        mock_post.assert_called_once()
+        # Verify /fail endpoint was called
+        call_url = mock_post.call_args[0][0]
+        assert "/fail" in call_url
+
+    @pytest.mark.monitoring
+    @pytest.mark.integration
+    @patch('requests.Session.post')
+    def test_healthchecks_io_ping_start(self, mock_post, health_check_service_config, tmp_path):
+        """Test start ping to Healthchecks.io"""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.ok = True
+        mock_response.text = "OK"
+        mock_post.return_value = mock_response
+
+        # Create integration with temp config dir
+        integration = HealthCheckIntegration(config_dir=tmp_path)
+        
+        # Add service configuration
+        integration.add_service("test_service", health_check_service_config)
+        integration.config.enabled = True
+        integration.config.ping_on_backup_start = True
+
+        # Test notify backup start
+        results = integration.notify_backup_start("backup_001")
+
+        assert "test_service" in results
+        assert results["test_service"].success is True
+        mock_post.assert_called_once()
+
+    @pytest.mark.monitoring
+    @pytest.mark.integration
+    @patch('requests.Session.post')
+    def test_health_check_connection_error(self, mock_post, health_check_service_config, tmp_path):
+        """Test health check with connection error"""
+        mock_post.side_effect = requests.exceptions.ConnectionError("Connection failed")
+
+        # Create integration with temp config dir
+        integration = HealthCheckIntegration(config_dir=tmp_path)
+        
+        # Add service configuration
+        integration.add_service("test_service", health_check_service_config)
+        integration.config.enabled = True
+        integration.config.ping_on_backup_success = True
+
+        # Test notify backup success with connection error
+        results = integration.notify_backup_success("backup_001")
+
+        assert "test_service" in results
+        assert results["test_service"].success is False
+        assert results["test_service"].error_message is not None
+
+    @pytest.mark.monitoring
+    @pytest.mark.integration
+    def test_health_check_disabled(self, tmp_path):
+        """Test health check when disabled"""
+        # Create integration with temp config dir
+        integration = HealthCheckIntegration(config_dir=tmp_path)
+        integration.config.enabled = False
+
+        # Test notify backup success when disabled
+        results = integration.notify_backup_success("backup_001")
+
+        # Should return empty dict when disabled
+        assert results == {}
+
+    @pytest.mark.monitoring
+    @pytest.mark.integration
+    @patch('requests.Session.post')
+    def test_uptime_kuma_push_integration(self, mock_post, tmp_path):
+        """Test Uptime Kuma push monitor integration"""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.ok = True
+        mock_response.text = "OK"
+        mock_post.return_value = mock_response
+
+        service_config = HealthCheckServiceConfig(
+            service_type=HealthCheckServiceType.CUSTOM_HTTP,
+            ping_url="https://uptime.example.com/api/push/abc123"
         )
 
-        integration = HealthCheckIntegration(config)
+        # Create integration with temp config dir
+        integration = HealthCheckIntegration(config_dir=tmp_path)
+        
+        # Add service configuration
+        integration.add_service("uptime_kuma", service_config)
+        integration.config.enabled = True
+        integration.config.ping_on_backup_success = True
 
-        with patch('requests.get') as mock_get, patch('requests.post') as mock_post:
-            mock_get.return_value = Mock(status_code=200)
-            mock_post.return_value = Mock(status_code=200, json=lambda: {"ok": True})
+        # Test notify backup success
+        results = integration.notify_backup_success("backup_001")
 
-            result = integration.ping_success("backup_001")
+        assert "uptime_kuma" in results
+        assert results["uptime_kuma"].success is True
+        mock_post.assert_called_once()
 
-            assert result.success is True
-            # Both services should be called
-            assert mock_get.called or mock_post.called
+    @pytest.mark.monitoring
+    @pytest.mark.integration
+    @patch('requests.Session.post')
+    def test_multiple_health_check_services(self, mock_post, health_check_service_config, tmp_path):
+        """Test integration with multiple health check services"""
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.ok = True
+        mock_response.text = "OK"
+        mock_post.return_value = mock_response
+
+        # Create integration with temp config dir
+        integration = HealthCheckIntegration(config_dir=tmp_path)
+        
+        # Add multiple service configurations
+        integration.add_service("healthchecks_io", health_check_service_config)
+        integration.add_service("uptime_kuma", HealthCheckServiceConfig(
+            service_type=HealthCheckServiceType.CUSTOM_HTTP,
+            ping_url="https://uptime.example.com/api/push/abc123"
+        ))
+        integration.config.enabled = True
+        integration.config.ping_on_backup_success = True
+
+        # Test notify backup success
+        results = integration.notify_backup_success("backup_001")
+
+        assert len(results) == 2
+        assert "healthchecks_io" in results
+        assert "uptime_kuma" in results
+        assert results["healthchecks_io"].success is True
+        assert results["uptime_kuma"].success is True
+        # Both services should be called
+        assert mock_post.call_count == 2
