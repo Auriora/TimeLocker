@@ -49,6 +49,14 @@ from .output_formatter import (
     get_output_formatter
 )
 
+from .progress_service import (
+    ProgressService,
+    ProgressContext,
+    ProgressType,
+    ProgressTemplates,
+    get_progress_service
+)
+
 __all__ = [
         # Performance utilities
         'PerformanceModule',
@@ -86,5 +94,12 @@ __all__ = [
         # Output formatter utilities
         'OutputFormatter',
         'OutputFormat',
-        'get_output_formatter'
+        'get_output_formatter',
+        
+        # Progress service utilities
+        'ProgressService',
+        'ProgressContext',
+        'ProgressType',
+        'ProgressTemplates',
+        'get_progress_service'
 ]

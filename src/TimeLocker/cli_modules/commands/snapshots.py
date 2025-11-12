@@ -40,8 +40,8 @@ from .base import (
     DryRunOption,
 )
 
-# Import OutputFormatter for standardized output
-from TimeLocker.utils import get_output_formatter
+# Import OutputFormatter and ProgressService for standardized output and progress tracking
+from TimeLocker.utils import get_output_formatter, get_progress_service, ProgressTemplates
 
 # Import from TimeLocker package
 from TimeLocker import cli as _cli_module
@@ -178,12 +178,8 @@ def snapshots_restore_deprecated(
     # Use the provided snapshot_id directly
     snapshot = snapshot_id
     if snapshot == "latest":
-        with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console,
-        ) as progress:
-            task = progress.add_task("Finding latest snapshot...", total=None)
+        progress_service = get_progress_service(console=console)
+        with progress_service.spinner("Finding latest snapshot...") as progress:
             backup_manager = BackupManager()
             repo = backup_manager.from_uri(repository_uri, password=password, repository_name=actual_repository_name)
             snapshot_manager = SnapshotManager(repo)
@@ -195,7 +191,6 @@ def snapshots_restore_deprecated(
 
             snapshot = snapshots[0].id  # Assuming first is latest
             console.print(f"📸 Using latest snapshot: [bold cyan]{snapshot[:12]}[/bold cyan]")
-            progress.remove_task(task)
 
     if not snapshot:
         if interactive:
@@ -232,20 +227,14 @@ def snapshots_restore_deprecated(
                 raise typer.Exit(0)
 
     try:
-        with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                TimeElapsedColumn(),
-                console=console,
-        ) as progress:
+        progress_service = get_progress_service(console=console)
+        with progress_service.spinner("Initializing restore...") as progress:
 
             # Initialize managers
-            task = progress.add_task("Initializing restore...", total=None)
             backup_manager = BackupManager()
 
             # Create repository
-            progress.update(task, description="Connecting to repository...")
+            progress.update(description="Connecting to repository...")
             repo = backup_manager.from_uri(repository_uri, password=password, repository_name=actual_repository_name)
 
             # Initialize restore manager with repository
@@ -414,18 +403,12 @@ def snapshots_list(
         raise typer.Exit(1)
 
     try:
-        with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                console=console,
-        ) as progress:
-
-            task = progress.add_task("Loading snapshots...", total=None)
-            progress.update(task, description="Connecting to repository...")
+        progress_service = get_progress_service(console=console)
+        with progress_service.spinner("Loading snapshots...") as progress:
+            progress.update(description="Connecting to repository...")
             snapshot_manager = SnapshotManager(repo)
-            progress.update(task, description="Retrieving snapshots...")
+            progress.update(description="Retrieving snapshots...")
             snapshots = snapshot_manager.list_snapshots()
-            progress.remove_task(task)
 
         if not snapshots:
             show_info_panel("No Snapshots", "No snapshots found in repository")

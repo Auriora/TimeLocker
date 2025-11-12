@@ -40,6 +40,7 @@ from TimeLocker.config.configuration_manager import RepositoryNotFoundError
 from TimeLocker.interfaces.exceptions import ConfigurationError
 from TimeLocker.utils.repository_resolver import validate_repository_name_or_uri
 from TimeLocker.utils.snapshot_validation import validate_snapshot_id_format
+from TimeLocker.utils import get_progress_service, ProgressTemplates
 
 # Create Typer app for backup operations
 CLI_CONTEXT_SETTINGS = {"max_content_width": 110}
@@ -256,22 +257,16 @@ def backup_create(
     try:
         logger = logging.getLogger(__name__)
         logger.debug(f"Starting backup execution with repository_uri: {repository_uri}")
-        with Progress(
-                SpinnerColumn(),
-                TextColumn("[progress.description]{task.description}"),
-                BarColumn(),
-                TimeElapsedColumn(),
-                console=console,
-        ) as progress:
+        progress_service = get_progress_service(console=console)
+        with progress_service.spinner("Initializing backup...") as progress:
 
             # Initialize service manager
-            task = progress.add_task("Initializing backup...", total=None)
             logger.debug("About to call get_cli_service_manager()")
             service_manager = get_cli_service_manager()
             logger.debug(f"Service manager created: {type(service_manager)}")
 
             # Create backup request
-            progress.update(task, description="Preparing backup request...")
+            progress.update(description="Preparing backup request...")
             logger.debug(f"Creating CLIBackupRequest with sources={sources}, repository_uri={repository_uri}, target_name={target}")
             logger.debug(f"CLI collected password: {'***' if password else 'None'}")
             backup_request = CLIBackupRequest(

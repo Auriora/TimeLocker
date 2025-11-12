@@ -72,6 +72,7 @@ from TimeLocker.utils.repository_resolver import (
     validate_repository_name_or_uri,
     resolve_repository_uri
 )
+from TimeLocker.utils import get_progress_service, ProgressTemplates
 from TimeLocker.cli_helpers import store_backend_credentials as store_backend_credentials_helper
 from urllib.parse import urlparse
 import re
@@ -2061,14 +2062,8 @@ def repos_prune(
             console.print(f"[cyan]Pruning repository '{name}'...[/cyan]")
         
         # Execute prune with progress indicator
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TimeElapsedColumn(),
-            console=console
-        ) as progress:
-            task = progress.add_task("Pruning..." if not dry_run else "Analyzing...", total=None)
+        progress_service = get_progress_service(console=console)
+        with progress_service.spinner("Pruning..." if not dry_run else "Analyzing..."):
             
             # Build prune parameters
             prune_params = {
@@ -2189,15 +2184,8 @@ def repos_validate(
         
         console.print(f"[cyan]Validating repository '{name}'...[/cyan]")
         
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TimeElapsedColumn(),
-            console=console
-        ) as progress:
-            task = progress.add_task("Validating...", total=None)
-            
+        progress_service = get_progress_service(console=console)
+        with progress_service.spinner("Validating..."):
             # Call validation method
             result = _call_service_method(
                 validate_method,
@@ -2207,8 +2195,6 @@ def repos_validate(
                 check_connectivity=check_connectivity,
                 check_integrity=check_integrity
             )
-            
-            progress.update(task, completed=True)
         
         # Parse validation result
         if isinstance(result, dict):

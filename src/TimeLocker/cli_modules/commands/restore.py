@@ -48,6 +48,7 @@ from TimeLocker.snapshot_browser import SnapshotBrowser, PaginationOptions, Sear
 from TimeLocker.recovery_validator import RecoveryValidator
 from TimeLocker.snapshot_manager import SnapshotManager
 from TimeLocker.restore_manager import RestoreManager
+from TimeLocker.utils import get_progress_service, ProgressTemplates
 from TimeLocker.interfaces.recovery_models import (
     RecoveryOptions,
     RecoveryType,
@@ -126,12 +127,8 @@ def restore_list(
         repo = _get_repository(repository, config_dir)
         snapshot_manager = SnapshotManager(repo)
         
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            console=console
-        ) as progress:
-            progress.add_task("Loading snapshots...", total=None)
+        progress_service = get_progress_service(console=console)
+        with progress_service.spinner("Loading snapshots..."):
             snapshots = snapshot_manager.list_snapshots()
         
         if not snapshots:
@@ -344,16 +341,8 @@ def restore_full(
         
         console.print(f"[cyan]Starting full restoration of snapshot {snapshot_id[:12]}...[/cyan]")
         
-        with Progress(
-            SpinnerColumn(),
-            TextColumn("[progress.description]{task.description}"),
-            BarColumn(),
-            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-            TimeElapsedColumn(),
-            console=console
-        ) as progress:
-            task = progress.add_task("Restoring...", total=100)
-            
+        progress_service = get_progress_service(console=console)
+        with progress_service.bar("Restoring...", total=100, show_time=True) as progress:
             operation = orchestrator.initiate_full_recovery(
                 snapshot_id=snapshot_id,
                 target_path=str(target_path),
@@ -364,7 +353,7 @@ def restore_full(
             while operation.status.value in ['pending', 'running', 'validating']:
                 status = orchestrator.get_recovery_status(operation.operation_id)
                 if status.progress:
-                    progress.update(task, completed=status.progress.files_processed)
+                    progress.update(advance=status.progress.files_processed - progress.completed)
                 operation = status
         
         if operation.status.value == 'completed':
