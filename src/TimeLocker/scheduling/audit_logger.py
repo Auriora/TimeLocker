@@ -469,3 +469,57 @@ class SchedulingAuditLogger:
                     
         except Exception as e:
             self.logger.error(f"Failed to cleanup old audit logs: {e}")
+
+    def log_test_execution(
+        self,
+        schedule_id: str,
+        test_details: Dict[str, Any]
+    ) -> None:
+        """
+        Log test execution event.
+        
+        Args:
+            schedule_id: Schedule identifier
+            test_details: Test execution details
+        """
+        entry = AuditEntry(
+            timestamp=datetime.utcnow(),
+            event_type=AuditEventType.EXECUTION_STARTED,  # Reuse existing type
+            schedule_id=schedule_id,
+            execution_id=None,
+            user=None,
+            details={
+                'test_execution': True,
+                **test_details
+            }
+        )
+        
+        self._write_audit_entry(entry)
+        self.logger.info(f"Audit: Test execution - {schedule_id}")
+    
+    def log_diagnostic_run(
+        self,
+        schedule_id: str,
+        diagnostic_details: Dict[str, Any]
+    ) -> None:
+        """
+        Log diagnostic run event.
+        
+        Args:
+            schedule_id: Schedule identifier
+            diagnostic_details: Diagnostic execution details
+        """
+        entry = AuditEntry(
+            timestamp=datetime.utcnow(),
+            event_type=AuditEventType.VALIDATION_FAILED,  # Reuse existing type
+            schedule_id=schedule_id,
+            execution_id=None,
+            user=None,
+            details={
+                'diagnostic_run': True,
+                **diagnostic_details
+            }
+        )
+        
+        self._write_audit_entry(entry)
+        self.logger.info(f"Audit: Diagnostic run - {schedule_id}")

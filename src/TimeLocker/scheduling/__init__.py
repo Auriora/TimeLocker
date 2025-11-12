@@ -122,6 +122,15 @@ from .credential_integration import (
 # Automation engine
 from .automation_engine import AutomationEngine, ErrorSeverity
 
+# Validation and testing
+from .schedule_validator import ScheduleValidator
+from .schedule_testing import (
+    ScheduleTester,
+    TestExecutionResult,
+    HealthCheckResult,
+    DiagnosticResult
+)
+
 __all__ = [
     # Core components
     'ScheduleManager',
@@ -196,5 +205,12 @@ __all__ = [
     
     # Automation engine
     'AutomationEngine',
-    'ErrorSeverity'
+    'ErrorSeverity',
+    
+    # Validation and testing
+    'ScheduleValidator',
+    'ScheduleTester',
+    'TestExecutionResult',
+    'HealthCheckResult',
+    'DiagnosticResult'
 ]

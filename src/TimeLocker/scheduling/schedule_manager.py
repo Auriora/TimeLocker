@@ -54,6 +54,8 @@ from .integration_clients import (
 )
 from .audit_logger import SchedulingAuditLogger
 from .schedule_storage import ScheduleStorage
+from .schedule_validator import ScheduleValidator
+from .schedule_testing import ScheduleTester, TestExecutionResult, HealthCheckResult, DiagnosticResult
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +126,22 @@ class ScheduleManager:
         
         # Initialize schedule storage
         self.storage = ScheduleStorage(self.config_dir / "schedules")
+        
+        # Initialize validator and tester
+        self.validator = ScheduleValidator(
+            platform_adapter=self.adapter,
+            policy_client=self.policy_client,
+            data_selection_client=self.data_selection_client,
+            repository_client=self.repository_client
+        )
+        
+        self.tester = ScheduleTester(
+            platform_adapter=self.adapter,
+            validator=self.validator,
+            policy_client=self.policy_client,
+            data_selection_client=self.data_selection_client,
+            repository_client=self.repository_client
+        )
         
         # In-memory cache of schedules
         self._schedules: Dict[str, ScheduleConfig] = {}
@@ -845,3 +863,178 @@ class ScheduleManager:
         except Exception as e:
             self.logger.error(f"Failed to get audit trail: {e}")
             return []
+    
+    async def test_schedule_execution(
+        self,
+        schedule_id: str,
+        dry_run: bool = True
+    ) -> TestExecutionResult:
+        """
+        Test schedule execution with optional dry-run mode.
+        
+        Args:
+            schedule_id: Schedule identifier
+            dry_run: If True, simulate execution without actual backup
+            
+        Returns:
+            TestExecutionResult with test results
+            
+        Raises:
+            SchedulingError: If schedule not found
+        """
+        try:
+            if schedule_id not in self._schedules:
+                raise SchedulingError(f"Schedule not found: {schedule_id}")
+            
+            schedule_config = self._schedules[schedule_id]
+            
+            # Run test execution
+            result = await self.tester.test_schedule_execution(schedule_config, dry_run)
+            
+            # Log test execution
+            self.audit_logger.log_test_execution(
+                schedule_id,
+                {
+                    'dry_run': dry_run,
+                    'success': result.success,
+                    'errors': result.errors,
+                    'warnings': result.warnings
+                }
+            )
+            
+            self.logger.info(f"Test execution completed for schedule {schedule_id}: {'success' if result.success else 'failed'}")
+            
+            return result
+            
+        except SchedulingError:
+            raise
+        except Exception as e:
+            error_msg = f"Failed to test schedule execution: {e}"
+            self.logger.error(error_msg)
+            raise SchedulingError(error_msg) from e
+    
+    async def check_platform_health(self) -> HealthCheckResult:
+        """
+        Check health of platform scheduler.
+        
+        Returns:
+            HealthCheckResult with platform scheduler health status
+        """
+        try:
+            result = await self.tester.check_platform_scheduler_health()
+            
+            self.logger.info(f"Platform health check: {'healthy' if result.is_healthy else 'unhealthy'}")
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Platform health check failed: {e}")
+            return HealthCheckResult(
+                is_healthy=False,
+                check_type="platform_scheduler",
+                timestamp=datetime.utcnow(),
+                details={'error': str(e)},
+                issues=[f"Health check error: {str(e)}"],
+                recommendations=["Check platform scheduler installation and permissions"]
+            )
+    
+    async def check_system_resources(self) -> HealthCheckResult:
+        """
+        Check system resources for scheduled backup execution.
+        
+        Returns:
+            HealthCheckResult with system resource status
+        """
+        try:
+            result = await self.tester.check_system_resources()
+            
+            self.logger.info(f"System resources check: {'healthy' if result.is_healthy else 'issues found'}")
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"System resources check failed: {e}")
+            return HealthCheckResult(
+                is_healthy=False,
+                check_type="system_resources",
+                timestamp=datetime.utcnow(),
+                details={'error': str(e)},
+                issues=[f"Health check error: {str(e)}"],
+                recommendations=["Check system configuration and permissions"]
+            )
+    
+    async def run_schedule_diagnostic(self, schedule_id: str) -> DiagnosticResult:
+        """
+        Run comprehensive diagnostic for a schedule.
+        
+        Args:
+            schedule_id: Schedule identifier
+            
+        Returns:
+            DiagnosticResult with diagnostic information
+            
+        Raises:
+            SchedulingError: If schedule not found
+        """
+        try:
+            if schedule_id not in self._schedules:
+                raise SchedulingError(f"Schedule not found: {schedule_id}")
+            
+            schedule_config = self._schedules[schedule_id]
+            
+            # Run diagnostic
+            result = await self.tester.run_diagnostic(schedule_config)
+            
+            # Log diagnostic execution
+            self.audit_logger.log_diagnostic_run(
+                schedule_id,
+                {
+                    'issues_found': len(result.issues_found),
+                    'recommendations': len(result.recommendations)
+                }
+            )
+            
+            self.logger.info(f"Diagnostic completed for schedule {schedule_id}: {len(result.issues_found)} issues found")
+            
+            return result
+            
+        except SchedulingError:
+            raise
+        except Exception as e:
+            error_msg = f"Failed to run diagnostic: {e}"
+            self.logger.error(error_msg)
+            raise SchedulingError(error_msg) from e
+    
+    async def check_schedule_conflicts(self, schedule_id: str) -> HealthCheckResult:
+        """
+        Check for scheduling conflicts with existing schedules.
+        
+        Args:
+            schedule_id: Schedule identifier
+            
+        Returns:
+            HealthCheckResult with conflict information
+            
+        Raises:
+            SchedulingError: If schedule not found
+        """
+        try:
+            if schedule_id not in self._schedules:
+                raise SchedulingError(f"Schedule not found: {schedule_id}")
+            
+            schedule_config = self._schedules[schedule_id]
+            existing_schedules = list(self._schedules.values())
+            
+            # Check for conflicts
+            result = await self.tester.check_schedule_conflicts(schedule_config, existing_schedules)
+            
+            self.logger.info(f"Conflict check for schedule {schedule_id}: {len(result.issues)} conflicts found")
+            
+            return result
+            
+        except SchedulingError:
+            raise
+        except Exception as e:
+            error_msg = f"Failed to check schedule conflicts: {e}"
+            self.logger.error(error_msg)
+            raise SchedulingError(error_msg) from e
