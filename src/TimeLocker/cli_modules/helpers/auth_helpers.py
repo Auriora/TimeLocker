@@ -99,7 +99,7 @@ def _ensure_manager_unlocked(manager: 'CredentialManager', master_password: Opti
         typer.Exit: If manager cannot be unlocked
     """
     import typer
-    from rich.prompt import Prompt
+    from TimeLocker.utils import PromptService, PromptError
     from .display import show_error_panel, console
     
     if manager.is_unlocked():
@@ -107,7 +107,11 @@ def _ensure_manager_unlocked(manager: 'CredentialManager', master_password: Opti
     
     password = master_password
     if not password and interactive:
-        password = Prompt.ask("Enter master password", password=True, console=console)
+        prompt_service = PromptService(console=console)
+        try:
+            password = prompt_service.prompt_password("Enter master password", required=True)
+        except PromptError:
+            pass
     
     if not password:
         show_error_panel("Authentication Required", "Master password is required to access credentials.")

@@ -426,7 +426,7 @@ CLI Refactoring:          ████████████░░░░░░
 #### Task Order
 
 1. **PromptService**
-   - [ ] Create PromptService
+   - [x] Create PromptService
      - Centralized interactive prompts
      - Consistent non-interactive handling
 

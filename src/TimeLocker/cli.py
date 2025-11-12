@@ -27,11 +27,12 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
-from rich.prompt import Confirm, Prompt
 from rich.text import Text
 from rich.tree import Tree
 from rich import print as rprint
 from rich.logging import RichHandler
+
+from .utils import PromptService, PromptError
 
 from . import __version__
 from .backup_manager import BackupManager
@@ -1495,10 +1496,15 @@ def repos_credentials_set(
                     raise
                 # Non-interactive paths rely on auto unlock or environment variables
 
-        access_key = Prompt.ask("AWS Access Key ID")
-        secret_key = Prompt.ask("AWS Secret Access Key", password=True)
-        region = Prompt.ask("AWS Region", default="")
-        insecure_tls = Confirm.ask("Allow insecure TLS (skip certificate verification)?", default=False)
+        prompt_service = PromptService(console=console)
+        try:
+            access_key = prompt_service.prompt_text("AWS Access Key ID", required=True)
+            secret_key = prompt_service.prompt_password("AWS Secret Access Key", required=True)
+            region = prompt_service.prompt_text("AWS Region", default="", required=False)
+            insecure_tls = prompt_service.prompt_confirm("Allow insecure TLS (skip certificate verification)?", default=False)
+        except PromptError as e:
+            show_error_panel("Missing Parameter", str(e))
+            raise typer.Exit(2)
 
         credentials_payload = {
                 "access_key_id":     access_key,
@@ -1565,7 +1571,8 @@ def repos_credentials_remove(
         confirmed = yes
         if not confirmed:
             if interactive:
-                confirmed = Confirm.ask(f"Remove {_backend_display_name(backend_type)} credentials for '{name}'?", default=False)
+                prompt_service = PromptService(console=console)
+                confirmed = prompt_service.prompt_confirm(f"Remove {_backend_display_name(backend_type)} credentials for '{name}'?", default=False)
                 if not confirmed:
                     show_info_panel("Operation Cancelled", "Credential removal cancelled.")
                     raise typer.Exit(0)
@@ -1689,8 +1696,12 @@ def _ensure_manager_unlocked(manager, master_password: Optional[str], interactiv
 
     if master_password is None:
         if interactive:
-            master_password = Prompt.ask("Master password", password=True)
-        else:
+            prompt_service = PromptService(console=console)
+            try:
+                master_password = prompt_service.prompt_password("Master password", required=True)
+            except PromptError:
+                pass
+        if master_password is None:
             show_error_panel("Credential Manager Locked", "Provide --master-password to unlock before proceeding.")
             raise typer.Exit(1)
 
@@ -2157,7 +2168,8 @@ def config_import_config(
         
         # Confirm import
         if not dry_run and not yes and interactive:
-            if not Confirm.ask("Proceed with import?"):
+            prompt_service = PromptService(console=console)
+            if not prompt_service.prompt_confirm("Proceed with import?", default=False):
                 show_info_panel("Import Cancelled", "Configuration import cancelled by user")
                 raise typer.Exit(0)
         

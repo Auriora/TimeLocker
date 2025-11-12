@@ -37,6 +37,12 @@ from .service_facade import (
     create_service_facade
 )
 
+from .prompt_service import (
+    PromptService,
+    PromptError,
+    get_prompt_service
+)
+
 __all__ = [
         # Performance utilities
         'PerformanceModule',
@@ -64,5 +70,10 @@ __all__ = [
         'ServiceFacadeError',
         'ServiceInitializationError',
         'ServiceAccessError',
-        'create_service_facade'
+        'create_service_facade',
+        
+        # Prompt service utilities
+        'PromptService',
+        'PromptError',
+        'get_prompt_service'
 ]

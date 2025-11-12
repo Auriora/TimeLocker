@@ -15,8 +15,8 @@ from typing import Optional, Dict, Any, Callable
 import sys
 
 from rich.console import Console
-from rich.prompt import Confirm
 
+from TimeLocker.utils import PromptService, PromptError
 from .interactive import is_interactive, ValidationError
 from .wizards import (
     repository_creation_wizard,
@@ -26,6 +26,7 @@ from .wizards import (
 )
 
 console = Console(width=100)
+_prompt_service = PromptService(console=console)
 
 
 def with_interactive_fallback(
@@ -70,7 +71,7 @@ def with_interactive_fallback(
     # Interactive mode - offer to use wizard
     console.print(f"\n[yellow]Missing required parameters: {', '.join(missing_params)}[/yellow]")
     
-    if Confirm.ask("Would you like to use the configuration wizard?", default=True):
+    if _prompt_service.prompt_confirm("Would you like to use the configuration wizard?", default=True):
         try:
             # Launch wizard with any provided parameters
             wizard_config = wizard_func(
@@ -118,7 +119,7 @@ def ensure_repository_exists(
         
         if allow_creation:
             console.print("[yellow]No repository specified.[/yellow]")
-            if Confirm.ask("Would you like to create a new repository?", default=True):
+            if _prompt_service.prompt_confirm("Would you like to create a new repository?", default=True):
                 try:
                     repo_config = repository_creation_wizard(
                         config_module=config_module,
@@ -141,7 +142,7 @@ def ensure_repository_exists(
         
         console.print(f"[yellow]Repository '{repository_name}' not found.[/yellow]")
         
-        if Confirm.ask("Would you like to create it now?", default=True):
+        if _prompt_service.prompt_confirm("Would you like to create it now?", default=True):
             try:
                 repo_config = repository_creation_wizard(
                     config_module=config_module,
@@ -185,7 +186,7 @@ def ensure_policy_exists(
         
         if allow_creation:
             console.print("[yellow]No policy specified.[/yellow]")
-            if Confirm.ask("Would you like to create a new policy?", default=True):
+            if _prompt_service.prompt_confirm("Would you like to create a new policy?", default=True):
                 try:
                     policy_config = policy_creation_wizard(
                         config_module=config_module

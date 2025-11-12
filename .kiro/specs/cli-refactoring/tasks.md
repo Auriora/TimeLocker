@@ -68,15 +68,15 @@
 
 **Impact**: ~220 lines saved, improved user experience
 
-- [ ] 5. Create PromptService for centralized interactive prompts
-  - [ ] 5.1 Implement PromptService class
+- [x] 5. Create PromptService for centralized interactive prompts
+  - [x] 5.1 Implement PromptService class
     - Create unified prompt interface
     - Add consistent non-interactive handling
     - Implement prompt validation patterns
     - Create reusable prompt templates
     - _Impact: ~80 lines saved across commands_
 
-  - [ ] 5.2 Update commands to use PromptService
+  - [x] 5.2 Update commands to use PromptService
     - Refactor all commands with interactive prompts
     - Replace repeated prompt patterns
     - Add consistent validation

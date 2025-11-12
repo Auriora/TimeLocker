@@ -14,7 +14,6 @@ import typer
 import click
 from rich.table import Table
 from rich.panel import Panel
-from rich.prompt import Confirm, Prompt
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 
 # Import from base module (Phase 3 patterns)
@@ -39,6 +38,9 @@ from .base import (
     ConfigDirOption,
     DryRunOption,
 )
+
+# Import PromptService
+from TimeLocker.utils import PromptService, PromptError
 
 # Import from TimeLocker package
 from TimeLocker import cli as _cli_module
@@ -74,7 +76,7 @@ def credentials_unlock(
 ) -> None:
     """Unlock the credential manager using the master password."""
     setup_logging(verbose, config_dir)
-    interactive = sys.stdin.isatty()
+    prompt_service = PromptService(console=console)
     try:
         try:
             service_manager = get_cli_service_manager()
@@ -98,10 +100,10 @@ def credentials_unlock(
                     logging.getLogger(__name__).debug("Service credential unlock failed, falling back to local unlock: %s", exc)
 
         if not password:
-            if interactive:
-                password = Prompt.ask("Master password", password=True)
-            else:
-                show_error_panel("Missing Parameter", "Master password is required in non-interactive mode")
+            try:
+                password = prompt_service.prompt_password("Master password", required=True)
+            except PromptError as e:
+                show_error_panel("Missing Parameter", str(e))
                 raise typer.Exit(2)
 
         manager = _create_credential_manager(config_dir)
@@ -135,7 +137,7 @@ def credentials_store(
 ) -> None:
     """Store repository password in the credential manager."""
     setup_logging(verbose, config_dir)
-    interactive = sys.stdin.isatty()
+    prompt_service = PromptService(console=console)
     try:
         try:
             service_manager = get_cli_service_manager()
@@ -143,10 +145,10 @@ def credentials_store(
             service_manager = None
 
         if not password:
-            if interactive:
-                password = Prompt.ask("Repository password", password=True)
-            else:
-                show_error_panel("Missing Parameter", "Repository password is required in non-interactive mode")
+            try:
+                password = prompt_service.prompt_password("Repository password", required=True)
+            except PromptError as e:
+                show_error_panel("Missing Parameter", str(e))
                 raise typer.Exit(2)
 
         if service_manager:
@@ -166,7 +168,7 @@ def credentials_store(
                     logging.getLogger(__name__).debug("Service password store failed, falling back to credential manager: %s", exc)
 
         manager = _create_credential_manager(config_dir)
-        _ensure_manager_unlocked(manager, master_password, interactive)
+        _ensure_manager_unlocked(manager, master_password, prompt_service.is_interactive())
 
         result = manager.store_repository_password(repository, password)
         if result is False:
@@ -213,10 +215,10 @@ def credentials_list(
 ) -> None:
     """List repositories with stored credentials."""
     setup_logging(verbose, config_dir)
-    interactive = sys.stdin.isatty()
+    prompt_service = PromptService(console=console)
     try:
         manager = _create_credential_manager(config_dir)
-        _ensure_manager_unlocked(manager, password, interactive)
+        _ensure_manager_unlocked(manager, password, prompt_service.is_interactive())
 
         repositories = manager.list_repositories() if hasattr(manager, "list_repositories") else []
 
@@ -256,7 +258,7 @@ def credentials_remove(
 ) -> None:
     """Remove stored credentials for a repository."""
     setup_logging(verbose, config_dir)
-    interactive = sys.stdin.isatty()
+    prompt_service = PromptService(console=console)
     try:
         try:
             service_manager = get_cli_service_manager()
@@ -280,7 +282,7 @@ def credentials_remove(
                     logging.getLogger(__name__).debug("Service credential removal failed, falling back to local removal: %s", exc)
 
         manager = _create_credential_manager(config_dir)
-        _ensure_manager_unlocked(manager, password, interactive)
+        _ensure_manager_unlocked(manager, password, prompt_service.is_interactive())
 
         result = manager.remove_repository(repository)
         if result:
