@@ -5,6 +5,7 @@ Tests backup creation, restoration, comparison, validation, and cleanup
 with various scenarios and edge cases.
 """
 
+import copy
 import json
 import time
 import tempfile
@@ -148,7 +149,7 @@ class TestConfigurationBackupManager:
         backup_id = self.backup_manager.create_backup(self.config_file, BackupReason.MANUAL)
         
         # Modify original file
-        modified_config = self.test_config.copy()
+        modified_config = copy.deepcopy(self.test_config)
         modified_config["general"]["version"] = "2.0.0"
         modified_config["new_section"] = {"new_key": "new_value"}
         
@@ -201,7 +202,7 @@ class TestConfigurationBackupManager:
         backup1_id = self.backup_manager.create_backup(self.config_file, BackupReason.MANUAL)
         
         # Modify configuration
-        modified_config = self.test_config.copy()
+        modified_config = copy.deepcopy(self.test_config)
         modified_config["general"]["version"] = "2.0.0"
         modified_config["general"]["new_setting"] = "new_value"
         del modified_config["backup"]["exclude_caches"]
@@ -249,7 +250,7 @@ class TestConfigurationBackupManager:
         backup_id = self.backup_manager.create_backup(self.config_file, BackupReason.MANUAL)
         
         # Modify only the general section
-        modified_config = self.test_config.copy()
+        modified_config = copy.deepcopy(self.test_config)
         modified_config["general"] = {
             "app_name": "Modified TimeLocker",
             "version": "3.0.0",

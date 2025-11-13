@@ -22,6 +22,7 @@ import subprocess
 from abc import abstractmethod
 from pathlib import Path
 from typing import Dict, List, Optional
+from urllib.parse import urlparse
 
 from packaging import version
 
@@ -45,6 +46,28 @@ RESTIC_MIN_VERSION = "0.18.0"
 
 
 class ResticRepository(BackupRepository):
+    @classmethod
+    def from_uri(cls, uri: str, password: Optional[str] = None, **kwargs) -> "ResticRepository":
+        """
+        Construct a repository instance from a restic URI.
+
+        Subclasses implement the heavy lifting in ``from_parsed_uri`` because
+        they understand backend-specific semantics (local path vs S3/B2, etc.).
+        This helper keeps the abstract ``BackupRepository.from_uri`` contract
+        satisfied so concrete subclasses remain instantiable in tests.
+        """
+        parsed = urlparse(uri)
+        return cls.from_parsed_uri(parsed, password=password, **kwargs)
+
+    @classmethod
+    def from_parsed_uri(cls, parsed_uri, password: Optional[str] = None, **kwargs) -> "ResticRepository":
+        """
+        Subclasses must override this helper. It exists solely so ``from_uri``
+        can provide a consistent entry point while deferring backend-specific
+        parsing logic.
+        """
+        raise NotImplementedError("Subclasses must implement from_parsed_uri")
+
     def __init__(self, location: str, tags: Optional[List[str]] = None, password: Optional[str] = None,
                  min_version: str = RESTIC_MIN_VERSION, credential_manager: Optional[CredentialManager] = None):
         logger.debug(f"Initializing repository at location: {location}")
@@ -182,6 +205,45 @@ class ResticRepository(BackupRepository):
 
     def uri(self) -> str:
         return f"{self._location}"
+
+    @property
+    def name(self) -> str:
+        """Human-friendly identifier derived from the repository location"""
+        path = Path(self._location)
+        return path.name or self._location
+
+    def initialize_repository(self, password: Optional[str] = None) -> bool:
+        """
+        Default implementation delegates to ``initialize`` which runs ``restic init``.
+        Backends with custom provisioning logic can override.
+        """
+        original_password = None
+        if password:
+            original_password = self._explicit_password
+            self._explicit_password = password
+            self._cached_env = None
+        try:
+            return self.initialize()
+        finally:
+            if password:
+                self._explicit_password = original_password
+                self._cached_env = None
+
+    def is_repository_initialized(self) -> bool:
+        """
+        Determine whether the repository already contains a config object by
+        attempting to read ``restic cat config``. All backends can defer to this
+        generic check, while specialized repositories may override if needed.
+        """
+        try:
+            command = CommandBuilder(restic_command_def)
+            command = command.param("repo", self.uri())
+            command = command.command("cat")
+            command = command.param("config")
+            command.run(self.to_env())
+            return True
+        except Exception:
+            return False
 
     def initialize(self) -> bool:
         """
@@ -503,6 +565,10 @@ class ResticRepository(BackupRepository):
             logger.error(f"Comprehensive backup verification failed: {e}")
 
         return verification_result
+
+    def list_snapshots(self, tags: Optional[List[str]] = None) -> List[BackupSnapshot]:
+        """Alias required by ``BackupRepository``'s abstract contract."""
+        return self.snapshots(tags)
 
     def snapshots(self, tags: Optional[List[str]] = None) -> List[BackupSnapshot]:
         """List available snapshots"""

@@ -30,16 +30,37 @@ from TimeLocker.backup_target import BackupTarget
 class MockTestBackupRepository(BackupRepository):
     """Concrete implementation of BackupRepository for testing"""
 
+    @classmethod
+    def from_uri(cls, uri: str, password: Optional[str] = None) -> "MockTestBackupRepository":
+        return cls()
+
     def __init__(self):
         self._initialized = False
         self._snapshots = {}
         self._location = "/test/backup/location"
 
+    @property
+    def uri(self) -> str:
+        return self._location
+
+    @property
+    def name(self) -> str:
+        return Path(self._location).name or "test-repository"
+
+    def to_env(self) -> Dict[str, str]:
+        return {}
+
     def initialize(self) -> bool:
         self._initialized = True
         return True
 
+    def initialize_repository(self) -> bool:
+        return self.initialize()
+
     def check(self) -> bool:
+        return self._initialized
+
+    def is_repository_initialized(self) -> bool:
         return self._initialized
 
     def backup_target(self, targets: List[BackupTarget], tags: Optional[List[str]] = None) -> Dict:
@@ -62,6 +83,9 @@ class MockTestBackupRepository(BackupRepository):
         if snapshot_id in self._snapshots:
             return f"Snapshot {snapshot_id} restored to {target_path}"
         return "Snapshot not found"
+
+    def list_snapshots(self, tags: Optional[List[str]] = None) -> List[BackupSnapshot]:
+        return self.snapshots(tags)
 
     def snapshots(self, tags: Optional[List[str]] = None) -> List[BackupSnapshot]:
         return list(self._snapshots.values())

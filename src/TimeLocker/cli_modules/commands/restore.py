@@ -16,6 +16,11 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 from rich.prompt import Prompt, Confirm
 
+try:  # pragma: no cover - allow running from src/ layout
+    import TimeLocker.cli_services as cli_services  # type: ignore
+except ModuleNotFoundError:  # pragma: no cover
+    import src.TimeLocker.cli_services as cli_services  # type: ignore
+
 # Import CLI helpers - use lazy import to avoid circular dependency
 def _get_cli_helpers():
     """Lazy import of CLI helpers to avoid circular imports."""

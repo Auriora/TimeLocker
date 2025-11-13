@@ -16,6 +16,11 @@ from TimeLocker.backup_target import BackupTarget
 class MockRecoveryRepository(BackupRepository):
     """Enhanced mock repository for testing recovery operations"""
 
+    @classmethod
+    def from_uri(cls, uri: str, password: Optional[str] = None) -> "MockRecoveryRepository":
+        """Test helper for satisfying BackupRepository's abstract contract."""
+        return cls()
+
     def __init__(self):
         self._initialized = True  # Initialize by default for testing
         self._snapshots = {}
@@ -70,9 +75,23 @@ class MockRecoveryRepository(BackupRepository):
         snapshot3.get_stats = lambda: {'total_size': snapshot3.size, 'total_files': 10, 'unique_files': 10}
         self._snapshots["ghi789"] = snapshot3
 
+    @property
+    def uri(self) -> str:
+        return self._location
+
+    @property
+    def name(self) -> str:
+        return Path(self._location).name or "mock-recovery-repository"
+
+    def to_env(self) -> Dict[str, str]:
+        return {}
+
     def initialize(self) -> bool:
         self._initialized = True
         return True
+
+    def initialize_repository(self) -> bool:
+        return self.initialize()
 
     def check(self) -> bool:
         return self._initialized
@@ -101,6 +120,9 @@ class MockRecoveryRepository(BackupRepository):
                 "success":     True
         }
         return result
+
+    def list_snapshots(self, tags: Optional[List[str]] = None) -> List[BackupSnapshot]:
+        return self.snapshots(tags)
 
     def snapshots(self, tags: Optional[List[str]] = None) -> List[BackupSnapshot]:
         """Return mock snapshots"""

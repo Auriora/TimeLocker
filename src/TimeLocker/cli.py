@@ -13,6 +13,8 @@ import logging
 import logging.handlers
 import builtins
 import importlib
+import io
+import contextlib
 from enum import Enum
 from pathlib import Path
 from typing import Optional, List, Annotated, Dict, Any, TextIO
@@ -64,6 +66,7 @@ from .security import SecurityService, RepositoryInfo, RepositoryMode, Confirmat
 # so tests can safely access result.stderr when using CliRunner.
 try:
     from typer.testing import CliRunner as _TyperCliRunner
+    from click.testing import BytesIOCopy as _ClickBytesIOCopy
 
     if not getattr(_TyperCliRunner, "_timelocker_mixstderr_patched", False):
         _orig_invoke = _TyperCliRunner.invoke
@@ -77,7 +80,9 @@ try:
             else:
                 kwargs["mix_stderr"] = False
             # First attempt, may store a TypeError in result.exception on older click
-            result = _orig_invoke(self, *args, **kwargs)
+            capture_buffer = io.StringIO()
+            with contextlib.redirect_stdout(capture_buffer):
+                result = _orig_invoke(self, *args, **kwargs)
             # Detect older click capturing the TypeError about mix_stderr
             if getattr(result, "exception", None) and isinstance(result.exception, TypeError) and "mix_stderr" in str(result.exception):
                 kwargs.pop("mix_stderr", None)
@@ -88,11 +93,54 @@ try:
                     setattr(result, "stderr_bytes", b"")
             except Exception:
                 pass
+            captured_stdout = capture_buffer.getvalue()
+            try:
+                stdout_text = getattr(result, "stdout", "")
+                if not stdout_text:
+                    stdout_bytes = getattr(result, "stdout_bytes", b"")
+                    charset = getattr(self, "charset", "utf-8") or "utf-8"
+                    if stdout_bytes:
+                        decoded_stdout = stdout_bytes.decode(charset, errors="replace")
+                        result.stdout = decoded_stdout  # type: ignore[attr-defined]
+                        result.stdout_bytes = stdout_bytes  # type: ignore[attr-defined]
+                    else:
+                        result.stdout = captured_stdout  # type: ignore[attr-defined]
+                        result.stdout_bytes = captured_stdout.encode(charset, errors="replace")  # type: ignore[attr-defined]
+            except Exception:
+                pass
+            try:
+                output_val = getattr(result, "output", "")
+                if not output_val:
+                    output_bytes = getattr(result, "output_bytes", b"")
+                    charset = getattr(self, "charset", "utf-8") or "utf-8"
+                    if output_bytes:
+                        result.output = output_bytes.decode(charset, errors="replace")  # type: ignore[attr-defined]
+                        result.output_bytes = output_bytes  # type: ignore[attr-defined]
+                    else:
+                        result.output = captured_stdout  # type: ignore[attr-defined]
+                        result.output_bytes = captured_stdout.encode(charset, errors="replace")  # type: ignore[attr-defined]
+            except Exception:
+                pass
             return result
 
 
         _TyperCliRunner.invoke = _patched_invoke
         _TyperCliRunner._timelocker_mixstderr_patched = True
+    if not getattr(_ClickBytesIOCopy, "_timelocker_non_closing", False):
+        _orig_bytesio_close = _ClickBytesIOCopy.close
+
+
+        def _non_closing_bytesio_close(self):  # type: ignore[override]
+            """Keep Click's testing buffers readable after close()."""
+            try:
+                self.flush()
+            except Exception:
+                pass
+
+
+        _non_closing_bytesio_close.__doc__ = _orig_bytesio_close.__doc__
+        _ClickBytesIOCopy.close = _non_closing_bytesio_close  # type: ignore[assignment]
+        _ClickBytesIOCopy._timelocker_non_closing = True  # type: ignore[attr-defined]
 except Exception:
     pass
 
@@ -286,9 +334,10 @@ app.add_typer(snapshots_app, name="snapshots")
 # Import and register restore app (use importlib to avoid circular import through __init__.py)
 try:
     import importlib.util
+
     restore_spec = importlib.util.spec_from_file_location(
-        "restore_commands",
-        Path(__file__).parent / "cli_modules" / "commands" / "restore.py"
+            "restore_commands",
+            Path(__file__).parent / "cli_modules" / "commands" / "restore.py"
     )
     restore_module = importlib.util.module_from_spec(restore_spec)
     restore_spec.loader.exec_module(restore_module)
@@ -299,9 +348,10 @@ except Exception as e:
 # Import and register selections app
 try:
     import importlib.util
+
     selections_spec = importlib.util.spec_from_file_location(
-        "selections_commands",
-        Path(__file__).parent / "cli_modules" / "commands" / "selections.py"
+            "selections_commands",
+            Path(__file__).parent / "cli_modules" / "commands" / "selections.py"
     )
     selections_module = importlib.util.module_from_spec(selections_spec)
     selections_spec.loader.exec_module(selections_module)
@@ -372,7 +422,7 @@ def cli_help(
         console.print("\n[bold cyan]TimeLocker - Backup Management System[/bold cyan]\n")
         console.print("TimeLocker provides comprehensive backup and restore capabilities with")
         console.print("policy-based management, scheduling, and data selection.\n")
-        
+
         console.print("[bold]Main Command Groups:[/bold]")
         console.print("  [cyan]repos[/cyan]       - Repository management (create, list, validate)")
         console.print("  [cyan]backup[/cyan]      - Backup operations (run, status, list)")
@@ -383,7 +433,7 @@ def cli_help(
         console.print("  [cyan]selections[/cyan]  - Data selection templates (include/exclude patterns)")
         console.print("  [cyan]security[/cyan]    - Security and credential management")
         console.print("  [cyan]monitor[/cyan]     - System monitoring and health checks\n")
-        
+
         console.print("[bold]Quick Start:[/bold]")
         console.print("  1. Add a repository:")
         console.print("     timelocker repos add myrepo file:///backup/repo\n")
@@ -397,32 +447,32 @@ def cli_help(
         console.print("     timelocker snapshots list\n")
         console.print("  6. Restore files:")
         console.print("     timelocker restore files myrepo latest /restore/path\n")
-        
+
         console.print("[bold]Get Detailed Help:[/bold]")
         console.print("  timelocker help repos      # Repository management help")
         console.print("  timelocker help backup     # Backup operations help")
         console.print("  timelocker help restore    # Restore operations help")
         console.print("  timelocker help policy     # Policy management help")
         console.print("  timelocker help schedule   # Scheduling help\n")
-        
+
         console.print("[bold]Command Help:[/bold]")
         console.print("  timelocker <command> --help    # Show help for any command")
         console.print("  timelocker repos --help        # Show repos command help")
         console.print("  timelocker backup create --help   # Show backup create help\n")
-        
+
         console.print("[bold]Aliases:[/bold]")
         console.print("  'tl' can be used as a short alias for 'timelocker'")
         console.print("  Example: tl repos list\n")
-        
+
         return
-    
+
     topic = topic.lower()
-    
+
     if topic == "repos" or topic == "repository":
         console.print("\n[bold cyan]Repository Management Help[/bold cyan]\n")
         console.print("Repositories store your backup data. TimeLocker supports multiple")
         console.print("repository backends including local, S3, B2, SFTP, and more.\n")
-        
+
         console.print("[bold]Common Commands:[/bold]")
         console.print("  [cyan]repos add[/cyan] <name> <uri>  - Add a new repository configuration")
         console.print("  [cyan]repos init[/cyan] <name>       - Initialize a repository at its location")
@@ -432,7 +482,7 @@ def cli_help(
         console.print("  [cyan]repos check[/cyan] <name>         - Check repository integrity")
         console.print("  [cyan]repos stats[/cyan] <name>         - Show repository statistics")
         console.print("  [cyan]repos remove[/cyan] <name>        - Remove a repository\n")
-        
+
         console.print("[bold]Examples:[/bold]")
         console.print("  # Add a local repository")
         console.print("  timelocker repos add local-backup file:///backup/local\n")
@@ -446,22 +496,22 @@ def cli_help(
         console.print("  timelocker repos check local-backup\n")
         console.print("  # View repository statistics")
         console.print("  timelocker repos stats local-backup\n")
-        
+
         console.print("[bold]Credential Management:[/bold]")
         console.print("  repos credentials set <name>     - Store backend credentials")
         console.print("  repos credentials show <name>    - Show credential status")
         console.print("  repos credentials remove <name>  - Remove stored credentials\n")
-        
+
     elif topic == "backup":
         console.print("\n[bold cyan]Backup Operations Help[/bold cyan]\n")
         console.print("Backup operations create snapshots of your data in repositories.\n")
-        
+
         console.print("[bold]Common Commands:[/bold]")
         console.print("  [cyan]backup create[/cyan]              - Create a backup using a selection template")
         console.print("  [cyan]backup status[/cyan]              - Show current backup status")
         console.print("  [cyan]backup list[/cyan]                - List backup history")
         console.print("  [cyan]backup cancel[/cyan] <job-id>     - Cancel a running backup\n")
-        
+
         console.print("[bold]Examples:[/bold]")
         console.print("  # Create a backup with a selection template")
         console.print("  timelocker backup create --selection documents --repository myrepo\n")
@@ -471,11 +521,11 @@ def cli_help(
         console.print("  timelocker backup status\n")
         console.print("  # List recent backups")
         console.print("  timelocker backup list --limit 10\n")
-        
+
     elif topic == "restore":
         console.print("\n[bold cyan]Restore Operations Help[/bold cyan]\n")
         console.print("Restore operations recover data from backup snapshots.\n")
-        
+
         console.print("[bold]Common Commands:[/bold]")
         console.print("  [cyan]restore browse[/cyan] <repo> <snapshot>        - Browse snapshot contents")
         console.print("  [cyan]restore files[/cyan] <repo> <snapshot> <paths> - Restore specific files")
@@ -483,7 +533,7 @@ def cli_help(
         console.print("  [cyan]restore list[/cyan] <repo>                      - List available snapshots")
         console.print("  [cyan]restore find[/cyan] <repo> <query>              - Search for files")
         console.print("  [cyan]restore diff[/cyan] <repo> <snap1> <snap2>      - Compare snapshots\n")
-        
+
         console.print("[bold]Examples:[/bold]")
         console.print("  # List available snapshots")
         console.print("  timelocker restore list myrepo\n")
@@ -495,22 +545,22 @@ def cli_help(
         console.print("  timelocker restore full myrepo abc123 /restore/path\n")
         console.print("  # Find files across snapshots")
         console.print("  timelocker restore find myrepo 'important.doc'\n")
-        
+
     elif topic == "policy":
         console.print("\n[bold cyan]Policy Management Help[/bold cyan]\n")
         console.print("Policies define backup and retention rules for automated operations.\n")
-        
+
         console.print("[bold]Backup Policies:[/bold]")
         console.print("  [cyan]policy backup create[/cyan] <name>   - Create a backup policy")
         console.print("  [cyan]policy backup list[/cyan]            - List backup policies")
         console.print("  [cyan]policy backup show[/cyan] <id>       - Show policy details")
         console.print("  [cyan]policy backup delete[/cyan] <id>     - Delete a policy\n")
-        
+
         console.print("[bold]Retention Policies:[/bold]")
         console.print("  [cyan]policy retention create[/cyan] <name> - Create a retention policy")
         console.print("  [cyan]policy retention list[/cyan]          - List retention policies")
         console.print("  [cyan]policy retention show[/cyan] <id>     - Show policy details\n")
-        
+
         console.print("[bold]Examples:[/bold]")
         console.print("  # Create a backup policy")
         console.print("  timelocker policy backup create daily-backup \\")
@@ -520,11 +570,11 @@ def cli_help(
         console.print("    --daily 7 --weekly 4 --monthly 6\n")
         console.print("  # List all policies")
         console.print("  timelocker policy backup list\n")
-        
+
     elif topic == "schedule":
         console.print("\n[bold cyan]Scheduling Automation Help[/bold cyan]\n")
         console.print("Schedules automate backup execution using policies.\n")
-        
+
         console.print("[bold]Common Commands:[/bold]")
         console.print("  [cyan]schedule create[/cyan] <name> <policy>  - Create a schedule")
         console.print("  [cyan]schedule list[/cyan]                     - List all schedules")
@@ -532,7 +582,7 @@ def cli_help(
         console.print("  [cyan]schedule enable[/cyan] <name>            - Enable a schedule")
         console.print("  [cyan]schedule disable[/cyan] <name>           - Disable a schedule")
         console.print("  [cyan]schedule generate-scripts[/cyan] <name>  - Generate automation scripts\n")
-        
+
         console.print("[bold]Examples:[/bold]")
         console.print("  # Create a daily schedule")
         console.print("  timelocker schedule create daily-2am daily-backup \\")
@@ -541,11 +591,11 @@ def cli_help(
         console.print("  timelocker schedule generate-scripts daily-2am --platform cron\n")
         console.print("  # Enable a schedule")
         console.print("  timelocker schedule enable daily-2am\n")
-        
+
     elif topic == "selections":
         console.print("\n[bold cyan]Data Selection Help[/bold cyan]\n")
         console.print("Selection templates define which files to include or exclude in backups.\n")
-        
+
         console.print("[bold]Common Commands:[/bold]")
         console.print("  [cyan]selections create[/cyan] <name>     - Create a selection template")
         console.print("  [cyan]selections list[/cyan]              - List all templates")
@@ -553,7 +603,7 @@ def cli_help(
         console.print("  [cyan]selections test[/cyan] <name>       - Test a template")
         console.print("  [cyan]selections export[/cyan] <name>     - Export a template")
         console.print("  [cyan]selections import[/cyan] <file>     - Import a template\n")
-        
+
         console.print("[bold]Examples:[/bold]")
         console.print("  # Create a selection template")
         console.print("  timelocker selections create documents \\")
@@ -561,12 +611,12 @@ def cli_help(
         console.print("    --exclude '*/temp/*'\n")
         console.print("  # Test a template")
         console.print("  timelocker selections test documents ~/Documents\n")
-        
+
     else:
         show_error_panel(
-            "Unknown Topic",
-            f"Unknown help topic: {topic}\n\n"
-            "Available topics: repos, backup, restore, policy, schedule, selections"
+                "Unknown Topic",
+                f"Unknown help topic: {topic}\n\n"
+                "Available topics: repos, backup, restore, policy, schedule, selections"
         )
         raise typer.Exit(1)
 
@@ -596,13 +646,13 @@ def cli_completion(
 
     # Check if any action flag is set
     action_requested = install or uninstall or verify
-    
+
     if action_requested and shell is None:
         show_error_panel(
-            "Missing Shell Argument",
-            "Please specify a shell when using --install, --uninstall, or --verify.\n\n"
-            f"Example: timelocker completion --install bash\n"
-            f"Supported shells: {', '.join(supported_shells)}"
+                "Missing Shell Argument",
+                "Please specify a shell when using --install, --uninstall, or --verify.\n\n"
+                f"Example: timelocker completion --install bash\n"
+                f"Supported shells: {', '.join(supported_shells)}"
         )
         raise typer.Exit(1)
 
@@ -615,23 +665,23 @@ def cli_completion(
         console.print("  • Repository names from your configuration")
         console.print("  • Policy names, schedule names, and selection templates")
         console.print("  • File paths and URIs\n")
-        
+
         console.print("[bold]Supported Shells:[/bold]")
         for s in supported_shells:
             console.print(f"  • {s}")
-        
+
         console.print("\n[bold]Quick Install:[/bold]")
         console.print("  timelocker --install-completion          # Auto-detect and install")
         console.print("  timelocker completion --install bash     # Install for specific shell\n")
-        
+
         console.print("[bold]Manual Installation:[/bold]")
         console.print("  timelocker --show-completion > ~/.timelocker-complete.sh")
         console.print("  source ~/.timelocker-complete.sh\n")
-        
+
         console.print("[bold]Management:[/bold]")
         console.print("  timelocker completion --verify bash      # Check installation")
         console.print("  timelocker completion --uninstall bash   # Remove completion\n")
-        
+
         console.print("[bold]Aliases:[/bold]")
         console.print("  Both 'timelocker' and 'tl' commands support completion\n")
         return
@@ -646,57 +696,57 @@ def cli_completion(
 
     # Determine shell-specific paths and commands
     home = Path.home()
-    
+
     # Use XDG_DATA_HOME for completion files (XDG compliant)
     xdg_data_home = os.environ.get('XDG_DATA_HOME')
     if xdg_data_home:
         data_dir = Path(xdg_data_home)
     else:
         data_dir = home / ".local" / "share"
-    
+
     bash_completion_dir = data_dir / "bash-completion" / "completions"
     zsh_completion_dir = data_dir / "zsh" / "site-functions"
-    
+
     shell_configs = {
-        "bash": {
-            "completion_file": bash_completion_dir / "timelocker",
-            "rc_file": home / ".bashrc",
-            "source_line": f"source {bash_completion_dir / 'timelocker'}",
-            "generate_cmd": f"timelocker --show-completion bash > {bash_completion_dir / 'timelocker'}",
-            "reload_cmd": "source ~/.bashrc"
-        },
-        "zsh": {
-            "completion_file": zsh_completion_dir / "_timelocker",
-            "rc_file": home / ".zshrc",
-            "source_line": f"fpath=({zsh_completion_dir} $fpath)",
-            "generate_cmd": f"timelocker --show-completion zsh > {zsh_completion_dir / '_timelocker'}",
-            "reload_cmd": "source ~/.zshrc"
-        },
-        "fish": {
-            "completion_file": home / ".config" / "fish" / "completions" / "timelocker.fish",
-            "rc_file": None,  # Fish doesn't need rc file modification
-            "source_line": None,
-            "generate_cmd": "timelocker --show-completion fish > ~/.config/fish/completions/timelocker.fish",
-            "reload_cmd": "fish_update_completions"
-        },
-        "powershell": {
-            "completion_file": None,  # PowerShell uses $PROFILE
-            "rc_file": None,
-            "source_line": None,
-            "generate_cmd": "timelocker --show-completion powershell >> $PROFILE",
-            "reload_cmd": ". $PROFILE"
-        }
+            "bash":       {
+                    "completion_file": bash_completion_dir / "timelocker",
+                    "rc_file":         home / ".bashrc",
+                    "source_line":     f"source {bash_completion_dir / 'timelocker'}",
+                    "generate_cmd":    f"timelocker --show-completion bash > {bash_completion_dir / 'timelocker'}",
+                    "reload_cmd":      "source ~/.bashrc"
+            },
+            "zsh":        {
+                    "completion_file": zsh_completion_dir / "_timelocker",
+                    "rc_file":         home / ".zshrc",
+                    "source_line":     f"fpath=({zsh_completion_dir} $fpath)",
+                    "generate_cmd":    f"timelocker --show-completion zsh > {zsh_completion_dir / '_timelocker'}",
+                    "reload_cmd":      "source ~/.zshrc"
+            },
+            "fish":       {
+                    "completion_file": home / ".config" / "fish" / "completions" / "timelocker.fish",
+                    "rc_file":         None,  # Fish doesn't need rc file modification
+                    "source_line":     None,
+                    "generate_cmd":    "timelocker --show-completion fish > ~/.config/fish/completions/timelocker.fish",
+                    "reload_cmd":      "fish_update_completions"
+            },
+            "powershell": {
+                    "completion_file": None,  # PowerShell uses $PROFILE
+                    "rc_file":         None,
+                    "source_line":     None,
+                    "generate_cmd":    "timelocker --show-completion powershell >> $PROFILE",
+                    "reload_cmd":      ". $PROFILE"
+            }
     }
-    
+
     config = shell_configs[shell]
 
     if verify:
         # Verify completion installation
         console.print(f"\n[bold cyan]Verifying {shell.title()} Completion[/bold cyan]\n")
-        
+
         is_installed = False
         issues = []
-        
+
         if shell == "powershell":
             console.print("[yellow]PowerShell completion verification not yet implemented[/yellow]")
             console.print("Please check your $PROFILE manually\n")
@@ -709,7 +759,7 @@ def cli_completion(
             else:
                 console.print(f"[red]✗[/red] Completion file not found: {completion_file}")
                 issues.append("Completion file not generated")
-            
+
             # Check if rc file has source line (for bash/zsh)
             if config["rc_file"] and config["source_line"]:
                 rc_file = config["rc_file"]
@@ -725,7 +775,7 @@ def cli_completion(
                 else:
                     console.print(f"[yellow]⚠[/yellow] Shell configuration file not found: {rc_file}")
                     issues.append(f"Create {rc_file} and add source line")
-        
+
         console.print()
         if is_installed and not issues:
             console.print("[bold green]Completion is properly installed[/bold green]\n")
@@ -737,15 +787,15 @@ def cli_completion(
                     console.print(f"  • {issue}")
                 console.print()
             console.print(f"To install, run: [cyan]timelocker completion --install {shell}[/cyan]\n")
-        
+
         raise typer.Exit(0 if is_installed else 1)
 
     if uninstall:
         # Uninstall completion
         console.print(f"\n[bold cyan]Uninstalling {shell.title()} Completion[/bold cyan]\n")
-        
+
         removed_items = []
-        
+
         # Remove completion file
         completion_file = config["completion_file"]
         if completion_file and completion_file.exists():
@@ -755,7 +805,7 @@ def cli_completion(
                 removed_items.append("completion file")
             except Exception as e:
                 console.print(f"[red]✗[/red] Failed to remove completion file: {e}")
-        
+
         # Remove source line from rc file (for bash/zsh)
         if config["rc_file"] and config["source_line"]:
             rc_file = config["rc_file"]
@@ -763,7 +813,7 @@ def cli_completion(
                 try:
                     with open(rc_file, 'r') as f:
                         lines = f.readlines()
-                    
+
                     # Filter out the source line and TimeLocker completion comment
                     new_lines = []
                     skip_next = False
@@ -781,7 +831,7 @@ def cli_completion(
                             continue
                         skip_next = False
                         new_lines.append(line)
-                    
+
                     if len(new_lines) < len(lines):
                         with open(rc_file, 'w') as f:
                             f.writelines(new_lines)
@@ -789,48 +839,48 @@ def cli_completion(
                         removed_items.append("shell configuration")
                 except Exception as e:
                     console.print(f"[red]✗[/red] Failed to update shell configuration: {e}")
-        
+
         console.print()
         if removed_items:
             show_success_panel(
-                "Completion Uninstalled",
-                f"Removed {', '.join(removed_items)} for {shell}\n\n"
-                f"Reload your shell with: {config['reload_cmd']}"
+                    "Completion Uninstalled",
+                    f"Removed {', '.join(removed_items)} for {shell}\n\n"
+                    f"Reload your shell with: {config['reload_cmd']}"
             )
         else:
             show_info_panel("Nothing to Uninstall", f"No {shell} completion found")
-        
+
         raise typer.Exit(0)
 
     if install:
         # Install completion automatically
         console.print(f"\n[bold cyan]Installing {shell.title()} Completion[/bold cyan]\n")
-        
+
         try:
             # Generate completion script
             completion_file = config["completion_file"]
-            
+
             if shell == "powershell":
                 console.print("[yellow]PowerShell automatic installation not yet implemented[/yellow]")
                 console.print("Please run manually:")
                 console.print(f"  {config['generate_cmd']}\n")
                 raise typer.Exit(1)
-            
+
             # Create parent directory if needed
             if completion_file:
                 completion_file.parent.mkdir(parents=True, exist_ok=True)
-            
+
             # Generate completion script
             console.print("[bold]Step 1:[/bold] Generate completion script")
             try:
                 import subprocess
                 result = subprocess.run(
-                    ["timelocker", "--show-completion", shell],
-                    capture_output=True,
-                    text=True,
-                    check=True
+                        ["timelocker", "--show-completion", shell],
+                        capture_output=True,
+                        text=True,
+                        check=True
                 )
-                
+
                 # Write completion script to file
                 with open(completion_file, 'w') as f:
                     f.write(result.stdout)
@@ -839,23 +889,23 @@ def cli_completion(
                         f.write("\ncomplete -o default -F _timelocker_completion tl\n")
                     elif shell == "zsh":
                         f.write("\ncompdef _timelocker_completion tl\n")
-                
+
                 console.print(f"  [green]✓[/green] Generated: {completion_file}\n")
             except Exception as e:
                 console.print(f"  [red]✗[/red] Failed to generate completion script: {e}")
                 console.print(f"  Run manually: [cyan]{config['generate_cmd']}[/cyan]\n")
                 raise
-            
+
             # For bash/zsh, add source line to rc file
             if config["rc_file"] and config["source_line"]:
                 rc_file = config["rc_file"]
                 console.print("[bold]Step 2:[/bold] Update shell configuration")
-                
+
                 # Check if already added
                 if rc_file.exists():
                     with open(rc_file, 'r') as f:
                         rc_content = f.read()
-                    
+
                     if config["source_line"] in rc_content or "# TimeLocker completion" in rc_content:
                         console.print(f"  [green]✓[/green] Already configured in {rc_file}\n")
                     else:
@@ -868,16 +918,16 @@ def cli_completion(
                     with open(rc_file, 'w') as f:
                         f.write(f"# TimeLocker completion\n{config['source_line']}\n")
                     console.print(f"  [green]✓[/green] Created {rc_file}\n")
-            
+
             console.print("[bold]Step 3:[/bold] Reload your shell")
             console.print(f"  Run: [cyan]{config['reload_cmd']}[/cyan]\n")
-            
+
             show_success_panel(
-                "Installation Instructions",
-                f"Follow the steps above to complete {shell} completion installation.\n\n"
-                "After reloading your shell, tab completion will be available for TimeLocker commands."
+                    "Installation Instructions",
+                    f"Follow the steps above to complete {shell} completion installation.\n\n"
+                    "After reloading your shell, tab completion will be available for TimeLocker commands."
             )
-            
+
         except Exception as e:
             show_error_panel("Installation Error", f"Failed to install completion: {e}")
             raise typer.Exit(1)
@@ -1323,11 +1373,11 @@ def _create_credential_manager(config_dir: Optional[Path] = None):
 def _create_security_manager(config_dir: Optional[Path] = None):
     """Create security manager with access manager integration."""
     from .security import CredentialManager, AccessManager
-    
+
     credential_manager = CredentialManager(config_dir=config_dir)
     security_service = SecurityService(credential_manager, config_dir=config_dir)
     access_manager = AccessManager(config_dir=config_dir)
-    
+
     return security_service, access_manager
 
 
@@ -1346,24 +1396,24 @@ def _authenticate_user_session(access_manager: 'AccessManager', user_id: Optiona
         if user_id is None:
             import os
             user_id = os.getenv('USER', os.getenv('USERNAME', 'unknown'))
-        
+
         from .security.access_manager import UserCredentials
         credentials = UserCredentials(user_id=user_id)
-        
+
         auth_result = access_manager.authenticate_user(credentials)
         if auth_result.success:
             return auth_result.session_id
         else:
             logger.warning(f"Authentication failed: {auth_result.error_message}")
             return None
-            
+
     except Exception as e:
         logger.error(f"Session authentication error: {e}")
         return None
 
 
-def _validate_session_for_operation(access_manager: 'AccessManager', operation: str, 
-                                   repository_id: Optional[str] = None) -> bool:
+def _validate_session_for_operation(access_manager: 'AccessManager', operation: str,
+                                    repository_id: Optional[str] = None) -> bool:
     """
     Validate session for operation and create if needed.
     
@@ -1379,29 +1429,29 @@ def _validate_session_for_operation(access_manager: 'AccessManager', operation: 
         # Get or create session
         active_sessions = access_manager.get_active_sessions()
         session_id = None
-        
+
         if active_sessions:
             # Use the most recent valid session
             for session in sorted(active_sessions, key=lambda s: s.last_accessed, reverse=True):
                 if session.is_valid():
                     session_id = session.session_id
                     break
-        
+
         if not session_id:
             # Create new session
             session_id = _authenticate_user_session(access_manager)
             if not session_id:
                 return False
-        
+
         # Validate session for operation
         if not access_manager.validate_session(session_id):
             return False
-            
+
         # Extend session
         access_manager.extend_session(session_id)
-        
+
         return True
-        
+
     except Exception as e:
         logger.error(f"Session validation error: {e}")
         return False
@@ -1707,9 +1757,9 @@ def repos_credentials_show(
 
         formatter = get_output_formatter(console=console)
         formatter.format_table(
-            data=table_data,
-            columns=["Field", "Value"],
-            title=f"{_backend_display_name(backend_type)} Credentials for {name}"
+                data=table_data,
+                columns=["Field", "Value"],
+                title=f"{_backend_display_name(backend_type)} Credentials for {name}"
         )
     except RepositoryNotFoundError as e:
         show_error_panel("Repository Not Found", str(e))
@@ -1775,33 +1825,33 @@ def config_export_config(
         timelocker config export config repos-only.json --no-selections --no-policies --no-schedules
     """
     setup_logging(verbose, config_dir)
-    
+
     try:
         # Check if file exists and overwrite not specified
         if file.exists() and not overwrite:
             show_error_panel(
-                "File Exists",
-                f"Output file '{file}' already exists. Use --overwrite to replace it."
+                    "File Exists",
+                    f"Output file '{file}' already exists. Use --overwrite to replace it."
             )
             raise typer.Exit(2)
-        
+
         # Create parent directory if needed
         file.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Get configuration module
         config_module = _create_configuration_module(config_dir)
         config = config_module.get_config()
-        
+
         # Build export data based on options
         export_data = {
-            "metadata": {
-                "exported_at": datetime.now().isoformat(),
-                "timelocker_version": __version__,
-                "export_type": "full" if all([include_repositories, include_selections, include_policies, include_schedules]) else "selective"
-            },
-            "general": config.general.to_dict() if hasattr(config.general, 'to_dict') else {}
+                "metadata": {
+                        "exported_at":        datetime.now().isoformat(),
+                        "timelocker_version": __version__,
+                        "export_type":        "full" if all([include_repositories, include_selections, include_policies, include_schedules]) else "selective"
+                },
+                "general":  config.general.to_dict() if hasattr(config.general, 'to_dict') else {}
         }
-        
+
         # Add repositories if requested
         if include_repositories:
             repos_data = {}
@@ -1813,7 +1863,7 @@ def config_export_config(
                     repo_dict.pop('has_backend_credentials', None)
                 repos_data[name] = repo_dict
             export_data["repositories"] = repos_data
-        
+
         # Add data selections if requested
         if include_selections:
             selections_data = {}
@@ -1822,7 +1872,7 @@ def config_export_config(
                     selection_dict = selection.to_dict() if hasattr(selection, 'to_dict') else {}
                     selections_data[name] = selection_dict
             export_data["data_selections"] = selections_data
-        
+
         # Add policies if requested (if they exist in config)
         if include_policies and hasattr(config, 'policies'):
             policies_data = {}
@@ -1830,7 +1880,7 @@ def config_export_config(
                 policy_dict = policy.to_dict() if hasattr(policy, 'to_dict') else {}
                 policies_data[name] = policy_dict
             export_data["policies"] = policies_data
-        
+
         # Add schedules if requested (if they exist in config)
         if include_schedules and hasattr(config, 'schedules'):
             schedules_data = {}
@@ -1838,7 +1888,7 @@ def config_export_config(
                 schedule_dict = schedule.to_dict() if hasattr(schedule, 'to_dict') else {}
                 schedules_data[name] = schedule_dict
             export_data["schedules"] = schedules_data
-        
+
         # Add security and monitoring settings
         if hasattr(config, 'security'):
             security_dict = config.security.to_dict() if hasattr(config.security, 'to_dict') else {}
@@ -1847,14 +1897,14 @@ def config_export_config(
                 security_dict.pop('master_password', None)
                 security_dict.pop('encryption_key', None)
             export_data["security"] = security_dict
-        
+
         if hasattr(config, 'monitoring'):
             export_data["monitoring"] = config.monitoring.to_dict() if hasattr(config.monitoring, 'to_dict') else {}
-        
+
         # Write export file
         with open(file, 'w') as f:
             json.dump(export_data, f, indent=2)
-        
+
         # Show success message with summary
         summary_parts = []
         if include_repositories:
@@ -1869,19 +1919,19 @@ def config_export_config(
         if include_schedules:
             schedule_count = len(export_data.get("schedules", {}))
             summary_parts.append(f"{schedule_count} schedules")
-        
+
         summary = ", ".join(summary_parts) if summary_parts else "configuration"
-        
+
         show_success_panel(
-            "Configuration Exported",
-            f"Configuration exported to '{file}'\n\nExported: {summary}",
-            {
-                "File": str(file),
-                "Size": f"{file.stat().st_size} bytes",
-                "Credentials": "Included (references only)" if include_credentials else "Not included"
-            }
+                "Configuration Exported",
+                f"Configuration exported to '{file}'\n\nExported: {summary}",
+                {
+                        "File":        str(file),
+                        "Size":        f"{file.stat().st_size} bytes",
+                        "Credentials": "Included (references only)" if include_credentials else "Not included"
+                }
         )
-        
+
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "Configuration export cancelled by user")
         raise typer.Exit(130)
@@ -1918,68 +1968,68 @@ def migrate_validate(
         timelocker migrate validate old-config.json --check-compatibility
     """
     setup_logging(verbose, config_dir)
-    
+
     try:
         # Check if source file exists
         if not source.exists():
             show_error_panel(
-                "File Not Found",
-                f"Source configuration file '{source}' does not exist."
+                    "File Not Found",
+                    f"Source configuration file '{source}' does not exist."
             )
             raise typer.Exit(2)
-        
+
         # Load and parse source configuration
         try:
             with open(source, 'r') as f:
                 import_data = json.load(f)
         except json.JSONDecodeError as e:
             show_error_panel(
-                "Invalid JSON",
-                f"Source file contains invalid JSON: {e}"
+                    "Invalid JSON",
+                    f"Source file contains invalid JSON: {e}"
             )
             raise typer.Exit(2)
-        
+
         # Get current configuration
         config_module = _create_configuration_module(config_dir)
         current_config = config_module.get_config()
-        
+
         # Validation results
         validation_results = {
-            "valid": True,
-            "errors": [],
-            "warnings": [],
-            "changes": {
-                "repositories": {"add": [], "update": [], "remove": []},
-                "targets": {"add": [], "update": [], "remove": []},
-                "policies": {"add": [], "update": [], "remove": []},
-                "schedules": {"add": [], "update": [], "remove": []}
-            }
+                "valid":    True,
+                "errors":   [],
+                "warnings": [],
+                "changes":  {
+                        "repositories": {"add": [], "update": [], "remove": []},
+                        "targets":      {"add": [], "update": [], "remove": []},
+                        "policies":     {"add": [], "update": [], "remove": []},
+                        "schedules":    {"add": [], "update": [], "remove": []}
+                }
         }
-        
+
         # Check metadata and version compatibility
         metadata = import_data.get("metadata", {})
         import_version = metadata.get("timelocker_version", "unknown")
-        
+
         if check_compatibility:
             # Simple version check - in production, this would be more sophisticated
             if import_version != "unknown" and import_version != __version__:
                 validation_results["warnings"].append(
-                    f"Configuration was exported from version {import_version}, "
-                    f"current version is {__version__}. Some features may not be compatible."
+                        f"Configuration was exported from version {import_version}, "
+                        f"current version is {__version__}. Some features may not be compatible."
                 )
-        
+
         # Validate repositories
         import_repos = import_data.get("repositories", {})
         current_repos = {name: repo for name, repo in current_config.repositories.items()}
-        
+
         for repo_name, repo_data in import_repos.items():
             # Check required fields
             if not repo_data.get("uri") and not repo_data.get("location"):
                 validation_results["errors"].append(
-                    f"Repository '{repo_name}' missing required 'uri' or 'location' field"
+                        f"Repository '{repo_name}' missing required 'uri' or 'location' field"
                 )
                 validation_results["valid"] = False
-            
+
             # Check for conflicts
             if repo_name in current_repos:
                 current_uri = getattr(current_repos[repo_name], 'uri', None) or getattr(current_repos[repo_name], 'location', None)
@@ -1987,37 +2037,37 @@ def migrate_validate(
                 if current_uri != import_uri:
                     validation_results["changes"]["repositories"]["update"].append(repo_name)
                     validation_results["warnings"].append(
-                        f"Repository '{repo_name}' exists with different URI. "
-                        f"Import will update: {current_uri} -> {import_uri}"
+                            f"Repository '{repo_name}' exists with different URI. "
+                            f"Import will update: {current_uri} -> {import_uri}"
                     )
             else:
                 validation_results["changes"]["repositories"]["add"].append(repo_name)
-        
+
         # Validate backup targets
         import_targets = import_data.get("backup_targets", {})
         current_targets = {name: target for name, target in current_config.backup_targets.items()}
-        
+
         for target_name, target_data in import_targets.items():
             # Check required fields
             if not target_data.get("paths"):
                 validation_results["errors"].append(
-                    f"Backup target '{target_name}' missing required 'paths' field"
+                        f"Backup target '{target_name}' missing required 'paths' field"
                 )
                 validation_results["valid"] = False
-            
+
             # Check repository reference
             target_repo = target_data.get("repository")
             if target_repo and target_repo not in import_repos and target_repo not in current_repos:
                 validation_results["warnings"].append(
-                    f"Backup target '{target_name}' references unknown repository '{target_repo}'"
+                        f"Backup target '{target_name}' references unknown repository '{target_repo}'"
                 )
-            
+
             # Check for conflicts
             if target_name in current_targets:
                 validation_results["changes"]["targets"]["update"].append(target_name)
             else:
                 validation_results["changes"]["targets"]["add"].append(target_name)
-        
+
         # Validate policies if present
         import_policies = import_data.get("policies", {})
         if import_policies:
@@ -2026,11 +2076,11 @@ def migrate_validate(
                 policy_repo = policy_data.get("repository")
                 if policy_repo and policy_repo not in import_repos and policy_repo not in current_repos:
                     validation_results["warnings"].append(
-                        f"Policy '{policy_name}' references unknown repository '{policy_repo}'"
+                            f"Policy '{policy_name}' references unknown repository '{policy_repo}'"
                     )
-                
+
                 validation_results["changes"]["policies"]["add"].append(policy_name)
-        
+
         # Validate schedules if present
         import_schedules = import_data.get("schedules", {})
         if import_schedules:
@@ -2039,14 +2089,14 @@ def migrate_validate(
                 schedule_policy = schedule_data.get("policy")
                 if schedule_policy and schedule_policy not in import_policies:
                     validation_results["warnings"].append(
-                        f"Schedule '{schedule_name}' references unknown policy '{schedule_policy}'"
+                            f"Schedule '{schedule_name}' references unknown policy '{schedule_policy}'"
                     )
-                
+
                 validation_results["changes"]["schedules"]["add"].append(schedule_name)
-        
+
         # Display validation results
         console.print("\n[bold cyan]Configuration Validation Results[/bold cyan]\n")
-        
+
         # Show file info
         console.print(f"[bold]Source File:[/bold] {source}")
         console.print(f"[bold]File Size:[/bold] {source.stat().st_size} bytes")
@@ -2054,38 +2104,38 @@ def migrate_validate(
             console.print(f"[bold]Exported:[/bold] {metadata.get('exported_at', 'unknown')}")
             console.print(f"[bold]Source Version:[/bold] {import_version}")
         console.print(f"[bold]Current Version:[/bold] {__version__}\n")
-        
+
         # Show validation status
         if validation_results["valid"]:
             console.print("[bold green]✓ Configuration is valid and can be imported[/bold green]\n")
         else:
             console.print("[bold red]✗ Configuration has errors and cannot be imported[/bold red]\n")
-        
+
         # Show errors
         if validation_results["errors"]:
             console.print("[bold red]Errors:[/bold red]")
             for error in validation_results["errors"]:
                 console.print(f"  [red]✗[/red] {error}")
             console.print()
-        
+
         # Show warnings
         if validation_results["warnings"]:
             console.print("[bold yellow]Warnings:[/bold yellow]")
             for warning in validation_results["warnings"]:
                 console.print(f"  [yellow]⚠[/yellow] {warning}")
             console.print()
-        
+
         # Show changes summary
         if show_changes:
             console.print("[bold]Change Summary:[/bold]")
-            
+
             changes = validation_results["changes"]
             total_changes = sum(
-                len(changes[category][action])
-                for category in changes
-                for action in changes[category]
+                    len(changes[category][action])
+                    for category in changes
+                    for action in changes[category]
             )
-            
+
             if total_changes == 0:
                 console.print("  No changes detected\n")
             else:
@@ -2100,7 +2150,7 @@ def migrate_validate(
                         if actions["remove"]:
                             console.print(f"    [red]- Remove:[/red] {', '.join(actions['remove'])}")
                 console.print()
-        
+
         # Show next steps
         if validation_results["valid"]:
             console.print("[bold]Next Steps:[/bold]")
@@ -2109,7 +2159,7 @@ def migrate_validate(
         else:
             console.print("[bold]Action Required:[/bold]")
             console.print("  Fix the errors listed above before importing.\n")
-        
+
         # Exit with appropriate code
         if not validation_results["valid"]:
             raise typer.Exit(1)
@@ -2117,7 +2167,7 @@ def migrate_validate(
             raise typer.Exit(0)  # Success with warnings
         else:
             raise typer.Exit(0)  # Success
-        
+
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "Validation cancelled by user")
         raise typer.Exit(130)
@@ -2156,83 +2206,83 @@ def config_import_config(
     """
     setup_logging(verbose, config_dir)
     interactive = sys.stdin.isatty()
-    
+
     try:
         # Check if source file exists
         if not file.exists():
             show_error_panel(
-                "File Not Found",
-                f"Configuration file '{file}' does not exist."
+                    "File Not Found",
+                    f"Configuration file '{file}' does not exist."
             )
             raise typer.Exit(2)
-        
+
         # Load import data
         try:
             with open(file, 'r') as f:
                 import_data = json.load(f)
         except json.JSONDecodeError as e:
             show_error_panel(
-                "Invalid JSON",
-                f"Configuration file contains invalid JSON: {e}"
+                    "Invalid JSON",
+                    f"Configuration file contains invalid JSON: {e}"
             )
             raise typer.Exit(2)
-        
+
         # Get current configuration
         config_module = _create_configuration_module(config_dir)
-        
+
         # Show import summary
         console.print("\n[bold cyan]Configuration Import[/bold cyan]\n")
         console.print(f"[bold]Source:[/bold] {file}")
-        
+
         metadata = import_data.get("metadata", {})
         if metadata:
             console.print(f"[bold]Exported:[/bold] {metadata.get('exported_at', 'unknown')}")
             console.print(f"[bold]Version:[/bold] {metadata.get('timelocker_version', 'unknown')}")
-        
+
         console.print(f"[bold]Mode:[/bold] {'Merge' if merge else 'Replace'}")
         console.print(f"[bold]Overwrite:[/bold] {'Yes' if overwrite else 'No'}\n")
-        
+
         # Count items to import
         repo_count = len(import_data.get("repositories", {}))
         target_count = len(import_data.get("backup_targets", {}))
         policy_count = len(import_data.get("policies", {}))
         schedule_count = len(import_data.get("schedules", {}))
-        
+
         console.print(f"Items to import:")
         console.print(f"  • {repo_count} repositories")
         console.print(f"  • {target_count} backup targets")
         console.print(f"  • {policy_count} policies")
         console.print(f"  • {schedule_count} schedules\n")
-        
+
         # Confirm import
         if not dry_run and not yes and interactive:
             prompt_service = PromptService(console=console)
             if not prompt_service.prompt_confirm("Proceed with import?", default=False):
                 show_info_panel("Import Cancelled", "Configuration import cancelled by user")
                 raise typer.Exit(0)
-        
+
         if dry_run:
             show_info_panel(
-                "Dry Run Complete",
-                "Configuration validated successfully. No changes were made.\n\n"
-                "Run without --dry-run to apply changes."
+                    "Dry Run Complete",
+                    "Configuration validated successfully. No changes were made.\n\n"
+                    "Run without --dry-run to apply changes."
             )
             raise typer.Exit(0)
-        
+
         # Perform import using configuration module
         config_module.import_configuration(file)
-        
+
         show_success_panel(
-            "Configuration Imported",
-            f"Configuration imported successfully from '{file}'",
-            {
-                "Repositories": str(repo_count),
-                "Targets": str(target_count),
-                "Policies": str(policy_count),
-                "Schedules": str(schedule_count)
-            }
+                "Configuration Imported",
+                f"Configuration imported successfully from '{file}'",
+                {
+                        "Repositories": str(repo_count),
+                        "Targets":      str(target_count),
+                        "Policies":     str(policy_count),
+                        "Schedules":    str(schedule_count)
+                }
         )
-        
+
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "Configuration import cancelled by user")
         raise typer.Exit(130)
@@ -2250,6 +2300,7 @@ def config_import_config(
 # to avoid circular import issues
 try:
     from .cli_modules.commands.repositories import repos_app as _repos_commands_app
+
     # Copy commands from the repositories module's app to our repos_app
     for command in _repos_commands_app.registered_commands:
         repos_app.registered_commands.append(command)
@@ -2260,6 +2311,7 @@ except ImportError as e:
 
 try:
     from .cli_modules.commands.backup import backup_app as _backup_commands_app
+
     # Copy commands from the backup module's app to our backup_app
     for command in _backup_commands_app.registered_commands:
         backup_app.registered_commands.append(command)
@@ -2270,6 +2322,7 @@ except ImportError as e:
 
 try:
     from .cli_modules.commands.snapshots import snapshots_app as _snapshots_commands_app
+
     # Copy commands from the snapshots module's app to our snapshots_app
     for command in _snapshots_commands_app.registered_commands:
         snapshots_app.registered_commands.append(command)
@@ -2280,6 +2333,7 @@ except ImportError as e:
 
 try:
     from .cli_modules.commands.policy import policy_app as _policy_commands_app
+
     # Add policy app to main app
     app.add_typer(_policy_commands_app, name="policy")
 except ImportError as e:
@@ -2287,6 +2341,7 @@ except ImportError as e:
 
 try:
     from .cli_modules.commands.selections import selections_app as _selections_commands_app
+
     # Add selections app to main app
     app.add_typer(_selections_commands_app, name="selections")
 except ImportError as e:
@@ -2294,6 +2349,7 @@ except ImportError as e:
 
 try:
     from .cli_modules.commands.schedule import schedule_app as _schedule_commands_app
+
     # Add schedule app to main app
     app.add_typer(_schedule_commands_app, name="schedule")
 except ImportError as e:
@@ -2303,6 +2359,7 @@ try:
     from .cli_modules.commands.monitoring import monitor_app as _monitor_commands_app
     from .cli_modules.commands.monitoring import logs_app as _logs_commands_app
     from .cli_modules.commands.monitoring import reports_app as _reports_commands_app
+
     # Add monitoring apps to main app
     app.add_typer(_monitor_commands_app, name="monitor")
     app.add_typer(_logs_commands_app, name="logs")
@@ -2312,6 +2369,7 @@ except ImportError as e:
 
 try:
     from .cli_modules.commands.restore import restore_app as _restore_commands_app
+
     # Add restore app to main app
     app.add_typer(_restore_commands_app, name="restore")
 except ImportError as e:
@@ -2319,6 +2377,7 @@ except ImportError as e:
 
 try:
     from .cli_modules.commands.credentials import credentials_app as _credentials_commands_app
+
     # Copy commands from the credentials module's app to our credentials_app
     for command in _credentials_commands_app.registered_commands:
         credentials_app.registered_commands.append(command)
@@ -2329,6 +2388,7 @@ except ImportError as e:
 
 try:
     from .cli_modules.commands.config import config_app as _config_commands_app
+
     # Copy commands from the config module's app to our config_app
     for command in _config_commands_app.registered_commands:
         config_app.registered_commands.append(command)
@@ -2339,6 +2399,7 @@ except ImportError as e:
 
 try:
     from .cli_modules.commands.security import security_app as _security_commands_app
+
     # Add security app to main app
     app.add_typer(_security_commands_app, name="security")
 except ImportError as e:
