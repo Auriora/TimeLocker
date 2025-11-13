@@ -18,6 +18,7 @@ from rich.table import Table
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.tree import Tree
+from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich import print as rprint
 
 # Import from base module

@@ -26,6 +26,7 @@ from .base import (
     show_success_panel,
     show_error_panel,
     show_info_panel,
+    setup_logging,
     console,
     _get_service_method,
     _call_service_method,
@@ -143,7 +144,6 @@ def security_status(
     setup_logging(verbose, config_dir)
     try:
         # Initialize security components
-        from .security import CredentialManager, AccessManager
         credential_manager = CredentialManager(config_dir=config_dir)
         security_service = SecurityService(credential_manager, config_dir=config_dir)
         access_manager = AccessManager(config_dir=config_dir)
@@ -245,7 +245,6 @@ def security_logs(
     setup_logging(verbose, config_dir)
     try:
         # Initialize security service
-        from .security import CredentialManager
         credential_manager = CredentialManager(config_dir=config_dir)
         security_service = SecurityService(credential_manager, config_dir=config_dir)
 
@@ -329,7 +328,6 @@ def security_notifications(
     setup_logging(verbose, config_dir)
     try:
         # Initialize security service
-        from .security import CredentialManager
         credential_manager = CredentialManager(config_dir=config_dir)
         security_service = SecurityService(credential_manager, config_dir=config_dir)
 
@@ -392,7 +390,6 @@ def security_sessions(
     setup_logging(verbose, config_dir)
     try:
         # Initialize access manager
-        from .security import AccessManager
         access_manager = AccessManager(config_dir=config_dir)
 
         # Get active sessions
@@ -473,7 +470,6 @@ def security_cleanup(
 
     try:
         # Initialize security components
-        from .security import CredentialManager, AccessManager
         credential_manager = CredentialManager(config_dir=config_dir)
         security_service = SecurityService(credential_manager, config_dir=config_dir)
         access_manager = AccessManager(config_dir=config_dir)

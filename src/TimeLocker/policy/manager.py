@@ -37,6 +37,7 @@ from .exceptions import (
     PolicyNotFoundError,
     PolicyAssignmentError,
     PolicyCompatibilityError,
+    PolicyEnforcementError,
 )
 from .validator import PolicyValidator
 from .engine import PolicyEngine

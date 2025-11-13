@@ -962,6 +962,7 @@ def repos_remove(
         config_dir: ConfigDirOption = None,
 ) -> None:
     setup_logging(verbose, config_dir)
+    logger = logging.getLogger(__name__)
     try:
         # Get repository information for confirmation
         config_manager = ConfigurationManager(config_dir=config_dir)
@@ -2168,8 +2169,6 @@ def repos_prune(
             
             # Call prune method
             result = _call_service_method(prune_method, **prune_params)
-            
-            progress.update(task, completed=True)
         
         # Parse result
         if isinstance(result, dict):

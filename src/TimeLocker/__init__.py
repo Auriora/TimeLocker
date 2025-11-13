@@ -32,6 +32,7 @@ from .monitoring import StatusReporter, NotificationService
 
 # Configuration components
 from .config import ConfigurationModule
+from .config.configuration_manager import ConfigurationManager
 
 # Integration components
 from .integration import IntegrationService

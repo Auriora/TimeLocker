@@ -321,7 +321,7 @@ def backup_create(
             logger.debug(f"CLIBackupRequest password field: {'***' if backup_request.password else 'None'}")
 
             # Execute backup using modern orchestrator
-            progress.update(task, description="Executing backup...")
+            progress.update(description="Executing backup...")
             # Prefer legacy execute_backup when available (for tests mocking this method)
             if hasattr(service_manager, "execute_backup"):
                 logger.debug("Calling service_manager.execute_backup (legacy API)")
@@ -330,8 +330,6 @@ def backup_create(
                 logger.debug("Calling service_manager.execute_backup_from_cli (new API)")
                 result = service_manager.execute_backup_from_cli(backup_request)
             logger.debug(f"Backup result: {getattr(result, 'status', 'unknown')}")
-
-            progress.remove_task(task)
 
         # Display results using new BackupResult data model
         def _safe_attr(obj, attr, default=None):
