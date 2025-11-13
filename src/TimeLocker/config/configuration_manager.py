@@ -201,6 +201,10 @@ class ConfigurationManager:
         from . import ConfigurationModule  # type: ignore
         self._module = ConfigurationModule(config_dir)
 
+    def get_config(self):
+        """Get the underlying configuration object"""
+        return self._module.get_config()
+
     # -------------------------------
     # Repository management methods
     # -------------------------------

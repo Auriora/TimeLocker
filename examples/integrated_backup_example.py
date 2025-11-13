@@ -129,13 +129,9 @@ def main():
         repo_password = "example_repo_password_456"
 
         # Store repository credentials
-        credential_manager.store_credential(
+        credential_manager.store_repository_password(
                 "example_repository",
-                {
-                        "password": repo_password,
-                        "location": str(repo_path),
-                        "type":     "local"
-                }
+                repo_password
         )
 
         # Initialize repository if not already done

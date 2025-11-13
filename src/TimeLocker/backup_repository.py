@@ -54,9 +54,47 @@ class RetentionPolicy:
 class BackupRepository(ABC):
     """Abstract class for backup repository"""
 
+    @classmethod
+    @abstractmethod
+    def from_uri(cls, uri: str, password: Optional[str] = None) -> 'BackupRepository':
+        """Create repository instance from URI"""
+        ...
+
+    @property
+    @abstractmethod
+    def uri(self) -> str:
+        """Get repository URI"""
+        ...
+
+    @property
+    @abstractmethod
+    def name(self) -> str:
+        """Get repository name"""
+        ...
+
+    @abstractmethod
+    def to_env(self) -> Dict[str, str]:
+        """Get environment variables for repository access"""
+        ...
+
+    @abstractmethod
+    def list_snapshots(self, tags: Optional[List[str]] = None) -> List[BackupSnapshot]:
+        """List available snapshots (alias for snapshots)"""
+        ...
+
     @abstractmethod
     def initialize(self) -> bool:
         """Initialize the backup repository"""
+        ...
+
+    @abstractmethod
+    def is_repository_initialized(self) -> bool:
+        """Check if the repository is already initialized"""
+        ...
+
+    @abstractmethod
+    def initialize_repository(self) -> bool:
+        """Initialize the repository (alias for initialize)"""
         ...
 
     @abstractmethod

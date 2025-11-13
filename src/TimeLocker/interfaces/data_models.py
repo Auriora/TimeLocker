@@ -92,10 +92,16 @@ class BackupResult:
     metadata: Dict[str, Any] = field(default_factory=dict)
 
     @property
-    def duration(self) -> Optional[float]:
-        """Calculate operation duration in seconds"""
+    def bytes_transferred(self) -> int:
+        """Alias for bytes_processed for backward compatibility"""
+        return self.bytes_processed
+
+    @property
+    def duration(self):
+        """Calculate operation duration as timedelta"""
         if self.start_time and self.end_time:
-            return self.end_time - self.start_time
+            from datetime import timedelta
+            return timedelta(seconds=self.end_time - self.start_time)
         return None
 
     @property

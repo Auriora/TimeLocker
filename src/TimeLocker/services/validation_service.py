@@ -108,6 +108,19 @@ class ValidationService:
         self._custom_validators[name] = validator
         logger.debug(f"Registered custom validator: {name}")
 
+    def validate_snapshot_id(self, snapshot_id: str) -> None:
+        """
+        Validate snapshot ID format.
+
+        Args:
+            snapshot_id: The snapshot ID to validate
+
+        Raises:
+            ValueError: If snapshot ID format is invalid
+        """
+        from ..utils.snapshot_validation import validate_snapshot_id_format
+        validate_snapshot_id_format(snapshot_id, allow_latest=False)
+
     def validate_path(self, path: Union[str, Path], must_exist: bool = False) -> ValidationResult:
         """
         Validate a file system path

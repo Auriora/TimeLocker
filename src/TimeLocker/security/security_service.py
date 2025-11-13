@@ -788,6 +788,27 @@ class SecurityService(ServiceInterface):
             logger.error(f"Failed to get security logs: {e}")
             return []
 
+    def get_security_audit(self, days: int = 7, repository_id: Optional[str] = None,
+                           event_type: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        Get security audit logs (alias for get_security_logs with repository filtering).
+
+        Args:
+            days: Number of days to look back (default: 7)
+            repository_id: Filter by repository ID (optional)
+            event_type: Filter by event type (optional)
+
+        Returns:
+            List of security audit entries as dictionaries
+        """
+        logs = self.get_security_logs(days=days, event_type=event_type)
+
+        # Filter by repository_id if specified
+        if repository_id:
+            logs = [log for log in logs if log.get('repository_id') == repository_id]
+
+        return logs
+
     def get_security_notifications(self, hours: int = 24) -> List[Dict[str, Any]]:
         """
         Get recent security notifications

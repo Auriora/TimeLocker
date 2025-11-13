@@ -53,15 +53,10 @@ class TimeLockerImporter:
                     config_dir=self.config_manager.config_dir
             )
 
-            # Try to unlock with provided password, or create new if doesn't exist
+            # Try to unlock with provided password (will create new store if doesn't exist)
             if not self.credential_manager.unlock(master_password):
-                print("🔐 Creating new credential store...")
-                if not self.credential_manager.create_credential_store(master_password):
-                    print("❌ Failed to create credential store")
-                    return False
-                if not self.credential_manager.unlock(master_password):
-                    print("❌ Failed to unlock newly created credential store")
-                    return False
+                print("❌ Failed to unlock credential store")
+                return False
 
             print("✅ Credential manager ready")
             return True
