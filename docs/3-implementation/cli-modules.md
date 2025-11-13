@@ -1,8 +1,8 @@
 # TimeLocker CLI Module
 
-**Last Updated**: 2025-11-08  
-**Status**: Active Development  
-**Related**: [CLI Refactoring Plan](../archive/cli-refactoring/cli-refactoring-plan.md), [Phase 1 Implementation](../updates/2025-11-07-093135-cli-refactoring-phase1.md)
+**Last Updated**: 2025-11-13
+**Status**: Active Development
+**Related**: [CLI Refactoring Plan](../archive/cli-refactoring/cli-refactoring-plan.md), [Command Registry API](command-registry-api.md)
 
 Modular command-line interface for TimeLocker backup operations.
 
@@ -10,25 +10,72 @@ Modular command-line interface for TimeLocker backup operations.
 
 ```
 cli_modules/
-├── __init__.py              # Main entry point, exports app
-├── app.py                   # Typer app setup (to be created in Phase 2)
-├── helpers/                 # Reusable utility functions
-│   ├── __init__.py          # Helper exports
-│   ├── display.py           # Panel display functions
-│   ├── logging_setup.py     # Logging configuration
-│   ├── service_helpers.py   # Service layer integration
-│   ├── auth_helpers.py      # Authentication helpers
-│   └── repository_helpers.py # Repository utilities
-├── commands/                # Command group modules (Phase 2)
+├── __init__.py                    # Main entry point, exports app
+├── command_registry.py            # Command registration system
+├── registry_integration.py        # Registry integration with CLI
+├── monitoring_integration.py      # Monitoring integration
+├── test_compatibility.py          # Test patches and fallbacks
+├── README.md                      # CLI modules overview
+├── README_COMMAND_REGISTRY.md     # Command registry documentation
+├── commands/                      # Command group modules
 │   ├── __init__.py
-│   ├── backup.py
-│   ├── snapshots.py
-│   ├── repositories.py
-│   ├── targets.py
-│   ├── config.py
-│   ├── credentials.py
-│   └── security.py
-└── test_compatibility.py    # Test patches and fallbacks
+│   ├── base.py                    # Base command functionality
+│   ├── backup.py                  # Backup operations
+│   ├── snapshots.py               # Snapshot management
+│   ├── repositories.py            # Repository management
+│   ├── selections.py              # Data selection (replaces targets)
+│   ├── restore.py                 # Restore operations
+│   ├── policy.py                  # Policy management
+│   ├── schedule.py                # Scheduling commands
+│   ├── monitor.py                 # Monitoring commands
+│   ├── monitoring.py              # Additional monitoring features
+│   ├── config.py                  # Configuration management
+│   ├── credentials.py             # Credential management
+│   ├── security.py                # Security operations
+│   ├── example_enhanced_command.py
+│   ├── example_error_context_command.py
+│   └── example_service_facade_usage.py
+├── helpers/                       # Reusable utility functions
+│   ├── __init__.py                # Helper exports
+│   ├── display.py                 # Panel display functions
+│   ├── logging_setup.py           # Logging configuration
+│   ├── service_helpers.py         # Service layer integration
+│   ├── auth_helpers.py            # Authentication helpers
+│   ├── repository_helpers.py      # Repository utilities
+│   ├── backup_cli_handler.py      # Backup CLI operations
+│   ├── command_integration.py     # Command integration utilities
+│   ├── error_context_helpers.py   # Error context handling
+│   ├── interactive.py             # Interactive mode utilities
+│   ├── non_interactive.py         # Non-interactive mode utilities
+│   ├── output_formatter.py        # Output formatting
+│   ├── output_filtering.py        # Output filtering
+│   ├── performance.py             # Performance utilities
+│   ├── platform_compat.py         # Platform compatibility
+│   ├── aliases.py                 # Command aliases
+│   ├── wizards.py                 # Interactive wizards
+│   ├── INTEGRATION_GUIDE.md
+│   ├── OUTPUT_FORMATTING_GUIDE.md
+│   └── README_BACKUP_CLI_HANDLER.md
+├── services/                      # CLI service layer
+│   ├── __init__.py
+│   ├── config_service.py          # Configuration service
+│   └── repository_resolver.py     # Repository resolution
+├── testing/                       # Testing utilities
+│   ├── __init__.py
+│   ├── assertions.py              # Test assertions
+│   ├── fixtures.py                # Test fixtures
+│   ├── generators.py              # Test data generators
+│   ├── mocks.py                   # Mock objects
+│   ├── runners.py                 # Test runners
+│   └── README.md
+└── validation/                    # Validation framework
+    ├── __init__.py
+    ├── base.py                    # Base validators
+    ├── common.py                  # Common validations
+    ├── config.py                  # Config validators
+    ├── context.py                 # Validation context
+    ├── helpers.py                 # Validation helpers
+    └── README.md
 ```
 
 ## Usage
@@ -250,13 +297,70 @@ except Exception as e:
     raise typer.Exit(1)
 ```
 
+## Command Modules
+
+### Core Commands
+
+- **backup.py** - Backup operations and job execution
+- **snapshots.py** - Snapshot browsing and management
+- **repositories.py** - Repository configuration and management
+- **selections.py** - Data selection patterns and templates (replaces deprecated `targets` command)
+- **restore.py** - Full restore namespace with file/directory recovery operations
+- **config.py** - Configuration management (import/export/migration)
+- **credentials.py** - Credential storage and management
+- **security.py** - Security operations and access control
+
+### Advanced Commands
+
+- **policy.py** - Policy management and enforcement
+- **schedule.py** - Job scheduling and automation
+- **monitor.py** - System monitoring and status
+- **monitoring.py** - Additional monitoring features
+
+### Infrastructure
+
+- **base.py** - Base command functionality and shared utilities
+- **command_registry.py** - Dynamic command registration system for plugins
+- **registry_integration.py** - Integration between command registry and CLI
+- **monitoring_integration.py** - Integration of monitoring features into CLI
+
+See [Command Registry API](command-registry-api.md) for details on the plugin system.
+
+## Services Layer
+
+The `services/` directory provides CLI-specific services:
+
+- **config_service.py** - Configuration service with validation and defaults
+- **repository_resolver.py** - Repository name/URI resolution with credential integration
+
+## Validation Framework
+
+The `validation/` directory provides a comprehensive validation framework:
+
+- **base.py** - Base validator classes and interfaces
+- **common.py** - Common validation rules (paths, URIs, formats)
+- **config.py** - Configuration-specific validators
+- **context.py** - Validation context for error reporting
+- **helpers.py** - Validation helper functions
+
+## Testing Infrastructure
+
+The `testing/` directory provides testing utilities:
+
+- **assertions.py** - Custom assertions for CLI tests
+- **fixtures.py** - Reusable test fixtures
+- **generators.py** - Test data generators
+- **mocks.py** - Mock objects for testing
+- **runners.py** - Test execution utilities
+
 ## Refactoring Status
 
 - ✅ **Phase 1**: Helper extraction complete
-- 🔄 **Phase 2**: Command group separation (in progress)
-- 📋 **Phase 3**: Pattern consolidation (planned)
+- ✅ **Phase 2**: Command group separation complete
+- ✅ **Phase 3**: Command registry and plugin system implemented
+- ✅ **Infrastructure**: Services, validation, and testing frameworks added
 
-See [CLI Refactoring Plan](../archive/cli-refactoring/cli-refactoring-plan.md) for details.
+See [CLI Refactoring Plan](../archive/cli-refactoring/cli-refactoring-plan.md) for historical details.
 
 ## Contributing
 

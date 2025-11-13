@@ -4,7 +4,7 @@ id: "arch-system-architecture"
 type: [ architecture ]
 status: [ approved ]
 owner: "Architecture Team"
-last_reviewed: "01-11-2025"
+last_reviewed: "13-11-2025"
 tags: [architecture, system, layers]
 links:
     tooling: []
@@ -15,13 +15,16 @@ links:
 - **Owner**: Architecture Team
 - **Status**: Approved
 - **Created Date**: 19-12-2024
-- **Last Updated**: 01-11-2025
+- **Last Updated**: 13-11-2025
 - **Audience**: Engineering Teams, Solution Architects
 
 ## 1. Context
 
 To provide a resilient and extensible backup platform, TimeLocker separates concerns across presentation, orchestration, infrastructure, and storage. This
 layered approach enables independent evolution of interfaces, services, and backend integrations.
+
+> **⚠️ IMPLEMENTATION NOTE**: The current implementation focuses on the **CLI interface**. Desktop GUI and REST API are design specifications for future
+> enhancement.
 
 ## 2. Decision
 
@@ -32,7 +35,8 @@ TimeLocker adopts a four-layer architecture shown below.
 │                        User Interfaces                          │
 │                                                                 │
 │  ┌─────────────────┐  ┌────────────────┐  ┌──────────────────┐  │
-│  │  Desktop GUI    │  │     CLI        │  │    REST API      │  │
+│  │  Desktop GUI    │  │  CLI ★         │  │    REST API      │  │
+│  │  (Future)       │  │  (Implemented) │  │    (Future)      │  │
 │  └─────────────────┘  └────────────────┘  └──────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
                                 │

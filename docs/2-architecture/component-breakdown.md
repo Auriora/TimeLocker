@@ -27,32 +27,55 @@ compliance tracking across user interfaces, core services, infrastructure utilit
 
 ### 2.1 User Interfaces
 
-#### Desktop GUI
+> **⚠️ IMPLEMENTATION STATUS**: Currently, TimeLocker implements the **CLI only**. The Desktop GUI and REST API are design specifications for future
+> implementation.
 
-- **Purpose**: Rich, user-friendly orchestration client.
+#### CLI (Implemented)
+
+- **Purpose**: Primary interface for scriptable automation and interactive operations.
 - **Responsibilities**:
     - Repository configuration and management.
     - Backup and restore execution.
-    - Policy configuration.
-    - Monitoring, reporting, and notifications.
+    - Policy configuration and management.
+    - Data selection patterns and templates.
+        - Monitoring, reporting, and notifications.
+    - Scheduling and automation.
+    - Security and credential management.
+    - Interactive wizards and batch workflows.
+- **Requirements**: FR-INT-001, FR-MON-007, FR-RM-003, FR-MON-002, FR-MON-004.
+- **Implementation**: `/src/TimeLocker/cli.py`, `/src/TimeLocker/cli_modules/`
+- **Documentation**: [CLI Modules](../3-implementation/cli-modules.md), [Command Registry API](../3-implementation/command-registry-api.md)
+
+#### System Tray Integration (Optional)
+
+- **Purpose**: Background monitoring and notifications.
+- **Responsibilities**:
+    - System tray presence for status monitoring.
+    - Desktop notifications for backup events.
+    - Quick access to monitoring information.
+- **Implementation**: `/src/TimeLocker/monitoring/system_tray_integration.py`
+
+#### Desktop GUI (Future Enhancement)
+
+- **Purpose**: Rich, user-friendly orchestration client.
+- **Status**: Design specification - not yet implemented.
+- **Planned Responsibilities**:
+    - Graphical interface for all CLI operations.
+    - Visual backup and restore workflows.
+    - Interactive policy configuration.
+    - Dashboard for monitoring and reporting.
 - **Requirements**: FR-RM-003, FR-MON-002, FR-MON-004.
 
-#### CLI
-
-- **Purpose**: Scriptable automation surface.
-- **Responsibilities**:
-    - Mirrors GUI operations.
-    - Enables batch workflows and scheduler integration.
-- **Requirements**: FR-INT-001, FR-MON-007.
-
-#### REST API
+#### REST API (Future Enhancement)
 
 - **Purpose**: Integration interface for external tooling.
-- **Responsibilities**:
+- **Status**: Design specification - not yet implemented.
+- **Planned Responsibilities**:
     - Remote orchestration.
     - Status monitoring.
     - Configuration management endpoints.
 - **Requirements**: FR-INT-002.
+- **Documentation**: [API Reference](api-reference.md) (design specification)
 
 ### 2.2 Core Services Layer
 

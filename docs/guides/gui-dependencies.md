@@ -1,16 +1,21 @@
-# GUI Dependencies Installation Guide
+# System Tray Integration - Installation Guide
 
-TimeLocker's GUI features (system tray integration) are **optional**. The CLI works perfectly without them.
+TimeLocker's system tray integration is **optional**. The CLI works perfectly without it.
 
-## Do You Need GUI Dependencies?
+> **Important**: TimeLocker does **not** have a full desktop GUI application. This guide covers the optional system tray integration for desktop notifications
+> and status indicators. TimeLocker is primarily a CLI-based backup tool.
 
-**You DON'T need GUI dependencies if:**
+## Do You Need System Tray Integration?
+
+**You DON'T need system tray dependencies if:**
+
 - You're using TimeLocker only via CLI commands
 - You're running on a headless server
 - You're using TimeLocker via SSH
 - You don't want system tray notifications
 
-**You DO need GUI dependencies if:**
+**You DO need system tray dependencies if:**
+
 - You want system tray integration with desktop notifications
 - You want visual status indicators in your system tray
 - You're running TimeLocker on a desktop environment
@@ -33,7 +38,7 @@ sudo apt-get install -y \
     gir1.2-appindicator3-0.1
 ```
 
-Then install TimeLocker with GUI support:
+Then install TimeLocker with system tray support:
 
 ```bash
 pip install -e .[gui]
@@ -53,7 +58,7 @@ sudo dnf install -y \
     gtk3 \
     libappindicator-gtk3
 
-# Install TimeLocker with GUI support
+# Install TimeLocker with system tray support
 pip install -e .[gui]
 ```
 
@@ -69,7 +74,7 @@ sudo pacman -S \
     gtk3 \
     libappindicator-gtk3
 
-# Install TimeLocker with GUI support
+# Install TimeLocker with system tray support
 pip install -e .[gui]
 ```
 
@@ -92,6 +97,7 @@ pip install -e .[gui]
 ### PyGObject Build Errors on Linux
 
 If you get errors like:
+
 ```
 ERROR: Dependency 'girepository-2.0' is required but not found.
 ```
@@ -103,10 +109,10 @@ This means you're missing system-level libraries. Install them as shown above fo
 If the system tray doesn't appear after installing GUI dependencies:
 
 1. **Check your desktop environment**: System tray support varies by desktop environment
-   - GNOME: May need the "AppIndicator" extension
-   - KDE: Should work out of the box
-   - XFCE: Should work out of the box
-   - i3/Sway: May need additional configuration
+    - GNOME: May need the "AppIndicator" extension
+    - KDE: Should work out of the box
+    - XFCE: Should work out of the box
+    - i3/Sway: May need additional configuration
 
 2. **Verify installation**:
    ```bash
@@ -118,39 +124,42 @@ If the system tray doesn't appear after installing GUI dependencies:
    tl monitor logs --level DEBUG | grep -i tray
    ```
 
-### Running Without GUI Dependencies
+### Running Without System Tray
 
-If you don't want to install GUI dependencies, TimeLocker works perfectly without them:
+If you don't want to install system tray dependencies, TimeLocker works perfectly without them:
 
 ```bash
-# Install without GUI support
+# Install without system tray support (CLI only)
 pip install -e .
 # or with dev dependencies
 pip install -e .[dev]
 ```
 
-The system tray initialization will fail silently (as a warning in logs), but all CLI functionality works normally.
+The system tray initialization will fail silently (logged as a warning), but all CLI functionality works normally.
 
 ## Platform-Specific Notes
 
 ### Linux
+
 - Uses GTK3 and AppIndicator3 for system tray
 - Requires GObject Introspection libraries
 - Best support on GNOME, KDE, XFCE
 
 ### macOS
+
 - Uses `rumps` (Ridiculously Uncomplicated macOS Python Statusbar apps)
 - Pure Python, no system dependencies needed
 - Works on macOS 10.10+
 
 ### Windows
+
 - Uses `pystray` for system tray
 - Uses Pillow for icon rendering
 - Works on Windows 7+
 
 ## Verifying Installation
 
-After installing GUI dependencies, verify they work:
+After installing system tray dependencies, verify they work:
 
 ```bash
 # Check if system tray is available

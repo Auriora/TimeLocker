@@ -15,7 +15,7 @@ links:
 - **Owner**: Architecture Team
 - **Status**: Approved
 - **Created Date**: 19-12-2024
-- **Last Updated**: 01-11-2025
+- **Last Updated**: 13-11-2025
 - **Audience**: Engineering, UX, Product Stakeholders
 
 ## 1. Context
@@ -27,22 +27,42 @@ complements the main `README.md` by providing quick navigation for design-centri
 
 ### 2.1 Core Architecture Set
 
+#### System Overview
+
 - [Design Overview](./overview.md)
 - [Technical Architecture](./technical-architecture.md)
 - [System Architecture](./system-architecture.md)
 - [Component Breakdown](./component-breakdown.md)
-- [Data Model](./data-model.md)
+- [Data Model](./data-model.md) - Current filesystem implementation + future database design
 - [Data Flow](./data-flow.md)
 - [Design Patterns](./design-patterns.md)
+
+#### System Components
+
+- [Scheduling System](./scheduling-system.md) - Automated backup scheduling and platform integration
+- [Security System](./security-system.md) - Credential management and access control
+- [Integration Layer](./integration-layer.md) - Service communication and dependency injection
+- [Performance Monitoring](./performance-monitoring.md) - Metrics, profiling, and benchmarking
+
+#### Cross-Cutting Concerns
+
 - [Security Considerations](./security-considerations.md)
 - [Scalability & Performance](./scalability-performance.md)
+- [Test Isolation Strategy](./test-isolation-strategy.md)
+
+#### Planning & Review
+
 - [Future Enhancements](./future-enhancements.md)
+- [File Locations Review](./file-locations-review.md)
+- [Path Review Summary](./path-review-summary.md)
 
-### 2.2 API Assets
+### 2.2 API Assets (Future Implementation)
 
-- [API Reference](./api-reference.md)
-- `TimeLocker-API-Specification.yaml`
-- `TimeLocker-API-Components.yaml`
+> **Note**: These are design specifications for future REST API implementation. Current implementation is CLI-only.
+
+- [API Reference](./api-reference.md) - Design specification for future REST API
+- `TimeLocker-API-Specification.yaml` - OpenAPI specification (design)
+- `TimeLocker-API-Components.yaml` - Shared API components (design)
 
 ## 3. Consequences
 

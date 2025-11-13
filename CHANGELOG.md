@@ -5,7 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v1.0.0] - 2024-12-19
+> **Note**: This CHANGELOG is being restructured. For detailed change history from October-November 2025, see the `docs/updates/` directory which contains
+> comprehensive update notes. The v1.0.0 entry below represents initial design specifications - not all features listed have been implemented. A revised
+> CHANGELOG
+> with accurate version history is forthcoming.
+
+## [Unreleased]
+
+### Implementation Status Notes (2025-11-13)
+
+**Currently Implemented**:
+
+- ✅ CLI-based interface with comprehensive command system
+- ✅ Repository management (local, S3, B2)
+- ✅ Backup and recovery operations
+- ✅ Scheduling system with platform adapters
+- ✅ Policy management
+- ✅ Data selection with pattern engine
+- ✅ Security and credential management
+- ✅ Integration layer with service management
+- ✅ Performance monitoring and profiling
+- ✅ Optional system tray integration
+
+**Design Specifications (Not Yet Implemented)**:
+
+- 📋 REST API (design specification only)
+- 📋 Desktop GUI (design specification only)
+- 📋 Database storage (currently uses filesystem JSON)
+
+For detailed changes, see `docs/updates/` directory.
+
+## [v1.0.0] - 2024-12-19 (Initial Design Specification)
 
 ### Added
 

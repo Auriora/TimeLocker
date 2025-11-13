@@ -80,7 +80,7 @@ Verified that:
 - CLI operations work perfectly without system tray support
 - The GUI dependencies (pystray, rumps, AppIndicator3) are optional extras: `pip install timelocker[gui]`
 - For headless servers and CLI-only usage, these dependencies are not needed
-- On Linux, GUI dependencies require system-level libraries (see `GUI-SETUP.md` or `docs/guides/gui-dependencies.md`)
+- On Linux, system tray dependencies require system-level libraries (see `SYSTEM-TRAY-SETUP.md` or `docs/guides/gui-dependencies.md`)
 
 ## Related
 

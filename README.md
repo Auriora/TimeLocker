@@ -13,7 +13,9 @@
 TimeLocker provides a robust, object-oriented interface for managing backups using the Restic backup tool (in future other backup tools maybe supported). It
 simplifies backup operations by providing a high-level CLI that handles repository management, file selection patterns, and backup configurations across
 multiple storage backends including local, network, S3, and B2.
-chnge
+
+> **Note**: TimeLocker is a **CLI-based application**. There is currently no desktop GUI or REST API - these are design specifications for future consideration.
+> The application includes optional system tray integration for desktop notifications.
 
 ## Table of Contents
 
@@ -316,15 +318,32 @@ Key component interactions:
 
 ## Documentation
 
-For more detailed documentation, please refer to:
+For detailed documentation, please refer to:
 
-- [**Installation Guide**](docs/INSTALLATION.md) Detailed instructions for installing TimeLocker
-- [**Version Management Guide**](docs/VERSION_MANAGEMENT.md) How to manage versions and releases
-- [**Command Builder Documentation**](docs/command_builder.md) Details on using the command builder
-- [**Documentation Organization**](docs/DOCUMENTATION_ORGANIZATION.md) Guidelines for organizing documentation
-- [**SDLC Documentation**](docs/SDLC/) Software Development Lifecycle documentation
-- [**Simplified SDLC for Solo Developers**](docs/SDLC/Simplified-SDLC-Index.md) Streamlined process for solo developers with AI assistance
-- [**SRS Documentation**](docs/SDLC/SRS/) Software Requirements Specification
+### Current Documentation (Verified Accurate)
+
+- [**Architecture Documentation**](docs/2-architecture/README.design.md) - System architecture and design
+- [**Implementation Guides**](docs/3-implementation/README.md) - Implementation details and patterns
+- [**API References**](docs/reference/) - API references for backup and recovery operations
+- [**Testing Documentation**](docs/4-testing/README.md) - Testing guides and strategies
+- [**System Tray Setup**](docs/SYSTEM-TRAY-SETUP.md) - Optional system tray integration
+- [**User Guides**](docs/guides/user/) - End-user documentation
+- [**Developer Guides**](docs/guides/developer/) - Developer documentation
+
+### Key Architecture Documents
+
+- [System Architecture](docs/2-architecture/system-architecture.md) - Overall system design
+- [CLI Modules](docs/3-implementation/cli-modules.md) - CLI structure and commands
+- [Scheduling System](docs/2-architecture/scheduling-system.md) - Automated backup scheduling
+- [Security System](docs/2-architecture/security-system.md) - Security and credential management
+- [Integration Layer](docs/2-architecture/integration-layer.md) - Service communication framework
+
+### Change History
+
+- [Updates Directory](docs/updates/) - Detailed change history and implementation notes
+- [Documentation Status](docs/DOCUMENTATION-STATUS.md) - Current documentation health status
+
+> **Note**: Some older documentation links in this README are outdated. Please use the links above for the most current information.
 
 ## Contributing
 
@@ -356,6 +375,9 @@ This is particularly suitable for libraries and applications that you want to re
 ## Document Information
 
 - Version: 1.0.0
-- Last Updated: 2024-07-01
+- Last Updated: 2025-11-13
 - Author: Bruce Cherrington
 - Copyright © Bruce Cherrington
+
+> **Note**: This README is being updated to reflect the current implementation. The repository structure and some documentation links are outdated and will be
+> updated in a future revision. For the most current documentation, see the `docs/` directory, particularly `docs/2-architecture/` and `docs/3-implementation/`.

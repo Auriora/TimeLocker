@@ -2,10 +2,10 @@
 title: "Architecture Document: Data Model"
 id: "arch-data-model"
 type: [ architecture ]
-status: [ approved ]
+status: [ design-specification ]
 owner: "Architecture Team"
-last_reviewed: "01-11-2025"
-tags: [architecture, data-model, schema]
+last_reviewed: "13-11-2025"
+tags: [architecture, data-model, schema, future-enhancement]
 links:
     tooling: []
 ---
@@ -13,21 +13,79 @@ links:
 # Architecture Document: Data Model
 
 - **Owner**: Architecture Team
-- **Status**: Approved
+- **Status**: Design Specification - Future Consideration
 - **Created Date**: 19-12-2024
-- **Last Updated**: 01-11-2025
+- **Last Updated**: 13-11-2025
 - **Audience**: Backend Engineers, Database Administrators, QA
+
+> **⚠️ IMPLEMENTATION STATUS**: This document describes a **conceptual data model for future database implementation**. The current TimeLocker implementation
+> uses **filesystem-based JSON configuration** and does not implement a relational database schema. This design specification is retained for future
+> consideration
+> when migrating to a database-backed storage system.
 
 ## 1. Context
 
-TimeLocker tracks repositories, snapshots, backup jobs, policies, and audit logs. This document captures the canonical entity relationships and data dictionary
-used across services and integrations.
+This document captures the canonical entity relationships and data dictionary that **could be used** if TimeLocker migrates from filesystem-based configuration
+to a relational database system. It describes how repositories, snapshots, backup jobs, policies, and audit logs would be structured in a database.
 
-## 2. Decision
+### Current Implementation
 
-### 2.1 Entity Relationship Diagram
+The current implementation stores configuration data as:
 
-The diagram illustrates the relationships between core entities.
+- **JSON files** in `~/.config/timelocker/` (XDG-compliant)
+- **Interface models** in `/src/TimeLocker/interfaces/` (data_models.py, recovery_models.py, repository_management_models.py)
+- **Service-oriented architecture** without centralized database
+- **Restic backend** for snapshot and backup data storage
+
+## 2. Conceptual Data Model (Future Database Design)
+
+This section describes a potential database schema for future implementation. **This is not currently implemented.**
+
+### 2.1 How Current Implementation Works
+
+TimeLocker currently stores data as follows:
+
+**Configuration Storage**:
+
+- **Location**: `~/.config/timelocker/` (XDG Base Directory Specification)
+- **Format**: JSON files
+- **Structure**:
+    - `config.json` - Application configuration
+    - `repositories.json` - Repository configurations
+    - `policies/` - Policy definitions
+    - `selections/` - Data selection templates
+    - `schedules/` - Scheduled backup configurations
+
+**Data Models**:
+
+- **Repository Models**: `/src/TimeLocker/interfaces/repository_management_models.py`
+- **Backup Models**: `/src/TimeLocker/interfaces/data_models.py`
+- **Recovery Models**: `/src/TimeLocker/interfaces/recovery_models.py`
+
+**Snapshot Storage**:
+
+- Managed entirely by Restic backend
+- Stored in repository (not in TimeLocker database)
+- Accessed via Restic commands
+
+**Example Current Structure**:
+
+```
+~/.config/timelocker/
+├── config.json
+├── repositories.json
+├── credentials/          # Encrypted credentials (per-repository)
+├── policies/
+│   └── {policy-id}.json
+├── selections/
+│   └── {selection-id}.json
+└── schedules/
+    └── {schedule-id}.json
+```
+
+### 2.2 Future Database Entity Relationship Diagram
+
+If TimeLocker migrates to a database system, the following entity relationships could be implemented.
 
 ```plantuml
 @startuml
@@ -184,7 +242,9 @@ Repository ||--o{ RepositoryCheck : validates
 @enduml
 ```
 
-### 2.2 Data Dictionary
+### 2.3 Future Database Data Dictionary
+
+The following data dictionary describes entities for a potential future database implementation.
 
 #### User
 
@@ -352,24 +412,145 @@ Represents a repository integrity check.
 | error_message | string   | Error message if the check failed  |
 | details       | json     | Additional details about the check |
 
-## 3. Consequences
+## 3. Current Implementation Details
 
-- ✅ Provides a shared schema definition for API, CLI, and persistence layers.
-- ✅ Enables traceability to requirements via entity responsibilities.
-- ⚠️ PlantUML diagrams and tables must be regenerated when models change.
-- ⚠️ Additional entities (e.g., notification channels) require updates here to guarantee consistency.
+### 3.1 Interface Models
 
-## 4. Alternatives Considered
+The actual data models currently in use are defined as Python dataclasses:
 
-1. **Rely solely on ORM models**
-    - Pros: Generated directly from code.
-    - Cons: Harder for non-engineers to review; lacks cross-component context. Not adopted.
+**Repository Management Models** (`/src/TimeLocker/interfaces/repository_management_models.py`):
 
-2. **Maintain diagrams in separate tooling (e.g., draw.io)**
-    - Pros: Visual editing experience.
-    - Cons: Difficult to version control and keep in sync. PlantUML retained for text-first workflows.
+- `RepositoryConfig` - Repository configuration and credentials
+- `RepositoryMetadata` - Repository metadata and statistics
+- `RepositoryValidationResult` - Validation results
+
+**Backup Operations Models** (`/src/TimeLocker/interfaces/data_models.py`):
+
+- `BackupJobConfig` - Backup job configuration
+- `BackupResult` - Backup operation results
+- `ExecutionMode` - Backup execution modes
+- `DataSelectionConfig` - Data selection configuration
+
+**Recovery Operations Models** (`/src/TimeLocker/interfaces/recovery_models.py`):
+
+- `RecoveryOptions` - Recovery operation options
+- `RecoveryResult` - Recovery operation results
+- `RecoveryValidationResult` - Validation results
+
+### 3.2 Data Persistence Strategy
+
+**Current Approach**:
+
+- **Configuration**: JSON files in XDG-compliant directories
+- **Credentials**: Encrypted per-repository using platform keystores
+- **Snapshots**: Managed by Restic, stored in repository
+- **Logs**: File-based logging to `~/.cache/timelocker/logs/`
+
+**Benefits**:
+
+- Simple deployment (no database required)
+- Easy backup of configuration (copy directory)
+- Platform-independent
+- No database maintenance overhead
+
+**Limitations**:
+
+- No transaction support
+- Limited query capabilities
+- No built-in concurrent access control
+- Manual schema migration
+
+### 3.3 When Database Migration Makes Sense
+
+A database migration could be considered when:
+
+- Multi-user scenarios requiring concurrent access
+- Need for complex queries across entities
+- Transaction requirements for data consistency
+- Centralized management for enterprise deployments
+- Advanced reporting and analytics needs
+
+## 4. Migration Path (Future Consideration)
+
+If migrating to a database system:
+
+1. **Phase 1: Hybrid Approach**
+    - Keep JSON for simple configuration
+    - Add database for operational data (jobs, logs, history)
+    - Gradual migration of entities
+
+2. **Phase 2: Full Database**
+    - Migrate all configuration to database
+    - Implement schema migration tools
+    - Provide export/import utilities
+
+3. **Phase 3: Advanced Features**
+    - Enable multi-user scenarios
+    - Implement advanced querying
+    - Add real-time synchronization
+
+## 5. Consequences
+
+**Current Filesystem Approach**:
+
+- ✅ Simple deployment and maintenance
+- ✅ Easy configuration backup and restore
+- ✅ No database dependencies
+- ✅ Platform-independent
+- ⚠️ Limited query capabilities
+- ⚠️ No multi-user support
+- ⚠️ Manual concurrent access management
+
+**Future Database Approach**:
+
+- ✅ Advanced query capabilities
+- ✅ Transaction support
+- ✅ Multi-user support
+- ✅ Better scalability for enterprise
+- ⚠️ Increased deployment complexity
+- ⚠️ Database maintenance overhead
+- ⚠️ Additional dependencies
+
+## 6. Alternatives Considered
+
+### Current Implementation Alternatives
+
+1. **SQLite Database** (Not adopted for initial release)
+    - Pros: SQL capabilities, transactions, still file-based
+    - Cons: Added complexity, migration challenges, not as simple to backup
+
+2. **YAML Configuration** (Not adopted)
+    - Pros: Human-readable, supports comments
+    - Cons: Parsing overhead, schema validation challenges
+
+3. **TOML Configuration** (Not adopted)
+    - Pros: Clear syntax, Python support
+    - Cons: Less widespread than JSON, parsing dependencies
+
+### Future Database Options
+
+1. **SQLite**
+    - Pros: Serverless, file-based, transactions, SQL queries
+    - Cons: Limited concurrent write access
+    - **Best for**: Single-user enhanced scenarios
+
+2. **PostgreSQL**
+    - Pros: Full ACID compliance, advanced features, multi-user
+    - Cons: Server deployment, maintenance overhead
+    - **Best for**: Enterprise deployments
+
+3. **Document Database (MongoDB, etc.)**
+    - Pros: Flexible schema, good for JSON-like data
+    - Cons: Deployment complexity, not relational
+    - **Best for**: Cloud-based scenarios
 
 # References
 
-- API payload examples: `docs/reference/api-reference.md`
-- Requirement mapping: `docs/2-architecture/component-breakdown.md`
+- **Current Implementation**:
+    - [Interface Models](/src/TimeLocker/interfaces/)
+    - [Configuration Management](configuration-management.md)
+    - [Repository Management](repository-management.md)
+
+- **Future Considerations**:
+    - API payload examples: `api-reference.md` (design specification)
+    - Requirement mapping: `component-breakdown.md`

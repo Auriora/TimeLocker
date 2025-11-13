@@ -1,11 +1,11 @@
 ---
-title: "Architecture Document: API Reference"
-id: "arch-api-reference"
-type: [ architecture ]
-status: [ approved ]
-owner: "Platform Team"
-last_reviewed: "01-11-2025"
-tags: [architecture, api]
+title:         "Architecture Document: API Reference"
+id:            "arch-api-reference"
+type: [architecture]
+status: [design-specification]
+owner:         "Platform Team"
+last_reviewed: "13-11-2025"
+tags: [architecture, api, future-enhancement]
 links:
     tooling: []
 ---
@@ -13,15 +13,18 @@ links:
 # Architecture Document: API Reference
 
 - **Owner**: Platform Team
-- **Status**: Approved
+- **Status**: Design Specification - Not Yet Implemented
 - **Created Date**: 19-12-2024
-- **Last Updated**: 01-11-2025
+- **Last Updated**: 13-11-2025
 - **Audience**: API Consumers, SDK Authors, Integration Engineers
+
+> **⚠️ IMPLEMENTATION STATUS**: This REST API is a **design specification for future implementation**. The current TimeLocker implementation provides a
+> comprehensive **CLI interface only**. This document describes the planned REST API architecture for future development.
 
 ## 1. Context
 
-TimeLocker exposes a REST API for repository management, backup orchestration, monitoring, and security workflows. This document summarises the interface
-structure and points to the authoritative OpenAPI specifications.
+TimeLocker is planned to expose a REST API for repository management, backup orchestration, monitoring, and security workflows. This document summarises the
+intended interface structure and points to the design specifications.
 
 ## 2. Decision
 
