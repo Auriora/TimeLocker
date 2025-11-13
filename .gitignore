@@ -25,7 +25,6 @@ htmlcov/
 .cache/
 
 # IDE artifacts
-.vscode/
 *.swp
 *.swo
 *~
@@ -35,7 +34,6 @@ htmlcov/
 performance_metrics.json
 /tests.log
 /coverage.xml
-temp/
 
 # Test configuration (contains credentials)
 test-config.json
