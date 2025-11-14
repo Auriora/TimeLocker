@@ -83,7 +83,7 @@ Provide Spaces access key, secret key, and region (e.g., `nyc3`).
 2. Initialise repository: `tl repos init <name>`
 3. Use repository:
    ```bash
-   tl targets add my-docs ~/Documents
+   tl selections create my-docs --paths ~/Documents
    tl backup my-docs -r <name>
    tl snapshots list -r <name>
    ```

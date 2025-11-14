@@ -245,16 +245,16 @@ class TestUserExperienceValidation:
             # Test backup command with various options
             backup_scenarios = [
                     {
-                            "args":        ["backup", "--target", "documents"],
-                            "description": "Simple backup command"
+                            "args":        ["backup", "create", "--selection", "documents"],
+                            "description": "Selection-based backup"
                     },
                     {
-                            "args":        ["backup", "--target", "documents", "--type", "incremental"],
-                            "description": "Incremental backup"
+                            "args":        ["backup", "create", "/home/user/Documents", "--repository", "file:///tmp/test-repo", "--dry-run"],
+                            "description": "Direct-path backup"
                     },
                     {
-                            "args":        ["backup", "--target", "documents", "--verify"],
-                            "description": "Backup with verification"
+                            "args":        ["backup", "create", "--selection", "documents", "--tags", "verify"],
+                            "description": "Backup with tags"
                     }
             ]
 
@@ -371,7 +371,7 @@ class TestUserExperienceValidation:
             # Mock successful operations with realistic output
             mock_outputs = [
                     {
-                            "command":     ["backup", "--target", "documents"],
+                            "command":     ["backup", "create", "--selection", "documents"],
                             "mock_output": {
                                     "status":  "success",
                                     "message": "Backup completed successfully",
@@ -423,15 +423,15 @@ class TestUserExperienceValidation:
                 {
                         "name":  "First-time setup",
                         "steps": [
-                                ["init", "--repository", "local"],
-                                ["config", "--add-target", "documents"],
-                                ["backup", "--target", "documents"]
+                                ["repos", "init", "local"],
+                                ["selections", "create", "documents", "--paths", "/home/user/Documents"],
+                                ["backup", "create", "--selection", "documents"]
                         ]
                 },
                 {
                         "name":  "Regular backup",
                         "steps": [
-                                ["backup", "--target", "documents"],
+                                ["backup", "create", "--selection", "documents"],
                                 ["list", "snapshots"],
                                 ["verify", "--latest"]
                         ]

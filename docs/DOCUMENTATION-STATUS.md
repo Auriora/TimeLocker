@@ -29,7 +29,7 @@ All major documentation areas have been reviewed and updated to reflect the curr
 
 3. **Implementation Documentation**
     - ✅ CLI modules documentation updated to reflect current structure
-    - ✅ Removed deprecated references (targets command)
+    - ✅ Removed deprecated references (legacy CLI commands)
     - ✅ Added new command modules (restore, policy, schedule, monitor)
     - ✅ Documented new infrastructure (services, validation, testing)
 

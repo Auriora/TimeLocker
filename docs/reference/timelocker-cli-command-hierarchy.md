@@ -110,9 +110,6 @@ timelocker/ (alias: tl)
 | `tl repo myrepo init`                   | `tl repos init myrepo`              |
 | `tl repo myrepo check`                  | `tl repos check myrepo`             |
 | `tl config repositories add`            | `tl repos add`                      |
-| `tl targets add mytarget /path`         | `tl selections create mytarget --include '/path/**'` |
-| `tl targets list`                       | `tl selections list`                |
-| `tl targets show mytarget`              | `tl selections show mytarget`       |
 | `tl snapshot abc123 show`               | `tl snapshots show abc123`          |
 | `tl snapshot abc123 forget`             | `tl snapshots forget abc123`        |
 | `tl snapshot abc123 restore /path`      | `tl restore files myrepo abc123 /path` |

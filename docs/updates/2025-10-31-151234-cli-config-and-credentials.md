@@ -23,7 +23,7 @@
 
 - `pytest tests/TimeLocker/cli/test_store_backend_credentials.py`
 - `pytest tests/TimeLocker/cli/test_snapshots_commands.py`
-- `pytest tests/TimeLocker/cli/test_targets_commands.py`
+- `pytest tests/TimeLocker/cli/test_selections_commands.py`
 - `pytest tests/TimeLocker/integration/test_repos_credentials_command_usage.py`
 - `pytest tests/TimeLocker/cli/test_user_experience_validation.py::TestUserExperienceValidation::test_configuration_workflow_usability`
 - `pytest tests/TimeLocker/backup/test_manager.py::test_from_uri_supported_scheme`

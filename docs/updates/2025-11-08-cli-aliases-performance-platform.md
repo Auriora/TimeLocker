@@ -23,7 +23,6 @@ Implemented a comprehensive command alias resolution system that provides:
   - `sel` → `selections`
   - `pol` → `policies`
   - `snap` → `snapshots`
-  - `tgt` → `targets`
   - `cred` → `credentials`
   - And many more...
 

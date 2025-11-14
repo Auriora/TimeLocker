@@ -96,46 +96,6 @@ class TestCLIIntegrationWorkflows:
         assert_success(result, "Repository remove should succeed with mocked service manager")
 
     @pytest.mark.integration
-    @pytest.mark.skip(reason="Targets deprecated - replaced by selections. Test needs rewrite to use selections commands.")
-    @patch('src.TimeLocker.cli_services.get_cli_service_manager')
-    def test_backup_target_management_workflow(self, mock_service_manager, temp_backup_dir):
-        """Test complete backup target management workflow."""
-        # TODO: Rewrite this test to use selections instead of deprecated targets
-        # Mock the service manager
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        
-        # Mock target operations
-        mock_manager.add_backup_target.return_value = Mock(success=True)
-        mock_manager.list_backup_targets.return_value = [
-            {"name": "test-target", "paths": [str(temp_backup_dir)], "description": "Test target"}
-        ]
-        mock_manager.get_backup_target.return_value = Mock(
-            name="test-target", paths=[str(temp_backup_dir)], description="Test target"
-        )
-        mock_manager.remove_backup_target.return_value = Mock(success=True)
-
-        # Step 1: Add backup target
-        result = runner.invoke(app, [
-            "targets", "add", "test-target",
-            "--path", str(temp_backup_dir),
-            "--description", "Test target"
-        ])
-        assert_success(result, "Target add should succeed with mocked service manager")
-
-        # Step 2: List targets
-        result = runner.invoke(app, ["targets", "list"])
-        assert_success(result, "Target list should succeed with mocked service manager")
-
-        # Step 3: Show target details
-        result = runner.invoke(app, ["targets", "show", "test-target"])
-        assert_success(result, "Target show should succeed with mocked service manager")
-
-        # Step 4: Remove target
-        result = runner.invoke(app, ["targets", "remove", "test-target"])
-        assert_success(result, "Target remove should succeed with mocked service manager")
-
-    @pytest.mark.integration
     @patch('src.TimeLocker.cli_services.get_cli_service_manager')
     @patch('src.TimeLocker.cli._get_service_manager_for_command')
     def test_backup_creation_workflow(self, mock_get_for_command, mock_service_manager, temp_backup_dir, temp_repo_dir):
@@ -154,15 +114,7 @@ class TestCLIIntegrationWorkflows:
             {"id": "abc123def456", "time": "2024-01-01T12:00:00Z", "hostname": "test"}
         ]
 
-        # Step 1: Create backup with target
-        result = runner.invoke(app, [
-            "backup", "create",
-            "--target", "test-target",
-            "--dry-run"
-        ])
-        assert_success(result, "Backup create with target should succeed with mocked service manager")
-
-        # Step 2: Create backup with direct paths
+        # Step 1: Create backup with direct paths
         result = runner.invoke(app, [
             "backup", "create",
             str(temp_backup_dir),
@@ -171,14 +123,14 @@ class TestCLIIntegrationWorkflows:
         ])
         assert_success(result, "Backup create with paths should succeed with mocked service manager")
 
-        # Step 3: Verify backup
+        # Step 2: Verify backup
         result = runner.invoke(app, [
             "backup", "verify",
             "--repository", f"file://{temp_repo_dir}"
         ])
         assert_success(result, "Backup verify should succeed with mocked service manager")
 
-        # Step 4: List snapshots
+        # Step 3: List snapshots
         result = runner.invoke(app, [
             "snapshots", "list",
             "--repository", f"file://{temp_repo_dir}"
@@ -366,23 +318,7 @@ class TestCLIIntegrationWorkflows:
         ])
         assert_success(result, "First repo init should succeed with mocked service manager")
 
-        # Step 3: Add backup target
-        result = runner.invoke(app, [
-            "targets", "add", "documents",
-            "--path", str(temp_backup_dir),
-            "--description", "My documents"
-        ])
-        assert_success(result, "First target add should succeed with mocked service manager")
-
-        # Step 4: Create first backup
-        result = runner.invoke(app, [
-            "backup", "create",
-            "--target", "documents",
-            "--tags", "first-backup"
-        ])
-        assert_success(result, "First backup should succeed with mocked service manager")
-
-        # Step 5: List snapshots to verify
+        # Step 3: List snapshots to verify
         result = runner.invoke(app, ["snapshots", "list"])
         assert_success(result, "First snapshots list should succeed with mocked service manager")
 

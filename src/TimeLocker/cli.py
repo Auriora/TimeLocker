@@ -1002,16 +1002,13 @@ def config_import_restic(
 def config_import_timeshift(
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         config_file: Annotated[Optional[Path], typer.Option("--config-file", help="Path to Timeshift configuration file")] = None,
-        repo_name: Annotated[str, typer.Option("--repo-name", help="Name to assign the imported repository")] = "timeshift_imported",
-        target_name: Annotated[str, typer.Option("--target-name", help="Name to assign the imported backup target")] = "timeshift_system",
-        repo_path: Annotated[Optional[str], typer.Option("--repo-path", help="Override repository path if device resolution fails")] = None,
-        paths: Annotated[Optional[List[str]], typer.Option("--paths", help="Override backup paths (multiple allowed)")] = None,
-        yes: Annotated[bool, typer.Option("--yes", "-y", help="Apply changes without confirmation")] = False,
         dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview changes without modifying configuration")] = False,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Import configuration from Timeshift backup tool."""
     setup_logging(verbose, config_dir)
+    default_repo_name = "timeshift_imported"
+    default_selection_name = "timeshift_system"
     try:
         manager = _get_service_manager_for_command(config_dir)
         import_method = _get_service_method(manager, "import_timeshift_config")
@@ -1037,13 +1034,12 @@ def config_import_timeshift(
                 raise typer.Exit(1)
 
             mapper = TimeshiftToTimeLockerMapper()
-            backup_paths = list(paths) if paths else None
             result = mapper.import_configuration(
                     parsed_config,
-                    repository_name=repo_name,
-                    target_name=target_name,
-                    manual_repository_path=repo_path,
-                    backup_paths=backup_paths,
+                    repository_name=default_repo_name,
+                    target_name=default_selection_name,
+                    manual_repository_path=None,
+                    backup_paths=None,
             )
 
             console.rule("Import from Timeshift")
@@ -1052,48 +1048,61 @@ def config_import_timeshift(
             console.print(f"[bold]Timeshift Configuration Found:[/bold] {config_path_display}")
 
             repo_config = result.repository_config or {}
-            target_config = result.backup_target_config or {}
+            selection_config = result.backup_target_config or {}
 
-            console.print("\n[bold]Repository Configuration[/bold]")
-            console.print(f"- Name: {repo_config.get('name', repo_name)}")
-            console.print(f"- Location: {repo_config.get('location', repo_path or '/timeshift')}")
+            console.print("
+                          [bold]
+            Repository
+            Configuration[ / bold]")
+            console.print(f"- Name: {repo_config.get('name', default_repo_name)}")
+            console.print(f"- Location: {repo_config.get('location', '/timeshift')}")
             console.print(f"- Description: {repo_config.get('description', 'Imported from Timeshift')}")
+            console.print(f"- Backend: {repo_config.get('backend', 'restic (auto-detected)')}")
 
-            console.print("\n[bold]Backup Target Configuration[/bold]")
-            console.print(f"- Name: {target_config.get('name', target_name)}")
-            console.print(f"- Paths: {', '.join(target_config.get('paths', backup_paths or ['/']))}")
-            console.print(f"- Repository: {target_config.get('_display_repository', repo_name)}")
+            console.print("
+                          [bold]
+            Selection
+            Template
+            Configuration[ / bold]")
+            console.print(f"- Template: {selection_config.get('name', default_selection_name)}")
+            console.print(f"- Paths: {', '.join(selection_config.get('paths', ['/']))}")
+            console.print(f"- Excludes: {', '.join(selection_config.get('exclude_patterns', [])) or 'None'}")
 
             if result.warnings:
-                console.print("\n[yellow]Warnings:[/yellow]")
+                console.print("
+                              [yellow]
+            Warnings: [ / yellow]")
                 for warning in result.warnings:
                     console.print(f"- {warning}")
                 if str(parsed_config.get("btrfs_mode", "false")).lower() == "true":
                     console.print("- BTRFS Mode: Yes (Timeshift configuration indicates BTRFS snapshots were enabled.)")
 
             if result.errors:
-                console.print("\n[red]Errors:[/red]")
+                console.print("
+                              [red]
+            Errors: [ / red]")
                 for error in result.errors:
                     console.print(f"- {error}")
 
-            if dry_run or not yes:
-                console.print("\n[cyan]Dry run mode - no changes made[/cyan]")
-
-            show_success_panel(
-                    "Timeshift Import",
-                    "Timeshift configuration import dry-run completed." if dry_run or not yes else "Timeshift configuration imported successfully."
-            )
+            console.print("
+                          [cyan]
+            Dry
+            run
+            mode - no
+            changes
+            made[ / cyan]")
+            show_success_panel("Timeshift Import", "Timeshift configuration import dry-run completed.")
             return
 
         result = _call_service_method(
                 import_method,
                 config_dir=config_dir,
                 config_file=str(config_file) if config_file else None,
-                repository_name=repo_name,
-                target_name=target_name,
-                manual_repository_path=repo_path,
-                backup_paths=list(paths) if paths else None,
-                assume_yes=yes,
+                repository_name=default_repo_name,
+                target_name=default_selection_name,
+                manual_repository_path=None,
+                backup_paths=None,
+                assume_yes=True,
                 dry_run=dry_run,
         )
 
@@ -1120,7 +1129,6 @@ def config_import_timeshift(
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
-
 
 class UserFacingLogFilter(logging.Filter):
     """Filter to identify user-facing log messages that should be displayed in CLI."""

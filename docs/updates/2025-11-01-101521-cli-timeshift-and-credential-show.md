@@ -26,8 +26,8 @@ Restore expected behaviour for integration tests covering Timeshift imports and 
 
 - `repos credentials show` now unlocks the credential manager automatically (respecting the master password env var) before checking for stored secrets, so the
   integration test observes the previously saved AWS keys.
-- `config import timeshift` regained legacy options (`--repo-name`, `--target-name`, `--repo-path`, `--paths`, `--yes`) and a fallback implementation when the
-  service manager lacks an import method. The command now prints the detailed summary strings that tests expect, including explicit BTRFS detection text.
+- `config import timeshift` now uses fixed defaults for repository and selection names (no legacy overrides) while still providing the fallback parser for
+  builds without the service-layer importer. The command prints the detailed summary strings that tests expect, including explicit BTRFS detection text.
 - Migrated legacy MinIO diagnostic scripts into pytest modules (`tests/TimeLocker/integration/test_per_repo_credentials.py`,
   `tests/TimeLocker/integration/test_minio_connection.py`) and ensured `.env` / `.env.test` are loaded automatically for integration suites.
 

@@ -14,37 +14,7 @@ This directory contains prompts and documentation for fixing the remaining test 
 
 Each prompt file contains both a detailed version and a shorter version for starting a new conversation.
 
-### 1. Targets → Selections Migration (22 failures)
-**File:** `PROMPT-fix-targets-selections.md`  
-**Priority:** HIGH - Quick win, straightforward fixes  
-**Effort:** Medium  
-**Impact:** +22 passing tests
-
-**Summary:** Update deprecated "targets" commands to new "selections" commands throughout test file.
-
-**Key Changes:**
-- `targets add` → `selections create`
-- `targets remove` → `selections delete`
-- Rename test file and update all assertions
-
----
-
-### 2. CLI Integration Tests (5 failures)
-**File:** `PROMPT-fix-cli-integration-tests.md`  
-**Priority:** MEDIUM - Complex mocking issues  
-**Effort:** High  
-**Impact:** +5 passing tests
-
-**Summary:** Fix complex integration tests with mock configuration and import errors.
-
-**Key Issues:**
-- Import error: `No module named 'src.TimeLocker.cli_modules.commands.utils'`
-- Incomplete service manager mocks
-- Mock path issues
-
----
-
-### 3. Configuration Tests (13 failures)
+### 1. Configuration Tests (13 failures)
 **File:** `PROMPT-fix-configuration-tests.md`  
 **Priority:** HIGH - Affects core functionality  
 **Effort:** Medium-High  
@@ -135,7 +105,6 @@ After completing all fixes:
 ## Additional Resources
 
 ### Technical Documentation
-- `fix-targets-to-selections-tests.md` - Detailed spec for targets migration
 - Project test suite: `tests/TimeLocker/`
 - Test utilities: `tests/TimeLocker/cli/test_utils.py`
 
@@ -146,7 +115,7 @@ After completing all fixes:
 pytest tests/TimeLocker/ -v
 
 # Run specific category
-pytest tests/TimeLocker/cli/test_targets_commands.py -v
+pytest tests/TimeLocker/cli/test_selections_commands.py -v
 pytest tests/TimeLocker/config/ -v
 pytest tests/TimeLocker/integration/ -v
 

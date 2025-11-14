@@ -194,7 +194,7 @@ class TestCLIErrorHandling:
     @pytest.mark.unit
     def test_conflicting_options(self):
         conflicting_scenarios = [
-                ["backup", "create", "/tmp", "--target", "test-target"],  # target may not exist -> error 1
+                ["backup", "create"],  # missing sources or selection should fail
                 ["backup", "verify", "--snapshot", "abc123", "--latest"]  # hypothetical conflict -> expect non-zero
         ]
         for cmd in conflicting_scenarios:

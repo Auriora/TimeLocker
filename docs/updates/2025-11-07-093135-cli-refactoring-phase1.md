@@ -84,7 +84,7 @@ src/TimeLocker/cli/commands/
 ├── backup.py              # backup_create, backup_verify
 ├── snapshots.py           # All snapshot commands
 ├── repositories.py        # All repos commands
-├── targets.py             # All targets commands
+├── selections.py          # All selection commands
 ├── config.py              # All config commands
 ├── credentials.py         # All credentials commands
 └── security.py            # All security commands

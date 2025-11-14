@@ -115,7 +115,7 @@ mkdir -p /tmp/test-backup-source
 echo "Test file" > /tmp/test-backup-source/test.txt
 
 # Add target
-tl targets add test-backup /tmp/test-backup-source
+tl selections create test-backup --paths /tmp/test-backup-source
 
 # Run backup
 tl backup create test-backup --repository minio-test

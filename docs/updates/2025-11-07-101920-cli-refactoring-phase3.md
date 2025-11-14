@@ -331,7 +331,7 @@ def my_command(verbose: bool = False, config_dir: Optional[Path] = None):
 src/TimeLocker/cli_modules/commands/
 ├── __init__.py
 ├── base.py                      # ✅ NEW - Phase 3 base module
-├── targets.py                   # Phase 2 version
+├── selections.py                # Phase 2 version
 ├── targets_refactored.py        # ✅ NEW - Phase 3 refactored
 ├── backup.py                    # Phase 2 version
 └── (future modules...)

@@ -48,16 +48,14 @@ class TestTimeshiftCLIIntegration:
             result = self.runner.invoke(app, [
                     "config", "import", "timeshift",
                     "--config-file", str(config_file),
-                    "--repo-path", "/test/backup/path",
-                    "--dry-run",
-                    "--yes"
+                    "--dry-run"
             ])
 
             assert result.exit_code == 0
             assert "Import from Timeshift" in result.stdout
             assert "Timeshift Configuration Found" in result.stdout
             assert "Repository Configuration" in result.stdout
-            assert "Backup Target Configuration" in result.stdout
+            assert "Selection Template Configuration" in result.stdout
             assert "Dry run mode - no changes made" in result.stdout
             assert "timeshift_imported" in result.stdout
             assert "timeshift_system" in result.stdout
@@ -76,10 +74,8 @@ class TestTimeshiftCLIIntegration:
         assert result.exit_code == 0
         assert "Import configuration from Timeshift backup tool" in result.stdout
         assert "--config-file" in result.stdout
-        assert "--repo-name" in result.stdout
-        assert "--target-name" in result.stdout
-        assert "--repo-path" in result.stdout
         assert "--dry-run" in result.stdout
+        assert "--verbose" in result.stdout
 
     @pytest.mark.config
     @pytest.mark.integration
@@ -117,58 +113,6 @@ class TestTimeshiftCLIIntegration:
 
     @pytest.mark.config
     @pytest.mark.integration
-    def test_timeshift_import_custom_names(self):
-        """Test Timeshift import with custom repository and target names"""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(self.timeshift_config, f)
-            config_file = Path(f.name)
-
-        try:
-            result = self.runner.invoke(app, [
-                    "config", "import", "timeshift",
-                    "--config-file", str(config_file),
-                    "--repo-name", "custom_repo",
-                    "--target-name", "custom_target",
-                    "--repo-path", "/custom/path",
-                    "--dry-run",
-                    "--yes"
-            ])
-
-            assert result.exit_code == 0
-            assert "custom_repo" in result.stdout
-            assert "custom_target" in result.stdout
-            assert "/custom/path" in result.stdout
-
-        finally:
-            config_file.unlink()
-
-    @pytest.mark.config
-    @pytest.mark.integration
-    def test_timeshift_import_custom_paths(self):
-        """Test Timeshift import with custom backup paths"""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
-            json.dump(self.timeshift_config, f)
-            config_file = Path(f.name)
-
-        try:
-            result = self.runner.invoke(app, [
-                    "config", "import", "timeshift",
-                    "--config-file", str(config_file),
-                    "--paths", "/home",
-                    "--paths", "/etc",
-                    "--repo-path", "/backup",
-                    "--dry-run",
-                    "--yes"
-            ])
-
-            assert result.exit_code == 0
-            assert "/home, /etc" in result.stdout
-
-        finally:
-            config_file.unlink()
-
-    @pytest.mark.config
-    @pytest.mark.integration
     def test_timeshift_import_verbose(self):
         """Test Timeshift import with verbose output"""
         with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
@@ -179,10 +123,8 @@ class TestTimeshiftCLIIntegration:
             result = self.runner.invoke(app, [
                     "config", "import", "timeshift",
                     "--config-file", str(config_file),
-                    "--repo-path", "/test/path",
                     "--verbose",
-                    "--dry-run",
-                    "--yes"
+                    "--dry-run"
             ])
 
             assert result.exit_code == 0
@@ -211,8 +153,7 @@ class TestTimeshiftCLIIntegration:
             result = self.runner.invoke(app, [
                     "config", "import", "timeshift",
                     "--config-file", str(config_file),
-                    "--dry-run",
-                    "--yes"
+                    "--dry-run"
             ])
 
             assert result.exit_code == 0
@@ -236,9 +177,7 @@ class TestTimeshiftCLIIntegration:
             result = self.runner.invoke(app, [
                     "config", "import", "timeshift",
                     "--config-file", str(config_file),
-                    "--repo-path", "/test/path",
-                    "--dry-run",
-                    "--yes"
+                    "--dry-run"
             ])
 
             assert result.exit_code == 0
