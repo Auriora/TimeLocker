@@ -20,7 +20,13 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from src.TimeLocker.cli import app
-from tests.TimeLocker.cli.test_utils import get_cli_runner, combined_output, assert_success, assert_exit_code
+from tests.TimeLocker.cli.test_utils import (
+        get_cli_runner,
+        combined_output,
+        assert_success,
+        assert_exit_code,
+        patch_restore_commands,
+)
 
 # Set wider terminal width to prevent help text truncation in CI
 runner = get_cli_runner()
@@ -57,9 +63,9 @@ class TestCLIErrorHandling:
     def test_missing_required_arguments(self):
         missing_arg_commands = [
                 ["snapshots", "show"],
-                ["snapshots", "contents"],
-                ["snapshots", "mount"],
-                ["snapshots", "restore"],
+                ["restore", "browse"],
+                ["restore", "mount"],
+                ["restore", "full"],
                 ["repos", "init"],
                 ["repos", "show"],
                 ["repos", "check"],
@@ -86,16 +92,36 @@ class TestCLIErrorHandling:
                 "",
                 "123"
         ]
-        snapshot_commands = ["show", "contents", "mount", "restore", "forget", "umount"]
-        for snapshot_id in invalid_snapshot_ids:
-            for cmd in snapshot_commands:
-                if cmd in ("mount", "restore"):
-                    result = runner.invoke(app, ["snapshots", cmd, snapshot_id, "/tmp"])
-                else:
-                    result = runner.invoke(app, ["snapshots", cmd, snapshot_id])
-                combined = combined_output(result)
-                assert result.exit_code != 0, f"Invalid snapshot ID should fail: {snapshot_id} in {cmd}"
-                assert re.search(r"invalid.*format", combined, re.IGNORECASE), f"Should mention invalid format for {snapshot_id} in {cmd}"
+        snapshot_commands = ["show", "forget"]
+        with patch_restore_commands(mode="invalid_snapshot"):
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                mount_path = Path(tmp_dir) / "mount"
+                mount_path.mkdir()
+                target_path = Path(tmp_dir) / "target"
+                target_path.mkdir()
+
+                for snapshot_id in invalid_snapshot_ids:
+                    for cmd in snapshot_commands:
+                        result = runner.invoke(app, ["snapshots", cmd, snapshot_id])
+                        combined = combined_output(result)
+                        assert result.exit_code != 0, f"Invalid snapshot ID should fail: {snapshot_id} in snapshots {cmd}"
+                        assert re.search(r"invalid.*format", combined, re.IGNORECASE), f"Should mention invalid format for {snapshot_id} in snapshots {cmd}"
+
+                    restore_commands = [
+                            ["restore", "browse", "test-repo", snapshot_id],
+                            ["restore", "full", "test-repo", snapshot_id, str(target_path)],
+                            ["restore", "files", "test-repo", snapshot_id, "/var/log/syslog", "--target", str(target_path)],
+                            ["restore", "mount", "test-repo", snapshot_id, str(mount_path)],
+                    ]
+                    if snapshot_id.strip():
+                        restore_commands.append(
+                                ["restore", "find", "test-repo", "*.txt", "--snapshot", snapshot_id]
+                        )
+                    for command in restore_commands:
+                        result = runner.invoke(app, command)
+                        combined = combined_output(result)
+                        assert result.exit_code != 0, f"Invalid snapshot ID should fail: {' '.join(command)}"
+                        assert "invalid snapshot id" in combined.lower(), f"Should mention invalid snapshot ID for {' '.join(command)}"
 
     @pytest.mark.unit
     def test_invalid_repository_uri_validation(self):
@@ -246,7 +272,7 @@ class TestCLIErrorHandling:
     @pytest.mark.unit
     def test_error_message_quality(self):
         error_scenarios = [
-                {"command": ["snapshots", "show"], "expected_keywords": ["missing", "required", "snapshot"]},
+                {"command": ["snapshots", "show"], "expected_keywords": ["missing", "argument", "snapshot"]},
                 {"command": ["repos", "add", "test", "invalid-uri"], "expected_keywords": ["invalid", "uri", "format"]},
                 {"command": ["snapshots", "show", "bad$$id"], "expected_keywords": ["invalid", "snapshot", "format"]}
         ]

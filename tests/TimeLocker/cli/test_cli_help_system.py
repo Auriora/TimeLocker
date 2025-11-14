@@ -37,7 +37,7 @@ class TestCLIHelpSystem:
         assert "backup" in combined.lower()
 
         # Check for command groups
-        expected_groups = ["backup", "snapshots", "repos", "selections", "config", "credentials"]
+        expected_groups = ["backup", "snapshots", "restore", "repos", "selections", "config", "credentials"]
         for group in expected_groups:
             assert group in combined.lower(), f"Command group '{group}' not found in help"
 
@@ -53,6 +53,7 @@ class TestCLIHelpSystem:
         command_groups = [
                 "backup",
                 "snapshots",
+                "restore",
                 "repos",
                 "selections",
                 "config",
@@ -90,8 +91,7 @@ class TestCLIHelpSystem:
     def test_snapshots_subcommands_help(self):
         """Test snapshots subcommands help output."""
         subcommands = [
-                "list", "show", "contents", "restore", "mount", "umount",
-                "forget", "prune", "diff", "find"
+                "list", "show", "find", "forget", "prune", "diff"
         ]
 
         for subcmd in subcommands:
@@ -100,6 +100,20 @@ class TestCLIHelpSystem:
 
             assert result.exit_code == 0, f"Help for 'snapshots {subcmd}' failed"
             assert len(combined) > 50, f"Help for 'snapshots {subcmd}' should be informative"
+
+    @pytest.mark.unit
+    def test_restore_subcommands_help(self):
+        """Test restore subcommands help output."""
+        subcommands = [
+                "list", "browse", "full", "files", "verify", "mount", "umount", "find", "diff"
+        ]
+
+        for subcmd in subcommands:
+            result = runner.invoke(app, ["restore", subcmd, "--help"])
+            combined = _combined_output(result)
+
+            assert result.exit_code == 0, f"Help for 'restore {subcmd}' failed"
+            assert len(combined) > 50, f"Help for 'restore {subcmd}' should be informative"
 
     @pytest.mark.unit
     def test_repos_subcommands_help(self):
@@ -180,11 +194,13 @@ class TestCLIHelpSystem:
                 ["--help"],
                 ["backup", "--help"],
                 ["snapshots", "--help"],
+                ["restore", "--help"],
                 ["repos", "--help"],
                 ["selections", "--help"],
                 ["config", "--help"],
                 ["backup", "create", "--help"],
                 ["snapshots", "list", "--help"],
+                ["restore", "list", "--help"],
                 ["repos", "add", "--help"],
                 ["selections", "create", "--help"],
                 ["config", "import", "--help"]

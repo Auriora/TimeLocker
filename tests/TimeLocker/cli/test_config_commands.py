@@ -198,16 +198,20 @@ class TestConfigCommands:
         assert result.exit_code == 2
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.ConfigurationModule')
-    @patch('src.TimeLocker.cli.ConfigurationValidator')
-    def test_config_show_with_validation(self, mock_validator, mock_config_module):
+    @patch('src.TimeLocker.cli_modules.commands.config._create_config_service')
+    @patch('src.TimeLocker.cli_modules.commands.config.ConfigurationValidator')
+    def test_config_show_with_validation(self, mock_validator, mock_config_service_factory):
         """Test config show command with validation."""
-        # Mock the configuration module and validator
-        mock_config = Mock()
-        mock_config_module.return_value = mock_config
-        mock_config.get_config.return_value = {}
-        mock_config.config_file = Path("/tmp/config.json")
-        mock_config.get_config_info.return_value = {}
+        # Mock the configuration service and validator
+        mock_config_service = Mock()
+        mock_config_service_factory.return_value = mock_config_service
+        mock_config_service.get_config.return_value = MagicMock(
+                repositories={},
+                backup_targets={},
+                general=MagicMock(default_repository=None)
+        )
+        mock_config_service.get_config_dict.return_value = {}
+        mock_config_service.config_file = Path("/tmp/config.json")
         
         mock_validator_instance = Mock()
         mock_validator.return_value = mock_validator_instance
@@ -219,11 +223,11 @@ class TestConfigCommands:
         assert result.exit_code in [0, 1]
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.ConfigurationModule')
-    def test_config_show_configuration_error(self, mock_config_module):
+    @patch('src.TimeLocker.cli_modules.commands.config._create_config_service')
+    def test_config_show_configuration_error(self, mock_config_service_factory):
         """Test config show command with configuration error."""
         # Mock configuration module to raise error
-        mock_config_module.side_effect = Exception("Configuration error")
+        mock_config_service_factory.side_effect = Exception("Configuration error")
         
         result = runner.invoke(app, ["config", "show"])
         

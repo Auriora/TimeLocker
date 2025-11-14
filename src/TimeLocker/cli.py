@@ -1050,47 +1050,30 @@ def config_import_timeshift(
             repo_config = result.repository_config or {}
             selection_config = result.backup_target_config or {}
 
-            console.print("
-                          [bold]
-            Repository
-            Configuration[ / bold]")
+            console.print("\n[bold]Repository Configuration[/bold]")
             console.print(f"- Name: {repo_config.get('name', default_repo_name)}")
             console.print(f"- Location: {repo_config.get('location', '/timeshift')}")
             console.print(f"- Description: {repo_config.get('description', 'Imported from Timeshift')}")
             console.print(f"- Backend: {repo_config.get('backend', 'restic (auto-detected)')}")
 
-            console.print("
-                          [bold]
-            Selection
-            Template
-            Configuration[ / bold]")
+            console.print("\n[bold]Selection Template Configuration[/bold]")
             console.print(f"- Template: {selection_config.get('name', default_selection_name)}")
             console.print(f"- Paths: {', '.join(selection_config.get('paths', ['/']))}")
             console.print(f"- Excludes: {', '.join(selection_config.get('exclude_patterns', [])) or 'None'}")
 
             if result.warnings:
-                console.print("
-                              [yellow]
-            Warnings: [ / yellow]")
+                console.print("\n[yellow]Warnings:[/yellow]")
                 for warning in result.warnings:
                     console.print(f"- {warning}")
                 if str(parsed_config.get("btrfs_mode", "false")).lower() == "true":
                     console.print("- BTRFS Mode: Yes (Timeshift configuration indicates BTRFS snapshots were enabled.)")
 
             if result.errors:
-                console.print("
-                              [red]
-            Errors: [ / red]")
+                console.print("\n[red]Errors:[/red]")
                 for error in result.errors:
                     console.print(f"- {error}")
 
-            console.print("
-                          [cyan]
-            Dry
-            run
-            mode - no
-            changes
-            made[ / cyan]")
+            console.print("\n[cyan]Dry run mode - no changes made[/cyan]")
             show_success_panel("Timeshift Import", "Timeshift configuration import dry-run completed.")
             return
 

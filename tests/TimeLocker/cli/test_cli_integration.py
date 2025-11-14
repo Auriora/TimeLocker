@@ -12,7 +12,13 @@ from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 
 from src.TimeLocker.cli import app
-from tests.TimeLocker.cli.test_utils import get_cli_runner, combined_output, assert_success
+from tests.TimeLocker.cli.test_utils import (
+        get_cli_runner,
+        combined_output,
+        assert_success,
+        create_mock_service_manager,
+        patch_restore_commands,
+)
 
 # Set wider terminal width to prevent help text truncation in CI
 runner = get_cli_runner()
@@ -43,27 +49,38 @@ class TestCLIIntegrationWorkflows:
             yield Path(temp_dir)
 
     @pytest.mark.integration
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     @patch('src.TimeLocker.cli_services.get_cli_service_manager')
-    def test_repository_management_workflow(self, mock_get_service_manager, temp_repo_dir):
+    def test_repository_management_workflow(self, mock_get_service_manager, mock_get_for_command, temp_repo_dir):
         """Test complete repository management workflow."""
         # Mock the service manager with proper structure
-        from .test_utils import create_mock_cli_service_manager
-        mock_manager = create_mock_cli_service_manager()
+        mock_manager = create_mock_service_manager()
         mock_get_service_manager.return_value = mock_manager
+        mock_get_for_command.return_value = mock_manager
         
         # Mock repository operations with proper return values
+        mock_manager.add_repository.return_value = {"success": True}
         mock_manager.repository_service.add_repository.return_value = {"success": True}
+        mock_manager.list_repositories.return_value = [
+            {"name": "test-repo", "uri": f"file://{temp_repo_dir}", "description": "Test repository"}
+        ]
         mock_manager.repository_service.list_repositories.return_value = [
             {"name": "test-repo", "uri": f"file://{temp_repo_dir}", "description": "Test repository"}
         ]
+        mock_manager.get_repository_by_name.return_value = Mock(
+            name="test-repo", uri=f"file://{temp_repo_dir}", description="Test repository"
+        )
         mock_manager.repository_service.get_repository.return_value = Mock(
             name="test-repo", uri=f"file://{temp_repo_dir}", description="Test repository"
         )
         mock_manager.config_module.get_repository.return_value = Mock(
             name="test-repo", location=f"file://{temp_repo_dir}", description="Test repository"
         )
+        mock_manager.initialize_repository.return_value = {"success": True, "already_initialized": False}
         mock_manager.repository_service.initialize_repository.return_value = {"success": True, "already_initialized": False}
+        mock_manager.check_repository.return_value = {"success": True}
         mock_manager.repository_service.check_repository.return_value = {"success": True}
+        mock_manager.remove_repository.return_value = {"success": True}
         mock_manager.repository_service.remove_repository.return_value = {"success": True}
 
         # Step 1: Add repository
@@ -83,7 +100,8 @@ class TestCLIIntegrationWorkflows:
 
         # Step 4: Initialize repository
         result = runner.invoke(app, [
-            "repos", "init", "test-repo", "--yes"
+            "repos", "init", "test-repo", "--yes", "--password", "test-pass",
+            "--repository", f"file://{temp_repo_dir}"
         ])
         assert_success(result, "Repository init should succeed with mocked service manager")
 
@@ -97,20 +115,22 @@ class TestCLIIntegrationWorkflows:
 
     @pytest.mark.integration
     @patch('src.TimeLocker.cli_services.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.backup.get_cli_service_manager')
     @patch('src.TimeLocker.cli._get_service_manager_for_command')
-    def test_backup_creation_workflow(self, mock_get_for_command, mock_service_manager, temp_backup_dir, temp_repo_dir):
+    def test_backup_creation_workflow(self, mock_get_for_command, mock_backup_get_service_manager, mock_cli_services_get, temp_backup_dir, temp_repo_dir):
         """Test complete backup creation workflow."""
         # Mock the service manager
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
+        mock_manager = create_mock_service_manager()
+        mock_backup_get_service_manager.return_value = mock_manager
+        mock_cli_services_get.return_value = mock_manager
         mock_get_for_command.return_value = mock_manager
         
         # Mock backup operations
         mock_manager.execute_backup.return_value = Mock(
-            success=True, snapshot_id="abc123def456", stats=Mock()
+            success=True, snapshot_id="abc123def456", warnings=[], errors=[]
         )
-        mock_manager.verify_backup.return_value = Mock(success=True)
-        mock_manager.list_snapshots.return_value = [
+        mock_manager.verify_backup_integrity.return_value = True
+        mock_manager.snapshot_service.list_snapshots.return_value = [
             {"id": "abc123def456", "time": "2024-01-01T12:00:00Z", "hostname": "test"}
         ]
 
@@ -145,20 +165,15 @@ class TestCLIIntegrationWorkflows:
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
         
-        # Mock snapshot operations
-        mock_manager.list_snapshots.return_value = [
+        # Mock snapshot service operations
+        snapshot_service = Mock()
+        mock_manager.snapshot_service = snapshot_service
+        snapshot_service.list_snapshots.return_value = [
             {"id": "abc123def456", "time": "2024-01-01T12:00:00Z", "hostname": "test"}
         ]
-        # Add get_snapshot_details method to mock
-        mock_manager.get_snapshot_details = Mock(return_value=Mock(
+        snapshot_service.get_snapshot_details = Mock(return_value=Mock(
             id="abc123def456", time="2024-01-01T12:00:00Z", hostname="test"
         ))
-        mock_manager.list_snapshot_contents.return_value = [
-            {"path": "/test.txt", "type": "file", "size": 100}
-        ]
-        mock_manager.restore_snapshot.return_value = Mock(success=True)
-        mock_manager.mount_snapshot.return_value = Mock(success=True)
-        mock_manager.find_in_snapshots.return_value = []
 
         # Step 1: List snapshots
         result = runner.invoke(app, [
@@ -174,19 +189,23 @@ class TestCLIIntegrationWorkflows:
         ])
         assert_success(result, "Snapshots show should succeed with mocked service manager")
 
-        # Step 3: List snapshot contents
-        result = runner.invoke(app, [
-            "snapshots", "contents", "abc123def456",
-            "--repository", f"file://{temp_repo_dir}"
-        ])
-        assert_success(result, "Snapshots contents should succeed with mocked service manager")
+        with patch_restore_commands(mode="success"):
+            # Step 3: Browse snapshot contents through restore namespace
+            result = runner.invoke(app, [
+                "restore", "browse",
+                f"file://{temp_repo_dir}",
+                "abc123def456"
+            ])
+            assert_success(result, "Restore browse should succeed with mocked dependencies")
 
-        # Step 4: Search in snapshots
-        result = runner.invoke(app, [
-            "snapshots", "find", "*.txt",
-            "--repository", f"file://{temp_repo_dir}"
-        ])
-        assert_success(result, "Snapshots find should succeed with mocked service manager")
+            # Step 4: Search snapshot files via restore namespace
+            result = runner.invoke(app, [
+                "restore", "find",
+                f"file://{temp_repo_dir}",
+                "*.txt",
+                "--snapshot", "abc123def456"
+            ])
+            assert_success(result, "Restore find should succeed with mocked dependencies")
 
     @pytest.mark.integration
     @patch('src.TimeLocker.cli_services.get_cli_service_manager')
@@ -201,28 +220,35 @@ class TestCLIIntegrationWorkflows:
         mock_manager.mount_snapshot.return_value = Mock(success=True)
         mock_manager.unmount_snapshot.return_value = Mock(success=True)
 
-        with tempfile.TemporaryDirectory() as restore_dir:
-            # Step 1: Restore snapshot to directory
-            result = runner.invoke(app, [
-                "snapshots", "restore", "abc123def456", restore_dir,
-                "--repository", f"file://{temp_repo_dir}"
-            ])
-            assert_success(result, "Snapshot restore should succeed with mocked service manager")
+        with patch_restore_commands(mode="success"):
+            with tempfile.TemporaryDirectory() as restore_dir:
+                # Step 1: Restore snapshot to directory using restore namespace
+                result = runner.invoke(app, [
+                    "restore", "full",
+                    f"file://{temp_repo_dir}",
+                    "abc123def456",
+                    restore_dir
+                ])
+                assert_success(result, "Restore full should succeed with mocked dependencies")
 
-            # Step 2: Mount snapshot
-            mount_dir = Path(restore_dir) / "mount"
-            mount_dir.mkdir()
-            result = runner.invoke(app, [
-                "snapshots", "mount", "abc123def456", str(mount_dir),
-                "--repository", f"file://{temp_repo_dir}"
-            ])
-            assert_success(result, "Snapshot mount should succeed with mocked service manager")
+                # Step 2: Mount snapshot
+                mount_dir = Path(restore_dir) / "mount"
+                mount_dir.mkdir()
+                result = runner.invoke(app, [
+                    "restore", "mount",
+                    f"file://{temp_repo_dir}",
+                    "abc123def456",
+                    str(mount_dir)
+                ])
+                assert_success(result, "Restore mount should succeed with mocked dependencies")
 
-            # Step 3: Unmount snapshot
-            result = runner.invoke(app, [
-                "snapshots", "umount", "abc123def456"
-            ])
-            assert_success(result, "Snapshot umount should succeed with mocked service manager")
+                # Step 3: Unmount snapshot (currently not implemented)
+                result = runner.invoke(app, [
+                    "restore", "umount", "abc123def456"
+                ])
+                combined = combined_output(result)
+                assert result.exit_code != 0, "Restore umount should report not implemented"
+                assert "not implemented" in combined.lower()
 
     @pytest.mark.integration
     @pytest.mark.skip(reason="Credentials commands not implemented. The credentials command group exists but has no registered subcommands.")
@@ -323,15 +349,18 @@ class TestCLIIntegrationWorkflows:
         assert_success(result, "First snapshots list should succeed with mocked service manager")
 
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli_services.get_cli_service_manager')
-    def test_error_recovery_workflow(self, mock_service_manager):
+    @patch('src.TimeLocker.cli_modules.commands.backup.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
+    def test_error_recovery_workflow(self, mock_get_for_command, mock_service_manager):
         """Test error recovery and graceful failure handling."""
         # Mock the service manager with some failures
-        mock_manager = Mock()
+        mock_manager = create_mock_service_manager()
         mock_service_manager.return_value = mock_manager
+        mock_get_for_command.return_value = mock_manager
         
         # Mock some operations to fail
         mock_manager.add_repository.side_effect = Exception("Repository already exists")
+        mock_manager.repository_service.add_repository.side_effect = Exception("Repository already exists")
         mock_manager.execute_backup.side_effect = Exception("Backup failed")
 
         # Test graceful failure handling
