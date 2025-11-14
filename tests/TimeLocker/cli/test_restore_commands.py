@@ -5,10 +5,9 @@ Tests restore command parsing, parameter validation, help output, and error hand
 """
 
 import pytest
-from unittest.mock import Mock, patch
 
 from src.TimeLocker.cli import app
-from .test_utils import runner, combined_output, assert_success, assert_exit_code
+from .test_utils import runner, combined_output, assert_success, assert_exit_code, patch_restore_commands
 
 
 class TestRestoreCommands:
@@ -122,14 +121,8 @@ class TestRestoreCommands:
         assert result.exit_code != 0, "Missing repository argument should yield non-zero exit code"
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.restore.get_cli_service_manager')
-    def test_restore_list_with_repository(self, mock_service_manager):
+    def test_restore_list_with_repository(self):
         """Test that restore list works with repository argument."""
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_list_method = Mock(return_value=[])
-        mock_manager.list_snapshots = mock_list_method
-        
-        result = runner.invoke(app, ["restore", "list", "test-repo"])
-        # Should succeed or fail gracefully
+        with patch_restore_commands():
+            result = runner.invoke(app, ["restore", "list", "test-repo"])
         assert result.exit_code in [0, 1], "Command should complete with valid exit code"

@@ -9,8 +9,11 @@ TimeLocker.cli_modules.testing package for backward compatibility.
 New tests should import directly from TimeLocker.cli_modules.testing.
 """
 
+from contextlib import ExitStack, contextmanager, nullcontext
+from pathlib import Path
+from types import SimpleNamespace
 from typer.testing import CliRunner
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock, MagicMock, patch
 from typing import Any, Dict, Optional
 from TimeLocker.cli_services import CLIServiceManager
 from TimeLocker.services.snapshot_service import SnapshotService
@@ -85,26 +88,219 @@ def create_mock_service_manager() -> Mock:
     Returns:
         Mock service manager with common methods configured with realistic return values
     """
-    # Create mock with spec to match actual CLIServiceManager interface
-    mock_service_manager = Mock(spec=CLIServiceManager)
+    class _RepositoryDict(dict):
+        def keys(self):
+            # Monitoring commands expect .keys() to yield repository dicts
+            return list(super().values())
 
-    # Configure service properties with specs matching actual service classes
-    mock_service_manager.snapshot_service = Mock(spec=SnapshotService)
-    mock_service_manager.repository_service = Mock(spec=RepositoryService)
+    repo_store: _RepositoryDict = _RepositoryDict()
+    default_repo = {
+            "name": "test-repo",
+            "uri": "file:///tmp/test-repo",
+            "description": "Default test repository",
+            "metadata": {},
+            "engine": "restic",
+            "status": "active"
+    }
+    repo_store[default_repo["name"]] = default_repo
+    default_state = {"default_repository": default_repo["name"]}
 
-    # Configure backup orchestrator (using Mock without spec as it's an interface)
-    mock_service_manager.backup_orchestrator = Mock()
-    mock_service_manager.configuration_service = Mock()
-    mock_service_manager.config_module = Mock()
+    def _normalize_name(*candidates: Optional[str]) -> str:
+        for candidate in candidates:
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate.strip()
+        return default_repo["name"]
 
-    # Configure common return values with more realistic Mock objects
-    # This provides better test coverage for edge cases and attribute access
-    mock_service_manager.backup_orchestrator.execute_backup.return_value = Mock(
+    def _ensure_repo(name: Optional[str]) -> Dict[str, Any]:
+        repo_name = _normalize_name(name)
+        repo = repo_store.get(repo_name)
+        if not repo:
+            repo = {
+                    "name": repo_name,
+                    "uri": f"file:///tmp/{repo_name}",
+                    "description": "",
+                    "metadata": {},
+                    "engine": "restic",
+                    "status": "active"
+            }
+            repo_store[repo_name] = repo
+        return repo
+
+    mock_service_manager = MagicMock(spec=CLIServiceManager)
+    repository_service = MagicMock()
+    mock_service_manager.repository_service = repository_service
+    mock_service_manager.snapshot_service = MagicMock()
+
+    backup_orchestrator = MagicMock()
+    backup_orchestrator.execute_backup.return_value = Mock(
             success=True,
-            snapshot_id="test123abc"
+            snapshot_id="test123abc",
+            warnings=[],
+            errors=[],
+            files_processed=42,
+            bytes_transferred=2048,
+            duration=1.0
     )
+    mock_service_manager.backup_orchestrator = backup_orchestrator
+    mock_service_manager._backup_orchestrator = backup_orchestrator
+    mock_service_manager.execute_backup = MagicMock(
+            return_value=backup_orchestrator.execute_backup.return_value
+    )
+    mock_service_manager.verify_backup_integrity = MagicMock(return_value=True)
+
+    config_service = MagicMock()
+    config_service.get_backup_targets.return_value = []
+    config_service.add_backup_target.return_value = None
+    config_service.get_repositories.side_effect = lambda: repo_store
+    config_service.get_repository.side_effect = lambda name: _ensure_repo(name)
+    config_service.config_file = Path("/tmp/config.yaml")
+    mock_service_manager._config_service = config_service
+    mock_service_manager.configuration_service = config_service
+
+    config_module = MagicMock()
+    config_module.add_backup_target.return_value = None
+    config_module.get_repository.side_effect = lambda name: _ensure_repo(name)
+    mock_service_manager.config_module = config_module
+    mock_service_manager._config_module = config_module
+
+    mock_service_manager.resolve_repository_uri = MagicMock(side_effect=lambda uri, **_: uri)
+    mock_service_manager._find_repository_name_by_uri = MagicMock(return_value=default_repo["name"])
+    mock_service_manager.detect_existing_repository = MagicMock(return_value=None)
+
+    def _make_stats(name: str) -> Dict[str, Any]:
+        base = len(name) or 1
+        return {
+                "name": name,
+                "total_size": base * 1024,
+                "snapshots_count": base,
+                "total_files": base * 10,
+                "total_blobs": base * 5,
+                "compression_ratio": 1.1
+        }
+
+    def _add_repository(**kwargs):
+        name = _normalize_name(kwargs.get("name"), kwargs.get("repository_name"), kwargs.get("repository"))
+        repo = _ensure_repo(name)
+        uri = kwargs.get("repository_uri") or kwargs.get("repository") or repo["uri"]
+        repo["uri"] = uri
+        description = kwargs.get("description")
+        if description is not None:
+            repo["description"] = description
+        metadata = kwargs.get("metadata")
+        if metadata:
+            repo.setdefault("metadata", {}).update(metadata)
+        return {"success": True, "repository": repo}
+
+    def _update_repository(**kwargs):
+        name = _normalize_name(kwargs.get("name"), kwargs.get("repository_name"), kwargs.get("repository"))
+        repo = _ensure_repo(name)
+        description = kwargs.get("description")
+        if description is not None:
+            repo["description"] = description
+        metadata = kwargs.get("metadata")
+        if metadata:
+            repo.setdefault("metadata", {}).update(metadata)
+        return {"success": True, "repository": repo}
+
+    def _list_repositories(filters=None, **_kwargs):
+        repos = list(repo_store.values())
+        if filters:
+            status = filters.get("status")
+            engine = filters.get("engine")
+            if status:
+                repos = [repo for repo in repos if repo.get("status") == status]
+            if engine:
+                repos = [repo for repo in repos if repo.get("engine") == engine]
+        return repos
+
+    def _remove_repository(**kwargs):
+        name = _normalize_name(kwargs.get("name"), kwargs.get("repository_name"), kwargs.get("repository"))
+        repo_store.pop(name, None)
+        return {"success": True}
+
+    def _simple_success(**_kwargs):
+        return {"success": True}
+
+    def _get_repository_by_name(**kwargs):
+        name = _normalize_name(kwargs.get("name"), kwargs.get("repository_name"), kwargs.get("repository"))
+        return _ensure_repo(name)
+
+    def _get_repository_stats(**kwargs):
+        name = _normalize_name(kwargs.get("name"), kwargs.get("repository_name"), kwargs.get("repository"))
+        return _make_stats(name)
+
+    def _apply_retention_policy(**kwargs):
+        name = _normalize_name(kwargs.get("name"), kwargs.get("repository_name"), kwargs.get("repository"))
+        repo = _ensure_repo(name)
+        repo["retention_applied"] = True
+        return {"success": True}
+
+    def _validate_repository(**kwargs):
+        name = _normalize_name(kwargs.get("name"), kwargs.get("repository_name"), kwargs.get("repository"))
+        _ensure_repo(name)
+        return {"status": "success", "errors": [], "warnings": []}
+
+    def _batch_validate_repositories(**kwargs):
+        repositories = kwargs.get("repositories") or list(repo_store.keys())
+        return [{"name": repo, "status": "success"} for repo in repositories]
+
+    def _set_default_repository(**kwargs):
+        name = _normalize_name(kwargs.get("name"), kwargs.get("repository_name"), kwargs.get("repository"))
+        default_state["default_repository"] = name
+        return {"success": True}
+
+    def _clear_default_repository(**_kwargs):
+        default_state["default_repository"] = None
+        return {"success": True}
+
+    def _unlock_repository(**kwargs):
+        name = _normalize_name(kwargs.get("name"), kwargs.get("repository_name"), kwargs.get("repository"))
+        repo = _ensure_repo(name)
+        repo["locked"] = False
+        return {"success": True}
+
+    def _migrate_repository(**kwargs):
+        name = _normalize_name(kwargs.get("name"), kwargs.get("repository_name"), kwargs.get("repository"))
+        _ensure_repo(name)
+        return {"success": True}
+
+    def _forget_repository(**kwargs):
+        name = _normalize_name(kwargs.get("name"), kwargs.get("repository_name"), kwargs.get("repository"))
+        repo = _ensure_repo(name)
+        repo["forgotten"] = True
+        return {"success": True}
+
+    # Wire handlers for both top-level manager and legacy repository_service alias
+    def _wire(name: str, handler):
+        shared_mock = MagicMock(side_effect=handler)
+        setattr(mock_service_manager, name, shared_mock)
+        setattr(repository_service, name, shared_mock)
+
+    _wire("add_repository", _add_repository)
+    _wire("update_repository", _update_repository)
+    _wire("list_repositories", _list_repositories)
+    _wire("remove_repository", _remove_repository)
+    _wire("initialize_repository", lambda **kwargs: {"success": True, "already_initialized": False})
+    _wire("check_repository", lambda **kwargs: {"success": True})
+    _wire("get_repository_stats", _get_repository_stats)
+    _wire("get_repository_by_name", _get_repository_by_name)
+    _wire("apply_retention_policy", _apply_retention_policy)
+    _wire("validate_repository", _validate_repository)
+    _wire("batch_validate_repositories", _batch_validate_repositories)
+    _wire("set_default_repository", _set_default_repository)
+    _wire("clear_default_repository", _clear_default_repository)
+    _wire("unlock_repository", _unlock_repository)
+    _wire("prune_repository", _simple_success)
+    _wire("migrate_repository", _migrate_repository)
+    _wire("forget_repository", _forget_repository)
+
     mock_service_manager.snapshot_service.list_snapshots.return_value = []
-    mock_service_manager.repository_service.list_repositories.return_value = []
+    mock_service_manager.get_system_monitoring_status.return_value = {
+            "health_status": "healthy",
+            "current_operations": 0,
+            "recent_operations_24h": 0,
+            "status_counts": {}
+    }
 
     return mock_service_manager
 
@@ -200,6 +396,146 @@ def assert_command_error(result, message: Optional[str] = None):
     _assert_cli_error(result, 2, message)
 
 
+class _DummyProgressTask:
+    """No-op progress task used to stub progress services."""
+
+    def update(self, *args, **kwargs):
+        return None
+
+
+class _DummyProgress:
+    """Minimal Rich Progress replacement for CLI tests."""
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        return False
+
+    def add_task(self, *args, **kwargs):
+        return "task"
+
+    def update(self, *args, **kwargs):
+        return None
+
+
+class _DummyProgressService:
+    """Stub progress service matching the public API used by restore commands."""
+
+    def spinner(self, *args, **kwargs):
+        return nullcontext(_DummyProgressTask())
+
+    def bar(self, *args, **kwargs):
+        return nullcontext(_DummyProgressTask())
+
+
+def _create_completed_operation(operation_id: str = "op-123"):
+    """Return an object that mimics a completed recovery operation."""
+    return SimpleNamespace(
+            status=SimpleNamespace(value="completed"),
+            operation_id=operation_id,
+            progress=SimpleNamespace(files_processed=0),
+    )
+
+
+@contextmanager
+def patch_restore_commands(mode: str = "success"):
+    """
+    Patch restore command dependencies for deterministic CLI tests.
+
+    Args:
+        mode: Either "success" (default) for happy-path behavior or
+              "invalid_snapshot" to raise ValueError for snapshot-dependent operations.
+    """
+    stack = ExitStack()
+    try:
+        patched_objects = {}
+
+        repository_mock = Mock(name="repository")
+        patched_objects["repository"] = repository_mock
+        stack.enter_context(
+                patch("src.TimeLocker.cli_modules.commands.restore._get_repository", return_value=repository_mock)
+        )
+
+        browser_cls = stack.enter_context(
+                patch("src.TimeLocker.cli_modules.commands.restore.SnapshotBrowser")
+        )
+        browser_instance = browser_cls.return_value
+        patched_objects["snapshot_browser"] = browser_instance
+
+        snapshot_listing = SimpleNamespace(
+                entries=[
+                        SimpleNamespace(
+                                name="example.txt",
+                                path="/example.txt",
+                                type=SimpleNamespace(value="file"),
+                                size=1024,
+                                modification_time=None,
+                                permissions="rw-r--r--",
+                        )
+                ],
+                total_entries=1,
+                path="/",
+        )
+        browser_instance.list_snapshot_contents.return_value = snapshot_listing
+        browser_instance.search_snapshot_files.return_value = snapshot_listing.entries
+        browser_instance.compare_snapshots.return_value = SimpleNamespace(
+                added_files=[],
+                removed_files=[],
+                modified_files=[],
+                unchanged_files=[],
+        )
+
+        snapshot_manager_cls = stack.enter_context(
+                patch("src.TimeLocker.cli_modules.commands.restore.SnapshotManager")
+        )
+        snapshot_manager_instance = snapshot_manager_cls.return_value
+        snapshot_manager_instance.list_snapshots.return_value = [
+                SimpleNamespace(id="abc123def456")
+        ]
+        patched_objects["snapshot_manager"] = snapshot_manager_instance
+
+        orchestrator_cls = stack.enter_context(
+                patch("src.TimeLocker.cli_modules.commands.restore.RecoveryOrchestrator")
+        )
+        orchestrator_instance = orchestrator_cls.return_value
+        orchestrator_instance.initiate_full_recovery.return_value = _create_completed_operation("full-op")
+        orchestrator_instance.initiate_selective_recovery.return_value = _create_completed_operation("files-op")
+        orchestrator_instance.get_recovery_status.return_value = _create_completed_operation("status-op")
+        patched_objects["recovery_orchestrator"] = orchestrator_instance
+
+        restore_manager_cls = stack.enter_context(
+                patch("src.TimeLocker.cli_modules.commands.restore.RestoreManager")
+        )
+        restore_manager_instance = restore_manager_cls.return_value
+        restore_manager_instance.mount_snapshot.return_value = None
+        patched_objects["restore_manager"] = restore_manager_instance
+
+        stack.enter_context(
+                patch("src.TimeLocker.cli_modules.commands.restore.get_progress_service", return_value=_DummyProgressService())
+        )
+        stack.enter_context(
+                patch("src.TimeLocker.cli_modules.commands.restore.Progress", _DummyProgress)
+        )
+
+        if mode == "invalid_snapshot":
+            def _raise_invalid(*_args, **_kwargs):
+                raise ValueError("Invalid snapshot ID format")
+
+            browser_instance.list_snapshot_contents.side_effect = _raise_invalid
+            browser_instance.search_snapshot_files.side_effect = _raise_invalid
+            orchestrator_instance.initiate_full_recovery.side_effect = _raise_invalid
+            orchestrator_instance.initiate_selective_recovery.side_effect = _raise_invalid
+            restore_manager_instance.mount_snapshot.side_effect = _raise_invalid
+
+        yield patched_objects
+    finally:
+        stack.close()
+
+
 def assert_handled_error(result, message: Optional[str] = None):
     """
     Assert command failed with handled error (exit code 1).
@@ -253,4 +589,4 @@ def create_mock_cli_service_manager() -> Mock:
     Returns:
         Mock CLIServiceManager with correct service structure
     """
-    return _create_mock_service_manager()
+    return create_mock_service_manager()

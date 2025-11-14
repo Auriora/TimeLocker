@@ -5,11 +5,16 @@ Tests monitor, logs, and reports command parsing, parameter validation, help out
 """
 
 import pytest
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from src.TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import (
-    get_cli_runner, combined_output, assert_success, assert_exit_code, assert_help_quality
+    get_cli_runner,
+    combined_output,
+    assert_success,
+    assert_exit_code,
+    assert_help_quality,
+    create_mock_cli_service_manager,
 )
 
 runner = get_cli_runner()
@@ -39,25 +44,25 @@ class TestMonitorCommands:
         assert_help_quality(result, "monitor stats")
 
     @pytest.mark.unit
+    @patch('src.TimeLocker.cli_modules.commands.monitoring._create_config_service')
     @patch('src.TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
-    @patch('src.TimeLocker.cli_modules.commands.monitoring._create_configuration_module')
-    def test_monitor_health_command(self, mock_config, mock_service_manager):
+    def test_monitor_health_command(self, mock_get_service_manager, mock_create_config_service):
         """Test monitor health command execution."""
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_config.return_value.list_repositories.return_value = []
+        mock_manager = create_mock_cli_service_manager()
+        mock_get_service_manager.return_value = mock_manager
+        mock_create_config_service.return_value = mock_manager._config_service
         
         result = runner.invoke(app, ["monitor", "health"])
         assert_success(result)
 
     @pytest.mark.unit
+    @patch('src.TimeLocker.cli_modules.commands.monitoring._create_config_service')
     @patch('src.TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
-    @patch('src.TimeLocker.cli_modules.commands.monitoring._create_configuration_module')
-    def test_monitor_stats_command(self, mock_config, mock_service_manager):
+    def test_monitor_stats_command(self, mock_get_service_manager, mock_create_config_service):
         """Test monitor stats command execution."""
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_config.return_value.list_repositories.return_value = []
+        mock_manager = create_mock_cli_service_manager()
+        mock_get_service_manager.return_value = mock_manager
+        mock_create_config_service.return_value = mock_manager._config_service
         
         result = runner.invoke(app, ["monitor", "stats"])
         assert_success(result)
@@ -121,37 +126,37 @@ class TestReportsCommands:
         assert_help_quality(result, "reports generate")
 
     @pytest.mark.unit
+    @patch('src.TimeLocker.cli_modules.commands.monitoring._create_config_service')
     @patch('src.TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
-    @patch('src.TimeLocker.cli_modules.commands.monitoring._create_configuration_module')
-    def test_reports_generate_backup_history(self, mock_config, mock_service_manager):
+    def test_reports_generate_backup_history(self, mock_get_service_manager, mock_create_config_service):
         """Test reports generate command for backup history."""
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_config.return_value.list_repositories.return_value = []
+        mock_manager = create_mock_cli_service_manager()
+        mock_get_service_manager.return_value = mock_manager
+        mock_create_config_service.return_value = mock_manager._config_service
         
         result = runner.invoke(app, ["reports", "generate", "backup-history"])
         assert result.exit_code in [0, 1, 2]
 
     @pytest.mark.unit
+    @patch('src.TimeLocker.cli_modules.commands.monitoring._create_config_service')
     @patch('src.TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
-    @patch('src.TimeLocker.cli_modules.commands.monitoring._create_configuration_module')
-    def test_reports_generate_storage_usage(self, mock_config, mock_service_manager):
+    def test_reports_generate_storage_usage(self, mock_get_service_manager, mock_create_config_service):
         """Test reports generate command for storage usage."""
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_config.return_value.list_repositories.return_value = []
+        mock_manager = create_mock_cli_service_manager()
+        mock_get_service_manager.return_value = mock_manager
+        mock_create_config_service.return_value = mock_manager._config_service
         
         result = runner.invoke(app, ["reports", "generate", "storage-usage"])
         assert result.exit_code in [0, 1, 2]
 
     @pytest.mark.unit
+    @patch('src.TimeLocker.cli_modules.commands.monitoring._create_config_service')
     @patch('src.TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
-    @patch('src.TimeLocker.cli_modules.commands.monitoring._create_configuration_module')
-    def test_reports_generate_performance(self, mock_config, mock_service_manager):
+    def test_reports_generate_performance(self, mock_get_service_manager, mock_create_config_service):
         """Test reports generate command for performance."""
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_config.return_value.list_repositories.return_value = []
+        mock_manager = create_mock_cli_service_manager()
+        mock_get_service_manager.return_value = mock_manager
+        mock_create_config_service.return_value = mock_manager._config_service
         
         result = runner.invoke(app, ["reports", "generate", "performance"])
         assert result.exit_code in [0, 1, 2]

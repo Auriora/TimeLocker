@@ -1,5 +1,6 @@
 # Update Index
 
+- [2025-11-13-182500-restore-cli-test-updates](./2025-11-13-182500-restore-cli-test-updates.md)
 - [2025-11-13-150915-yaml-dependency-fix](./2025-11-13-150915-yaml-dependency-fix.md)
 - [2025-11-09-143418-fix-architecture-docs-location](./2025-11-09-143418-fix-architecture-docs-location.md)
 - [2025-11-08-documentation-policy-enforcement](./2025-11-08-documentation-policy-enforcement.md)

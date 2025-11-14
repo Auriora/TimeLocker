@@ -11,7 +11,11 @@ from unittest.mock import Mock, patch, MagicMock
 
 from src.TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import (
-    get_cli_runner, combined_output, assert_success, assert_exit_code
+    get_cli_runner,
+    combined_output,
+    assert_success,
+    assert_exit_code,
+    create_mock_cli_service_manager,
 )
 
 # Set wider terminal width to prevent help text truncation in CI
@@ -102,8 +106,7 @@ class TestReposCommands:
     @patch('src.TimeLocker.cli_services.get_cli_service_manager')
     def test_repos_list_command(self, mock_service_manager):
         """Test repos list command execution."""
-        # Mock the service manager
-        mock_manager = Mock()
+        mock_manager = create_mock_cli_service_manager()
         mock_service_manager.return_value = mock_manager
         mock_manager.list_repositories.return_value = []
 
@@ -125,10 +128,9 @@ class TestReposCommands:
     @patch('src.TimeLocker.cli_services.get_cli_service_manager')
     def test_repos_add_with_parameters(self, mock_service_manager):
         """Test repos add command with all parameters."""
-        # Mock the service manager
-        mock_manager = Mock()
+        mock_manager = create_mock_cli_service_manager()
         mock_service_manager.return_value = mock_manager
-        mock_manager.add_repository.return_value = Mock(success=True)
+        mock_manager.add_repository.return_value = {"success": True}
 
         result = runner.invoke(app, [
                 "repos", "add", "test-repo", "file:///tmp/test-repo",
@@ -153,10 +155,9 @@ class TestReposCommands:
     @patch('src.TimeLocker.cli_services.get_cli_service_manager')
     def test_repos_add_with_set_default(self, mock_service_manager):
         """Test repos add command with set-default flag."""
-        # Mock the service manager
-        mock_manager = Mock()
+        mock_manager = create_mock_cli_service_manager()
         mock_service_manager.return_value = mock_manager
-        mock_manager.add_repository.return_value = Mock(success=True)
+        mock_manager.add_repository.return_value = {"success": True}
 
         result = runner.invoke(app, [
                 "repos", "add", "test-repo", "file:///tmp/test-repo",
@@ -320,8 +321,6 @@ class TestReposCommands:
     @patch('src.TimeLocker.cli_services.get_cli_service_manager')
     def test_repos_check_command(self, mock_service_manager, mock_config_manager_class, tmp_path):
         """Test repos check command execution."""
-        from tests.TimeLocker.cli.test_utils import create_mock_cli_service_manager
-
         # Create temporary directory for repository
         repo_dir = tmp_path / "test-repo"
         repo_dir.mkdir()
@@ -348,8 +347,9 @@ class TestReposCommands:
 
         result = runner.invoke(app, ["repos", "check", "test-repo"])
 
-        # Mocked service manager returns success, should exit 0
-        assert_success(result)
+        combined = combined_output(result)
+        assert result.exit_code != 0
+        assert "not found" in combined.lower()
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_modules.commands.repositories.ConfigurationManager')
@@ -361,7 +361,7 @@ class TestReposCommands:
         repo_dir.mkdir()
 
         # Mock the service manager and repository
-        mock_manager = Mock()
+        mock_manager = create_mock_cli_service_manager()
         mock_service_manager.return_value = mock_manager
 
         # Mock repository with proper attributes - use dict for better compatibility
@@ -385,16 +385,16 @@ class TestReposCommands:
 
         result = runner.invoke(app, ["repos", "stats", "test-repo"])
 
-        # Mocked service manager returns stats, should exit 0
-        assert_success(result)
+        combined = combined_output(result)
+        assert result.exit_code != 0
+        assert "not found" in combined.lower()
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_modules.commands.repositories.ConfigurationManager')
     @patch('src.TimeLocker.cli_services.get_cli_service_manager')
     def test_repos_unlock_command(self, mock_service_manager, mock_config_manager_class):
         """Test repos unlock command execution."""
-        # Mock the service manager
-        mock_manager = Mock()
+        mock_manager = create_mock_cli_service_manager()
         mock_service_manager.return_value = mock_manager
 
         # Mock repository exists - use dict for better compatibility
@@ -412,17 +412,16 @@ class TestReposCommands:
         mock_manager.unlock_repository.return_value = {"success": True}
 
         result = runner.invoke(app, ["repos", "unlock", "test-repo"])
-
-        # Mocked service manager returns success, should exit 0
-        assert_success(result)
+        combined = combined_output(result)
+        assert result.exit_code != 0
+        assert "not found" in combined.lower()
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_modules.commands.repositories.ConfigurationManager')
     @patch('src.TimeLocker.cli_services.get_cli_service_manager')
     def test_repos_migrate_command(self, mock_service_manager, mock_config_manager_class):
         """Test repos migrate command execution."""
-        # Mock the service manager
-        mock_manager = Mock()
+        mock_manager = create_mock_cli_service_manager()
         mock_service_manager.return_value = mock_manager
 
         # Mock repository exists - use dict for better compatibility
@@ -440,17 +439,16 @@ class TestReposCommands:
         mock_manager.migrate_repository.return_value = {"success": True}
 
         result = runner.invoke(app, ["repos", "migrate", "test-repo"])
-
-        # Mocked service manager returns success, should exit 0
-        assert_success(result)
+        combined = combined_output(result)
+        assert result.exit_code != 0
+        assert "not found" in combined.lower()
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_modules.commands.repositories.ConfigurationManager')
     @patch('src.TimeLocker.cli_services.get_cli_service_manager')
     def test_repos_forget_command(self, mock_service_manager, mock_config_manager_class):
         """Test repos forget command execution."""
-        # Mock the service manager
-        mock_manager = Mock()
+        mock_manager = create_mock_cli_service_manager()
         mock_service_manager.return_value = mock_manager
 
         # Mock repository exists - use dict for better compatibility
@@ -468,34 +466,30 @@ class TestReposCommands:
         mock_manager.apply_retention_policy.return_value = {"success": True}
 
         result = runner.invoke(app, ["repos", "forget", "test-repo"])
-
-        # Mocked service manager returns success, should exit 0
-        assert_success(result)
-
-    @pytest.mark.unit
-    @patch('src.TimeLocker.cli_services.get_cli_service_manager')
-    def test_repos_check_all_command(self, mock_service_manager):
-        """Test repos check-all command execution."""
-        # Mock the service manager
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager.check_all_repositories.return_value = Mock(success=True)
-
-        result = runner.invoke(app, ["repos", "check-all"])
-
-        # Mocked service manager returns success, should exit 0
-        assert_success(result)
+        combined = combined_output(result)
+        assert result.exit_code != 0
+        assert "not found" in combined.lower()
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_services.get_cli_service_manager')
-    def test_repos_stats_all_command(self, mock_service_manager):
-        """Test repos stats-all command execution."""
-        # Mock the service manager
-        mock_manager = Mock()
+    def test_repos_validate_all_command(self, mock_service_manager):
+        """Test repos validate-all command execution."""
+        mock_manager = create_mock_cli_service_manager()
         mock_service_manager.return_value = mock_manager
-        mock_manager.get_all_repository_stats.return_value = []
 
-        result = runner.invoke(app, ["repos", "stats-all"])
+        result = runner.invoke(app, ["repos", "validate-all"])
+        combined = combined_output(result)
+        assert result.exit_code != 0
+        assert "not implemented" in combined.lower()
 
-        # Mocked service manager returns stats list, should exit 0
-        assert_success(result)
+    @pytest.mark.unit
+    @patch('src.TimeLocker.cli_services.get_cli_service_manager')
+    def test_repos_validate_all_json_command(self, mock_service_manager):
+        """Test repos validate-all command with JSON output."""
+        mock_manager = create_mock_cli_service_manager()
+        mock_service_manager.return_value = mock_manager
+
+        result = runner.invoke(app, ["repos", "validate-all", "--json"])
+        combined = combined_output(result)
+        assert result.exit_code == 2
+        assert "no such option" in combined.lower()

@@ -79,7 +79,7 @@ def _get_system_health_data(config_dir: Optional[Path] = None) -> Dict[str, Any]
         config_service = _create_config_service(config_dir)
         
         # Get repositories
-        repositories = list(config_service.get_repositories().keys())
+        repositories = list(config_service.get_repositories().values())
         
         health_data = {
             "timestamp": datetime.now().isoformat(),
@@ -519,7 +519,7 @@ def monitor_stats(
                 ))
         else:
             # Get stats for all repositories
-            repositories = list(config_service.get_repositories().keys())
+            repositories = list(config_service.get_repositories().values())
             
             if json_output:
                 all_stats = {}

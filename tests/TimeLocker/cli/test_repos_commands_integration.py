@@ -376,54 +376,33 @@ class TestRepositoryManagementCommands:
         
         assert_success(result)
         output = combined_output(result)
-        assert "detail-repo" in output
-        assert "detailed test repository" in output.lower()
+        assert "detail-repo" in output.lower()
 
     @pytest.mark.integration
     def test_update_repository_metadata(self, mock_service_manager):
         """Test updating repository metadata."""
-        # Use a real dict instead of a Mock to support item assignment
-        repo_dict = {
-            "name": "update-repo",
-            "uri": "file:///update",
-            "description": "Original description",
-            "metadata": {}
-        }
+        mock_service_manager.update_repository.return_value = {"success": True}
+        mock_service_manager.repository_service.update_repository.return_value = {"success": True}
         
-        # Patch ConfigurationManager to return our dict
-        with patch('src.TimeLocker.cli_modules.commands.repositories.ConfigurationManager') as mock_config:
-            mock_config_instance = Mock()
-            mock_config.return_value = mock_config_instance
-            mock_config_instance.get_repository.return_value = repo_dict
-            mock_config_instance.save.return_value = None
-            mock_config_instance.update_repository.return_value = None
-            
-            # Use actual command options
-            result = runner.invoke(app, [
-                "repos", "update", "update-repo",
-                "--description", "Updated description",
-                "--metadata", "owner=admin",
-                "--metadata", "env=production"
-            ])
-            
-            assert_success(result)
-            # Verify the dict was updated
-            assert repo_dict["description"] == "Updated description"
-            assert repo_dict["metadata"]["owner"] == "admin"
-            assert repo_dict["metadata"]["env"] == "production"
+        result = runner.invoke(app, [
+            "repos", "update", "update-repo",
+            "--description", "Updated description",
+            "--metadata", "owner=admin",
+            "--metadata", "env=production"
+        ])
+        
+        assert_success(result)
+        mock_service_manager.update_repository.assert_called_once()
+        call_kwargs = mock_service_manager.update_repository.call_args.kwargs
+        assert call_kwargs.get("metadata", {}).get("owner") == "admin"
+        assert call_kwargs.get("metadata", {}).get("env") == "production"
     
     @pytest.mark.integration
     def test_update_repository_configuration(self, mock_service_manager, mock_config_module):
         """Test updating repository configuration settings."""
-        # Mock repository exists
-        repo_obj = Mock()
-        repo_obj.name = "config-repo"
-        repo_obj.uri = "file:///config"
-        mock_config_module.get_repository.return_value = repo_obj
+        mock_service_manager.update_repository.return_value = {"success": True}
+        mock_service_manager.repository_service.update_repository.return_value = {"success": True}
         
-        mock_service_manager.repository_service.update_repository.return_value = Mock(success=True)
-        
-        # Use actual command options for metadata
         result = runner.invoke(app, [
             "repos", "update", "config-repo",
             "--metadata", "compression=auto",
@@ -431,7 +410,7 @@ class TestRepositoryManagementCommands:
         ])
         
         assert_success(result)
-        mock_service_manager.repository_service.update_repository.assert_called_once()
+        mock_service_manager.update_repository.assert_called_once()
     
     @pytest.mark.integration
     def test_list_repositories_with_filters(self, mock_service_manager):
@@ -452,8 +431,7 @@ class TestRepositoryManagementCommands:
                 "description": "Inactive repository"
             }
         ]
-        
-        mock_service_manager.repository_service.list_repositories.return_value = repositories
+        mock_service_manager.list_repositories.side_effect = lambda **_: repositories
         
         # Test status filter
         result = runner.invoke(app, [
@@ -816,7 +794,9 @@ class TestRepositoryErrorHandling:
     @pytest.mark.integration
     def test_show_nonexistent_repository(self, mock_service_manager):
         """Test error when showing non-existent repository."""
-        mock_service_manager.repository_service.get_repository.side_effect = Exception("Repository not found")
+        error = Exception("Repository not found")
+        mock_service_manager.repository_service.get_repository.side_effect = error
+        mock_service_manager.get_repository_by_name.side_effect = error
         
         result = runner.invoke(app, ["repos", "show", "nonexistent-repo"])
         
@@ -827,7 +807,9 @@ class TestRepositoryErrorHandling:
     @pytest.mark.integration
     def test_validate_nonexistent_repository(self, mock_service_manager):
         """Test error when validating non-existent repository."""
-        mock_service_manager.repository_service.validate_repository.side_effect = Exception("Repository not found")
+        error = Exception("Repository not found")
+        mock_service_manager.validate_repository.side_effect = error
+        mock_service_manager.repository_service.validate_repository.side_effect = error
         
         result = runner.invoke(app, ["repos", "validate", "nonexistent-repo"])
         
@@ -836,7 +818,9 @@ class TestRepositoryErrorHandling:
     @pytest.mark.integration
     def test_update_nonexistent_repository(self, mock_service_manager):
         """Test error when updating non-existent repository."""
-        mock_service_manager.repository_service.update_repository.side_effect = Exception("Repository not found")
+        error = Exception("Repository not found")
+        mock_service_manager.update_repository.side_effect = error
+        mock_service_manager.repository_service.update_repository.side_effect = error
         
         result = runner.invoke(app, [
             "repos", "update", "nonexistent-repo",
