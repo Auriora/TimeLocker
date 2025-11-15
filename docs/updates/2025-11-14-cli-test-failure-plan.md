@@ -10,8 +10,8 @@ status: [ in-progress ]
 This document captures the major clusters of remaining test failures so agents can tackle them one at a time. Each section references the failing suites and
 highlights the expected fixes.
 
-> **Latest test run (2025-11-15)**: `pytest` reported **50 failed, 16 errors**. The failures listed below map each stack trace to an existing cluster or call
-> out new work when necessary.
+> **Latest targeted runs (2025-11-15)**: Configuration integration/locking suites (`tests/TimeLocker/config/test_configuration_integration_workflows.py`,
+> `tests/TimeLocker/config/test_configuration_lock_manager.py`) and the integration service configuration test all **pass** after the fixes described below.
 
 • Failure Priorities
 
@@ -52,7 +52,8 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
 ## 1. Credential Store Initialization *(COMPLETED 2025-11-15)*
 
 - **Tests:** `tests/TimeLocker/integration/test_repos_credentials_command_usage.py` and the other credential suites.
-- **Issue:** Credential manager now honors `~/.timelocker/credentials` (or `TIMELOCKER_CREDENTIAL_DIR`), so the CLI fixtures create encrypted stores inside each isolated HOME. Verified by `pytest tests/TimeLocker/integration/test_repos_credentials_command_usage.py`.
+- **Issue:** Credential manager now honors `~/.timelocker/credentials` (or `TIMELOCKER_CREDENTIAL_DIR`), so the CLI fixtures create encrypted stores inside each
+  isolated HOME. Verified by `pytest tests/TimeLocker/integration/test_repos_credentials_command_usage.py`.
 - **Failing tests (2025-11-15):** _None_
 
 ## 2. Snapshot Namespace Cleanup (COMPLETE)
@@ -92,21 +93,15 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
     - `tests/TimeLocker/integration/test_timeshift_cli_integration.py::TestTimeshiftCLIIntegration::test_timeshift_import_missing_config`
     - `tests/TimeLocker/integration/test_timeshift_cli_integration.py::TestTimeshiftCLIIntegration::test_timeshift_import_invalid_json`
 
-## 6. Configuration & Locking Tests
+## 6. Configuration & Locking Tests *(COMPLETED 2025-11-15)*
 
-- **Tests:** `tests/TimeLocker/config/test_configuration_integration_workflows.py`, `test_configuration_lock_manager.py`, etc.
-- **Issues:**
-    - Tests patch `_get_migration_rules` and set `config_module.config_file`, but those hooks no longer exist. Introduce public injection points or adapt the
-      tests to the new API.
-    - Locking tests expect only one successful acquisition; ensure `ConfigurationLockManager` enforces exclusivity (or update expectations if the design
-      intentionally changed).
-    - `ConfigurationManager.save_config` now takes no arguments; update repository manager/tests to call the new signature.
-- **Failing tests (2025-11-15):**
-    - `tests/TimeLocker/config/test_configuration_integration_workflows.py::TestConfigurationIntegrationWorkflows::test_configuration_migration_workflow`
-    - `tests/TimeLocker/config/test_configuration_integration_workflows.py::TestConfigurationIntegrationWorkflows::test_concurrent_access_workflow`
-    - `tests/TimeLocker/config/test_configuration_integration_workflows.py::TestConfigurationIntegrationWorkflows::test_atomic_update_workflow`
-    - `tests/TimeLocker/config/test_configuration_lock_manager.py::TestConfigurationLockManager::test_concurrent_lock_acquisition`
-    - `tests/TimeLocker/integration/test_integration_service.py::TestIntegrationService::test_configuration_integration`
+- **Tests:** `tests/TimeLocker/config/test_configuration_integration_workflows.py`, `tests/TimeLocker/config/test_configuration_lock_manager.py`,
+  `tests/TimeLocker/integration/test_integration_service.py::TestIntegrationService::test_configuration_integration`.
+- **Fixes:** Workflow tests now use the public migration/validator APIs (no `_get_migration_rules` or config-file monkeypatching), the atomic update suite
+  stages/validates real configs, and concurrent access asserts exclusive locking via observed concurrency rather than forced timeouts. Lock-manager tests were
+  rewritten to ensure every worker eventually acquires the lock while proving `max_active == 1`. `ConfigurationModule.save_config`/`update_section` now refresh
+  caches so `get_section` consumers (e.g., IntegrationService) immediately observe updates. Tracked in `docs/updates/2025-11-15-152215-configuration-locking-tests.md`.
+- **Failing tests (2025-11-15):** _None_
 
 ## 7. Monitoring CLI Fixtures
 
@@ -125,18 +120,15 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
 - **Failing tests (2025-11-15):**
     - `tests/TimeLocker/cli/test_performance_compatibility.py::TestCrossPlatformBehavior::test_config_directory_platform_appropriate`
 
-## 9. Repository Manager & Credential Flow *(PARTIAL – CLI repos commands still failing)*
+## 9. Repository Manager & Credential Flow *(COMPLETED 2025-11-15)*
 
-- **Tests:** `test_repos_commands*.py`, `test_repository_manager_*`, `tests/TimeLocker/integration/test_repository_multi_backend_integration.py`, etc.
-- **Issues:** Repository manager now loads/saves safely, `ConfigurationManager.save_config` accepts optional payloads, and credential hooks fire — the multi-backend and credential integration suites are green. Remaining work is isolated to the CLI repos command batteries, which still rely on the older service/mocking patterns.
-- **Remaining failing tests (2025-11-15):**
-    - `tests/TimeLocker/cli/test_repos_commands.py::TestReposCommands::test_repos_add_with_set_default`
-    - `tests/TimeLocker/cli/test_repos_commands.py::TestReposCommands::test_repos_remove_command`
-    - `tests/TimeLocker/cli/test_repos_commands.py::TestReposCommands::test_repos_check_command`
-    - `tests/TimeLocker/cli/test_repos_commands.py::TestReposCommands::test_repos_stats_command`
-    - `tests/TimeLocker/cli/test_repos_commands.py::TestReposCommands::test_repos_unlock_command`
-    - `tests/TimeLocker/cli/test_repos_commands.py::TestReposCommands::test_repos_migrate_command`
-    - `tests/TimeLocker/cli/test_repos_commands.py::TestReposCommands::test_repos_forget_command`
+- **Tests:** `tests/TimeLocker/cli/test_repos_commands.py`, `test_repository_manager_*`,
+  `tests/TimeLocker/integration/test_repository_multi_backend_integration.py`, etc.
+- **Fixes:** CLI repos commands now patch `src.TimeLocker.cli.get_cli_service_manager` and use the centralized mock manager, eliminating the fall-through to
+  real services. The repos suite expectations were updated to assert successful command execution under the new mocks, and removal paths patch
+  `ConfigurationManager` explicitly. Verified via `pytest tests/TimeLocker/cli/test_repos_commands.py -q` and documented in
+  `docs/updates/2025-11-15-145800-cli-repos-commands-tests.md`.
+- **Failing tests (2025-11-15):** _None_
 
 ## 10. Selection & Optimization Services
 

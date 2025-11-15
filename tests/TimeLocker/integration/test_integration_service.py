@@ -272,8 +272,8 @@ class TestIntegrationService:
                 }
         )
 
-        # Verify configuration is accessible
-        notification_config = self.integration_service.config_manager.get("notifications")
+        # Verify configuration is accessible via the public section API
+        notification_config = self.integration_service.config_manager.get_section("notifications")
         assert notification_config["enabled"] is True
         assert notification_config["desktop_enabled"] is False
         assert notification_config["email_enabled"] is True

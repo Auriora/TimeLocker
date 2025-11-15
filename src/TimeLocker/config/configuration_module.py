@@ -375,6 +375,9 @@ class ConfigurationModule(IConfigurationProvider):
         # Save updated configuration
         updated_config = TimeLockerConfig.from_dict(config_dict)
         self.save_config(updated_config)
+        # Invalidate section cache to ensure callers observe updated values
+        self._section_cache.clear()
+        self._cache_timestamps.clear()
 
     def get_default_config_path(self) -> Path:
         """Get the default configuration file path"""
@@ -455,7 +458,10 @@ class ConfigurationModule(IConfigurationProvider):
 
         If config is None, save the current in-memory configuration.
         """
+        saved_config: Optional[TimeLockerConfig] = None
+
         def _save_operation():
+            nonlocal saved_config
             if config is None:
                 current_config = self.get_config()
             else:
@@ -468,6 +474,7 @@ class ConfigurationModule(IConfigurationProvider):
                 raise InvalidConfigurationError(error_msg)
 
             self._save_config_to_file(current_config)
+            saved_config = current_config
         
         # Execute with error handling and retry
         try:
@@ -490,6 +497,16 @@ class ConfigurationModule(IConfigurationProvider):
             
             # Re-raise the exception after handling
             raise e
+        else:
+            if saved_config is not None:
+                with self._cache_lock:
+                    self._config_cache = saved_config
+                    try:
+                        self._last_modified = datetime.fromtimestamp(self._config_file.stat().st_mtime)
+                    except FileNotFoundError:
+                        self._last_modified = None
+                self._section_cache.clear()
+                self._cache_timestamps.clear()
 
     def get_section(self, section_name: Any) -> Dict[str, Any]:
         """Get configuration section with caching and performance monitoring.
@@ -590,6 +607,8 @@ class ConfigurationModule(IConfigurationProvider):
 
         updated_config = TimeLockerConfig.from_dict(config_dict)
         self.save_config(updated_config)
+        self._section_cache.clear()
+        self._cache_timestamps.clear()
 
     def get_repositories(self) -> List[Dict[str, Any]]:
         """Get list of configured repositories"""

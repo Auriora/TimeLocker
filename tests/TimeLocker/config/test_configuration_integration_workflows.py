@@ -9,10 +9,8 @@ import json
 import time
 import tempfile
 import threading
-import multiprocessing
 from pathlib import Path
 from datetime import datetime, timedelta
-from unittest.mock import Mock, patch
 import pytest
 
 from src.TimeLocker.config.configuration_module import ConfigurationModule
@@ -181,32 +179,13 @@ class TestConfigurationIntegrationWorkflows:
             tags=["migration", "legacy_backup"]
         )
         
-        # Step 3: Initialize migrator and perform migration
-        migrator = ConfigurationMigrator(self.config_dir)
-        
-        # Mock migration rules for testing
-        migration_rules = {
-            "0.9.0_to_1.0.0": {
-                "version_mapping": {
-                    "settings.app_name": "general.app_name",
-                    "settings.debug": "general.log_level",
-                    "settings.backup_compression": "backup.compression"
-                },
-                "transformations": {
-                    "general.log_level": lambda x: "DEBUG" if x else "INFO",
-                    "general.version": lambda x: "1.0.0"
-                },
-                "repository_migration": {
-                    "repos": "repositories",
-                    "path": "location"
-                }
-            }
-        }
-        
-        with patch.object(migrator, '_get_migration_rules', return_value=migration_rules):
-            # Perform migration
-            migration_result = migrator.migrate_configuration(legacy_file, self.config_module.config_file)
-            assert migration_result is True
+        # Step 3: Initialize migrator and perform migration using the public API
+        migrator = ConfigurationMigrator(ConfigurationValidator())
+        migration_result = migrator.migrate_config_file(
+                legacy_file,
+                self.config_module.config_file
+        )
+        assert migration_result.success is True
         
         # Step 4: Validate migrated configuration
         migrated_config = self.config_module.get_config()
@@ -251,6 +230,8 @@ class TestConfigurationIntegrationWorkflows:
         
         results = []
         errors = []
+        concurrency_state = {'active': 0, 'max': 0}
+        concurrency_lock = threading.Lock()
         
         def concurrent_update_worker(worker_id, update_data):
             """Worker function for concurrent updates"""
@@ -269,6 +250,12 @@ class TestConfigurationIntegrationWorkflows:
                 
                 if lock_acquired:
                     try:
+                        with concurrency_lock:
+                            concurrency_state['active'] += 1
+                            concurrency_state['max'] = max(
+                                    concurrency_state['max'],
+                                    concurrency_state['active']
+                            )
                         # Create backup
                         backup_id = worker_backup_manager.create_backup(
                             worker_config.config_file,
@@ -293,6 +280,8 @@ class TestConfigurationIntegrationWorkflows:
                         })
                         
                     finally:
+                        with concurrency_lock:
+                            concurrency_state['active'] -= 1
                         worker_lock_manager.release_lock(config_resource)
                 else:
                     results.append({
@@ -331,22 +320,19 @@ class TestConfigurationIntegrationWorkflows:
         successful_updates = [r for r in results if r.get('success', False)]
         failed_updates = [r for r in results if not r.get('success', False)]
         
-        # Only one worker should succeed due to locking
-        assert len(successful_updates) == 1
-        assert len(failed_updates) == 4
-        
-        # All failures should be due to lock timeout
-        for failure in failed_updates:
-            assert failure['reason'] == 'lock_timeout'
-        
-        # No errors should occur
+        # All workers should succeed sequentially, but locks must remain exclusive
         assert len(errors) == 0
+        assert len(failed_updates) == 0
+        assert len(successful_updates) == len(threads)
+        assert concurrency_state['max'] == 1
         
-        # Verify final configuration state
+        # Verify final configuration state reflects one of the worker updates
         final_config = self.config_module.get_section("general")
-        successful_worker = successful_updates[0]
-        expected_worker_id = successful_worker['worker_id']
-        assert final_config["app_name"] == f"TimeLocker_Worker_{expected_worker_id}"
+        expected_names = {
+                f"TimeLocker_Worker_{update['worker_id']}"
+                for update in successful_updates
+        }
+        assert final_config["app_name"] in expected_names
 
     @pytest.mark.config
     @pytest.mark.integration
@@ -470,74 +456,61 @@ class TestConfigurationIntegrationWorkflows:
             tags=["atomic_test"]
         )
         
-        # Prepare atomic updates (mix of valid and invalid)
+        # Prepare atomic updates (mix of valid and intentionally invalid fields)
         atomic_updates = {
             "general": {
                 "version": "2.0.0",
-                "log_level": "DEBUG"
+                "log_level": "INVALID_LEVEL"
             },
             "backup": {
-                "compression": "gzip",
-                "invalid_field": "this_should_cause_validation_error"
+                "compression": "unknown",
+                "limit_upload": -1
             },
             "new_section": {
                 "new_key": "new_value"
             }
         }
         
-        # Mock validation to fail for testing rollback
-        original_validate = self.config_module.validate_current_configuration
+        validator = ConfigurationValidator()
         
-        def mock_validate():
-            result = original_validate()
-            if "invalid_field" in str(self.config_module.config_file.read_text()):
-                result.is_valid = False
-                result.errors.append("Invalid field detected")
-            return result
-        
-        with patch.object(self.config_module, 'validate_current_configuration', mock_validate):
-            # Attempt atomic update (should fail and rollback)
-            try:
-                # Simulate atomic update process
-                temp_config = self.config_module.config_file.with_suffix('.tmp')
-                
-                # Load current config
-                current_config = {}
-                if self.config_module.config_file.exists():
-                    with open(self.config_module.config_file, 'r') as f:
-                        current_config = json.load(f)
-                
-                # Apply updates
-                for section, updates in atomic_updates.items():
-                    if section in current_config:
-                        current_config[section].update(updates)
-                    else:
-                        current_config[section] = updates
-                
-                # Write to temporary file
-                with open(temp_config, 'w') as f:
-                    json.dump(current_config, f, indent=2)
-                
-                # Validate temporary config
-                temp_module = ConfigurationModule(temp_config.parent)
-                temp_module.config_file = temp_config
-                validation_result = temp_module.validate_current_configuration()
-                
-                if validation_result.is_valid:
-                    # Move temp to actual (atomic operation)
-                    temp_config.replace(self.config_module.config_file)
+        # Attempt atomic update (should fail and rollback)
+        try:
+            temp_config = self.config_module.config_file.with_suffix('.tmp')
+            
+            # Load current config
+            current_config = {}
+            if self.config_module.config_file.exists():
+                with open(self.config_module.config_file, 'r') as f:
+                    current_config = json.load(f)
+            
+            # Apply updates
+            for section, updates in atomic_updates.items():
+                if section in current_config:
+                    current_config[section].update(updates)
                 else:
-                    # Rollback: remove temp file and restore from backup
+                    current_config[section] = updates
+            
+            # Write to temporary file
+            with open(temp_config, 'w') as f:
+                json.dump(current_config, f, indent=2)
+            
+            # Validate staged configuration
+            validation_result = validator.validate_config(current_config)
+            
+            if validation_result.is_valid:
+                temp_config.replace(self.config_module.config_file)
+            else:
+                if temp_config.exists():
                     temp_config.unlink()
-                    self.backup_manager.restore_backup(
+                self.backup_manager.restore_backup(
                         pre_update_backup,
                         self.config_module.config_file
-                    )
-                    raise ConfigurationError("Atomic update failed validation")
-                    
-            except ConfigurationError:
-                # Expected failure due to validation error
-                pass
+                )
+                raise ConfigurationError("Atomic update failed validation")
+                
+        except ConfigurationError:
+            # Expected failure due to validation error
+            pass
         
         # Verify rollback occurred
         final_config = self.config_module.get_section("general")

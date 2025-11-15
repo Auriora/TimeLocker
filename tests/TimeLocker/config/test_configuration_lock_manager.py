@@ -76,50 +76,44 @@ class TestConfigurationLockManager:
         """Test concurrent lock acquisition from multiple threads"""
         results = []
         errors = []
-        lock_acquired_event = threading.Event()
-        lock_released_event = threading.Event()
-        
+        concurrency_state = {'active': 0, 'max': 0}
+        concurrency_lock = threading.Lock()
+
         def acquire_lock_worker(worker_id):
             try:
-                result = self.lock_manager.acquire_lock(self.test_resource, timeout=2)
-                results.append((worker_id, result))
-                if result:
-                    lock_acquired_event.set()  # Signal that lock was acquired
-                    lock_released_event.wait(timeout=3)  # Wait for signal to release
+                acquired = self.lock_manager.acquire_lock(self.test_resource, timeout=5)
+                results.append((worker_id, acquired))
+                if acquired:
+                    with concurrency_lock:
+                        concurrency_state['active'] += 1
+                        concurrency_state['max'] = max(
+                                concurrency_state['max'],
+                                concurrency_state['active']
+                        )
+                    # Hold the lock briefly to force contention
+                    time.sleep(0.1)
+                    with concurrency_lock:
+                        concurrency_state['active'] -= 1
                     self.lock_manager.release_lock(self.test_resource)
             except Exception as e:
                 errors.append((worker_id, str(e)))
-        
+
         # Start multiple threads trying to acquire the same lock simultaneously
         threads = []
         for i in range(5):
             thread = threading.Thread(target=acquire_lock_worker, args=(i,))
             threads.append(thread)
-        
-        # Start all threads at once
+
         for thread in threads:
             thread.start()
-        
-        # Wait for first lock acquisition
-        lock_acquired_event.wait(timeout=5)
-        
-        # Give other threads time to try acquiring the lock
-        time.sleep(0.5)
-        
-        # Signal the lock holder to release
-        lock_released_event.set()
-        
-        # Wait for all threads to complete
+
         for thread in threads:
             thread.join()
-        
-        # Only one thread should have successfully acquired the lock
-        successful_acquisitions = [r for r in results if r[1] is True]
-        assert len(successful_acquisitions) == 1
-        
-        # Other threads should have timed out
-        timeout_errors = [e for e in errors if "timed out" in e[1]]
-        assert len(timeout_errors) == 4
+
+        # Every thread should eventually acquire the lock, but never concurrently
+        assert len(errors) == 0
+        assert all(acquired for _, acquired in results)
+        assert concurrency_state['max'] == 1
 
     @pytest.mark.config
     @pytest.mark.unit

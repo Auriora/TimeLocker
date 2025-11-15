@@ -1,5 +1,6 @@
 # Update Index
 
+- [2025-11-15-152215-configuration-locking-tests](./2025-11-15-152215-configuration-locking-tests.md)
 - [2025-11-15-150101-cli-service-manager-patching](./2025-11-15-150101-cli-service-manager-patching.md)
 - [2025-11-15-145800-cli-repos-commands-tests](./2025-11-15-145800-cli-repos-commands-tests.md)
 - [2025-11-15-credential-repo-manager](./2025-11-15-credential-repo-manager.md)
