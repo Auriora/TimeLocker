@@ -101,7 +101,8 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
 - **Fixes:** Workflow tests now use the public migration/validator APIs (no `_get_migration_rules` or config-file monkeypatching), the atomic update suite
   stages/validates real configs, and concurrent access asserts exclusive locking via observed concurrency rather than forced timeouts. Lock-manager tests were
   rewritten to ensure every worker eventually acquires the lock while proving `max_active == 1`. `ConfigurationModule.save_config`/`update_section` now refresh
-  caches so `get_section` consumers (e.g., IntegrationService) immediately observe updates. Tracked in `docs/updates/2025-11-15-152215-configuration-locking-tests.md`.
+  caches so `get_section` consumers (e.g., IntegrationService) immediately observe updates. Tracked in
+  `docs/updates/2025-11-15-152215-configuration-locking-tests.md`.
 - **Failing tests (2025-11-15):** _None_
 
 ## 7. Monitoring CLI Fixtures
@@ -149,22 +150,6 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
   unit suite; see `docs/updates/2025-11-15-213000-restic-local-repo-fix.md`.
 - **Status:** _All targeted restic tests now pass_
 
-## 15. Repository CLI Error Handling
-
-- **Tests:** `tests/TimeLocker/cli/test_repos_commands_integration.py`.
-- **Status:** ✅ _Resolved 2025-11-15_. The `repos show` command now preserves the service-layer error (and exits with code 1) when a repository cannot be
-  located, while the configuration mock used in tests treats “nonexistent” names as missing instead of auto-creating placeholder repos.
-- **Failing tests:** _None_
-
-## 14. Repository Error-Recovery Validation
-
-- **Tests:** `tests/TimeLocker/services/test_repository_error_handling_recovery.py`.
-- **Issue:** `RepositoryManager` now enforces non-empty URIs during creation, but the error-handling regression test still expects the legacy “empty URI”
-  path to be accepted for recovery scenarios. Update the fake configuration used in the test (or relax the validation when running inside the test harness) so
-  the manager can create the repository and progress to the recovery assertions.
-- **Failing tests (2025-11-15 run #2):**
-    - `tests/TimeLocker/services/test_repository_error_handling_recovery.py::TestRepositoryManagerErrorRecovery::test_repository_creation_with_invalid_config`
-
 ## 12. Credential Storage & Multi-backend Repo Tests *(COMPLETED 2025-11-15)*
 
 - **Tests:** `tests/TimeLocker/integration/test_repos_credentials_integration.py`, `test_repository_multi_backend_integration.py`.
@@ -176,3 +161,18 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
 - **Tests:** `tests/TimeLocker/cli_modules/commands/test_repository_resolver_integration.py`.
 - **Status:** Fixture now allocates unique config dirs per test via `tmp_path_factory`, eliminating the `FileExistsError` collisions.
 - **Failing tests (2025-11-15):** _None_
+
+## 14. Repository Error-Recovery Validation *(COMPLETED 2025-11-15)*
+
+- **Tests:** `tests/TimeLocker/services/test_repository_error_handling_recovery.py`.
+- **Resolution:** Updated the invalid-config fixture to use an unsupported URI scheme (instead of an empty string), allowing the dataclass to instantiate
+  while still triggering `RepositoryValidationError` inside `RepositoryManager.create_repository`. The recovery assertions now execute with the current
+  validation contract.
+- **Status:** _All repository error-recovery tests pass_
+
+## 15. Repository CLI Error Handling
+
+- **Tests:** `tests/TimeLocker/cli/test_repos_commands_integration.py`.
+- **Status:** ✅ _Resolved 2025-11-15_. The `repos show` command now preserves the service-layer error (and exits with code 1) when a repository cannot be
+  located, while the configuration mock used in tests treats “nonexistent” names as missing instead of auto-creating placeholder repos.
+- **Failing tests:** _None_

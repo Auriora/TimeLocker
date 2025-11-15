@@ -176,10 +176,10 @@ class TestRepositoryManagerErrorRecovery:
     @pytest.mark.asyncio
     async def test_repository_creation_with_invalid_config(self, repository_manager):
         """Test error handling when creating repository with invalid configuration"""
-        # Create invalid repository config (empty URI)
+        # Create invalid repository config (unsupported URI scheme)
         invalid_config = RepositoryConfig(
             name="test-repo",
-            uri="",  # Invalid: empty URI
+            uri="invalid://repo-path",
             engine=BackupEngine.RESTIC,
             type=RepositoryType.LOCAL
         )
