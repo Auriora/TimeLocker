@@ -8,6 +8,7 @@ import shutil
 import tempfile
 import subprocess
 import threading
+import site
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from unittest.mock import patch
@@ -180,6 +181,18 @@ def isolate_environment(resource_manager, tmp_path):
     (test_home / ".local" / "state").mkdir(parents=True, exist_ok=True)
     (test_home / ".cache").mkdir(exist_ok=True)
     
+    # Capture original user site paths so Python packages remain importable after HOME override
+    original_user_site = None
+    original_user_base = None
+    try:
+        original_user_site = site.getusersitepackages()
+    except Exception:
+        pass
+    try:
+        original_user_base = site.getuserbase()
+    except Exception:
+        pass
+
     # Override environment variables to point to test directories
     test_env = {
         # XDG Base Directory Specification
@@ -206,6 +219,16 @@ def isolate_environment(resource_manager, tmp_path):
         'RESTIC_PASSWORD': 'test_password_12345',
         'TIMELOCKER_PASSWORD': 'test_password_12345',
     }
+
+    # Preserve access to globally installed Python packages
+    if original_user_site:
+        existing_pythonpath = os.environ.get('PYTHONPATH')
+        test_env['PYTHONPATH'] = (
+            f"{original_user_site}{os.pathsep}{existing_pythonpath}"
+            if existing_pythonpath else original_user_site
+        )
+    if original_user_base:
+        test_env['PYTHONUSERBASE'] = original_user_base
     
     # Save original values and set test values
     original_env = {}

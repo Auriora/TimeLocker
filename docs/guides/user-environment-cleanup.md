@@ -10,6 +10,9 @@ Use the provided cleanup script:
 ./scripts/clean-user-environment.sh
 ```
 
+> The script automatically honors `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`, and `XDG_CACHE_HOME`. If those point somewhere other than your home
+> directory (for example `/.jbdevcontainer/...` inside devcontainers), the matching directories there will be removed instead of the defaults under `~`.
+
 The script will:
 - Prompt for confirmation before deleting anything
 - Remove all TimeLocker configuration, data, and cache files
@@ -60,13 +63,21 @@ The script will:
 
 If you prefer to clean up manually or selectively:
 
+> Tip: Define helper variables so the commands match your environment (defaults shown below):
+> ```bash
+> CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}
+> DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}
+> STATE_HOME=${XDG_STATE_HOME:-$HOME/.local/state}
+> CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}
+> ```
+
 ### Remove All Configuration
 ```bash
-rm -rf ~/.config/timelocker
-rm -rf ~/.local/share/timelocker
-rm -rf ~/.local/state/timelocker
-rm -rf ~/.cache/timelocker
-rm -rf ~/.timelocker
+rm -rf "$CONFIG_HOME/timelocker"
+rm -rf "$DATA_HOME/timelocker"
+rm -rf "$STATE_HOME/timelocker"
+rm -rf "$CACHE_HOME/timelocker"
+rm -rf "$HOME/.timelocker"
 ```
 
 ### Remove Scripts Only

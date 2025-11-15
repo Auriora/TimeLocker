@@ -431,8 +431,13 @@ def cli_help(
         console.print("  [cyan]policy[/cyan]      - Policy management (backup and retention policies)")
         console.print("  [cyan]schedule[/cyan]    - Scheduling automation (create, manage schedules)")
         console.print("  [cyan]selections[/cyan]  - Data selection templates (include/exclude patterns)")
-        console.print("  [cyan]security[/cyan]    - Security and credential management")
-        console.print("  [cyan]monitor[/cyan]     - System monitoring and health checks\n")
+        console.print("  [cyan]config[/cyan]      - Configuration inspection, import, export")
+        console.print("  [cyan]credentials[/cyan] - Secure credential storage")
+        console.print("  [cyan]security[/cyan]    - Security and access auditing")
+        console.print("  [cyan]monitor[/cyan]     - System monitoring and health checks")
+        console.print("  [cyan]logs[/cyan]        - Log viewing and maintenance")
+        console.print("  [cyan]reports[/cyan]     - Generate usage and health reports")
+        console.print("  [cyan]migrate[/cyan]     - Validate and migrate configuration files\n")
 
         console.print("[bold]Quick Start:[/bold]")
         console.print("  1. Add a repository:")
@@ -449,11 +454,20 @@ def cli_help(
         console.print("     timelocker restore files myrepo latest /restore/path\n")
 
         console.print("[bold]Get Detailed Help:[/bold]")
-        console.print("  timelocker help repos      # Repository management help")
-        console.print("  timelocker help backup     # Backup operations help")
-        console.print("  timelocker help restore    # Restore operations help")
-        console.print("  timelocker help policy     # Policy management help")
-        console.print("  timelocker help schedule   # Scheduling help\n")
+        console.print("  timelocker help repos        # Repository management help")
+        console.print("  timelocker help backup       # Backup operations help")
+        console.print("  timelocker help snapshots    # Snapshot management help")
+        console.print("  timelocker help restore      # Restore operations help")
+        console.print("  timelocker help policy       # Policy management help")
+        console.print("  timelocker help schedule     # Scheduling help")
+        console.print("  timelocker help selections   # Data selection help")
+        console.print("  timelocker help config       # Configuration help")
+        console.print("  timelocker help credentials  # Credential storage help")
+        console.print("  timelocker help security     # Security and audit help")
+        console.print("  timelocker help monitor      # Monitoring dashboard help")
+        console.print("  timelocker help logs         # Log management help")
+        console.print("  timelocker help reports      # Reporting help")
+        console.print("  timelocker help migrate      # Configuration migration help\n")
 
         console.print("[bold]Command Help:[/bold]")
         console.print("  timelocker <command> --help    # Show help for any command")
@@ -521,6 +535,26 @@ def cli_help(
         console.print("  timelocker backup status\n")
         console.print("  # List recent backups")
         console.print("  timelocker backup list --limit 10\n")
+
+    elif topic == "snapshots":
+        console.print("\n[bold cyan]Snapshot Management Help[/bold cyan]\n")
+        console.print("Snapshot commands inspect, compare, search, and clean up stored backups.\n")
+
+        console.print("[bold]Common Commands:[/bold]")
+        console.print("  [cyan]snapshots list[/cyan] --repository <name>    - List snapshots")
+        console.print("  [cyan]snapshots show[/cyan] <id> --repository <name> - Show snapshot metadata")
+        console.print("  [cyan]snapshots find[/cyan] <query>                 - Search for files across snapshots")
+        console.print("  [cyan]snapshots diff[/cyan] <snap1> <snap2>         - Compare file changes")
+        console.print("  [cyan]snapshots forget[/cyan] --keep-daily 7        - Apply retention policies")
+        console.print("  [cyan]snapshots prune[/cyan]                        - Remove unreferenced data\n")
+
+        console.print("[bold]Examples:[/bold]")
+        console.print("  # List snapshots for a repository")
+        console.print("  timelocker snapshots list --repository myrepo\n")
+        console.print("  # Show the latest snapshot details")
+        console.print("  timelocker snapshots show latest --repository myrepo\n")
+        console.print("  # Compare snapshots for drift")
+        console.print("  timelocker snapshots diff 4a1b2c 7d8e9f --repository myrepo\n")
 
     elif topic == "restore":
         console.print("\n[bold cyan]Restore Operations Help[/bold cyan]\n")
@@ -612,11 +646,116 @@ def cli_help(
         console.print("  # Test a template")
         console.print("  timelocker selections test documents ~/Documents\n")
 
+    elif topic == "config":
+        console.print("\n[bold cyan]Configuration Management Help[/bold cyan]\n")
+        console.print("Use config commands to inspect, diff, import, and export TimeLocker settings.\n")
+
+        console.print("[bold]Common Commands:[/bold]")
+        console.print("  [cyan]config show[/cyan]                           - Display the active configuration")
+        console.print("  [cyan]config diff[/cyan] <file>                    - Compare a file against active settings")
+        console.print("  [cyan]config import restic[/cyan]                  - Import environment variables as configuration")
+        console.print("  [cyan]config import timeshift[/cyan]               - Convert Timeshift profiles into selections")
+        console.print("  [cyan]config export[/cyan] <file>                  - Export configuration to JSON")
+        console.print("  [cyan]config validate[/cyan]                       - Validate schema and dependencies\n")
+
+        console.print("[bold]Examples:[/bold]")
+        console.print("  timelocker config show")
+        console.print("  timelocker config diff backup.json")
+        console.print("  timelocker config export timelocker-config.json\n")
+
+    elif topic == "credentials":
+        console.print("\n[bold cyan]Credential Management Help[/bold cyan]\n")
+        console.print("Credential commands securely store repository passwords and access tokens.\n")
+
+        console.print("[bold]Common Commands:[/bold]")
+        console.print("  [cyan]credentials set[/cyan] <repository>          - Store credentials for a repository")
+        console.print("  [cyan]credentials list[/cyan]                      - Show stored credentials (names only)")
+        console.print("  [cyan]credentials remove[/cyan] <repository>       - Delete stored credentials")
+        console.print("  [cyan]credentials unlock[/cyan]                    - Unlock credential vault for automation\n")
+
+        console.print("[bold]Examples:[/bold]")
+        console.print("  timelocker credentials set myrepo")
+        console.print("  timelocker credentials list")
+        console.print("  timelocker credentials remove old-repo\n")
+
+    elif topic == "security":
+        console.print("\n[bold cyan]Security Operations Help[/bold cyan]\n")
+        console.print("Security commands audit access, review compliance, and inspect protection settings.\n")
+
+        console.print("[bold]Common Commands:[/bold]")
+        console.print("  [cyan]security status[/cyan]                      - Show encryption, access, and session status")
+        console.print("  [cyan]security audit[/cyan] --days 30             - View audit trail for recent events")
+        console.print("  [cyan]security notifications[/cyan]               - Configure notification channels")
+        console.print("  [cyan]security sessions[/cyan]                    - List or revoke active access sessions\n")
+
+        console.print("[bold]Examples:[/bold]")
+        console.print("  timelocker security status")
+        console.print("  timelocker security audit --days 14 --repository myrepo\n")
+
+    elif topic == "monitor":
+        console.print("\n[bold cyan]Monitoring Help[/bold cyan]\n")
+        console.print("Monitoring commands provide an operational dashboard for repositories and schedules.\n")
+
+        console.print("[bold]Common Commands:[/bold]")
+        console.print("  [cyan]monitor status[/cyan]               - Show system health summary")
+        console.print("  [cyan]monitor operations[/cyan]           - List current or recent operations")
+        console.print("  [cyan]monitor health[/cyan]               - Run repository health checks")
+        console.print("  [cyan]monitor history[/cyan]              - Review historical backup activity")
+        console.print("  [cyan]monitor stats[/cyan]                - Display aggregated statistics\n")
+
+        console.print("[bold]Examples:[/bold]")
+        console.print("  timelocker monitor status")
+        console.print("  timelocker monitor operations --limit 5")
+        console.print("  timelocker monitor health --repository myrepo\n")
+
+    elif topic == "logs":
+        console.print("\n[bold cyan]Log Management Help[/bold cyan]\n")
+        console.print("Log commands inspect, filter, and clear TimeLocker CLI log files.\n")
+
+        console.print("[bold]Common Commands:[/bold]")
+        console.print("  [cyan]logs list[/cyan]                         - List available log files")
+        console.print("  [cyan]logs tail[/cyan] --lines 200             - Show recent log lines")
+        console.print("  [cyan]logs export[/cyan] <dest>                - Export logs for support")
+        console.print("  [cyan]logs clear[/cyan]                        - Truncate cached logs\n")
+
+        console.print("[bold]Examples:[/bold]")
+        console.print("  timelocker logs tail --level error --since 24h")
+        console.print("  timelocker logs export support-logs.txt\n")
+
+    elif topic == "reports":
+        console.print("\n[bold cyan]Reporting Help[/bold cyan]\n")
+        console.print("Reporting commands generate health, usage, and compliance summaries.\n")
+
+        console.print("[bold]Common Commands:[/bold]")
+        console.print("  [cyan]reports generate[/cyan] backup-history --days 14  - Backup history report")
+        console.print("  [cyan]reports generate[/cyan] storage-usage             - Storage utilization report")
+        console.print("  [cyan]reports generate[/cyan] performance --format json - Performance report\n")
+
+        console.print("[bold]Examples:[/bold]")
+        console.print("  timelocker reports generate backup-history --days 30 --output report.md")
+        console.print("  timelocker reports generate storage-usage --format json\n")
+
+    elif topic == "migrate":
+        console.print("\n[bold cyan]Configuration Migration Help[/bold cyan]\n")
+        console.print("Migrate commands validate exported configurations before import.\n")
+
+        console.print("[bold]Common Commands:[/bold]")
+        console.print("  [cyan]migrate validate[/cyan] <file> --show-changes     - Preview applied changes")
+        console.print("  [cyan]migrate validate[/cyan] <file> --check-compatibility - Check version compatibility\n")
+
+        console.print("[bold]Examples:[/bold]")
+        console.print("  timelocker migrate validate backup-config.json")
+        console.print("  timelocker migrate validate old-config.json --show-changes\n")
+
     else:
+        available_topics = (
+                "repos, backup, snapshots, restore, policy, schedule, selections, "
+                "config, credentials, security, monitor, logs, reports, migrate"
+        )
         show_error_panel(
                 "Unknown Topic",
                 f"Unknown help topic: {topic}\n\n"
-                "Available topics: repos, backup, restore, policy, schedule, selections"
+                f"Available topics: {available_topics}"
         )
         raise typer.Exit(1)
 

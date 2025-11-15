@@ -1,5 +1,8 @@
 # Update Index
 
+- [2025-11-15-123045-cli-help-cleanup-sync](./2025-11-15-123045-cli-help-cleanup-sync.md)
+- [2025-11-15-111812-test-environment-isolation](./2025-11-15-111812-test-environment-isolation.md)
+- [2025-11-15-094402-cli-help-tree-validation](./2025-11-15-094402-cli-help-tree-validation.md)
 - [2025-11-13-182500-restore-cli-test-updates](./2025-11-13-182500-restore-cli-test-updates.md)
 - [2025-11-13-150915-yaml-dependency-fix](./2025-11-13-150915-yaml-dependency-fix.md)
 - [2025-11-09-143418-fix-architecture-docs-location](./2025-11-09-143418-fix-architecture-docs-location.md)

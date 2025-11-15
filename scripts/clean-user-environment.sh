@@ -18,16 +18,32 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
+shopt -s nullglob
+
+# Honor XDG environment variables with sensible defaults
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
+SCRIPTS_HOME="${XDG_BIN_HOME:-$HOME/.local/bin}"
+
+CONFIG_DIR="$CONFIG_HOME/timelocker"
+DATA_DIR="$DATA_HOME/timelocker"
+STATE_DIR="$STATE_HOME/timelocker"
+CACHE_DIR="$CACHE_HOME/timelocker"
+LEGACY_DIR="$HOME/.timelocker"
+SYSTEMD_USER_DIR="$CONFIG_HOME/systemd/user"
+
 echo -e "${YELLOW}TimeLocker User Environment Cleanup${NC}"
 echo "======================================"
 echo ""
 echo "This script will remove:"
-echo "  • Configuration: ~/.config/timelocker/"
-echo "  • Data: ~/.local/share/timelocker/"
-echo "  • State: ~/.local/state/timelocker/"
-echo "  • Cache: ~/.cache/timelocker/"
-echo "  • Legacy: ~/.timelocker/"
-echo "  • Scripts: ~/.local/bin/timelocker-*.sh"
+echo "  • Configuration: $CONFIG_DIR"
+echo "  • Data: $DATA_DIR"
+echo "  • State: $STATE_DIR"
+echo "  • Cache: $CACHE_DIR"
+echo "  • Legacy: $LEGACY_DIR"
+echo "  • Scripts: $SCRIPTS_HOME/timelocker-*.sh"
 echo "  • Other: ~/Library/Application Support/TimeLocker/"
 echo "  • Other: ~/AppData/Local/TimeLocker/"
 echo ""
@@ -72,27 +88,27 @@ remove_file() {
 
 # Remove configuration directory
 echo "1. Configuration directory:"
-remove_dir "$HOME/.config/timelocker"
+remove_dir "$CONFIG_DIR"
 
 # Remove data directory
 echo ""
 echo "2. Data directory:"
-remove_dir "$HOME/.local/share/timelocker"
+remove_dir "$DATA_DIR"
 
 # Remove state directory
 echo ""
 echo "3. State directory:"
-remove_dir "$HOME/.local/state/timelocker"
+remove_dir "$STATE_DIR"
 
 # Remove cache directory
 echo ""
 echo "4. Cache directory:"
-remove_dir "$HOME/.cache/timelocker"
+remove_dir "$CACHE_DIR"
 
 # Remove legacy directory
 echo ""
 echo "5. Legacy directory:"
-remove_dir "$HOME/.timelocker"
+remove_dir "$LEGACY_DIR"
 
 # Remove macOS Application Support (if exists)
 echo ""
@@ -107,7 +123,7 @@ remove_dir "$HOME/AppData/Local/TimeLocker"
 # Remove scripts
 echo ""
 echo "8. TimeLocker scripts:"
-for script in "$HOME/.local/bin/timelocker-"*.sh; do
+for script in "$SCRIPTS_HOME/timelocker-"*.sh; do
     if [ -f "$script" ]; then
         remove_file "$script"
     fi
@@ -116,8 +132,8 @@ done
 # Check for systemd user services
 echo ""
 echo "9. Systemd user services:"
-if [ -d "$HOME/.config/systemd/user" ]; then
-    for service in "$HOME/.config/systemd/user/timelocker"*.{service,timer}; do
+if [ -d "$SYSTEMD_USER_DIR" ]; then
+    for service in "$SYSTEMD_USER_DIR/timelocker"*.{service,timer}; do
         if [ -f "$service" ]; then
             echo -e "  ${YELLOW}Found:${NC} $service"
             # Try to stop and disable if systemctl is available

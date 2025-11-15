@@ -12,6 +12,11 @@ import os
 from pathlib import Path
 from typing import Iterable
 
+# Ensure global fixtures and environment isolation helpers are loaded
+pytest_plugins = [
+    "tests.TimeLocker.test_fixtures",
+]
+
 
 def _parse_env_value(raw: str) -> str:
     """Strip optional wrapping quotes from an environment value."""
