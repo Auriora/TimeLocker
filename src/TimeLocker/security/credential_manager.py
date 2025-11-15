@@ -65,9 +65,19 @@ class CredentialManager:
             security_logger: Optional SecurityLogger instance for enhanced logging
         """
         if config_dir is None:
-            # Use centralized path resolver for XDG compliance
             from ..config.configuration_path_resolver import ConfigurationPathResolver
-            config_dir = ConfigurationPathResolver.get_config_directory() / "credentials"
+            # Allow explicit override for testing or custom deployments
+            explicit_dir = os.environ.get("TIMELOCKER_CREDENTIAL_DIR")
+            if explicit_dir:
+                config_dir = Path(explicit_dir)
+            else:
+                legacy_dir = ConfigurationPathResolver.get_legacy_config_directory() / "credentials"
+                xdg_dir = ConfigurationPathResolver.get_config_directory() / "credentials"
+                # Prefer the legacy ~/.timelocker location when no XDG store exists yet
+                if legacy_dir.exists() or not xdg_dir.exists():
+                    config_dir = legacy_dir
+                else:
+                    config_dir = xdg_dir
 
         self.config_dir = Path(config_dir)
         self.config_dir.mkdir(parents=True, exist_ok=True)

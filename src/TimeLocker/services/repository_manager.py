@@ -6,9 +6,11 @@ repository lifecycle operations including creation, validation, and management.
 """
 
 import asyncio
+import inspect
 import json
 import logging
 import uuid
+from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Any, Union
@@ -341,8 +343,13 @@ class RepositoryManager(ServiceInterface):
             if not config or not hasattr(config, 'repositories'):
                 logger.debug("No repositories found in configuration")
                 return
-            
-            for name, repo_config in config.repositories.items():
+
+            repositories = getattr(config, 'repositories', None)
+            if not repositories or not isinstance(repositories, Mapping):
+                logger.debug("Repository section missing or not a mapping; skipping load")
+                return
+
+            for name, repo_config in repositories.items():
                 try:
                     # Convert legacy RepositoryConfig to new format
                     enhanced_config = self._convert_legacy_config(name, repo_config)
@@ -457,7 +464,16 @@ class RepositoryManager(ServiceInterface):
             # Update configuration
             config = self._config_manager.get_config()
             if config:
-                config.repositories.update(legacy_repos)
+                repositories = getattr(config, 'repositories', None)
+                if repositories is None or not isinstance(repositories, dict):
+                    repositories = {} if repositories is None else dict(repositories)
+                    try:
+                        config.repositories = repositories
+                    except Exception as exc:
+                        logger.error(f"Unable to assign repository mapping on configuration: {exc}")
+                        return
+
+                repositories.update(legacy_repos)
                 self._config_manager.save_config(config)
                 logger.debug(f"Saved {len(legacy_repos)} repositories to configuration")
             
@@ -481,6 +497,70 @@ class RepositoryManager(ServiceInterface):
             location=config.uri,
             description=config.description
         )
+
+    @staticmethod
+    def _is_remote_backend(repo_type: RepositoryType) -> bool:
+        """Determine if repository type typically requires backend credentials."""
+        remote_types = {
+                RepositoryType.S3,
+                RepositoryType.B2,
+                RepositoryType.SFTP,
+                RepositoryType.SMB,
+                RepositoryType.NFS,
+        }
+        return repo_type in remote_types
+
+    def _build_initial_credential_payload(self, config: RepositoryConfig) -> Optional[Dict[str, Any]]:
+        """Extract initial credential payload from repository configuration metadata."""
+        metadata = config.metadata or {}
+        engine_config = config.engine_config or {}
+        payload: Dict[str, Any] = {}
+
+        metadata_credentials = metadata.get("credentials")
+        if isinstance(metadata_credentials, dict):
+            payload.update(metadata_credentials)
+
+        backend_creds = metadata.get("backend_credentials") or engine_config.get("backend_credentials")
+        if isinstance(backend_creds, dict):
+            payload["backend_credentials"] = backend_creds
+
+        backend_type = (
+                metadata.get("backend_type")
+                or metadata.get("backend_credentials_type")
+                or engine_config.get("backend_type")
+        )
+        if backend_type:
+            payload["backend_type"] = backend_type
+
+        password = metadata.get("repository_password") or metadata.get("password")
+        if password:
+            payload["password"] = password
+
+        return payload or None
+
+    async def _store_repository_credentials_if_needed(self, config: RepositoryConfig) -> None:
+        """Invoke credential manager hooks for repositories that require stored credentials."""
+        manager = getattr(self, "_credential_manager", None)
+        if not manager:
+            return
+
+        store_method = getattr(manager, "store_credentials", None)
+        if not callable(store_method):
+            return
+
+        payload = self._build_initial_credential_payload(config)
+        if not payload and self._is_remote_backend(config.type):
+            payload = {"backend_type": config.type.value}
+
+        if not payload:
+            return
+
+        try:
+            result = store_method(config.name, payload)
+            if inspect.isawaitable(result):
+                await result
+        except Exception as exc:
+            logger.debug("Credential storage skipped for %s: %s", config.name, exc)
     
     async def create_repository(self, config: RepositoryConfig, 
                               options: Optional[RepositoryCreationOptions] = None) -> Repository:
@@ -676,6 +756,7 @@ class RepositoryManager(ServiceInterface):
             
             # Store repository
             self._repositories[config.name] = repository
+            await self._store_repository_credentials_if_needed(config)
             self._save_repositories()
             
             logger.info(f"Created new repository: {config.name}")

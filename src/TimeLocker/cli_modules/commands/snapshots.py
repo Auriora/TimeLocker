@@ -12,6 +12,7 @@ tests exercise these commands (they patch the service manager with mocks).
 from __future__ import annotations
 
 from typing import Any, List, Optional
+from pathlib import Path
 
 import typer
 from rich.panel import Panel
@@ -22,6 +23,9 @@ from .base import (
     console,
     show_error_panel,
     show_success_panel,
+    setup_logging,
+    _get_service_manager_for_command,
+    ConfigDirOption,
 )
 
 try:  # pragma: no cover - prefer src layout during development
@@ -33,17 +37,15 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for installed package
 from TimeLocker.utils.repository_resolver import validate_repository_name_or_uri
 from TimeLocker.utils.snapshot_validation import validate_snapshot_id_format
 
-setup_logging = _cli_module.setup_logging
-
 snapshots_app = create_typer_app(
         name="snapshots",
         help_text="Snapshot operations"
 )
 
 
-def _snapshot_service():
+def _snapshot_service(config_dir: Optional[Path] = None):
     """Return the configured snapshot service or exit with a helpful error."""
-    manager = cli_services.get_cli_service_manager()
+    manager = _get_service_manager_for_command(config_dir)
     if manager is None:
         show_error_panel("Service Error", "Snapshot service manager is unavailable")
         raise typer.Exit(1)
@@ -122,10 +124,11 @@ def snapshots_list(
                 help="Repository name or URI",
         ),
         verbose: bool = typer.Option(False, "--verbose", "-v"),
+        config_dir: ConfigDirOption = None,
 ) -> None:
     """List snapshots in a repository."""
-    setup_logging(verbose)
-    service = _snapshot_service()
+    setup_logging(verbose, config_dir)
+    service = _snapshot_service(config_dir)
     repo = _normalize_repository(repository)
     snapshots = service.list_snapshots(repo)
 
@@ -146,10 +149,12 @@ def snapshots_show(
                 "-r",
                 help="Repository name or URI",
         ),
+        config_dir: ConfigDirOption = None,
 ) -> None:
     """Display snapshot details."""
     _validate_snapshot_id(snapshot_id, allow_latest=True)
-    service = _snapshot_service()
+    setup_logging(False, config_dir)
+    service = _snapshot_service(config_dir)
     repo = _normalize_repository(repository)
     snapshot = service.get_snapshot(snapshot_id, repository=repo)
 
@@ -194,9 +199,11 @@ def snapshots_find(
                 "-r",
                 help="Repository name or URI",
         ),
+        config_dir: ConfigDirOption = None,
 ) -> None:
     """Search snapshots for matching files."""
-    service = _snapshot_service()
+    setup_logging(False, config_dir)
+    service = _snapshot_service(config_dir)
     repo = _normalize_repository(repository)
     results = service.find_snapshots(
             expression,
@@ -220,10 +227,12 @@ def snapshots_forget(
                 "-r",
                 help="Repository name or URI",
         ),
+        config_dir: ConfigDirOption = None,
 ) -> None:
     """Forget (delete) a snapshot."""
     _validate_snapshot_id(snapshot_id, allow_latest=False)
-    service = _snapshot_service()
+    setup_logging(False, config_dir)
+    service = _snapshot_service(config_dir)
     repo = _normalize_repository(repository)
     result = service.delete_snapshot(snapshot_id, repository=repo)
     if _evaluate_success(result):
@@ -241,9 +250,11 @@ def snapshots_prune(
                 "-r",
                 help="Repository name or URI",
         ),
+        config_dir: ConfigDirOption = None,
 ) -> None:
     """Prune unused snapshot data."""
-    service = _snapshot_service()
+    setup_logging(False, config_dir)
+    service = _snapshot_service(config_dir)
     repo = _normalize_repository(repository)
     result = getattr(service, "prune_snapshots", None)
     if result is None:
@@ -267,11 +278,13 @@ def snapshots_diff(
                 "-r",
                 help="Repository name or URI",
         ),
+        config_dir: ConfigDirOption = None,
 ) -> None:
     """Show differences between two snapshots."""
     _validate_snapshot_id(first_snapshot, allow_latest=True, strict=False)
     _validate_snapshot_id(second_snapshot, allow_latest=True, strict=False)
-    service = _snapshot_service()
+    setup_logging(False, config_dir)
+    service = _snapshot_service(config_dir)
     repo = _normalize_repository(repository)
     diff_method = getattr(service, "diff_snapshots", None)
     if diff_method is None:

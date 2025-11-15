@@ -1710,7 +1710,7 @@ def repos_credentials_set(
                     raise
                 # Non-interactive paths rely on auto unlock or environment variables
 
-        prompt_service = PromptService(console=console)
+        prompt_service = PromptService(console=console, force_interactive=True)
         try:
             access_key = prompt_service.prompt_text("AWS Access Key ID", required=True)
             secret_key = prompt_service.prompt_password("AWS Secret Access Key", required=True)

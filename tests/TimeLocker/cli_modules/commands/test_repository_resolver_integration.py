@@ -10,10 +10,11 @@ from TimeLocker.cli_modules.commands.base import _create_repository_resolver
 
 
 @pytest.fixture
-def mock_config_dir(tmp_path):
-    """Create temporary config directory"""
-    config_dir = tmp_path / "config"
-    config_dir.mkdir()
+def mock_config_dir(tmp_path_factory):
+    """Create an isolated temporary config directory per test invocation."""
+    base_dir = tmp_path_factory.mktemp("repo-resolver")
+    config_dir = base_dir / "config"
+    config_dir.mkdir(exist_ok=True)
     return config_dir
 
 

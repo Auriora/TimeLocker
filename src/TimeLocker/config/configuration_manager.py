@@ -255,9 +255,15 @@ class ConfigurationManager:
         """
         self._module.update_section(section_name, section_data)
 
-    def save_config(self) -> None:
-        """Persist current configuration to disk."""
-        self._module.save_config()
+    def save_config(self, config: Optional[Any] = None) -> None:
+        """
+        Persist current configuration to disk.
+
+        Args:
+            config: Optional configuration object to persist. When omitted,
+                the underlying module's active configuration is saved.
+        """
+        self._module.save_config(config)
 
     # -------------------------------
     # Resolution helpers

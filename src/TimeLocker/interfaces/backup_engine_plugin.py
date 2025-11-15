@@ -28,12 +28,10 @@ from enum import Enum
 from typing import Dict, List, Optional, Any
 from pathlib import Path
 
+from .repository_management_models import BackupEngine as _RepoBackupEngine
 
-class BackupEngine(Enum):
-    """Enumeration of supported backup engines"""
-    RESTIC = "restic"
-    RSYNC = "rsync"
-    RCLONE = "rclone"
+
+BackupEngine = _RepoBackupEngine
 
 
 class RepositoryType(Enum):
@@ -81,6 +79,15 @@ class EngineCapabilities:
     def __post_init__(self):
         if self.storage_backends is None:
             self.storage_backends = []
+
+    def __contains__(self, item: str) -> bool:
+        """Allow `'field_name' in capabilities` style checks used by tests."""
+        return hasattr(self, item)
+
+    @property
+    def supported_backends(self) -> List[str]:
+        """Backwards-compatible alias expected by older tests."""
+        return self.storage_backends
 
 
 class BackupEnginePlugin(ABC):

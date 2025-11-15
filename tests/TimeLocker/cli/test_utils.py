@@ -94,7 +94,7 @@ def create_mock_service_manager() -> Mock:
             return list(super().values())
 
     repo_store: _RepositoryDict = _RepositoryDict()
-    default_repo = {
+    default_repo_template = {
             "name": "test-repo",
             "uri": "file:///tmp/test-repo",
             "description": "Default test repository",
@@ -102,14 +102,13 @@ def create_mock_service_manager() -> Mock:
             "engine": "restic",
             "status": "active"
     }
-    repo_store[default_repo["name"]] = default_repo
-    default_state = {"default_repository": default_repo["name"]}
+    default_state = {"default_repository": None}
 
     def _normalize_name(*candidates: Optional[str]) -> str:
         for candidate in candidates:
             if isinstance(candidate, str) and candidate.strip():
                 return candidate.strip()
-        return default_repo["name"]
+        return default_state["default_repository"] or default_repo_template["name"]
 
     def _ensure_repo(name: Optional[str]) -> Dict[str, Any]:
         repo_name = _normalize_name(name)
@@ -124,12 +123,19 @@ def create_mock_service_manager() -> Mock:
                     "status": "active"
             }
             repo_store[repo_name] = repo
+            default_state.setdefault("default_repository", repo_name)
         return repo
 
     mock_service_manager = MagicMock(spec=CLIServiceManager)
     repository_service = MagicMock()
     mock_service_manager.repository_service = repository_service
     mock_service_manager.snapshot_service = MagicMock()
+    mock_service_manager.snapshot_service.get_snapshot.return_value = None
+    mock_service_manager.snapshot_service.find_snapshots.return_value = []
+    mock_service_manager.snapshot_service.delete_snapshot.return_value = {'success': True}
+    mock_service_manager.list_snapshots = mock_service_manager.snapshot_service.list_snapshots
+    mock_service_manager.get_snapshot = mock_service_manager.snapshot_service.get_snapshot
+    mock_service_manager.find_snapshots = mock_service_manager.snapshot_service.find_snapshots
 
     backup_orchestrator = MagicMock()
     backup_orchestrator.execute_backup.return_value = Mock(
@@ -151,8 +157,9 @@ def create_mock_service_manager() -> Mock:
     config_service = MagicMock()
     config_service.get_backup_targets.return_value = []
     config_service.add_backup_target.return_value = None
-    config_service.get_repositories.side_effect = lambda: repo_store
+    config_service.get_repositories.side_effect = lambda: list(repo_store.values())
     config_service.get_repository.side_effect = lambda name: _ensure_repo(name)
+    config_service.get_repository_by_name.side_effect = lambda name: _ensure_repo(name)
     config_service.config_file = Path("/tmp/config.yaml")
     mock_service_manager._config_service = config_service
     mock_service_manager.configuration_service = config_service
@@ -160,11 +167,14 @@ def create_mock_service_manager() -> Mock:
     config_module = MagicMock()
     config_module.add_backup_target.return_value = None
     config_module.get_repository.side_effect = lambda name: _ensure_repo(name)
+    config_module.list_repositories.side_effect = lambda: list(repo_store.values())
     mock_service_manager.config_module = config_module
     mock_service_manager._config_module = config_module
 
     mock_service_manager.resolve_repository_uri = MagicMock(side_effect=lambda uri, **_: uri)
-    mock_service_manager._find_repository_name_by_uri = MagicMock(return_value=default_repo["name"])
+    mock_service_manager._find_repository_name_by_uri = MagicMock(
+            side_effect=lambda *_args, **_kwargs: default_state["default_repository"] or default_repo_template["name"]
+    )
     mock_service_manager.detect_existing_repository = MagicMock(return_value=None)
 
     def _make_stats(name: str) -> Dict[str, Any]:
@@ -272,13 +282,15 @@ def create_mock_service_manager() -> Mock:
 
     # Wire handlers for both top-level manager and legacy repository_service alias
     def _wire(name: str, handler):
-        shared_mock = MagicMock(side_effect=handler)
+        shared_mock = MagicMock(wraps=handler)
         setattr(mock_service_manager, name, shared_mock)
         setattr(repository_service, name, shared_mock)
 
     _wire("add_repository", _add_repository)
     _wire("update_repository", _update_repository)
     _wire("list_repositories", _list_repositories)
+    _wire("get_repository", _get_repository_by_name)
+    _wire("get_repository_by_name", _get_repository_by_name)
     _wire("remove_repository", _remove_repository)
     _wire("initialize_repository", lambda **kwargs: {"success": True, "already_initialized": False})
     _wire("check_repository", lambda **kwargs: {"success": True})
@@ -294,7 +306,6 @@ def create_mock_service_manager() -> Mock:
     _wire("migrate_repository", _migrate_repository)
     _wire("forget_repository", _forget_repository)
 
-    mock_service_manager.snapshot_service.list_snapshots.return_value = []
     mock_service_manager.get_system_monitoring_status.return_value = {
             "health_status": "healthy",
             "current_operations": 0,

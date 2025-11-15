@@ -1,5 +1,7 @@
 # Update Index
 
+- [2025-11-15-credential-repo-manager](./2025-11-15-credential-repo-manager.md)
+- [2025-11-15-123217-mock-repo-cli-fixtures](./2025-11-15-123217-mock-repo-cli-fixtures.md)
 - [2025-11-15-123045-cli-help-cleanup-sync](./2025-11-15-123045-cli-help-cleanup-sync.md)
 - [2025-11-15-111812-test-environment-isolation](./2025-11-15-111812-test-environment-isolation.md)
 - [2025-11-15-094402-cli-help-tree-validation](./2025-11-15-094402-cli-help-tree-validation.md)
