@@ -1,5 +1,7 @@
 # Update Index
 
+- [2025-11-15-150101-cli-service-manager-patching](./2025-11-15-150101-cli-service-manager-patching.md)
+- [2025-11-15-145800-cli-repos-commands-tests](./2025-11-15-145800-cli-repos-commands-tests.md)
 - [2025-11-15-credential-repo-manager](./2025-11-15-credential-repo-manager.md)
 - [2025-11-15-123217-mock-repo-cli-fixtures](./2025-11-15-123217-mock-repo-cli-fixtures.md)
 - [2025-11-15-123045-cli-help-cleanup-sync](./2025-11-15-123045-cli-help-cleanup-sync.md)

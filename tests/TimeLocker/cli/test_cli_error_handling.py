@@ -191,8 +191,8 @@ class TestCLIErrorHandling:
         # 1. Testing KeyboardInterrupt at a lower level (service layer)
         # 2. Using a simpler command for testing interrupt handling
         # 3. Refactoring backup command to make it more testable
-        with patch('TimeLocker.cli_services.get_cli_service_manager') as mock_get_service:
-            with patch('TimeLocker.cli._get_service_manager_for_command') as mock_get_for_command:
+        with patch('src.TimeLocker.cli.get_cli_service_manager') as mock_get_service:
+            with patch('src.TimeLocker.cli._get_service_manager_for_command') as mock_get_for_command:
                 mock_manager = Mock()
                 mock_config_service = Mock()
                 mock_manager._config_service = mock_config_service

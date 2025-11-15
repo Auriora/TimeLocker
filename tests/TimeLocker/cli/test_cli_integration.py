@@ -50,7 +50,7 @@ class TestCLIIntegrationWorkflows:
 
     @pytest.mark.integration
     @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
-    @patch('src.TimeLocker.cli_services.get_cli_service_manager')
+    @patch('src.TimeLocker.cli.get_cli_service_manager')
     def test_repository_management_workflow(self, mock_get_service_manager, mock_get_for_command, temp_repo_dir):
         """Test complete repository management workflow."""
         # Mock the service manager with proper structure
@@ -114,7 +114,7 @@ class TestCLIIntegrationWorkflows:
         assert_success(result, "Repository remove should succeed with mocked service manager")
 
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli_services.get_cli_service_manager')
+    @patch('src.TimeLocker.cli.get_cli_service_manager')
     @patch('src.TimeLocker.cli_modules.commands.backup.get_cli_service_manager')
     @patch('src.TimeLocker.cli._get_service_manager_for_command')
     def test_backup_creation_workflow(self, mock_get_for_command, mock_backup_get_service_manager, mock_cli_services_get, temp_backup_dir, temp_repo_dir):
@@ -158,7 +158,7 @@ class TestCLIIntegrationWorkflows:
         assert_success(result, "Snapshots list should succeed with mocked service manager")
 
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli_services.get_cli_service_manager')
+    @patch('src.TimeLocker.cli.get_cli_service_manager')
     def test_snapshot_management_workflow(self, mock_service_manager, temp_repo_dir):
         """Test complete snapshot management workflow."""
         # Mock the service manager
@@ -208,7 +208,7 @@ class TestCLIIntegrationWorkflows:
             assert_success(result, "Restore find should succeed with mocked dependencies")
 
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli_services.get_cli_service_manager')
+    @patch('src.TimeLocker.cli.get_cli_service_manager')
     def test_restore_workflow(self, mock_service_manager, temp_repo_dir):
         """Test complete restore workflow."""
         # Mock the service manager
@@ -252,7 +252,7 @@ class TestCLIIntegrationWorkflows:
 
     @pytest.mark.integration
     @pytest.mark.skip(reason="Credentials commands not implemented. The credentials command group exists but has no registered subcommands.")
-    @patch('src.TimeLocker.cli_services.get_cli_service_manager')
+    @patch('src.TimeLocker.cli.get_cli_service_manager')
     def test_credential_management_workflow(self, mock_service_manager):
         """Test complete credential management workflow."""
         # Mock the service manager
@@ -310,7 +310,7 @@ class TestCLIIntegrationWorkflows:
 
     @pytest.mark.integration
     @pytest.mark.skip(reason="Targets deprecated - replaced by selections. Test needs rewrite to use selections commands.")
-    @patch('src.TimeLocker.cli_services.get_cli_service_manager')
+    @patch('src.TimeLocker.cli.get_cli_service_manager')
     def test_first_time_user_workflow(self, mock_service_manager, temp_repo_dir, temp_backup_dir):
         """Test complete first-time user workflow."""
         # Mock the service manager
