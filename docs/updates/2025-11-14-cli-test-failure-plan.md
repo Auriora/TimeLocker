@@ -10,8 +10,10 @@ status: [ in-progress ]
 This document captures the major clusters of remaining test failures so agents can tackle them one at a time. Each section references the failing suites and
 highlights the expected fixes.
 
-> **Latest targeted runs (2025-11-15)**: Configuration integration/locking suites (`tests/TimeLocker/config/test_configuration_integration_workflows.py`,
-> `tests/TimeLocker/config/test_configuration_lock_manager.py`) and the integration service configuration test all **pass** after the fixes described below.
+> **Latest full run (2025-11-15)**: `pytest` reported **16 failures**. Newly failing clusters include the monitoring CLI (health/stats commands), the
+> performance compatibility/config-dir checks, repository command integrations (metadata/config/state/credential rotation), Timeshift CLI imports, Restic local
+> repository initialization, selection/performance suites, the performance optimization report, and repository error-recovery handling. The sections below
+> outline the updated status and failing tests per cluster.
 
 • Failure Priorities
 
@@ -106,38 +108,46 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
 ## 7. Monitoring CLI Fixtures
 
 - **Tests:** `tests/TimeLocker/cli/test_monitoring_commands.py`.
-- **Issue:** The CLI now expects dict-like monitoring payloads with `.get()`, but mocks return strings. Update the fixtures to return a structure similar to
-  `MonitoringSummary`.
-- **Failing tests (2025-11-15):** _None reported in the latest run (cluster blocked by other failures but kept here for completeness)._
+- **Issue:** Monitoring mocks still return plain strings and the CLI expects full `MonitoringSummary`-style dictionaries (with health/stats fields). Update
+  the shared CLI service manager mock to expose `get_system_monitoring_status()` responses that include the keys consumed by the health/stats commands.
+- **Failing tests (2025-11-15):**
+    - `tests/TimeLocker/cli/test_monitoring_commands.py::TestMonitorCommands::test_monitor_health_command`
+    - `tests/TimeLocker/cli/test_monitoring_commands.py::TestMonitorCommands::test_monitor_stats_command`
 
 ## 8. Performance Threshold & Path Resolver
 
 - **Tests:** `tests/TimeLocker/cli/test_performance_compatibility.py`.
 - **Issues:**
-    - `repos --help` exceeds the 150 ms budget. Either optimize the command startup path or adjust the threshold in the test.
-    - The config directory test expects `.config/.local`, but with the new isolation fixture the detected directory is `/tmp/.../config/timelocker`. Update
-      the test (or fixture) to accept the temporary XDG path.
+    - `repos --help` still exceeds the 150 ms budget. Either optimize the command startup path or adjust the threshold in the test.
+    - The config directory test now fails on Linux because the new isolation fixture points to `/tmp/.../config/timelocker`. Update the resolver/test to treat
+      the temporary XDG location as acceptable.
 - **Failing tests (2025-11-15):**
     - `tests/TimeLocker/cli/test_performance_compatibility.py::TestCrossPlatformBehavior::test_config_directory_platform_appropriate`
 
-## 9. Repository Manager & Credential Flow *(COMPLETED 2025-11-15)*
+## 9. Repository Manager & Credential Flow *(PARTIAL – CLI repos integrations regressed)*
 
-- **Tests:** `tests/TimeLocker/cli/test_repos_commands.py`, `test_repository_manager_*`,
+- **Tests:** `tests/TimeLocker/cli/test_repos_commands_integration.py`, `test_repository_manager_*`,
   `tests/TimeLocker/integration/test_repository_multi_backend_integration.py`, etc.
-- **Fixes:** CLI repos commands now patch `src.TimeLocker.cli.get_cli_service_manager` and use the centralized mock manager, eliminating the fall-through to
-  real services. The repos suite expectations were updated to assert successful command execution under the new mocks, and removal paths patch
-  `ConfigurationManager` explicitly. Verified via `pytest tests/TimeLocker/cli/test_repos_commands.py -q` and documented in
-  `docs/updates/2025-11-15-145800-cli-repos-commands-tests.md`.
-- **Failing tests (2025-11-15):** _None_
+- **Issues:** The unit-level CLI fixes keep `test_repos_commands.py` green, but the higher-level integration suite still falls through because the mock service
+  manager lacks metadata update hooks (`update_repository_metadata/configuration`) and credential rotation helpers. Expand the shared mock/service facade to
+  cover repository lifecycle transitions and credential rotation APIs.
+- **Failing tests (2025-11-15):**
+    - `tests/TimeLocker/cli/test_repos_commands_integration.py::TestRepositoryManagementCommands::test_update_repository_metadata`
+    - `tests/TimeLocker/cli/test_repos_commands_integration.py::TestRepositoryManagementCommands::test_update_repository_configuration`
+    - `tests/TimeLocker/cli/test_repos_commands_integration.py::TestRepositoryStateTransitions::test_repository_lifecycle_complete`
+    - `tests/TimeLocker/cli/test_repos_commands_integration.py::TestRepositoryStateTransitions::test_repository_state_active_to_inactive`
+    - `tests/TimeLocker/cli/test_repos_commands_integration.py::TestRepositoryCredentialIntegration::test_repository_credential_rotation`
 
-## 10. Selection & Optimization Services *(COMPLETED 2025-11-15)*
+## 10. Selection & Optimization Services
 
 - **Tests:** `tests/TimeLocker/selection/test_performance_stress.py`, `tests/TimeLocker/services/test_performance_optimization_service.py`.
-- **Fixes:** Pattern engine now defaults to filename matching for patterns without path separators, restoring the expected behavior for literal/glob/regex
-  rules and bringing the SelectionManager stress tests back to green. The performance optimization service normalizes `duration_seconds` inputs so backup
-  results (which provide timedeltas) no longer trigger TypeErrors when computing throughput. Tracked in
-  `docs/updates/2025-11-15-153517-selection-performance-optimizer.md`.
-- **Failing tests (2025-11-15):** _None_
+- **Issue:** Pattern evaluation is still skipping matches (literal and mixed suites) when include/exclude precedence kicks in, and the performance optimizer
+  continues to compare `timedelta` objects to integers while computing throughput. Revisit `PatternEngine.batch_match_paths()` and the optimizer’s duration
+  normalization to ensure every result is marked matched and `duration_seconds` is always numeric.
+- **Failing tests (2025-11-15):**
+    - `tests/TimeLocker/selection/test_performance_stress.py::TestPatternMatchingPerformance::test_literal_pattern_performance`
+    - `tests/TimeLocker/selection/test_performance_stress.py::TestPatternMatchingPerformance::test_mixed_pattern_performance`
+    - `tests/TimeLocker/services/test_performance_optimization_service.py::TestPerformanceOptimizationService::test_generate_performance_report`
 
 ## 11. Restic Local Repository
 
@@ -148,6 +158,15 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
 - **Failing tests (2025-11-15):**
     - `tests/TimeLocker/restic/test_local_repository_enhanced.py::TestLocalResticRepositoryEnhanced::test_initialize_repository_directory_creation_fails`
     - `tests/TimeLocker/restic/test_local_repository_enhanced.py::TestLocalResticRepositoryEnhanced::test_initialize_repository_exception_handling`
+
+## 14. Repository Error-Recovery Validation
+
+- **Tests:** `tests/TimeLocker/services/test_repository_error_handling_recovery.py`.
+- **Issue:** `RepositoryManager` now enforces non-empty URIs during creation, but the error-handling regression test still expects the legacy “empty URI”
+  path to be accepted for recovery scenarios. Update the fake configuration used in the test (or relax the validation when running inside the test harness) so
+  the manager can create the repository and progress to the recovery assertions.
+- **Failing tests (2025-11-15):**
+    - `tests/TimeLocker/services/test_repository_error_handling_recovery.py::TestRepositoryManagerErrorRecovery::test_repository_creation_with_invalid_config`
 
 ## 12. Credential Storage & Multi-backend Repo Tests *(COMPLETED 2025-11-15)*
 
