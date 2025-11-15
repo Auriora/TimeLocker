@@ -342,7 +342,7 @@ class PatternEngine:
         pattern = rule.pattern or ""
         return not any(sep in pattern for sep in separators)
     
-    def match_path(self, path: Path, compiled_patterns: CompiledPatternSet) -> MatchResult:
+    def match_path(self, path: Path, compiled_patterns: Optional[CompiledPatternSet]) -> MatchResult:
         """
         Check if a path matches any pattern in the compiled set.
         
@@ -353,33 +353,16 @@ class PatternEngine:
         Returns:
             MatchResult with matching information
         """
-        start_time = time.time()
+        if not compiled_patterns or not compiled_patterns.patterns:
+            return MatchResult(
+                matched=False,
+                matching_patterns=[],
+                evaluation_time_ms=0.0,
+                cache_hit=False
+            )
         
-        matching_patterns = []
-        
-        # Evaluate patterns in priority order
-        sorted_patterns = sorted(
-            compiled_patterns.patterns,
-            key=lambda p: p.priority,
-            reverse=True
-        )
-        
-        for pattern in sorted_patterns:
-            if pattern.matches(path):
-                matching_patterns.append(pattern)
-        
-        evaluation_time_ms = (time.time() - start_time) * 1000
-        
-        # Update statistics
-        self._stats['total_matches'] += 1
-        self._stats['total_match_time_ms'] += evaluation_time_ms
-        
-        return MatchResult(
-            matched=len(matching_patterns) > 0,
-            matching_patterns=matching_patterns,
-            evaluation_time_ms=evaluation_time_ms,
-            cache_hit=False
-        )
+        sorted_patterns = self._get_sorted_patterns(compiled_patterns)
+        return self._evaluate_sorted_patterns(path, sorted_patterns)
     
     def batch_match_paths(
         self,
@@ -396,13 +379,50 @@ class PatternEngine:
         Returns:
             List of MatchResult for each path
         """
-        results = []
+        if not compiled_patterns or not compiled_patterns.patterns:
+            return [
+                MatchResult(matched=False, matching_patterns=[], evaluation_time_ms=0.0, cache_hit=False)
+                for _ in paths
+            ]
         
-        for path in paths:
-            result = self.match_path(path, compiled_patterns)
-            results.append(result)
+        sorted_patterns = self._get_sorted_patterns(compiled_patterns)
+        return [self._evaluate_sorted_patterns(path, sorted_patterns) for path in paths]
+
+    def _get_sorted_patterns(self, compiled_patterns: CompiledPatternSet) -> List[CompiledPattern]:
+        """
+        Retrieve patterns sorted by priority, caching the order for reuse.
+        """
+        metadata = compiled_patterns.metadata
+        sorted_patterns = metadata.get('_sorted_patterns')
+        if sorted_patterns is None:
+            sorted_patterns = tuple(
+                sorted(compiled_patterns.patterns, key=lambda p: p.priority, reverse=True)
+            )
+            metadata['_sorted_patterns'] = sorted_patterns
+        return sorted_patterns
+
+    def _evaluate_sorted_patterns(self, path: Path, sorted_patterns: Tuple[CompiledPattern, ...]) -> MatchResult:
+        """
+        Evaluate a path against an already sorted set of patterns.
+        """
+        start_time = time.time()
+        matching_patterns: List[CompiledPattern] = []
         
-        return results
+        for pattern in sorted_patterns:
+            if pattern.matches(path):
+                matching_patterns.append(pattern)
+        
+        evaluation_time_ms = (time.time() - start_time) * 1000
+        
+        self._stats['total_matches'] += 1
+        self._stats['total_match_time_ms'] += evaluation_time_ms
+        
+        return MatchResult(
+            matched=bool(matching_patterns),
+            matching_patterns=matching_patterns,
+            evaluation_time_ms=evaluation_time_ms,
+            cache_hit=False
+        )
     
     def get_pattern_statistics(self, compiled_patterns: CompiledPatternSet) -> PatternStats:
         """

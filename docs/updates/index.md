@@ -1,5 +1,7 @@
 # Update Index
 
+- [2025-11-15-212100-selection-optimizer-fix](./2025-11-15-212100-selection-optimizer-fix.md)
+- [2025-11-15-210500-repo-mock-lifecycle-fix](./2025-11-15-210500-repo-mock-lifecycle-fix.md)
 - [2025-11-15-153517-selection-performance-optimizer](./2025-11-15-153517-selection-performance-optimizer.md)
 - [2025-11-15-152215-configuration-locking-tests](./2025-11-15-152215-configuration-locking-tests.md)
 - [2025-11-15-150101-cli-service-manager-patching](./2025-11-15-150101-cli-service-manager-patching.md)

@@ -14,6 +14,7 @@ import tempfile
 import json
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock, call
+from types import SimpleNamespace
 from datetime import datetime
 
 from src.TimeLocker.cli import app
@@ -45,12 +46,60 @@ def mock_service_manager():
         yield manager
 
 
-@pytest.fixture
-def mock_config_module():
-    """Mock configuration module."""
-    with patch('src.TimeLocker.cli_modules.commands.repositories.ConfigurationManager') as mock:
-        config = Mock()
-        mock.return_value = config
+@pytest.fixture(autouse=True)
+def mock_config_module(mock_service_manager):
+    """Provide an in-memory ConfigurationManager compatible with CLI expectations."""
+    repo_store = getattr(mock_service_manager, "_repo_store", {})
+    ensure_repo = getattr(mock_service_manager, "_ensure_repo", lambda name: repo_store.setdefault(name, {}))
+    default_state = getattr(mock_service_manager, "_default_state", {"default_repository": None})
+
+    config_state = SimpleNamespace(
+        repositories=repo_store,
+        targets=[],
+        policies=[],
+        settings={},
+    )
+
+    last_repo_name = {"value": None}
+
+    config = MagicMock()
+    config.config_file = Path("/tmp/timelocker-config.yaml")
+    def _get_repository(name):
+        last_repo_name["value"] = name
+        return ensure_repo(name)
+
+    config.get_repository.side_effect = _get_repository
+    config.get_repository_by_name.side_effect = lambda name: ensure_repo(name)
+    config.list_repositories.side_effect = lambda: list(repo_store.values())
+    config.set_repository.side_effect = lambda repository=None, **kwargs: repo_store.__setitem__(
+        repository["name"], repository
+    )
+    config.remove_repository.side_effect = lambda name: repo_store.pop(name, None)
+    config.set_default_repository.side_effect = lambda name: default_state.update(default_repository=name)
+    config.clear_default_repository.side_effect = lambda: default_state.update(default_repository=None)
+    config.get_config.return_value = config_state
+
+    def _save_config(*_args, **_kwargs):
+        repo_name = last_repo_name["value"]
+        if repo_name:
+            repo_data = repo_store.get(repo_name, {})
+            mock_service_manager.update_repository(
+                name=repo_name,
+                repository=repo_name,
+                metadata=repo_data.get("metadata"),
+                description=repo_data.get("description"),
+                configuration={
+                    "uri": repo_data.get("uri"),
+                    "engine": repo_data.get("engine"),
+                    "status": repo_data.get("status"),
+                },
+            )
+        return None
+
+    config.save_config.side_effect = _save_config
+
+    with patch('src.TimeLocker.cli_modules.commands.repositories.ConfigurationManager') as mock_cls:
+        mock_cls.return_value = config
         yield config
 
 

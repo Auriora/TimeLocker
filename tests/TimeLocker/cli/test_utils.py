@@ -103,6 +103,7 @@ def create_mock_service_manager() -> Mock:
             "status": "active"
     }
     default_state = {"default_repository": None}
+    credential_store: Dict[str, Dict[str, Any]] = {}
 
     def _normalize_name(*candidates: Optional[str]) -> str:
         for candidate in candidates:
@@ -125,6 +126,10 @@ def create_mock_service_manager() -> Mock:
             repo_store[repo_name] = repo
             default_state.setdefault("default_repository", repo_name)
         return repo
+
+    def _mutate_metadata(repo: Dict[str, Any]) -> Dict[str, Any]:
+        repo.setdefault("metadata", {})
+        return repo["metadata"]
 
     mock_service_manager = MagicMock(spec=CLIServiceManager)
     repository_service = MagicMock()
@@ -210,7 +215,49 @@ def create_mock_service_manager() -> Mock:
         metadata = kwargs.get("metadata")
         if metadata:
             repo.setdefault("metadata", {}).update(metadata)
+        configuration = kwargs.get("configuration") or {}
+        for key, value in configuration.items():
+            if key == "metadata":
+                _mutate_metadata(repo).update(value or {})
+            else:
+                repo[key] = value
+        uri = kwargs.get("uri") or kwargs.get("repository_uri")
+        if uri:
+            repo["uri"] = uri
+        engine = kwargs.get("engine")
+        if engine:
+            repo["engine"] = engine
+        status = kwargs.get("status")
+        if status:
+            repo["status"] = status
         return {"success": True, "repository": repo}
+
+    def _update_repository_metadata(**kwargs):
+        name = _normalize_name(kwargs.get("name"), kwargs.get("repository_name"), kwargs.get("repository"))
+        repo = _ensure_repo(name)
+        metadata = kwargs.get("metadata") or {}
+        remove = kwargs.get("remove_keys") or kwargs.get("remove_metadata") or []
+        clear = kwargs.get("clear") or kwargs.get("clear_metadata")
+        repo_metadata = _mutate_metadata(repo)
+        if clear:
+            repo_metadata.clear()
+        for key in remove:
+            repo_metadata.pop(key, None)
+        if metadata:
+            repo_metadata.update(metadata)
+        return {"success": True, "repository": repo}
+
+    def _update_repository_configuration(**kwargs):
+        configuration = kwargs.get("configuration", {}).copy()
+        for field in ("uri", "description", "engine", "type", "password"):
+            if kwargs.get(field) is not None:
+                configuration[field] = kwargs[field]
+        if kwargs.get("metadata"):
+            configuration.setdefault("metadata", {}).update(kwargs["metadata"])
+        return _update_repository(
+                name=kwargs.get("name") or kwargs.get("repository_name") or kwargs.get("repository"),
+                configuration=configuration
+        )
 
     def _list_repositories(filters=None, **_kwargs):
         repos = list(repo_store.values())
@@ -280,6 +327,45 @@ def create_mock_service_manager() -> Mock:
         repo["forgotten"] = True
         return {"success": True}
 
+    def _set_repository_status(status: str, **kwargs):
+        name = _normalize_name(kwargs.get("name"), kwargs.get("repository_name"), kwargs.get("repository"))
+        repo = _ensure_repo(name)
+        repo["status"] = status
+        return {"success": True, "repository": repo}
+
+    def _transition_repository_state(**kwargs):
+        state = kwargs.get("state") or kwargs.get("target_state") or kwargs.get("status")
+        if not state:
+            state = "unknown"
+        return _set_repository_status(state, **kwargs)
+
+    def _rotate_credentials(**kwargs):
+        name = _normalize_name(kwargs.get("name"), kwargs.get("repository_name"), kwargs.get("repository"))
+        repo = _ensure_repo(name)
+        password = kwargs.get("new_password") or kwargs.get("password")
+        backend_credentials = kwargs.get("backend_credentials") or kwargs.get("credentials")
+        backend_type = kwargs.get("backend_type") or kwargs.get("backend")
+        record = credential_store.setdefault(name, {"password_history": [], "backend": {}})
+        if password:
+            record["password_history"].append(password)
+            repo["last_password_rotation"] = password
+        if backend_credentials:
+            record["backend"] = {
+                    "type": backend_type,
+                    "credentials": backend_credentials
+            }
+            repo["backend_credentials"] = backend_credentials
+        repo["last_credential_rotation"] = datetime.utcnow().isoformat()
+        return {"success": True, "repository": repo, "credentials": record}
+
+    def _rotate_repository_password(**kwargs):
+        kwargs["new_password"] = kwargs.get("new_password") or kwargs.get("password")
+        return _rotate_credentials(**kwargs)
+
+    def _rotate_backend_credentials(**kwargs):
+        kwargs["backend_credentials"] = kwargs.get("backend_credentials") or kwargs.get("credentials")
+        return _rotate_credentials(**kwargs)
+
     # Wire handlers for both top-level manager and legacy repository_service alias
     def _wire(name: str, handler):
         shared_mock = MagicMock(wraps=handler)
@@ -288,6 +374,8 @@ def create_mock_service_manager() -> Mock:
 
     _wire("add_repository", _add_repository)
     _wire("update_repository", _update_repository)
+    _wire("update_repository_metadata", _update_repository_metadata)
+    _wire("update_repository_configuration", _update_repository_configuration)
     _wire("list_repositories", _list_repositories)
     _wire("get_repository", _get_repository_by_name)
     _wire("get_repository_by_name", _get_repository_by_name)
@@ -305,6 +393,14 @@ def create_mock_service_manager() -> Mock:
     _wire("prune_repository", _simple_success)
     _wire("migrate_repository", _migrate_repository)
     _wire("forget_repository", _forget_repository)
+    _wire("transition_repository_state", _transition_repository_state)
+    _wire("set_repository_status", lambda status="active", **kwargs: _set_repository_status(status, **kwargs))
+    _wire("activate_repository", lambda **kwargs: _set_repository_status("active", **kwargs))
+    _wire("deactivate_repository", lambda **kwargs: _set_repository_status("inactive", **kwargs))
+    _wire("archive_repository", lambda **kwargs: _set_repository_status("archived", **kwargs))
+    _wire("rotate_credentials", _rotate_credentials)
+    _wire("rotate_repository_password", _rotate_repository_password)
+    _wire("rotate_repository_backend_credentials", _rotate_backend_credentials)
 
     mock_service_manager.get_system_monitoring_status.return_value = {
             "health_status": "healthy",
@@ -312,6 +408,12 @@ def create_mock_service_manager() -> Mock:
             "recent_operations_24h": 0,
             "status_counts": {}
     }
+
+    # Expose stores for downstream fixtures (configuration manager, etc.)
+    mock_service_manager._repo_store = repo_store
+    mock_service_manager._ensure_repo = _ensure_repo
+    mock_service_manager._default_state = default_state
+    mock_service_manager._credential_store = credential_store
 
     return mock_service_manager
 

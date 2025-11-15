@@ -124,30 +124,23 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
 - **Failing tests (2025-11-15):**
     - `tests/TimeLocker/cli/test_performance_compatibility.py::TestCrossPlatformBehavior::test_config_directory_platform_appropriate`
 
-## 9. Repository Manager & Credential Flow *(PARTIAL – CLI repos integrations regressed)*
+## 9. Repository Manager & Credential Flow *(COMPLETED 2025-11-15)*
 
 - **Tests:** `tests/TimeLocker/cli/test_repos_commands_integration.py`, `test_repository_manager_*`,
   `tests/TimeLocker/integration/test_repository_multi_backend_integration.py`, etc.
-- **Issues:** The unit-level CLI fixes keep `test_repos_commands.py` green, but the higher-level integration suite still falls through because the mock service
-  manager lacks metadata update hooks (`update_repository_metadata/configuration`) and credential rotation helpers. Expand the shared mock/service facade to
-  cover repository lifecycle transitions and credential rotation APIs.
-- **Failing tests (2025-11-15):**
-    - `tests/TimeLocker/cli/test_repos_commands_integration.py::TestRepositoryManagementCommands::test_update_repository_metadata`
-    - `tests/TimeLocker/cli/test_repos_commands_integration.py::TestRepositoryManagementCommands::test_update_repository_configuration`
-    - `tests/TimeLocker/cli/test_repos_commands_integration.py::TestRepositoryStateTransitions::test_repository_lifecycle_complete`
-    - `tests/TimeLocker/cli/test_repos_commands_integration.py::TestRepositoryStateTransitions::test_repository_state_active_to_inactive`
-    - `tests/TimeLocker/cli/test_repos_commands_integration.py::TestRepositoryCredentialIntegration::test_repository_credential_rotation`
+- **Resolution:** Expanded the shared CLI mock/service facade with metadata/configuration update hooks, repository state transitions, and credential rotation
+  helpers (see `docs/updates/2025-11-15-210500-repo-mock-lifecycle-fix.md`). The CLI fixture now wires an in-memory `ConfigurationManager` to the same store,
+  so the update + credential rotation commands operate entirely inside mocks. Targeted pytest run now passes for all previously failing cases.
+- **Status:** _All tests green_
 
-## 10. Selection & Optimization Services
+## 10. Selection & Optimization Services *(COMPLETED 2025-11-15)*
 
 - **Tests:** `tests/TimeLocker/selection/test_performance_stress.py`, `tests/TimeLocker/services/test_performance_optimization_service.py`.
-- **Issue:** Pattern evaluation is still skipping matches (literal and mixed suites) when include/exclude precedence kicks in, and the performance optimizer
-  continues to compare `timedelta` objects to integers while computing throughput. Revisit `PatternEngine.batch_match_paths()` and the optimizer’s duration
-  normalization to ensure every result is marked matched and `duration_seconds` is always numeric.
-- **Failing tests (2025-11-15):**
-    - `tests/TimeLocker/selection/test_performance_stress.py::TestPatternMatchingPerformance::test_literal_pattern_performance`
-    - `tests/TimeLocker/selection/test_performance_stress.py::TestPatternMatchingPerformance::test_mixed_pattern_performance`
-    - `tests/TimeLocker/services/test_performance_optimization_service.py::TestPerformanceOptimizationService::test_generate_performance_report`
+- **Resolution:** Pattern compilation now tracks whether each rule originated from the include or exclude sets by identity, so precedence resolution no longer
+  loses exclude-only matches when literal patterns are duplicated across both lists. `PatternEngine.batch_match_paths()` reuses a cached priority ordering and
+  always returns `MatchResult` entries, eliminating the intermittent “skipped match” behavior in the literal/mixed stress suites. The performance optimizer
+  normalizes every `OperationMetrics.duration_seconds` value through a helper, preventing `timedelta` vs `int` comparisons when computing throughput.
+- **Status:** _All relevant selection + optimization tests pass (see docs/updates/2025-11-15-212100-selection-optimizer-fix.md)_.
 
 ## 11. Restic Local Repository
 

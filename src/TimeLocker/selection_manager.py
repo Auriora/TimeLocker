@@ -175,6 +175,15 @@ class SelectionManager:
                     f"Compiled {len(all_patterns)} patterns in "
                     f"{compiled_patterns.compilation_time_ms:.2f}ms"
                 )
+
+                # Track whether each compiled rule originated from include or exclude sets.
+                rule_sources = {}
+                for rule in config.include_patterns:
+                    rule_sources[id(rule)] = "include"
+                for rule in config.exclude_patterns:
+                    rule_sources[id(rule)] = "exclude"
+                metadata = compiled_patterns.metadata
+                metadata.setdefault('rule_sources', rule_sources)
             except Exception as e:
                 raise SelectionError(f"Failed to compile patterns: {e}")
         
@@ -382,17 +391,32 @@ class SelectionManager:
                 continue
         
         # Evaluate patterns if they exist
+        rule_sources = {}
         if selection.compiled_patterns:
             # Match against patterns
             match_result = self.pattern_engine.match_path(path, selection.compiled_patterns)
+            rule_sources = selection.compiled_patterns.metadata.get('rule_sources', {})
             
             if match_result.matched:
                 # Create rule matches
                 matches = []
                 for compiled_pattern in match_result.matching_patterns:
                     # Determine if this is an include or exclude pattern
-                    is_include = compiled_pattern.original_rule in config.include_patterns
-                    match_type = "include" if is_include else "exclude"
+                    source = rule_sources.get(id(compiled_pattern.original_rule))
+                    if source is None:
+                        # Fall back to identity checks if metadata is missing.
+                        is_include = any(compiled_pattern.original_rule is rule for rule in config.include_patterns)
+                        is_exclude = any(compiled_pattern.original_rule is rule for rule in config.exclude_patterns)
+                        if is_include and not is_exclude:
+                            source = "include"
+                        elif is_exclude and not is_include:
+                            source = "exclude"
+                        elif is_exclude:
+                            # Prefer exclude if a rule somehow appears in both collections.
+                            source = "exclude"
+                        else:
+                            source = "include"
+                    match_type = "include" if source == "include" else "exclude"
                     
                     matches.append(RuleMatch(
                         rule=compiled_pattern.original_rule,

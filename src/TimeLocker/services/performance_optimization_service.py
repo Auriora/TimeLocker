@@ -212,6 +212,16 @@ class PerformanceOptimizationService:
         except (TypeError, ValueError):
             return None
     
+    def _normalize_metrics_duration(self, metrics: OperationMetrics) -> Optional[float]:
+        """
+        Ensure OperationMetrics.duration_seconds is stored as a float.
+        """
+        duration = self._coerce_duration_seconds(metrics.duration_seconds)
+        if duration is None and metrics.start_time and metrics.end_time:
+            duration = (metrics.end_time - metrics.start_time).total_seconds()
+        metrics.duration_seconds = duration
+        return duration
+    
     def optimize_tool_configuration(
         self,
         job: BackupJob,
@@ -286,6 +296,7 @@ class PerformanceOptimizationService:
             List of identified bottlenecks
         """
         logger.debug(f"Identifying bottlenecks for operation {operation_id}")
+        self._normalize_metrics_duration(metrics)
         
         bottlenecks = []
         
@@ -466,6 +477,9 @@ class PerformanceOptimizationService:
                 and m.start_time >= cutoff_date
             ]
             
+            for metric in tool_metrics:
+                self._normalize_metrics_duration(metric)
+            
             if len(tool_metrics) < min_samples:
                 logger.debug(
                     f"Insufficient samples for {tool_info.tool_name}: "
@@ -525,6 +539,8 @@ class PerformanceOptimizationService:
                 errors_count=len(result.errors),
                 metadata={'tool_type': job.config.tool_type}
             )
+        
+        self._normalize_metrics_duration(metrics)
         
         # Get system resources
         system_resources = self._parallel_optimizer.get_system_resources()
@@ -963,6 +979,9 @@ class PerformanceOptimizationService:
         durations = []
         
         for m in metrics:
+            self._normalize_metrics_duration(m)
+        
+        for m in metrics:
             if m.duration_seconds and m.duration_seconds > 0:
                 throughput = (m.bytes_processed / (1024 * 1024)) / m.duration_seconds
                 throughputs.append(throughput)
@@ -1015,6 +1034,7 @@ class PerformanceOptimizationService:
         by_compression = defaultdict(list)
         
         for m in metrics:
+            self._normalize_metrics_duration(m)
             compression_level = m.metadata.get('compression_level')
             if compression_level is not None and m.duration_seconds:
                 throughput = (m.bytes_processed / (1024 * 1024)) / m.duration_seconds

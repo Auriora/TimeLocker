@@ -160,6 +160,44 @@ class TestEndToEndSelectionWorkflows:
     
     @pytest.mark.integration
     @pytest.mark.asyncio
+    async def test_include_exclude_same_pattern_respects_precedence(self, selection_manager, temp_test_dir):
+        """Ensure identical patterns in include/exclude respect precedence configuration."""
+        config = SelectionConfig(
+            include_paths=[temp_test_dir],
+            exclude_paths=[],
+            include_patterns=[
+                PatternRule(
+                    pattern="*.txt",
+                    syntax=PatternSyntax.GLOB,
+                    case_sensitive=False,
+                    applies_to=PathComponent.FILENAME,
+                    priority=100
+                )
+            ],
+            exclude_patterns=[
+                PatternRule(
+                    pattern="*.txt",
+                    syntax=PatternSyntax.GLOB,
+                    case_sensitive=False,
+                    applies_to=PathComponent.FILENAME,
+                    priority=200
+                )
+            ],
+            pattern_groups=[],
+            precedence_config=PrecedenceConfig(
+                default_strategy=PrecedenceStrategy.EXCLUDE_OVERRIDES_INCLUDE
+            ),
+            case_sensitive=False
+        )
+        
+        selection = await selection_manager.create_selection(config)
+        result = await selection_manager.evaluate_selection(selection, [temp_test_dir])
+        
+        assert all(p.suffix != ".txt" for p in result.included_paths)
+        assert any(p.suffix == ".txt" for p in result.excluded_paths)
+    
+    @pytest.mark.integration
+    @pytest.mark.asyncio
     async def test_create_evaluate_and_estimate_size(self, selection_manager, temp_test_dir):
         """Test complete workflow: create, evaluate, and estimate size."""
         # Create selection
