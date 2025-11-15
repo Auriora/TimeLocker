@@ -24,6 +24,7 @@ from tests.TimeLocker.cli.test_utils import (
     assert_success,
     assert_exit_code
 )
+from TimeLocker.interfaces.exceptions import ConfigurationError
 
 runner = get_cli_runner()
 
@@ -52,6 +53,8 @@ def mock_config_module(mock_service_manager):
     repo_store = getattr(mock_service_manager, "_repo_store", {})
     ensure_repo = getattr(mock_service_manager, "_ensure_repo", lambda name: repo_store.setdefault(name, {}))
     default_state = getattr(mock_service_manager, "_default_state", {"default_repository": None})
+    default_repo_name = default_state.get("default_repository") or "test-repo"
+    ensure_repo(default_repo_name)
 
     config_state = SimpleNamespace(
         repositories=repo_store,
@@ -65,11 +68,14 @@ def mock_config_module(mock_service_manager):
     config = MagicMock()
     config.config_file = Path("/tmp/timelocker-config.yaml")
     def _get_repository(name):
-        last_repo_name["value"] = name
-        return ensure_repo(name)
+        repo_name = name or default_repo_name
+        last_repo_name["value"] = repo_name
+        if repo_name and "nonexistent" in repo_name:
+            raise ConfigurationError(f"Repository '{repo_name}' not found")
+        return ensure_repo(repo_name)
 
     config.get_repository.side_effect = _get_repository
-    config.get_repository_by_name.side_effect = lambda name: ensure_repo(name)
+    config.get_repository_by_name.side_effect = _get_repository
     config.list_repositories.side_effect = lambda: list(repo_store.values())
     config.set_repository.side_effect = lambda repository=None, **kwargs: repo_store.__setitem__(
         repository["name"], repository
@@ -540,7 +546,7 @@ class TestRepositoryManagementCommands:
         repo_obj = Mock()
         repo_obj.name = "remove-repo"
         repo_obj.uri = "file:///remove"
-        mock_config_module.get_repository.return_value = repo_obj
+        mock_config_module.get_repository.side_effect = lambda *_args, **_kwargs: repo_obj
         
         mock_service_manager.repository_service.remove_repository.return_value = Mock(success=True)
         
@@ -616,7 +622,7 @@ class TestRepositoryStateTransitions:
         repo_obj = Mock()
         repo_obj.name = "lifecycle-repo"
         repo_obj.uri = repo_uri
-        mock_config_module.get_repository.return_value = repo_obj
+        mock_config_module.get_repository.side_effect = lambda *_args, **_kwargs: repo_obj
         mock_service_manager.repository_service.update_repository.return_value = Mock(success=True)
         
         result = runner.invoke(app, [
@@ -652,7 +658,7 @@ class TestRepositoryStateTransitions:
         repo_obj = Mock()
         repo_obj.name = "state-repo"
         repo_obj.uri = "file:///state"
-        mock_config_module.get_repository.return_value = repo_obj
+        mock_config_module.get_repository.side_effect = lambda *_args, **_kwargs: repo_obj
         mock_service_manager.repository_service.update_repository.return_value = Mock(success=True)
         
         result = runner.invoke(app, [

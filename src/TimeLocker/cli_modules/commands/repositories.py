@@ -818,15 +818,28 @@ def repos_show(
         manager = _get_service_manager_for_command(config_dir)
         show_method = _get_service_method(manager, "get_repository_by_name")
         repository_info = None
+        service_error = None
         if show_method:
             try:
                 repository_info = _call_service_method(show_method, name=name, repository_name=name, repository=name)
             except Exception as exc:
                 logging.getLogger(__name__).debug("Service repository lookup failed: %s", exc)
+                service_error = exc
                 repository_info = None
         if repository_info is None:
             config_manager = ConfigurationManager(config_dir=config_dir)
-            repository_info = config_manager.get_repository(name)
+            try:
+                repository_info = config_manager.get_repository(name)
+            except ConfigurationError:
+                repository_info = None
+        
+        if repository_info is None:
+            if service_error:
+                not_found_message = f"Repository '{name}' lookup failed: {service_error}"
+            else:
+                not_found_message = f"Repository '{name}' was not found in configuration or services."
+            show_error_panel("Repository Not Found", not_found_message)
+            raise typer.Exit(1)
         
         # Extract repository information
         if isinstance(repository_info, dict):
@@ -2546,5 +2559,3 @@ def repos_validate_all(
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
-
-

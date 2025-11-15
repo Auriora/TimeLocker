@@ -10,10 +10,9 @@ status: [ in-progress ]
 This document captures the major clusters of remaining test failures so agents can tackle them one at a time. Each section references the failing suites and
 highlights the expected fixes.
 
-> **Latest full run (2025-11-15)**: `pytest` reported **16 failures**. Newly failing clusters include the monitoring CLI (health/stats commands), the
-> performance compatibility/config-dir checks, repository command integrations (metadata/config/state/credential rotation), Timeshift CLI imports, Restic local
-> repository initialization, selection/performance suites, the performance optimization report, and repository error-recovery handling. The sections below
-> outline the updated status and failing tests per cluster.
+> **Latest full run (2025-11-15, evening)**: `pytest` reported **7 failures** out of 2,721 tests. The remaining issues are concentrated in the monitoring CLI
+> health/stats commands, the performance compatibility config-dir check, repo error-handling paths (non-existent repositories & recovery harness),
+> Timeshift import exit codes, and the repository error-recovery service tests. The sections below capture the updated status and failing tests per cluster.
 
 • Failure Priorities
 
@@ -91,7 +90,7 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
 - **Issue:** The simplified command now raises Click usage errors (exit code 2) for missing/invalid configs. Either catch those exceptions to return exit code
   1 (restoring old behavior) or update the tests to expect exit code 2 consistently. Failures (`test_timeshift_import_missing_config`,
   `test_timeshift_import_invalid_json`) continue to assert exit code `1` but receive `2`.
-- **Failing tests (2025-11-15):**
+- **Failing tests (2025-11-15 run #2):**
     - `tests/TimeLocker/integration/test_timeshift_cli_integration.py::TestTimeshiftCLIIntegration::test_timeshift_import_missing_config`
     - `tests/TimeLocker/integration/test_timeshift_cli_integration.py::TestTimeshiftCLIIntegration::test_timeshift_import_invalid_json`
 
@@ -110,7 +109,7 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
 - **Tests:** `tests/TimeLocker/cli/test_monitoring_commands.py`.
 - **Issue:** Monitoring mocks still return plain strings and the CLI expects full `MonitoringSummary`-style dictionaries (with health/stats fields). Update
   the shared CLI service manager mock to expose `get_system_monitoring_status()` responses that include the keys consumed by the health/stats commands.
-- **Failing tests (2025-11-15):**
+- **Failing tests (2025-11-15 run #2):**
     - `tests/TimeLocker/cli/test_monitoring_commands.py::TestMonitorCommands::test_monitor_health_command`
     - `tests/TimeLocker/cli/test_monitoring_commands.py::TestMonitorCommands::test_monitor_stats_command`
 
@@ -121,7 +120,7 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
     - `repos --help` still exceeds the 150 ms budget. Either optimize the command startup path or adjust the threshold in the test.
     - The config directory test now fails on Linux because the new isolation fixture points to `/tmp/.../config/timelocker`. Update the resolver/test to treat
       the temporary XDG location as acceptable.
-- **Failing tests (2025-11-15):**
+- **Failing tests (2025-11-15 run #2):**
     - `tests/TimeLocker/cli/test_performance_compatibility.py::TestCrossPlatformBehavior::test_config_directory_platform_appropriate`
 
 ## 9. Repository Manager & Credential Flow *(COMPLETED 2025-11-15)*
@@ -150,13 +149,20 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
   unit suite; see `docs/updates/2025-11-15-213000-restic-local-repo-fix.md`.
 - **Status:** _All targeted restic tests now pass_
 
+## 15. Repository CLI Error Handling
+
+- **Tests:** `tests/TimeLocker/cli/test_repos_commands_integration.py`.
+- **Status:** ✅ _Resolved 2025-11-15_. The `repos show` command now preserves the service-layer error (and exits with code 1) when a repository cannot be
+  located, while the configuration mock used in tests treats “nonexistent” names as missing instead of auto-creating placeholder repos.
+- **Failing tests:** _None_
+
 ## 14. Repository Error-Recovery Validation
 
 - **Tests:** `tests/TimeLocker/services/test_repository_error_handling_recovery.py`.
 - **Issue:** `RepositoryManager` now enforces non-empty URIs during creation, but the error-handling regression test still expects the legacy “empty URI”
   path to be accepted for recovery scenarios. Update the fake configuration used in the test (or relax the validation when running inside the test harness) so
   the manager can create the repository and progress to the recovery assertions.
-- **Failing tests (2025-11-15):**
+- **Failing tests (2025-11-15 run #2):**
     - `tests/TimeLocker/services/test_repository_error_handling_recovery.py::TestRepositoryManagerErrorRecovery::test_repository_creation_with_invalid_config`
 
 ## 12. Credential Storage & Multi-backend Repo Tests *(COMPLETED 2025-11-15)*
