@@ -327,7 +327,16 @@ def create_mock_service_manager(
     )
 
     # Configuration service
-    mock_manager.configuration_service = Mock()
+    config_service = MagicMock()
+    config_service.get_backup_targets.return_value = []
+    config_service.add_backup_target.return_value = None
+    config_service.get_repositories.side_effect = lambda: repo_store
+    config_service.get_repository.side_effect = lambda name: _ensure_repo(name)
+    config_service.get_repository_by_name.side_effect = lambda name: _ensure_repo(name)
+    config_service.list_repositories.side_effect = lambda: list(repo_store.values())
+    config_service.config_file = Path("/tmp/timelocker-config.json")
+    mock_manager.configuration_service = config_service
+    mock_manager._config_service = config_service
 
     # Recovery service (for restore commands)
     mock_manager.recovery_service = Mock()
@@ -354,6 +363,38 @@ def create_mock_service_manager(
     mock_manager.monitoring_service.get_stats.return_value = {'backups': 10, 'total_size': 1024}
     mock_manager.monitoring_service.get_backup_history.return_value = []
     mock_manager.monitoring_service.get_performance_metrics.return_value = {}
+    
+    def _default_monitoring_status():
+        return {
+            "health_status": "healthy",
+            "current_operations": 0,
+            "recent_operations_24h": 0,
+            "status_counts": {
+                "success": 5,
+                "warning": 0,
+                "error": 0,
+            },
+            "last_check": datetime.utcnow().isoformat(),
+        }
+
+    def _default_monitoring_logs():
+        timestamp = datetime.utcnow().isoformat()
+        return [{
+            "timestamp": timestamp,
+            "level": "info",
+            "message": "System healthy",
+            "repository": None,
+        }]
+
+    mock_manager.get_system_monitoring_status = MagicMock(side_effect=lambda **_: dict(_default_monitoring_status()))
+    mock_manager.get_cli_monitoring_logs = MagicMock(side_effect=lambda **_: list(_default_monitoring_logs()))
+    mock_manager.search_monitoring_logs = MagicMock(side_effect=lambda **_: list(_default_monitoring_logs()))
+
+    class _MockMonitoringIntegration:
+        def format_log_entry_cli(self, entry, verbose=False):
+            return f"[{entry.get('level', 'INFO').upper()}] {entry.get('timestamp')} - {entry.get('message')}"
+
+    mock_manager.get_monitoring_integration.return_value = _MockMonitoringIntegration()
 
     # Credential service (for credential commands)
     mock_manager.credential_service = Mock()

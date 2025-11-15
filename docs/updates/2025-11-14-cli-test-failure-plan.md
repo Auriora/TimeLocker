@@ -105,14 +105,12 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
   `docs/updates/2025-11-15-152215-configuration-locking-tests.md`.
 - **Failing tests (2025-11-15):** _None_
 
-## 7. Monitoring CLI Fixtures
+## 7. Monitoring CLI Fixtures *(COMPLETED 2025-11-15)*
 
 - **Tests:** `tests/TimeLocker/cli/test_monitoring_commands.py`.
-- **Issue:** Monitoring mocks still return plain strings and the CLI expects full `MonitoringSummary`-style dictionaries (with health/stats fields). Update
-  the shared CLI service manager mock to expose `get_system_monitoring_status()` responses that include the keys consumed by the health/stats commands.
-- **Failing tests (2025-11-15 run #2):**
-    - `tests/TimeLocker/cli/test_monitoring_commands.py::TestMonitorCommands::test_monitor_health_command`
-    - `tests/TimeLocker/cli/test_monitoring_commands.py::TestMonitorCommands::test_monitor_stats_command`
+- **Resolution:** The shared CLI service manager mock now exposes realistic monitoring data: `configuration_service.get_repositories()` mirrors the real API
+  (returns a dict), and `get_system_monitoring_status`/monitoring log helpers supply structured summaries consumed by `monitor health` and `monitor stats`.
+- **Status:** _All monitoring CLI tests pass_
 
 ## 8. Performance Threshold & Path Resolver
 

@@ -162,7 +162,7 @@ def create_mock_service_manager() -> Mock:
     config_service = MagicMock()
     config_service.get_backup_targets.return_value = []
     config_service.add_backup_target.return_value = None
-    config_service.get_repositories.side_effect = lambda: list(repo_store.values())
+    config_service.get_repositories.side_effect = lambda: repo_store
     config_service.get_repository.side_effect = lambda name: _ensure_repo(name)
     config_service.get_repository_by_name.side_effect = lambda name: _ensure_repo(name)
     config_service.config_file = Path("/tmp/config.yaml")
