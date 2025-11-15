@@ -1,5 +1,6 @@
 # Update Index
 
+- [2025-11-15-153517-selection-performance-optimizer](./2025-11-15-153517-selection-performance-optimizer.md)
 - [2025-11-15-152215-configuration-locking-tests](./2025-11-15-152215-configuration-locking-tests.md)
 - [2025-11-15-150101-cli-service-manager-patching](./2025-11-15-150101-cli-service-manager-patching.md)
 - [2025-11-15-145800-cli-repos-commands-tests](./2025-11-15-145800-cli-repos-commands-tests.md)

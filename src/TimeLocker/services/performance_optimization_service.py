@@ -195,6 +195,22 @@ class PerformanceOptimizationService:
         self._optimization_history: Dict[str, List[PerformanceOptimizationReport]] = defaultdict(list)
         
         logger.debug("PerformanceOptimizationService initialized")
+
+    @staticmethod
+    def _coerce_duration_seconds(duration: Any) -> Optional[float]:
+        """
+        Normalize duration inputs (float, int, timedelta) to seconds.
+        """
+        if duration is None:
+            return None
+        if isinstance(duration, timedelta):
+            return duration.total_seconds()
+        if isinstance(duration, (int, float)):
+            return float(duration)
+        try:
+            return float(duration)
+        except (TypeError, ValueError):
+            return None
     
     def optimize_tool_configuration(
         self,
@@ -497,12 +513,13 @@ class PerformanceOptimizationService:
         metrics = self._performance_metrics.get_operation_metrics(operation_id)
         if not metrics:
             # Create metrics from result
+            duration_seconds = self._coerce_duration_seconds(result.duration)
             metrics = OperationMetrics(
                 operation_id=operation_id,
                 operation_type='backup',
                 start_time=datetime.fromtimestamp(result.start_time),
                 end_time=datetime.fromtimestamp(result.end_time) if result.end_time else None,
-                duration_seconds=result.duration,
+                duration_seconds=duration_seconds,
                 files_processed=result.files_processed,
                 bytes_processed=result.bytes_processed,
                 errors_count=len(result.errors),

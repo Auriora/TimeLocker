@@ -20,6 +20,7 @@ import hashlib
 import logging
 import re
 import time
+import os
 from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
@@ -286,6 +287,9 @@ class PatternEngine:
             applies_to=rule.applies_to,
             priority=rule.priority
         )
+
+        if self._should_default_to_filename(rule):
+            compiled.applies_to = PathComponent.FILENAME
         
         if rule.syntax == PatternSyntax.LITERAL:
             # Literal pattern - direct string comparison
@@ -318,6 +322,25 @@ class PatternEngine:
             raise ValueError(f"Unsupported pattern syntax: {rule.syntax}")
         
         return compiled
+
+    @staticmethod
+    def _should_default_to_filename(rule: PatternRule) -> bool:
+        """
+        Determine whether a pattern should default to filename matching.
+
+        For legacy behavior we treat patterns without explicit path separators as filename
+        matches even when applies_to isn't provided (defaults to FULL_PATH).
+        """
+        if rule.applies_to != PathComponent.FULL_PATH:
+            return False
+
+        separators = {os.sep}
+        if os.altsep:
+            separators.add(os.altsep)
+        separators.add('/')
+
+        pattern = rule.pattern or ""
+        return not any(sep in pattern for sep in separators)
     
     def match_path(self, path: Path, compiled_patterns: CompiledPatternSet) -> MatchResult:
         """

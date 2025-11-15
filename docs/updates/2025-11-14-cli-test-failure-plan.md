@@ -130,15 +130,14 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
   `docs/updates/2025-11-15-145800-cli-repos-commands-tests.md`.
 - **Failing tests (2025-11-15):** _None_
 
-## 10. Selection & Optimization Services
+## 10. Selection & Optimization Services *(COMPLETED 2025-11-15)*
 
 - **Tests:** `tests/TimeLocker/selection/test_performance_stress.py`, `tests/TimeLocker/services/test_performance_optimization_service.py`.
-- **Issues:** SelectionManager no longer marks all results as matched; investigate pattern evaluation caching/performance to restore the previous behavior.
-  Additionally, convert `metrics.duration_seconds` to seconds before comparing to integers to fix the optimization service TypeError.
-- **Failing tests (2025-11-15):**
-    - `tests/TimeLocker/selection/test_performance_stress.py::TestPatternMatchingPerformance::test_literal_pattern_performance`
-    - `tests/TimeLocker/selection/test_performance_stress.py::TestPatternMatchingPerformance::test_mixed_pattern_performance`
-    - `tests/TimeLocker/services/test_performance_optimization_service.py::TestPerformanceOptimizationService::test_generate_performance_report`
+- **Fixes:** Pattern engine now defaults to filename matching for patterns without path separators, restoring the expected behavior for literal/glob/regex
+  rules and bringing the SelectionManager stress tests back to green. The performance optimization service normalizes `duration_seconds` inputs so backup
+  results (which provide timedeltas) no longer trigger TypeErrors when computing throughput. Tracked in
+  `docs/updates/2025-11-15-153517-selection-performance-optimizer.md`.
+- **Failing tests (2025-11-15):** _None_
 
 ## 11. Restic Local Repository
 
