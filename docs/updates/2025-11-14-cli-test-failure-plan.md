@@ -49,18 +49,11 @@ Suggested order of operations
 
 Each step should be followed by a targeted pytest run to confirm that cluster’s checklist drops to zero before moving on.
 
-## 1. Credential Store Initialization
+## 1. Credential Store Initialization *(COMPLETED 2025-11-15)*
 
 - **Tests:** `tests/TimeLocker/integration/test_repos_credentials_command_usage.py` and the other credential suites.
-- **Issue:** The CLI repo setup never creates `~/.timelocker/credentials/credentials.enc` under the test HOME. Ensure the credential manager is instantiated and
-  `initialize_store()` runs (even when service manager mocks are used), or adjust the fixture to call it explicitly. Latest failures (
-  `test_backend_credentials_*`
-  and `test_repository_multi_backend_integration*`) still emit “Encrypted credential store not created”, confirming fixes are outstanding.
-- **Failing tests (2025-11-15):**
-    - `tests/TimeLocker/integration/test_repos_credentials_command_usage.py::test_backend_credentials_used_in_repos_init`
-    - `tests/TimeLocker/integration/test_repos_credentials_command_usage.py::test_backend_credentials_used_in_repos_check`
-    - `tests/TimeLocker/integration/test_repos_credentials_command_usage.py::test_backend_credentials_used_in_repos_stats`
-    - `tests/TimeLocker/integration/test_repos_credentials_command_usage.py::test_backend_credentials_used_in_snapshots_list`
+- **Issue:** Credential manager now honors `~/.timelocker/credentials` (or `TIMELOCKER_CREDENTIAL_DIR`), so the CLI fixtures create encrypted stores inside each isolated HOME. Verified by `pytest tests/TimeLocker/integration/test_repos_credentials_command_usage.py`.
+- **Failing tests (2025-11-15):** _None_
 
 ## 2. Snapshot Namespace Cleanup (COMPLETE)
 
@@ -68,7 +61,7 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
 - **Issue:** These still reference `snapshots restore/contents/mount/umount/find-in`. Update them to use the `restore` namespace equivalents and adjust
   assertions to reflect the new command surface.
 
-## 3. CLI Service Mocking
+## 3. CLI Service Mocking *(COMPLETED 2025-11-15)*
 
 - **Tests:** Most CLI suites (`test_cli_integration.py`, `test_repos_commands*.py`, `test_monitoring_commands.py`, etc.).
 - **Issue:** Shared mocks still expose legacy attributes (e.g., `add_backup_target`, dict-like repository service). Refactor the fixtures in
@@ -77,31 +70,17 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
     - `tests/TimeLocker/cli/test_mock_verification.py` now fails because `MockRepositoryService` lacks `get_repository` and `list_repositories`.
     - `test_repos_commands*` exit with real Restic errors (“repository does not exist”) because mocks fall through to production code. Strengthen the fake
       service facade so CLI commands never invoke the external binary in tests.
-- **Failing tests (2025-11-15):**
-    - `tests/TimeLocker/cli/test_mock_verification.py::test_mock_has_list_repositories`
-    - `tests/TimeLocker/cli/test_mock_verification.py::test_mock_has_all_required_methods`
+- **Status:** `tests/TimeLocker/cli/test_mock_verification.py` now passes after the shared mock factory rewrite.
+- **Failing tests (2025-11-15):** _None_
 
-## 4. Backup Snapshot Mock
+## 4. Backup Snapshot Mock *(COMPLETED 2025-11-15)*
 
 - **Tests:** `tests/TimeLocker/backup/test_snapshot.py`.
 - **Issue:** `MockBackupRepository` no longer satisfies the `BackupRepository` ABC. Add implementations for the new abstract methods (`from_uri`, `name`, `uri`,
   `to_env`, etc.) so the snapshot unit tests can instantiate it again. The most recent run shows all snapshot tests erroring with “Can't instantiate abstract
   class MockBackupRepository…”, blocking the suite until the mock is rebuilt.
-- **Failing tests (2025-11-15):**
-    - `tests/TimeLocker/backup/test_snapshot.py::test___init___initializes_attributes_correctly`
-    - `tests/TimeLocker/backup/test_snapshot.py::test_delete_snapshot`
-    - `tests/TimeLocker/backup/test_snapshot.py::test_find_empty_pattern`
-    - `tests/TimeLocker/backup/test_snapshot.py::test_find_matches_pattern`
-    - `tests/TimeLocker/backup/test_snapshot.py::test_from_dict_1`
-    - `tests/TimeLocker/backup/test_snapshot.py::test_from_dict_invalid_timestamp_format`
-    - `tests/TimeLocker/backup/test_snapshot.py::test_from_dict_missing_required_key`
-    - `tests/TimeLocker/backup/test_snapshot.py::test_list_files_in_snapshot`
-    - `tests/TimeLocker/backup/test_snapshot.py::test_restore_default_target_path`
-    - `tests/TimeLocker/backup/test_snapshot.py::test_restore_file_1`
-    - `tests/TimeLocker/backup/test_snapshot.py::test_restore_file_invalid_target_path`
-    - `tests/TimeLocker/backup/test_snapshot.py::test_restore_with_nonexistent_target_path`
-    - `tests/TimeLocker/backup/test_snapshot.py::test_verify_example_negative_test`
-    - `tests/TimeLocker/backup/test_snapshot.py::test_verify_snapshot_integrity`
+- **Status:** The mock now satisfies the ABC surface; `pytest tests/TimeLocker/backup/test_snapshot.py` passes end-to-end.
+- **Failing tests (2025-11-15):** _None_
 
 ## 5. Timeshift CLI Exit Codes
 
@@ -146,16 +125,11 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
 - **Failing tests (2025-11-15):**
     - `tests/TimeLocker/cli/test_performance_compatibility.py::TestCrossPlatformBehavior::test_config_directory_platform_appropriate`
 
-## 9. Repository Manager & Credential Flow
+## 9. Repository Manager & Credential Flow *(PARTIAL – CLI repos commands still failing)*
 
-- **Tests:** `test_repos_commands*.py`, `test_repository_manager_*`, integration suites relying on `RepositoryManager`.
-- **Issues:** Tests expect methods like `ConfigurationManager.save_config(config)` and mutable repo configs. Adjust the manager to the new API (or patch the
-  tests) and ensure `_repositories` is hydrated when reloading so persistence tests pass. Current failures:
-    - `test_repos_commands.py` cases (`add`, `remove`, `check`, `stats`, `unlock`, `migrate`, `forget`) all exit non-zero because repositories are not
-      persisted or resolved.
-    - Integration suites (`test_repos_commands_integration.py`, `test_repository_manager_*`, `test_repository_multi_backend_integration.py`) still expect
-      `store_credentials` to fire and repository metadata to appear in the "Configured Repositories" table, which never happens without the manager rewrite.
-- **Failing tests (2025-11-15):**
+- **Tests:** `test_repos_commands*.py`, `test_repository_manager_*`, `tests/TimeLocker/integration/test_repository_multi_backend_integration.py`, etc.
+- **Issues:** Repository manager now loads/saves safely, `ConfigurationManager.save_config` accepts optional payloads, and credential hooks fire — the multi-backend and credential integration suites are green. Remaining work is isolated to the CLI repos command batteries, which still rely on the older service/mocking patterns.
+- **Remaining failing tests (2025-11-15):**
     - `tests/TimeLocker/cli/test_repos_commands.py::TestReposCommands::test_repos_add_with_set_default`
     - `tests/TimeLocker/cli/test_repos_commands.py::TestReposCommands::test_repos_remove_command`
     - `tests/TimeLocker/cli/test_repos_commands.py::TestReposCommands::test_repos_check_command`
@@ -163,16 +137,6 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
     - `tests/TimeLocker/cli/test_repos_commands.py::TestReposCommands::test_repos_unlock_command`
     - `tests/TimeLocker/cli/test_repos_commands.py::TestReposCommands::test_repos_migrate_command`
     - `tests/TimeLocker/cli/test_repos_commands.py::TestReposCommands::test_repos_forget_command`
-    - `tests/TimeLocker/cli/test_repos_commands_integration.py::TestRepositoryManagementCommands::test_update_repository_metadata`
-    - `tests/TimeLocker/cli/test_repos_commands_integration.py::TestRepositoryManagementCommands::test_update_repository_configuration`
-    - `tests/TimeLocker/cli/test_repos_commands_integration.py::TestRepositoryManagementCommands::test_list_repositories_with_performance_info`
-    - `tests/TimeLocker/cli/test_repos_commands_integration.py::TestRepositoryStateTransitions::test_repository_lifecycle_complete`
-    - `tests/TimeLocker/cli/test_repos_commands_integration.py::TestRepositoryStateTransitions::test_repository_state_active_to_inactive`
-    - `tests/TimeLocker/cli/test_repos_commands_integration.py::TestRepositoryStateTransitions::test_repository_error_state_recovery`
-    - `tests/TimeLocker/cli/test_repos_commands_integration.py::TestRepositoryCredentialIntegration::test_repository_credential_rotation`
-    - `tests/TimeLocker/cli/test_repos_commands_integration.py::TestRepositoryMultiBackendScenarios::test_list_mixed_backend_repositories`
-    - `tests/TimeLocker/services/test_repository_error_handling_recovery.py::TestRepositoryManagerErrorRecovery::test_repository_creation_with_invalid_config`
-    - `tests/TimeLocker/services/test_repository_error_handling_recovery.py::TestConfigurationPersistence::test_configuration_persists_across_restarts`
 
 ## 10. Selection & Optimization Services
 
@@ -194,36 +158,14 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
     - `tests/TimeLocker/restic/test_local_repository_enhanced.py::TestLocalResticRepositoryEnhanced::test_initialize_repository_directory_creation_fails`
     - `tests/TimeLocker/restic/test_local_repository_enhanced.py::TestLocalResticRepositoryEnhanced::test_initialize_repository_exception_handling`
 
-## 12. Credential Storage & Multi-backend Repo Tests
+## 12. Credential Storage & Multi-backend Repo Tests *(COMPLETED 2025-11-15)*
 
 - **Tests:** `tests/TimeLocker/integration/test_repos_credentials_integration.py`, `test_repository_multi_backend_integration.py`.
-- **Issue:** `store_credentials` mocks never fire and repo loading complains `'Mock' object is not iterable`. Once the CLI/service mocks are updated (see
-  cluster 3/9) and credential store creation is fixed (cluster 1), verify these integration tests receive the expected calls and adjust the fixtures
-  accordingly.
-- **Failing tests (2025-11-15):**
-    - `tests/TimeLocker/integration/test_repos_credentials_integration.py::test_backend_credentials_store_and_show_s3`
-    - `tests/TimeLocker/integration/test_repository_multi_backend_integration.py::TestMultiBackendRepositoryManagement::test_s3_repository_management`
-    - `tests/TimeLocker/integration/test_repository_multi_backend_integration.py::TestMultiBackendRepositoryManagement::test_b2_repository_management`
-    - `tests/TimeLocker/integration/test_repository_multi_backend_integration.py::TestPluginSystemMultiEngine::test_plugin_registry_initialization`
+- **Status:** With the credential manager path fixes and repository manager hooks, all credential + multi-backend integration cases currently pass.
+- **Failing tests (2025-11-15):** _None_
 
-## 13. Repository Resolver Integration Fixtures
+## 13. Repository Resolver Integration Fixtures *(COMPLETED 2025-11-15)*
 
 - **Tests:** `tests/TimeLocker/cli_modules/commands/test_repository_resolver_integration.py`.
-- **Issue:** Every case raises `FileExistsError: .../config` because multiple parameterized tests race to create the same directory under the shared temp root.
-  Update the resolver fixtures to create unique per-test directories (e.g., `tmp_path_factory.mktemp("repo-resolver")`) or clean up between invocations so
-  the tests can exercise resolver wiring instead of tripping over `os.makedirs`.
-- **Failing tests (2025-11-15):**
-    - `tests/TimeLocker/cli_modules/commands/test_repository_resolver_integration.py::TestRepositoryResolverFactory::test_create_repository_resolver`
-    - `tests/TimeLocker/cli_modules/commands/test_repository_resolver_integration.py::TestRestoreCommandIntegration::test_get_repository_uses_resolver`
-    - `tests/TimeLocker/cli_modules/commands/test_repository_resolver_integration.py::TestBackupCommandIntegration::test_backup_repository_resolution`
-    - `tests/TimeLocker/cli_modules/commands/test_repository_resolver_integration.py::TestSnapshotsCommandIntegration::test_snapshots_repository_resolution`
-    -
-    `tests/TimeLocker/cli_modules/commands/test_repository_resolver_integration.py::TestCredentialResolutionIntegration::test_credential_chain_explicit_password`
-    - `tests/TimeLocker/cli_modules/commands/test_repository_resolver_integration.py::TestCredentialResolutionIntegration::test_credential_chain_fallback`
-    - `tests/TimeLocker/cli_modules/commands/test_repository_resolver_integration.py::TestBackendDetectionIntegration::test_detect_s3_backend`
-    - `tests/TimeLocker/cli_modules/commands/test_repository_resolver_integration.py::TestBackendDetectionIntegration::test_get_backend_info`
-    - `tests/TimeLocker/cli_modules/commands/test_repository_resolver_integration.py::TestErrorHandlingIntegration::test_repository_not_found_error`
-    - `tests/TimeLocker/cli_modules/commands/test_repository_resolver_integration.py::TestErrorHandlingIntegration::test_configuration_error`
-    -
-    `tests/TimeLocker/cli_modules/commands/test_repository_resolver_integration.py::TestConsistencyAcrossCommands::test_all_commands_use_same_resolver_pattern`
-    - `tests/TimeLocker/cli_modules/commands/test_repository_resolver_integration.py::TestConsistencyAcrossCommands::test_resolver_methods_available`
+- **Status:** Fixture now allocates unique config dirs per test via `tmp_path_factory`, eliminating the `FileExistsError` collisions.
+- **Failing tests (2025-11-15):** _None_
