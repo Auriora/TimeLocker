@@ -115,13 +115,22 @@ class LocalResticRepository(ResticRepository):
             Exception: If initialization fails, re-raises the exception with details
         """
         # Ensure directory exists
-        if not self.create_repository_directory():
-            raise Exception(f"Failed to create repository directory: {self._location}")
+        try:
+            directory_ready = self.create_repository_directory()
+        except Exception as exc:
+            logger.error(f"Failed to create repository directory '{self._location}': {exc}")
+            return False
+
+        if not directory_ready:
+            logger.error(f"Repository directory could not be created: {self._location}")
+            return False
 
         # Use provided password or fall back to configured password
+        password_changed = False
         if password:
             original_password = self._explicit_password
             self._explicit_password = password
+            password_changed = True
             # Clear cached environment to force regeneration with new password
             self._cached_env = None
 
@@ -145,7 +154,7 @@ class LocalResticRepository(ResticRepository):
 
         finally:
             # Restore original password if we changed it
-            if password:
+            if password_changed:
                 self._explicit_password = original_password
                 self._cached_env = None
 

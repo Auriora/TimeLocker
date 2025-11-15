@@ -142,15 +142,13 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
   normalizes every `OperationMetrics.duration_seconds` value through a helper, preventing `timedelta` vs `int` comparisons when computing throughput.
 - **Status:** _All relevant selection + optimization tests pass (see docs/updates/2025-11-15-212100-selection-optimizer-fix.md)_.
 
-## 11. Restic Local Repository
+## 11. Restic Local Repository *(COMPLETED 2025-11-15)*
 
 - **Tests:** `tests/TimeLocker/restic/test_local_repository_enhanced.py`.
-- **Issue:** `LocalResticRepository.initialize_repository()` now raises when directory creation fails; tests expect a `False` return. Decide whether to restore
-  the previous behavior (catch exception, return False) or update the tests to allow exceptions. Latest failures still surface the raised exceptions, so the
-  contract decision remains unresolved.
-- **Failing tests (2025-11-15):**
-    - `tests/TimeLocker/restic/test_local_repository_enhanced.py::TestLocalResticRepositoryEnhanced::test_initialize_repository_directory_creation_fails`
-    - `tests/TimeLocker/restic/test_local_repository_enhanced.py::TestLocalResticRepositoryEnhanced::test_initialize_repository_exception_handling`
+- **Resolution:** Restored the legacy contract for `LocalResticRepository.initialize_repository()` by catching directory-creation exceptions and returning
+  `False` (with error logging) instead of propagating, so callers can decide whether to retry or surface validation messages. Covered by the enhanced restic
+  unit suite; see `docs/updates/2025-11-15-213000-restic-local-repo-fix.md`.
+- **Status:** _All targeted restic tests now pass_
 
 ## 14. Repository Error-Recovery Validation
 
