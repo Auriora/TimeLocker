@@ -1,5 +1,7 @@
 # Update Index
 
+- [2025-11-16-130500-cli-end-to-end-selection-tests](./2025-11-16-130500-cli-end-to-end-selection-tests.md)
+- [2025-11-16-131200-selection-orchestrator-alignment-plan](./2025-11-16-131200-selection-orchestrator-alignment-plan.md)
 - [2025-11-16-085900-skipped-tests-plan](./2025-11-16-085900-skipped-tests-plan.md)
 - [2025-11-15-212100-selection-optimizer-fix](./2025-11-15-212100-selection-optimizer-fix.md)
 - [2025-11-15-210500-repo-mock-lifecycle-fix](./2025-11-15-210500-repo-mock-lifecycle-fix.md)
