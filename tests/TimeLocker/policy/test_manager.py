@@ -6,6 +6,8 @@ import pytest
 from datetime import datetime
 from unittest.mock import Mock, MagicMock, patch
 
+from pathlib import Path
+
 from src.TimeLocker.policy.manager import PolicyManager
 from src.TimeLocker.policy.models import (
     BackupPolicy,
@@ -24,6 +26,8 @@ from src.TimeLocker.policy.exceptions import (
     PolicyError,
     PolicyValidationError,
 )
+from src.TimeLocker.selection_template_manager import SelectionTemplateManager
+from src.TimeLocker.selection_models import SelectionTemplate, SelectionConfig
 
 
 class TestPolicyManager:
@@ -54,6 +58,34 @@ class TestPolicyManager:
         assert policy.backup_tool == "restic"
         assert policy.retention_policy_id == "default-retention"  # Default applied
         mock_policy_store.save_backup_policy.assert_called_once()
+
+    def test_create_backup_policy_normalizes_selection_refs(self, mock_policy_store, tmp_path):
+        """Ensure selection names are converted to canonical IDs."""
+        template_manager = SelectionTemplateManager(storage_dir=tmp_path / "sel-templates")
+        template = SelectionTemplate(
+            id="selection-docs",
+            name="documents",
+            description="Docs selection",
+            selection_config=SelectionConfig(
+                include_paths=[Path("/data/docs")]
+            )
+        )
+        template_manager.create_template(template)
+
+        manager = PolicyManager(
+            policy_store=mock_policy_store,
+            selection_template_manager=template_manager
+        )
+
+        policy = manager.create_backup_policy(
+            name="Docs Policy",
+            description="Uses documents selection",
+            data_selection_refs=["documents"],
+            target_repositories=["local-repo"],
+            backup_tool="restic",
+        )
+
+        assert policy.data_selection_refs == [template.id]
     
     def test_create_backup_policy_with_retention(self, mock_policy_store):
         """Test creating backup policy with specific retention policy."""

@@ -26,6 +26,8 @@ import asyncio
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
+from ..selection_template_manager import TemplateNotFoundError
+
 logger = logging.getLogger(__name__)
 
 
@@ -308,6 +310,41 @@ class DataSelectionClient:
         """
         self.logger = logging.getLogger(f"{__name__}.DataSelectionClient")
         self._selection_manager = selection_manager
+
+    def _get_selection_manager(self):
+        """Lazy-load and cache the SelectionManager instance."""
+        if self._selection_manager is None:
+            from ..selection_manager import SelectionManager
+            self._selection_manager = SelectionManager()
+        return self._selection_manager
+
+    def _resolve_template(self, template_ref: str):
+        """
+        Resolve a template reference (ID or name) to the canonical template.
+        """
+        manager = self._get_selection_manager()
+        try:
+            template = manager.template_manager.resolve_template(template_ref)
+            if template_ref != template.id:
+                self.logger.info(
+                    "Resolved data selection reference '%s' to template '%s'",
+                    template_ref,
+                    template.id
+                )
+            return template
+        except TemplateNotFoundError:
+            self.logger.warning(
+                "Data selection template not found: %s",
+                template_ref
+            )
+            return None
+        except Exception as exc:
+            self.logger.error(
+                "Failed to resolve data selection template %s: %s",
+                template_ref,
+                exc
+            )
+            return None
     
     def get_selection_template(self, template_id: str) -> Optional[Any]:
         """
@@ -319,20 +356,14 @@ class DataSelectionClient:
         Returns:
             Selection template or None if not found
         """
-        try:
-            if self._selection_manager is None:
-                # Lazy load selection manager
-                from ..selection_manager import SelectionManager
-                self._selection_manager = SelectionManager()
-            
-            # Get template from selection manager
-            template = self._selection_manager.get_template(template_id)
-            self.logger.debug(f"Retrieved selection template: {template_id}")
-            return template
-            
-        except Exception as e:
-            self.logger.error(f"Failed to retrieve selection template {template_id}: {e}")
-            return None
+        template = self._resolve_template(template_id)
+        if template:
+            self.logger.debug(
+                "Retrieved selection template '%s' (canonical id: %s)",
+                template_id,
+                template.id
+            )
+        return template
     
     def validate_selection_for_scheduling(self, template_id: str) -> tuple[bool, List[str]]:
         """
@@ -344,26 +375,22 @@ class DataSelectionClient:
         Returns:
             Tuple of (is_valid, error_messages)
         """
-        try:
-            template = self.get_selection_template(template_id)
-            
-            if template is None:
-                return False, [f"Selection template {template_id} not found"]
-            
-            errors = []
-            
-            # Basic validation - template exists and is accessible
-            # More detailed validation would check path accessibility
-            # but that's better done at execution time
-            
-            is_valid = len(errors) == 0
-            self.logger.debug(f"Selection template {template_id} validation: {'valid' if is_valid else 'invalid'}")
-            
-            return is_valid, errors
-            
-        except Exception as e:
-            self.logger.error(f"Failed to validate selection template {template_id}: {e}")
-            return False, [f"Validation error: {str(e)}"]
+        template = self.get_selection_template(template_id)
+        
+        if template is None:
+            return False, [f"Selection template {template_id} not found"]
+        
+        errors = []
+        
+        # Basic validation - template exists and is accessible
+        is_valid = len(errors) == 0
+        self.logger.debug(
+            "Selection template %s validation: %s",
+            template_id,
+            'valid' if is_valid else 'invalid'
+        )
+        
+        return is_valid, errors
 
 
 class RepositoryManagementClient:

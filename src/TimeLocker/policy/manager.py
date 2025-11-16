@@ -11,6 +11,10 @@ import uuid
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Set
 
+from ..selection_template_manager import (
+    SelectionTemplateManager,
+    TemplateNotFoundError
+)
 from .models import (
     BackupPolicy,
     RetentionPolicy,
@@ -84,6 +88,7 @@ class PolicyManager:
             repository_manager=None,
             config_manager=None,
             policy_store: Optional[IPolicyStore] = None,
+            selection_template_manager: Optional[SelectionTemplateManager] = None,
     ):
         """
         Initialize the policy manager.
@@ -94,13 +99,16 @@ class PolicyManager:
             repository_manager: Optional repository manager for repository operations
             config_manager: Optional configuration manager for system configuration
             policy_store: Optional policy storage implementation
+            selection_template_manager: Optional selection template manager for resolving refs
         """
         # Initialize policy storage
         self.policy_store = policy_store or FileSystemPolicyStore()
+        self.selection_template_manager = selection_template_manager or SelectionTemplateManager()
 
         self.validator = validator or PolicyValidator(
                 repository_manager=repository_manager,
                 config_manager=config_manager,
+                selection_template_manager=self.selection_template_manager
         )
         self.engine = engine or PolicyEngine(
                 repository_service=None,
@@ -127,6 +135,10 @@ class PolicyManager:
             # Load backup policies
             backup_policies = self.policy_store.list_backup_policies()
             for policy in backup_policies:
+                policy.data_selection_refs = self._normalize_selection_refs(
+                        policy.data_selection_refs,
+                        require_all=False
+                )
                 self._backup_policies[policy.id] = policy
             logger.info(f"Loaded {len(backup_policies)} backup policies from storage")
 
@@ -165,6 +177,53 @@ class PolicyManager:
             logger.info(f"Initialized default retention policy: {default_policy.id}")
         except Exception as e:
             logger.error(f"Failed to initialize default retention policy: {e}")
+
+    def _normalize_selection_refs(
+            self,
+            selection_refs: List[str],
+            *,
+            require_all: bool = True
+    ) -> List[str]:
+        """
+        Resolve selection references to canonical template IDs.
+        
+        Args:
+            selection_refs: Raw selection identifiers from user input or storage
+            require_all: Whether to raise if any reference cannot be resolved
+        
+        Returns:
+            List of normalized selection identifiers
+        
+        Raises:
+            PolicyValidationError: When require_all is True and a reference cannot be resolved
+        """
+        if not selection_refs or self.selection_template_manager is None:
+            return selection_refs
+
+        normalized: List[str] = []
+        missing: List[str] = []
+
+        for ref in selection_refs:
+            if not ref:
+                continue
+            try:
+                template = self.selection_template_manager.resolve_template(ref)
+                normalized.append(template.id)
+            except TemplateNotFoundError:
+                missing.append(ref)
+                if not require_all:
+                    # Preserve original reference so it can still be displayed/edited
+                    normalized.append(ref)
+
+        if missing:
+            message = (
+                f"Unknown data selection reference(s): {', '.join(missing)}"
+            )
+            if require_all:
+                raise PolicyValidationError(message)
+            logger.warning(message)
+
+        return normalized if normalized else selection_refs
 
     # Backup Policy CRUD Operations
 
@@ -220,12 +279,17 @@ class PolicyManager:
                         f"applying default retention policy"
                 )
 
+            # Normalize selection references to canonical template IDs
+            normalized_selection_refs = self._normalize_selection_refs(
+                    data_selection_refs
+            )
+
             # Create policy object
             policy = BackupPolicy(
                     id=policy_id,
                     name=name,
                     description=description,
-                    data_selection_refs=data_selection_refs,
+                    data_selection_refs=normalized_selection_refs,
                     target_repositories=target_repositories,
                     backup_tool=backup_tool,
                     schedule=schedule,
@@ -308,6 +372,11 @@ class PolicyManager:
             policy_dict = policy.to_dict()
             policy_dict.update(updates)
             policy_dict['updated_at'] = datetime.utcnow()
+
+            if 'data_selection_refs' in updates:
+                policy_dict['data_selection_refs'] = self._normalize_selection_refs(
+                        policy_dict.get('data_selection_refs', [])
+                )
 
             # Reconstruct policy object
             updated_policy = self._create_backup_policy_from_dict(policy_dict)

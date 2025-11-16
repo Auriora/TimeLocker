@@ -75,10 +75,8 @@ all integration points (CLI, policy automation, background jobs).
     coroutine bug and migrated to the corrected service-manager API.
 
 Outstanding follow-up work:
-1. Propagate the template retrieval/ID normalization fixes to recovery, scheduling,
-   and policy modules.
-2. Ensure unsupported-selection warnings bubble up through CLI output (req 108‑109).
-3. Review CLI help/examples to remove references to deprecated backup targets (req 155).
+1. Ensure unsupported-selection warnings bubble up through CLI output (req 108‑109).
+2. Review CLI help/examples to remove references to deprecated backup targets (req 155).
 
 ## 3. Implementation Notes
 
@@ -103,6 +101,7 @@ Outstanding follow-up work:
 - Normalized CLI selection flows via `CLIServiceManager.run_selection_backup`, ensuring template IDs drive orchestration metadata plus canonical summaries/suggestions.
 - Added compatibility fallback in `DataSelectionIntegrationService` so legacy selection names resolve to canonical templates, and captured selection metadata in job configs/dry-run output.
 - Extended CLI and orchestrator-level tests to cover the new service entrypoint, tag/dry-run forwarding, warning surfacing, and dry-run enumeration of selection-driven paths.
+- Propagated canonical selection template resolution/ID normalization across recovery flows, scheduling clients, and policy management so every integration point now works with real template IDs instead of legacy target names.
 
 ## 6. Tests
 

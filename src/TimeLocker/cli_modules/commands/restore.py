@@ -53,6 +53,10 @@ from TimeLocker.snapshot_browser import SnapshotBrowser, PaginationOptions, Sear
 from TimeLocker.recovery_validator import RecoveryValidator
 from TimeLocker.snapshot_manager import SnapshotManager
 from TimeLocker.restore_manager import RestoreManager
+from TimeLocker.selection_template_manager import (
+    SelectionTemplateManager,
+    TemplateNotFoundError
+)
 
 # Validation imports
 from TimeLocker.cli_modules.validation import validate_path, ValidationError
@@ -439,12 +443,31 @@ def restore_files(
     try:
         repo = _get_repository(repository, config_dir)
         orchestrator = RecoveryOrchestrator(repo)
+
+        selection_template_id = None
+        if selection:
+            template_manager = SelectionTemplateManager()
+            try:
+                template = template_manager.resolve_template(selection)
+                selection_template_id = template.id
+                logger.info(
+                    "Resolved selection '%s' to template id '%s'",
+                    selection,
+                    selection_template_id
+                )
+            except TemplateNotFoundError:
+                show_error_panel(
+                    "Selection Not Found",
+                    f"Selection template '{selection}' does not exist. "
+                    "Use 'tl selections list' to view available templates."
+                )
+                raise typer.Exit(1)
         
         # Create selection criteria
         selection_criteria = SelectionCriteria(
             include_patterns=paths,
             exclude_patterns=[],
-            selection_template_id=selection
+            selection_template_id=selection_template_id
         )
         
         # Create recovery options

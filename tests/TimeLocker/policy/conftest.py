@@ -4,6 +4,7 @@ Shared fixtures for policy management tests.
 
 import pytest
 from datetime import datetime, timedelta
+from pathlib import Path
 from unittest.mock import Mock, MagicMock
 
 from src.TimeLocker.policy.models import (
@@ -23,6 +24,8 @@ from src.TimeLocker.policy.types import (
 )
 from src.TimeLocker.backup_snapshot import BackupSnapshot
 from src.TimeLocker.backup_repository import BackupRepository
+from src.TimeLocker.selection_template_manager import SelectionTemplateManager
+from src.TimeLocker.selection_models import SelectionTemplate, SelectionConfig
 
 
 @pytest.fixture
@@ -147,3 +150,37 @@ def mock_policy_store():
     store.list_assignments = Mock(return_value=[])
     store.list_enforcement_records = Mock(return_value=[])
     return store
+
+
+@pytest.fixture(autouse=True)
+def policy_selection_templates(tmp_path, monkeypatch):
+    """
+    Provide a default selection template for policy tests.
+    
+    Most tests rely on the legacy 'home-dir' reference, so we create a
+    template with the same ID/name and patch the Policy modules to reuse
+    this in-memory manager.
+    """
+    storage_dir = tmp_path / "policy-selection-templates"
+    manager = SelectionTemplateManager(storage_dir=storage_dir)
+    
+    template = SelectionTemplate(
+        id="home-dir",
+        name="home-dir",
+        description="Policy test template",
+        selection_config=SelectionConfig(
+            include_paths=[Path("/home/test")]
+        )
+    )
+    manager.create_template(template)
+
+    monkeypatch.setattr(
+        "src.TimeLocker.policy.manager.SelectionTemplateManager",
+        lambda *args, **kwargs: manager
+    )
+    monkeypatch.setattr(
+        "src.TimeLocker.policy.validator.SelectionTemplateManager",
+        lambda *args, **kwargs: manager
+    )
+
+    return manager

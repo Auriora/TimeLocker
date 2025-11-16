@@ -37,12 +37,14 @@ from .recovery_errors import (
     RestoreError,
     RestoreTargetError,
     SnapshotNotFoundError,
-    RepositoryAccessError
+    RepositoryAccessError,
+    SelectionValidationError
 )
 from .restore_manager import RestoreManager, RestoreOptions as LegacyRestoreOptions
 from .backup_repository import BackupRepository
 from .snapshot_manager import SnapshotManager
 from .recovery_state_manager import RecoveryStateManager
+from .selection_template_manager import TemplateNotFoundError
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +89,7 @@ class RecoveryOrchestrator:
         # Service integrations
         self.repository_service = repository_service
         self.security_service = security_service
-        self.selection_manager = selection_manager
+        self.selection_manager = selection_manager or self._initialize_selection_manager()
         
         # Track active and completed operations
         self._operations: Dict[str, RecoveryOperation] = {}
@@ -98,6 +100,15 @@ class RecoveryOrchestrator:
         self._load_persisted_operations()
         
         logger.info("RecoveryOrchestrator initialized")
+
+    def _initialize_selection_manager(self):
+        """Lazily initialize SelectionManager to avoid circular imports."""
+        try:
+            from .selection_manager import SelectionManager
+            return SelectionManager()
+        except Exception as exc:
+            logger.warning("SelectionManager unavailable: %s", exc)
+            return None
     
     def _validate_repository_accessibility(self) -> None:
         """
@@ -733,41 +744,61 @@ class RecoveryOrchestrator:
             return selection_criteria
         
         try:
-            # Retrieve template from selection manager
-            template = self.selection_manager.template_manager.get_template(
+            template = self.selection_manager.template_manager.resolve_template(
                 selection_criteria.selection_template_id
             )
-            
-            if not template:
-                raise SelectionValidationError(
-                    f"Selection template not found: {selection_criteria.selection_template_id}"
-                )
-            
-            # Merge template patterns with criteria patterns
-            merged_include = list(set(
-                selection_criteria.include_patterns + 
-                [rule.pattern for rule in template.config.include_patterns]
-            ))
-            merged_exclude = list(set(
-                selection_criteria.exclude_patterns + 
-                [rule.pattern for rule in template.config.exclude_patterns]
-            ))
-            
-            # Create merged criteria
+
+            template_config = template.selection_config
+
+            template_include = [
+                rule.pattern for rule in template_config.include_patterns
+            ]
+            template_exclude = [
+                rule.pattern for rule in template_config.exclude_patterns
+            ]
+
+            def _merge_patterns(existing: List[str], additional: List[str]) -> List[str]:
+                merged = []
+                seen = set()
+                for value in existing + additional:
+                    if value in seen:
+                        continue
+                    merged.append(value)
+                    seen.add(value)
+                return merged
+
+            merged_include = _merge_patterns(
+                selection_criteria.include_patterns,
+                template_include
+            )
+            merged_exclude = _merge_patterns(
+                selection_criteria.exclude_patterns,
+                template_exclude
+            )
+
             from dataclasses import replace
             merged_criteria = replace(
                 selection_criteria,
                 include_patterns=merged_include,
-                exclude_patterns=merged_exclude
+                exclude_patterns=merged_exclude,
+                selection_template_id=template.id
             )
-            
+
             logger.info(
-                f"Applied selection template '{template.name}': "
-                f"{len(merged_include)} include patterns, {len(merged_exclude)} exclude patterns"
+                "Applied selection template '%s' (%s): %d include pattern(s), %d exclude pattern(s)",
+                template.name,
+                template.id,
+                len(merged_include),
+                len(merged_exclude)
             )
-            
+
             return merged_criteria
             
+        except TemplateNotFoundError as exc:
+            logger.error("Selection template not found: %s", selection_criteria.selection_template_id)
+            raise SelectionValidationError(
+                f"Selection template not found: {selection_criteria.selection_template_id}"
+            ) from exc
         except Exception as e:
             logger.error(f"Failed to apply selection template: {e}")
             raise SelectionValidationError(

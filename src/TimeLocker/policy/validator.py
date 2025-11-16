@@ -10,6 +10,11 @@ from typing import Dict, List, Optional, Any, Set
 from dataclasses import dataclass, field
 from datetime import timedelta
 
+from ..selection_template_manager import (
+    SelectionTemplateManager,
+    TemplateNotFoundError
+)
+
 from .models import (
     BackupPolicy,
     RetentionPolicy,
@@ -160,16 +165,23 @@ class PolicyValidator:
         },
     }
     
-    def __init__(self, repository_manager=None, config_manager=None):
+    def __init__(
+        self,
+        repository_manager=None,
+        config_manager=None,
+        selection_template_manager: Optional[SelectionTemplateManager] = None
+    ):
         """
         Initialize the policy validator.
         
         Args:
             repository_manager: Optional repository manager for checking repository existence
             config_manager: Optional configuration manager for accessing system configuration
+            selection_template_manager: Optional template manager for resolving data selections
         """
         self.repository_manager = repository_manager
         self.config_manager = config_manager
+        self.selection_template_manager = selection_template_manager
     
     def validate_backup_policy(self, policy: BackupPolicy) -> ValidationResult:
         """
@@ -507,6 +519,31 @@ class PolicyValidator:
                 "Duplicate data selection references found",
                 "DUPLICATE_DATA_SELECTIONS"
             )
+
+        if self.selection_template_manager:
+            missing_refs: List[str] = []
+            resolved_map: Dict[str, str] = {}
+
+            for ref in policy.data_selection_refs:
+                try:
+                    template = self.selection_template_manager.resolve_template(ref)
+                    resolved_map[ref] = template.id
+                except TemplateNotFoundError:
+                    missing_refs.append(ref)
+
+            if missing_refs:
+                result.add_error(
+                    "data_selection_refs",
+                    f"Data selection(s) not found: {', '.join(missing_refs)}",
+                    "DATA_SELECTION_NOT_FOUND"
+                )
+
+            if resolved_map:
+                result.metadata.setdefault('resolved_selection_ids', resolved_map)
+
+            # When a selection template manager is available we do not need to fall back
+            # to configuration-based validation.
+            return
         
         # If config manager is available, check if selections exist
         if self.config_manager:

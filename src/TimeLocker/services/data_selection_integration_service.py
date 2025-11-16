@@ -151,19 +151,16 @@ class DataSelectionIntegrationService:
         
         self._stats['cache_misses'] += 1
         
-        # Try to load from template manager using ID, then fall back to name for compatibility
         try:
-            template = self.selection_manager.template_manager.get_template(selection_id)
-        except TemplateNotFoundError:
-            try:
-                template = self.selection_manager.template_manager.get_template(
+            template = self.selection_manager.template_manager.resolve_template(selection_id)
+            if selection_id != template.id:
+                logger.info(
+                    "Resolved selection identifier '%s' to canonical id '%s'",
                     selection_id,
-                    by_name=True
+                    template.id
                 )
-                if template:
-                    logger.info(f"Resolved selection identifier '{selection_id}' by name.")
-            except TemplateNotFoundError:
-                template = None
+        except TemplateNotFoundError:
+            template = None
         except Exception as e:
             logger.warning(f"Could not load selection config {selection_id}: {e}")
             template = None

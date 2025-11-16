@@ -144,6 +144,22 @@ class TestSelectionTemplateManager:
         """Test retrieving a non-existent template raises error."""
         with pytest.raises(TemplateNotFoundError):
             template_manager.get_template("nonexistent-id")
+
+    @pytest.mark.unit
+    def test_resolve_template_by_name(self, template_manager, sample_template):
+        """Ensure resolve_template falls back to name-based lookups."""
+        template_manager.create_template(sample_template)
+
+        resolved = template_manager.resolve_template(sample_template.name)
+
+        assert resolved.id == sample_template.id
+        assert resolved.name == sample_template.name
+
+    @pytest.mark.unit
+    def test_resolve_template_missing_identifier(self, template_manager):
+        """resolve_template should raise when identifier is invalid."""
+        with pytest.raises(TemplateNotFoundError):
+            template_manager.resolve_template("missing-template")
     
     @pytest.mark.unit
     def test_list_templates(self, template_manager, sample_template):

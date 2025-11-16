@@ -4,6 +4,7 @@ Unit tests for PolicyValidator component.
 
 import pytest
 from datetime import timedelta
+from pathlib import Path
 
 from src.TimeLocker.policy.validator import PolicyValidator, ValidationResult, CompatibilityResult
 from src.TimeLocker.policy.models import (
@@ -24,6 +25,8 @@ from src.TimeLocker.policy.exceptions import (
     PolicyValidationError,
     PolicyCompatibilityError,
 )
+from src.TimeLocker.selection_template_manager import SelectionTemplateManager
+from src.TimeLocker.selection_models import SelectionTemplate, SelectionConfig
 
 
 class TestPolicyValidator:
@@ -53,6 +56,17 @@ class TestPolicyValidator:
             validator.validate_backup_policy(policy)
         
         assert "validation failed" in str(exc_info.value).lower()
+
+    def test_validate_backup_policy_missing_selection_template_errors(self, sample_backup_policy, tmp_path):
+        """Selection references must exist when a template manager is available."""
+        template_manager = SelectionTemplateManager(storage_dir=tmp_path / "validator-templates")
+        validator = PolicyValidator(selection_template_manager=template_manager)
+        sample_backup_policy.data_selection_refs = ["unknown-template"]
+
+        with pytest.raises(PolicyValidationError) as exc_info:
+            validator.validate_backup_policy(sample_backup_policy)
+
+        assert "data selection" in str(exc_info.value).lower()
     
     def test_validate_backup_policy_unsupported_tool(self, sample_backup_policy):
         """Test validation fails with unsupported backup tool."""

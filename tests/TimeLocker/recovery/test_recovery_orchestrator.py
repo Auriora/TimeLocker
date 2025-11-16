@@ -2,6 +2,7 @@
 Tests for RecoveryOrchestrator functionality
 """
 
+import asyncio
 import pytest
 import tempfile
 import shutil
@@ -22,6 +23,15 @@ from TimeLocker.recovery_errors import (
     RepositoryAccessError
 )
 from .mock_recovery_repository import MockRecoveryRepository
+from TimeLocker.selection_manager import SelectionManager
+from TimeLocker.selection_template_manager import SelectionTemplateManager
+from TimeLocker.selection_models import (
+    SelectionTemplate,
+    SelectionConfig,
+    PatternRule,
+    PatternSyntax,
+    PathComponent
+)
 
 
 class TestRecoveryOrchestrator:
@@ -118,6 +128,45 @@ class TestRecoveryOrchestrator:
         assert operation.snapshot_id == "abc123"
         assert operation.recovery_type == RecoveryType.SELECTIVE
         assert operation.target_path == target_path
+
+    @pytest.mark.recovery
+    @pytest.mark.unit
+    def test_apply_selection_template_resolves_name(self, tmp_path):
+        """Selection templates referenced by name should resolve to canonical IDs."""
+        storage_dir = tmp_path / "recovery-selection-templates"
+        template_manager = SelectionTemplateManager(storage_dir=storage_dir)
+        template = SelectionTemplate(
+            id="template-docs",
+            name="Documents",
+            description="Documents selection for recovery",
+            selection_config=SelectionConfig(
+                include_patterns=[
+                    PatternRule(
+                        pattern="*.pdf",
+                        syntax=PatternSyntax.GLOB,
+                        applies_to=PathComponent.FILENAME
+                    )
+                ]
+            )
+        )
+        template_manager.create_template(template)
+        selection_manager = SelectionManager(template_manager=template_manager)
+        orchestrator = RecoveryOrchestrator(
+            self.repository,
+            selection_manager=selection_manager
+        )
+
+        criteria = SelectionCriteria(
+            include_patterns=["*.txt"],
+            exclude_patterns=[],
+            selection_template_id="Documents"
+        )
+
+        merged = asyncio.run(orchestrator._apply_selection_template(criteria))
+
+        assert merged.selection_template_id == template.id
+        assert "*.txt" in merged.include_patterns
+        assert "*.pdf" in merged.include_patterns
 
     @pytest.mark.recovery
     @pytest.mark.unit

@@ -470,6 +470,37 @@ class SelectionTemplateManager:
             self._save_template_to_file(template)
             
             return template
+
+    def resolve_template(self, identifier: str) -> SelectionTemplate:
+        """
+        Resolve a template identifier or name to a template object.
+        
+        This helper first attempts to load by ID and falls back to name-based
+        lookup, providing a single canonical entry point for modules that
+        accept either form.
+        
+        Args:
+            identifier: Template ID or human-friendly name
+        
+        Returns:
+            SelectionTemplate matching the provided identifier
+        
+        Raises:
+            TemplateNotFoundError: If no template matches the identifier
+        """
+        if not identifier:
+            raise TemplateNotFoundError("Template identifier cannot be empty")
+        
+        try:
+            return self.get_template(identifier)
+        except TemplateNotFoundError:
+            template = self.get_template(identifier, by_name=True)
+            logger.info(
+                "Resolved selection identifier '%s' to template id '%s'",
+                identifier,
+                template.id
+            )
+            return template
     
     def list_templates(self, filters: Optional[Dict[str, Any]] = None) -> List[SelectionTemplate]:
         """
