@@ -121,6 +121,15 @@ Without a remediation plan, we cannot trust CLI coverage during refactors, and s
 | --- | --- | --- |
 | 16-11-2025 | Draft remediation plan created and approved by user | Aligns with AI agent planning protocol |
 
+## 7. Progress Update (2025-11-16)
+
+- **CLI coverage restored**: Registry, config/help, credential workflows, first-time onboarding, and KeyboardInterrupt handling now run without skips. Tests `tests/TimeLocker/cli_modules/test_registry_integration.py`, `tests/TimeLocker/cli/test_config_commands.py`, `tests/TimeLocker/cli/test_cli_help_system.py`, `tests/TimeLocker/cli/test_cli_integration.py`, and `tests/TimeLocker/cli/test_cli_error_handling.py` all pass.
+- **S3 custom services implemented**: `S3ServiceType.CUSTOM` template/validation added and the corresponding unit coverage in `tests/TimeLocker/services/test_s3_service_manager.py` no longer skips.
+- **Monitoring notifications mocked**: `NotificationService` gained injectable desktop adapters; cross-platform notification tests now use fake adapters (`tests/TimeLocker/monitoring/test_monitoring_integration.py`) so the prior `skipif(True, ...)` decorators were removed.
+- **External dependency mocks**: Restic suite uses monkeypatched version detection/executable checks, and MinIO integration tests rely on mocked settings/clients, eliminating unconditional skips due to missing binaries or services.
+
+Remaining actions focus on regression suites (filesystem constraints) and any newly discovered skips that surface as we expand coverage.
+
 # References
 
 - `.kiro/specs/cli-interface/requirements.md`
