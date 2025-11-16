@@ -19,7 +19,7 @@ import logging
 import time
 import uuid
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Set
 from concurrent.futures import ThreadPoolExecutor, Future
 from queue import Queue, Empty
 from threading import Lock
@@ -553,7 +553,58 @@ class BackupOrchestrator(IBackupOrchestrator):
             backup_result.status = BackupStatus.FAILED
             backup_result.end_time = time.time()
         
+        self._attach_selection_warnings(backup_job, backup_result)
         return backup_result
+
+    def _attach_selection_warnings(self, backup_job: BackupJob, backup_result: BackupResult) -> None:
+        """
+        Surface selection translation/compatibility warnings to the callers.
+        """
+        if not backup_job or not backup_result or not backup_job.config:
+            return
+
+        warnings_seen: Set[str] = set(backup_result.warnings)
+
+        def append_warning(message: str) -> None:
+            if not message:
+                return
+            if message not in warnings_seen:
+                backup_result.warnings.append(message)
+                warnings_seen.add(message)
+
+        selection_metadata = backup_job.config.metadata or {}
+        selection_warnings = list(selection_metadata.get('selection_warnings', []))
+        if selection_warnings:
+            backup_result.metadata.setdefault('selection_warnings', []).extend(selection_warnings)
+            for warning in selection_warnings:
+                append_warning(f"Selection warning: {warning}")
+
+        pattern_entries = selection_metadata.get('unsupported_selection_patterns', []) or []
+        if pattern_entries:
+            backup_result.metadata.setdefault('unsupported_selection_patterns', []).extend(pattern_entries)
+            for entry in pattern_entries:
+                pattern = entry.get('pattern', '<pattern>')
+                syntax = entry.get('syntax', 'glob')
+                reason = entry.get('reason', 'unsupported by backup tool')
+                append_warning(
+                    f"Selection pattern '{pattern}' ({syntax}) skipped: {reason}"
+                )
+
+        selection_config = getattr(backup_job, 'data_selection_config', None) or {}
+        compat_warnings = selection_config.get('warnings', []) or []
+        if compat_warnings:
+            backup_result.metadata.setdefault('selection_warnings', []).extend(compat_warnings)
+            for warning in compat_warnings:
+                append_warning(f"Selection warning: {warning}")
+
+        unsupported_features = selection_config.get('unsupported_features', []) or []
+        if unsupported_features:
+            backup_result.metadata.setdefault('unsupported_selection_features', []).extend(unsupported_features)
+            for feature in unsupported_features:
+                append_warning(
+                    f"Selection feature '{feature}' is not supported by tool "
+                    f"'{backup_job.config.tool_type}'"
+                )
 
     def _execute_job_with_retry(self, backup_job: BackupJob) -> BackupResult:
         """
@@ -631,6 +682,8 @@ class BackupOrchestrator(IBackupOrchestrator):
                     f"rating={parallel_report['efficiency_rating']}, "
                     f"degradation_events={parallel_report['degradation_events']}"
                 )
+        
+        self._attach_selection_warnings(backup_job, result)
         
         logger.info(
             f"Job execution completed: {backup_job.config.job_id}, "
@@ -972,6 +1025,7 @@ class BackupOrchestrator(IBackupOrchestrator):
             backup_result.errors.append(f"Dry run failed: {e}")
             backup_result.status = BackupStatus.FAILED
 
+        self._attach_selection_warnings(backup_job, backup_result)
         return backup_result
 
     def _execute_actual_backup(self, backup_result: BackupResult) -> BackupResult:

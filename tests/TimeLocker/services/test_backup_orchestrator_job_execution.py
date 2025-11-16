@@ -9,11 +9,13 @@ Data Selection integration.
 import pytest
 import time
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import Mock, MagicMock, patch
 
 from TimeLocker.interfaces.data_models import (
     BackupJobConfig,
     BackupJob,
+    BackupResult,
     ExecutionMode,
     RetryConfig,
     NotificationConfig,
@@ -276,6 +278,52 @@ class TestBackupOrchestratorJobExecution:
         
         assert backup_job.data_selection_config is not None
         assert backup_job.data_selection_config['selection_id'] == 'test-selection-001'
+    
+    def test_selection_warnings_propagate_to_result(self, orchestrator, sample_job_config):
+        """Selection translation/compat warnings should appear in backup result warnings."""
+        backup_job = orchestrator.prepare_backup_job(sample_job_config)
+        backup_job.config.metadata['selection_warnings'] = [
+            "Unsupported include path will be ignored"
+        ]
+        backup_job.config.metadata['unsupported_selection_patterns'] = [
+            {'pattern': '*.tmp', 'syntax': 'glob', 'reason': 'Not supported by tool'}
+        ]
+        backup_job.data_selection_config = {
+            'warnings': ["Compatibility warning from selection validation"],
+            'unsupported_features': ['case_insensitive_patterns']
+        }
+        
+        backup_result = BackupResult(
+            status=BackupStatus.COMPLETED,
+            repository_name='test-repo',
+            target_names=['test-target'],
+            metadata={}
+        )
+        execution_result = SimpleNamespace(
+            backup_result=backup_result,
+            total_attempts=1,
+            retry_history=[],
+            final_error_classification=None
+        )
+        
+        with \
+            patch.object(orchestrator._job_executor, 'execute_with_retry', return_value=execution_result), \
+            patch.object(
+                orchestrator._integrity_validation_service,
+                'validate_backup_integrity',
+                return_value=SimpleNamespace(status=BackupStatus.COMPLETED, issues=[])
+            ), \
+            patch.object(
+                orchestrator._integrity_validation_service,
+                'integrate_validation_with_backup_result',
+                side_effect=lambda res, _: res
+            ):
+            result = orchestrator._execute_job_with_retry(backup_job)
+        
+        assert any("Selection warning" in warning for warning in result.warnings)
+        assert any("pattern" in warning.lower() for warning in result.warnings)
+        assert 'selection_warnings' in result.metadata
+        assert len(result.metadata['selection_warnings']) >= 2
     
     def test_job_execution_context(self, orchestrator, sample_job_config):
         """Test execution context is properly initialized"""
