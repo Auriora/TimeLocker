@@ -84,15 +84,12 @@ Each step should be followed by a targeted pytest run to confirm that cluster’
 - **Status:** The mock now satisfies the ABC surface; `pytest tests/TimeLocker/backup/test_snapshot.py` passes end-to-end.
 - **Failing tests (2025-11-15):** _None_
 
-## 5. Timeshift CLI Exit Codes
+## 5. Timeshift CLI Exit Codes *(COMPLETED 2025-11-15)*
 
 - **Tests:** `tests/TimeLocker/integration/test_timeshift_cli_integration.py`.
-- **Issue:** The simplified command now raises Click usage errors (exit code 2) for missing/invalid configs. Either catch those exceptions to return exit code
-  1 (restoring old behavior) or update the tests to expect exit code 2 consistently. Failures (`test_timeshift_import_missing_config`,
-  `test_timeshift_import_invalid_json`) continue to assert exit code `1` but receive `2`.
-- **Failing tests (2025-11-15 run #2):**
-    - `tests/TimeLocker/integration/test_timeshift_cli_integration.py::TestTimeshiftCLIIntegration::test_timeshift_import_missing_config`
-    - `tests/TimeLocker/integration/test_timeshift_cli_integration.py::TestTimeshiftCLIIntegration::test_timeshift_import_invalid_json`
+- **Resolution:** The `config import timeshift` command now accepts the standard `--yes/-y` option (via a local `YesOption` alias) so help/usage errors no longer
+  fire when tests pass `--yes`. Missing/invalid configuration files once again surface via Typer exit code 1 with the original error panels.
+- **Status:** _Timeshift import tests pass_
 
 ## 6. Configuration & Locking Tests *(COMPLETED 2025-11-15)*
 

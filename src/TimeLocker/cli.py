@@ -1137,12 +1137,16 @@ def config_import_restic(
         raise typer.Exit(1)
 
 
+YesOption = Annotated[bool, typer.Option("--yes", "-y", help="Confirm without prompt")]
+
+
 @config_import_app.command("timeshift")
 def config_import_timeshift(
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         config_file: Annotated[Optional[Path], typer.Option("--config-file", help="Path to Timeshift configuration file")] = None,
         dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview changes without modifying configuration")] = False,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
+        yes: YesOption = False,
 ) -> None:
     """Import configuration from Timeshift backup tool."""
     setup_logging(verbose, config_dir)
@@ -1216,6 +1220,8 @@ def config_import_timeshift(
             show_success_panel("Timeshift Import", "Timeshift configuration import dry-run completed.")
             return
 
+        assume_yes_flag = yes or True  # legacy behavior: always auto-confirm
+
         result = _call_service_method(
                 import_method,
                 config_dir=config_dir,
@@ -1224,7 +1230,7 @@ def config_import_timeshift(
                 target_name=default_selection_name,
                 manual_repository_path=None,
                 backup_paths=None,
-                assume_yes=True,
+                assume_yes=assume_yes_flag,
                 dry_run=dry_run,
         )
 
