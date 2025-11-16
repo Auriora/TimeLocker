@@ -1,5 +1,8 @@
 # Update Index
 
+- [2025-11-16-180401-cli-policy-e2e-tests](./2025-11-16-180401-cli-policy-e2e-tests.md)
+- [2025-11-16-173040-cli-backup-restore-e2e-tests](./2025-11-16-173040-cli-backup-restore-e2e-tests.md)
+- [2025-11-16-183900-cli-snapshot-restore-schedule-e2e-tests](./2025-11-16-183900-cli-snapshot-restore-schedule-e2e-tests.md)
 - [2025-11-16-171000-selection-cli-docs-refresh](./2025-11-16-171000-selection-cli-docs-refresh.md)
 - [2025-11-16-130500-cli-end-to-end-selection-tests](./2025-11-16-130500-cli-end-to-end-selection-tests.md)
 - [2025-11-16-131200-selection-orchestrator-alignment-plan](./2025-11-16-131200-selection-orchestrator-alignment-plan.md)

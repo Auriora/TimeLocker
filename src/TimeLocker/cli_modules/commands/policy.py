@@ -56,8 +56,10 @@ from TimeLocker.policy import (
     RetentionRule,
     PolicyAssignment,
 )
+from TimeLocker.policy.exceptions import PolicyNotFoundError
 from TimeLocker.completion import (
     repository_name_completer,
+    selection_name_completer,
 )
 
 # Create Typer app
@@ -108,12 +110,13 @@ def _get_policy_manager(config_dir: Optional[Path] = None) -> PolicyManager:
     engine = PolicyEngine()
     simulator = PolicySimulator(engine)
     
-    return PolicyManager(
+    manager = PolicyManager(
         policy_store=policy_store,
         validator=validator,
         engine=engine,
-        simulator=simulator
     )
+    setattr(manager, "simulator", simulator)
+    return manager
 
 
 def _format_policy_table(policies: List[Any], policy_type: str) -> Table:
@@ -167,6 +170,7 @@ def policy_backup_create(
     description: Annotated[str, typer.Option("--description", "-d", help="Policy description")] = "",
     repository: Annotated[List[str], typer.Option("--repository", "-r", help="Target repository (can be specified multiple times)", autocompletion=repository_name_completer)] = None,
     backup_tool: Annotated[str, typer.Option("--tool", "-t", help="Backup tool to use")] = "restic",
+    selections: Annotated[Optional[List[str]], typer.Option("--selection", "-s", help="Data selection template to include (repeat for multiple)", autocompletion=selection_name_completer)] = None,
     retention_policy: Annotated[Optional[str], typer.Option("--retention", help="Retention policy ID to link")] = None,
     tags: Annotated[Optional[List[str]], typer.Option("--tag", help="Policy tags in key=value format")] = None,
     verbose: VerboseOption = False,
@@ -184,23 +188,19 @@ def policy_backup_create(
                     key, value = tag.split("=", 1)
                     tag_dict[key.strip()] = value.strip()
         
-        # Create policy configuration
         from TimeLocker.policy.models import ScheduleConfig
-        policy_config = {
-            "name": name,
-            "description": description,
-            "data_selection_refs": [],  # Will be populated when integrated with data selection
-            "target_repositories": repository or [],
-            "backup_tool": backup_tool,
-            "schedule": ScheduleConfig(enabled=False),  # Default disabled schedule
-            "execution_params": {},
-            "retention_policy_id": retention_policy,
-            "tags": tag_dict,
-            "compliance_requirements": [],
-        }
-        
-        # Create policy
-        policy = policy_manager.create_backup_policy(policy_config)
+        policy = policy_manager.create_backup_policy(
+            name=name,
+            description=description,
+            data_selection_refs=selections or [],
+            target_repositories=repository or [],
+            backup_tool=backup_tool,
+            schedule=ScheduleConfig(enabled=False),
+            execution_params={},
+            retention_policy_id=retention_policy,
+            tags=tag_dict,
+            compliance_requirements=[],
+        )
         
         show_success_panel(
             "Backup Policy Created",
@@ -396,18 +396,12 @@ def policy_retention_create(
             )
             raise typer.Exit(1)
         
-        # Create policy configuration
-        policy_config = {
-            "name": name,
-            "description": description,
-            "rules": rules,
-            "compliance_period": None,
-            "tag_based_rules": [],
-            "priority": priority,
-        }
-        
-        # Create policy
-        policy = policy_manager.create_retention_policy(policy_config)
+        policy = policy_manager.create_retention_policy(
+            name=name,
+            description=description,
+            rules=rules,
+            priority=priority,
+        )
         
         # Format rules for display
         rule_summary = []
@@ -569,18 +563,36 @@ def policy_assignment_create(
         policy_manager = _get_policy_manager(config_dir)
         
         # Parse target type
+        normalized_target = (target_type or "").strip().lower()
         try:
-            target_type_enum = TargetType(target_type.upper())
+            target_type_enum = TargetType(normalized_target)
         except ValueError:
             show_error_panel(
                 "Invalid Target Type",
-                f"Target type must be one of: repository, backup_job, system"
+                "Target type must be one of: repository, backup_job, backup_target, system"
             )
             raise typer.Exit(1)
         
+        # Determine policy type
+        try:
+            policy_manager.get_backup_policy(policy_id)
+            policy_type = PolicyType.BACKUP
+        except PolicyNotFoundError:
+            try:
+                policy_manager.get_retention_policy(policy_id)
+                policy_type = PolicyType.RETENTION
+            except PolicyNotFoundError:
+                show_error_panel(
+                    "Policy Not Found",
+                    f"Policy '{policy_id}' does not exist. Use 'tl policy backup list' or "
+                    "'tl policy retention list' to view available policies."
+                )
+                raise typer.Exit(1)
+
         # Create assignment
         assignment = policy_manager.assign_policy(
             policy_id=policy_id,
+            policy_type=policy_type,
             target_type=target_type_enum,
             target_id=target_id,
             priority=priority,
@@ -593,6 +605,7 @@ def policy_assignment_create(
             details={
                 "Assignment ID": assignment.id,
                 "Policy ID": policy_id[:8],
+                "Policy Type": policy_type.value,
                 "Target": f"{target_type}: {target_id}",
                 "Priority": str(priority),
                 "Active": "Yes" if active else "No",

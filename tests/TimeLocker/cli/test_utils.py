@@ -9,6 +9,7 @@ TimeLocker.cli_modules.testing package for backward compatibility.
 New tests should import directly from TimeLocker.cli_modules.testing.
 """
 
+import os
 from contextlib import ExitStack, contextmanager, nullcontext
 from pathlib import Path
 from types import SimpleNamespace
@@ -52,6 +53,8 @@ def get_cli_runner(columns: int = 200) -> CliRunner:
 # Export a shared runner instance for legacy tests expecting a module-level 'runner'
 runner = get_cli_runner()
 
+_SHOW_CLI_OUTPUT_ENV = "TIMELOCKER_SHOW_CLI_OUTPUT"
+
 
 def combined_output(result) -> str:
     """
@@ -76,6 +79,21 @@ def combined_output(result) -> str:
 
 # Backward compatibility alias used by some test modules
 _combined_output = combined_output
+
+
+def maybe_show_cli_output(result, label: Optional[str] = None) -> None:
+    """
+    Print captured CLI output when TIMELOCKER_SHOW_CLI_OUTPUT is truthy.
+
+    Args:
+        result: CliRunner result object
+        label: Optional label to prefix the output block
+    """
+    if not os.environ.get(_SHOW_CLI_OUTPUT_ENV):
+        return
+    header = label or "CLI Output"
+    separator = "-" * 60
+    print(f"\n[{header}] {separator}\n{combined_output(result)}\n{separator}\n")
 
 
 def create_mock_service_manager() -> Mock:
@@ -653,6 +671,17 @@ def patch_restore_commands(mode: str = "success"):
         stack.enter_context(
                 patch("src.TimeLocker.cli_modules.commands.restore.Progress", _DummyProgress)
         )
+        validator_cls = stack.enter_context(
+                patch("src.TimeLocker.cli_modules.commands.restore.RecoveryValidator")
+        )
+        validator_instance = validator_cls.return_value
+        validator_instance.validate_pre_recovery.return_value = SimpleNamespace(
+                is_valid=True,
+                validated_files=1,
+                failed_validations=[],
+                warnings=[]
+        )
+        patched_objects["recovery_validator"] = validator_instance
 
         if mode == "invalid_snapshot":
             def _raise_invalid(*_args, **_kwargs):
