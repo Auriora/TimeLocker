@@ -85,16 +85,35 @@ def minio_settings() -> Tuple[str, str, str, str, str, bool]:
         mp.undo()
 
 
+class InMemoryCredentialManager:
+    """Minimal credential manager stub for integration tests."""
+
+    def __init__(self):
+        self._store: Dict[tuple[str, str], Dict[str, str]] = {}
+        self._locked = False
+
+    def is_locked(self) -> bool:
+        return self._locked
+
+    def auto_unlock(self) -> bool:
+        self._locked = False
+        return True
+
+    def unlock(self, _password: str) -> bool:
+        self._locked = False
+        return True
+
+    def store_repository_backend_credentials(self, repo: str, backend: str, payload: Dict[str, str]) -> bool:
+        self._store[(repo, backend)] = payload
+        return True
+
+    def get_repository_backend_credentials(self, repo: str, backend: str) -> Dict[str, str] | None:
+        return self._store.get((repo, backend))
+
+
 @pytest.fixture()
-def temp_credential_manager(tmp_path: Path) -> CredentialManager:
-    cred_dir = tmp_path / "creds"
-    cred_dir.mkdir(parents=True, exist_ok=True)
-    manager = CredentialManager(config_dir=cred_dir)
-    if manager.is_locked() and not manager.auto_unlock():
-        manager.unlock("test-password-123")
-    if manager.is_locked():
-        pytest.skip("CredentialManager could not be unlocked for testing")
-    return manager
+def temp_credential_manager() -> CredentialManager:
+    return InMemoryCredentialManager()
 
 
 @pytest.fixture()
