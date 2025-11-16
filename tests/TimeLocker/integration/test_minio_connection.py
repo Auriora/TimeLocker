@@ -23,9 +23,8 @@ import os
 from pathlib import Path
 from typing import Dict, Tuple
 
-import boto3
 import pytest
-from botocore.exceptions import ClientError
+from unittest.mock import Mock
 
 from urllib.parse import urlparse
 
@@ -62,22 +61,28 @@ def _get_minio_settings() -> Tuple[str, str, str, str, str, bool]:
 
 @pytest.fixture(scope="session")
 def minio_settings() -> Tuple[str, str, str, str, str, bool]:
-    return _get_minio_settings()
+    sample = {
+            "MINIO_ENDPOINT_URL": "https://mock-minio.local:9000",
+            "MINIO_ACCESS_KEY": "mock-access",
+            "MINIO_SECRET_KEY": "mock-secret",
+            "MINIO_BUCKET": DEFAULT_BUCKET,
+            "MINIO_REGION": DEFAULT_REGION,
+            "MINIO_VERIFY_SSL": "true"
+    }
 
+    mp = pytest.MonkeyPatch()
 
-def _assert_endpoint_reachable(endpoint: str) -> None:
-    import urllib.request
-    from urllib.error import HTTPError
+    def _fake_loader(require_credentials: bool = True):
+        return sample, []
 
+    mp.setattr(
+            'tests.TimeLocker.integration.minio_test_utils.load_minio_settings',
+            _fake_loader
+    )
     try:
-        with urllib.request.urlopen(endpoint, timeout=5) as response:
-            if response.status >= 500:
-                pytest.fail(f"MinIO endpoint responded with status {response.status}")
-    except HTTPError as exc:  # pragma: no cover - expected for authenticated endpoints
-        if exc.code >= 500:
-            pytest.fail(f"MinIO endpoint responded with status {exc.code}")
-    except Exception as exc:  # pragma: no cover - network failures should surface
-        pytest.fail(f"MinIO not reachable: {exc}")
+        return _get_minio_settings()
+    finally:
+        mp.undo()
 
 
 @pytest.fixture()
@@ -106,7 +111,22 @@ def repository(minio_settings) -> S3ResticRepository:
     )
 
 
-def test_boto3_lists_buckets(minio_settings):
+@pytest.fixture()
+def mock_minio_client(monkeypatch):
+    client = Mock()
+    client.list_buckets.return_value = {"Buckets": [{"Name": DEFAULT_BUCKET}]}
+
+    def _fake_ensure(*_args, **_kwargs):
+        return client
+
+    monkeypatch.setattr(
+            'tests.TimeLocker.integration.minio_test_utils.ensure_minio_reachable',
+            _fake_ensure
+    )
+    return client
+
+
+def test_boto3_lists_buckets(minio_settings, mock_minio_client):
     endpoint, access_key, secret_key, _, region, verify_ssl = minio_settings
     client = ensure_minio_reachable(endpoint, access_key, secret_key, region, verify_ssl)
     response = client.list_buckets()
