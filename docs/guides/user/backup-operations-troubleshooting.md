@@ -419,10 +419,15 @@ PolicyNotFoundError: Policy 'daily-backup' not found
 
 3. **Test Selection**:
    ```python
-   # Test with simple selection first
-   test_selection = FileSelection()
-   test_selection.add_path("/home/user/documents", SelectionType.INCLUDE)
-   result = repository.backup_target([BackupTarget(test_selection)])
+   from TimeLocker.cli_services import CLIServiceManager
+
+   cli = CLIServiceManager()
+   cli.run_selection_backup(
+       selection_name="documents",
+       repository="local-repo",
+       dry_run=True,
+       cli_options={"tool_type": "restic"}
+   )
    ```
 
 ## Tool-Specific Issues

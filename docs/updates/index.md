@@ -1,5 +1,6 @@
 # Update Index
 
+- [2025-11-16-171000-selection-cli-docs-refresh](./2025-11-16-171000-selection-cli-docs-refresh.md)
 - [2025-11-16-130500-cli-end-to-end-selection-tests](./2025-11-16-130500-cli-end-to-end-selection-tests.md)
 - [2025-11-16-131200-selection-orchestrator-alignment-plan](./2025-11-16-131200-selection-orchestrator-alignment-plan.md)
 - [2025-11-16-085900-skipped-tests-plan](./2025-11-16-085900-skipped-tests-plan.md)

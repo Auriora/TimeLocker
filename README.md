@@ -183,35 +183,65 @@ tl snapshots restore abc123 /restore/path --repository myrepo
 Note: Credentials are resolved via the Credential Service (system keyring preferred), then the TIMELOCKER_PASSWORD environment variable (fallback), then
 RESTIC_PASSWORD. The --password flag is available but discouraged; prefer secure storage via the Credential Service or environment variables.
 
-#### Python API
+#### Selection Templates & Service Manager
+
+TimeLocker’s modern backup flow revolves around reusable selection templates. Define the template once (via CLI or the SelectionTemplateManager) and run it through the same service entrypoint that powers the CLI.
 
 ```python
-from TimeLocker import BackupManager, BackupTarget, FileSelection, SelectionType
+from pathlib import Path
+from TimeLocker.selection_models import (
+    SelectionTemplate,
+    SelectionConfig,
+    PatternRule,
+    PatternSyntax,
+    PathComponent,
+)
+from TimeLocker.selection_template_manager import SelectionTemplateManager
 
-# Initialize backup manager
-manager = BackupManager()
+template_manager = SelectionTemplateManager()
+template_manager.create_template(
+    SelectionTemplate(
+        id="home-documents",
+        name="Home Documents",
+        description="Sync ~/Documents and skip scratch files",
+        selection_config=SelectionConfig(
+            include_paths=[Path("/home/user/Documents")],
+            exclude_patterns=[
+                PatternRule(
+                    pattern="*.tmp",
+                    syntax=PatternSyntax.GLOB,
+                    applies_to=PathComponent.FULL_PATH,
+                )
+            ],
+        ),
+    )
+)
+```
 
-# Create backup target
-target = BackupTarget(
-        name="my_backup",
-        source_paths=["/home/user/documents"],
-        repository_uri="local:/path/to/repo",
-        password="mypassword"
+Run the template through the CLI service manager (the same path used by `tl backup create --selection …`):
+
+```python
+from TimeLocker.cli_services import CLIServiceManager
+
+service_manager = CLIServiceManager()
+result = service_manager.run_selection_backup(
+    selection_name="Home Documents",
+    repository="myrepo",
+    tags=["documents", "desktop"],
+    dry_run=True,
+    cli_options={"tool_type": "restic"},
 )
 
-# Add file selections
-target.add_file_selection(FileSelection(
-        pattern="*.txt",
-        selection_type=SelectionType.INCLUDE
-))
-target.add_file_selection(FileSelection(
-        pattern="*.tmp",
-        selection_type=SelectionType.EXCLUDE
-))
+print(f"Backup status: {result.status.value}")
+if result.warnings:
+    print("Selection warnings:", result.warnings)
+```
 
-# Perform backup
-result = manager.backup(target, tags=["documents"])
-print(f"Backup completed: {result.success}")
+CLI equivalent for quick smoke tests:
+
+```bash
+tl selections create home-documents --include /home/user/Documents --exclude '*.tmp'
+tl backup create --selection home-documents --repository myrepo --dry-run
 ```
 
 ### More Detailed Examples
@@ -271,24 +301,27 @@ logging.getLogger('restic').setLevel(logging.DEBUG)
 
 The backup process follows this general flow:
 
-1. Configuration of backup target and file selection patterns
-2. Repository initialization and validation
-3. Execution of backup operation with selected files
-4. Snapshot creation and management
+1. Selection template definition and validation
+2. Repository initialization and credential resolution
+3. CLI/Service manager builds the job config and invokes the Backup Orchestrator
+4. Snapshot creation and management with selection metadata
 
 ```ascii
-[BackupManager] --> [BackupRepository]
-       |                    |
-       v                    v
-[FileSelection] --> [BackupTarget] --> [Snapshot]
+[SelectionTemplateManager] --> [SelectionManager]
+           |                           |
+           v                           v
+  Selection Templates         CLIServiceManager / BackupCLIHandler
+                                       |
+                                       v
+                           [BackupOrchestrator] --> [Snapshot]
 ```
 
 Key component interactions:
 
-- BackupManager orchestrates repository creation and management
+- SelectionTemplateManager & SelectionManager own selection definitions, previews, and validation
+- CLIServiceManager/BackupCLIHandler resolve template IDs and create canonical backup job configs
 - BackupRepository handles storage backend operations
-- FileSelection manages include/exclude patterns
-- BackupTarget combines file selection with metadata
+- FileSelection + DataSelectionIntegration translate rules per tool
 - Snapshot represents a point-in-time backup state
 - Repository implementations handle backend-specific operations
 
