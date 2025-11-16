@@ -49,7 +49,6 @@ def sample_app():
 class TestCoreCommandRegistration:
     """Tests for core command registration."""
     
-    @pytest.mark.skip(reason="Requires fixing logger in cli.py")
     def test_register_core_commands(self, registry):
         """Test registering core commands."""
         register_core_commands(registry)
@@ -62,7 +61,6 @@ class TestCoreCommandRegistration:
         assert registry.has_command("security")
         assert registry.has_command("config")
     
-    @pytest.mark.skip(reason="Requires fixing logger in cli.py")
     def test_core_commands_have_metadata(self, registry):
         """Test that core commands have proper metadata."""
         register_core_commands(registry)
@@ -73,7 +71,6 @@ class TestCoreCommandRegistration:
         assert backup_cmd.requires_config
         assert "core" in backup_cmd.tags
     
-    @pytest.mark.skip(reason="Requires fixing logger in cli.py")
     def test_repos_command_has_alias(self, registry):
         """Test that repos command has repositories alias."""
         register_core_commands(registry)
@@ -90,7 +87,6 @@ class TestCoreCommandRegistration:
 class TestOptionalCommandRegistration:
     """Tests for optional command registration."""
     
-    @pytest.mark.skip(reason="Requires fixing logger in cli.py")
     def test_register_optional_commands(self, registry):
         """Test registering optional commands."""
         register_optional_commands(registry)
@@ -100,7 +96,6 @@ class TestOptionalCommandRegistration:
         stats = registry.get_statistics()
         assert stats["total_commands"] >= 0  # May be 0 if imports fail
     
-    @pytest.mark.skip(reason="Requires fixing logger in cli.py")
     def test_optional_commands_dont_fail_on_import_error(self, registry):
         """Test that missing optional commands don't cause failures."""
         # This should not raise even if some imports fail
@@ -113,7 +108,6 @@ class TestOptionalCommandRegistration:
 class TestCommandRegistration:
     """Tests for complete command registration."""
     
-    @pytest.mark.skip(reason="Requires fixing logger in cli.py")
     def test_register_all_commands(self, registry):
         """Test registering all commands."""
         register_all_commands(registry)
@@ -125,7 +119,6 @@ class TestCommandRegistration:
         stats = registry.get_statistics()
         assert stats["total_commands"] >= 6  # At least 6 core commands
     
-    @pytest.mark.skip(reason="Requires fixing logger in cli.py")
     def test_register_all_commands_logs_statistics(self, registry, caplog):
         """Test that registration logs statistics."""
         import logging
@@ -275,7 +268,6 @@ class TestRegistryValidation:
 class TestIntegrationWithGlobalRegistry:
     """Tests for integration with global registry."""
     
-    @pytest.mark.skip(reason="Requires fixing logger in cli.py")
     def test_register_commands_uses_global_registry(self):
         """Test that registration uses global registry when not provided."""
         reset_command_registry()

@@ -175,7 +175,6 @@ class TestCLIHelpSystem:
             assert subcmd in combined.lower()
 
     @pytest.mark.unit
-    @pytest.mark.skip(reason="Credentials subcommands not yet implemented. The credentials command group exists but has no registered subcommands.")
     def test_credentials_subcommands_help(self):
         """Test credentials subcommands help output."""
         subcommands = ["unlock", "set", "remove"]

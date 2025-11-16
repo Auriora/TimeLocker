@@ -41,7 +41,6 @@ class TestConfigCommands:
         assert "export" in combined.lower()
 
     @pytest.mark.unit
-    @pytest.mark.skip(reason="Config show command not implemented. Only config import and export exist.")
     def test_config_show_help(self):
         """Test config show command help output."""
         result = runner.invoke(app, ["config", "show", "--help"])
@@ -54,7 +53,6 @@ class TestConfigCommands:
         assert "--config-dir" in combined
 
     @pytest.mark.unit
-    @pytest.mark.skip(reason="Config setup command not implemented. Only config import and export exist.")
     def test_config_setup_help(self):
         """Test config setup command help output."""
         result = runner.invoke(app, ["config", "setup", "--help"])

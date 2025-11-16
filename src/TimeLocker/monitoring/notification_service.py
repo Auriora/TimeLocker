@@ -113,7 +113,12 @@ class NotificationService(ServiceInterface):
     Supports desktop notifications and email alerts
     """
 
-    def __init__(self, config_dir: Optional[Path] = None):
+    def __init__(
+        self,
+        config_dir: Optional[Path] = None,
+        desktop_notification_sender: Optional[Callable[[str, str, StatusLevel], None]] = None,
+        force_desktop_notifications: bool = False,
+    ) -> None:
         """
         Initialize notification service
         
@@ -130,6 +135,8 @@ class NotificationService(ServiceInterface):
 
         self.config_file = self.config_dir / "notification_config.json"
         self.config = self._load_config()
+        self._desktop_notification_sender = desktop_notification_sender or self._platform_desktop_notification_sender
+        self._force_desktop_notifications = force_desktop_notifications
         
         # System tray integration
         self.system_tray: Optional[SystemTrayIntegration] = None
@@ -538,21 +545,34 @@ class NotificationService(ServiceInterface):
             status_level: Status level for urgency
         """
         # Check if desktop notifications are enabled in preferences
-        if not self.config.preferences.desktop_notification_enabled:
+        if not (self.config.preferences.desktop_notification_enabled or self._force_desktop_notifications):
             logger.debug("Desktop notifications disabled in preferences")
             if self.config.preferences.fallback_to_log:
                 self._fallback_to_log(title, message, status_level)
             return
         
-        # Check quiet hours
-        if self.is_in_quiet_hours():
-            logger.debug("Skipping notification during quiet hours")
-            if self.config.preferences.fallback_to_log:
-                self._fallback_to_log(title, message, status_level)
-            return
+        # Check quiet hours (skip when forced for test adapters)
+        if self.config.preferences.quiet_hours_enabled and not self._force_desktop_notifications:
+            if self.is_in_quiet_hours():
+                logger.debug("Skipping notification during quiet hours")
+                if self.config.preferences.fallback_to_log:
+                    self._fallback_to_log(title, message, status_level)
+                return
         
         try:
-            # Try different notification systems based on platform
+            self._desktop_notification_sender(title, message, status_level)
+        except NotificationError as e:
+            logger.error(f"Failed to send desktop notification: {e}")
+            if self.config.preferences.fallback_to_log:
+                self._fallback_to_log(title, message, status_level)
+        except Exception as e:
+            logger.error(f"Unexpected desktop notification error: {e}")
+            if self.config.preferences.fallback_to_log:
+                self._fallback_to_log(title, message, status_level)
+
+    def _platform_desktop_notification_sender(self, title: str, message: str, status_level: StatusLevel) -> None:
+        """Send notifications using platform-specific mechanisms."""
+        try:
             if sys.platform == "linux":
                 self._send_linux_notification(title, message, status_level)
             elif sys.platform == "darwin":
@@ -560,14 +580,11 @@ class NotificationService(ServiceInterface):
             elif sys.platform == "win32":
                 self._send_windows_notification(title, message)
             else:
-                logger.warning(f"Desktop notifications not supported on {sys.platform}")
-                if self.config.preferences.fallback_to_log:
-                    self._fallback_to_log(title, message, status_level)
-        except Exception as e:
-            logger.error(f"Failed to send desktop notification: {e}")
-            # Fallback to logging if enabled
-            if self.config.preferences.fallback_to_log:
-                self._fallback_to_log(title, message, status_level)
+                raise NotificationError(f"Desktop notifications not supported on {sys.platform}")
+        except NotificationError:
+            raise
+        except Exception as exc:
+            raise NotificationError(str(exc)) from exc
     
     def _fallback_to_log(self, title: str, message: str, status_level: StatusLevel):
         """

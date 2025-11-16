@@ -31,8 +31,10 @@ from TimeLocker.monitoring import (
     BackupRecord,
     BackupStatus,
     ActivityLogger,
-    OperationStatus
+    OperationStatus,
+    NotificationService
 )
+from TimeLocker.monitoring.notification_service import NotificationError
 
 
 class TestMonitoringWorkflowIntegration:
@@ -41,7 +43,17 @@ class TestMonitoringWorkflowIntegration:
     def setup_method(self):
         """Setup test environment"""
         self.temp_dir = Path(tempfile.mkdtemp())
-        self.monitoring_service = MonitoringService(self.temp_dir)
+        self.desktop_notifier = DummyDesktopNotifier()
+        notification_service = NotificationService(
+                self.temp_dir / "notifications",
+                desktop_notification_sender=self.desktop_notifier,
+                force_desktop_notifications=True
+        )
+        self.monitoring_service = MonitoringService(
+                self.temp_dir,
+                notification_service=notification_service
+        )
+        self.notification_service = notification_service
         self.backup_history = BackupHistory(self.temp_dir / "history")
         self.activity_logger = ActivityLogger(self.temp_dir / "logs")
 
@@ -49,6 +61,8 @@ class TestMonitoringWorkflowIntegration:
         """Cleanup test environment"""
         if hasattr(self, 'monitoring_service'):
             self.monitoring_service.shutdown()
+        if hasattr(self, 'notification_service'):
+            self.notification_service.shutdown()
         if self.temp_dir.exists():
             shutil.rmtree(self.temp_dir)
 
@@ -254,26 +268,68 @@ class TestMonitoringWorkflowIntegration:
         assert len(summary.repository_statuses) >= 3
 
 
+class DummyDesktopNotifier:
+    """Capture desktop notification invocations in tests."""
+
+    def __init__(self, should_raise: bool = False):
+        self.should_raise = should_raise
+        self.calls = []
+
+    def __call__(self, title: str, message: str, status_level: StatusLevel):
+        if self.should_raise:
+            raise NotificationError("desktop adapter failure")
+        self.calls.append((title, message, status_level))
+
+
 class TestCrossPlatformIntegration:
-    """Integration tests for cross-platform monitoring features"""
+    """Integration tests for cross-platform monitoring features using mocks."""
+
+    def _create_notification_service(self, tmp_path, notifier: DummyDesktopNotifier) -> NotificationService:
+        service = NotificationService(
+                tmp_path / "notifications",
+                desktop_notification_sender=notifier,
+                force_desktop_notifications=True
+        )
+        assert service._desktop_notification_sender is notifier
+        service.config.preferences.desktop_notification_enabled = True
+        service.config.preferences.quiet_hours_enabled = False
+        assert service.config.preferences.desktop_notification_enabled is True
+        service.config.enabled = True
+        service.config.desktop_enabled = True
+        service.config.notify_on_success = True
+        service.config.notify_on_warning = True
+        service.config.notify_on_error = True
+        service.config.notify_on_critical = True
+        return service
 
     @pytest.mark.monitoring
     @pytest.mark.integration
-    @pytest.mark.skipif(True, reason="Platform-specific tests require actual platform")
-    def test_desktop_notification_linux(self):
-        """Test desktop notifications on Linux"""
-        pass
+    def test_desktop_notification_linux(self, tmp_path):
+        notifier = DummyDesktopNotifier()
+        service = self._create_notification_service(tmp_path, notifier)
+        service._send_desktop_notification("Linux Backup", "Completed", StatusLevel.SUCCESS)
+        assert notifier.calls
+        title, message, status_level = notifier.calls[0]
+        assert title == "Linux Backup"
+        assert message == "Completed"
+        assert status_level == StatusLevel.SUCCESS
 
     @pytest.mark.monitoring
     @pytest.mark.integration
-    @pytest.mark.skipif(True, reason="Platform-specific tests require actual platform")
-    def test_desktop_notification_macos(self):
-        """Test desktop notifications on macOS"""
-        pass
+    def test_desktop_notification_macos(self, tmp_path):
+        notifier = DummyDesktopNotifier()
+        service = self._create_notification_service(tmp_path, notifier)
+        service._send_desktop_notification("macOS Backup", "mac warning", StatusLevel.WARNING)
+        assert notifier.calls
+        assert notifier.calls[0][0] == "macOS Backup"
+        assert notifier.calls[0][1] == "mac warning"
+        assert notifier.calls[0][2] == StatusLevel.WARNING
 
     @pytest.mark.monitoring
     @pytest.mark.integration
-    @pytest.mark.skipif(True, reason="Platform-specific tests require actual platform")
-    def test_desktop_notification_windows(self):
-        """Test desktop notifications on Windows"""
-        pass
+    def test_desktop_notification_windows(self, tmp_path):
+        notifier = DummyDesktopNotifier(should_raise=True)
+        service = self._create_notification_service(tmp_path, notifier)
+        service.config.preferences.fallback_to_log = True
+        service._send_desktop_notification("Windows Backup", "win critical", StatusLevel.CRITICAL)
+        assert notifier.calls == []

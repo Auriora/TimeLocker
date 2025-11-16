@@ -1,5 +1,6 @@
 # Update Index
 
+- [2025-11-16-085900-skipped-tests-plan](./2025-11-16-085900-skipped-tests-plan.md)
 - [2025-11-15-212100-selection-optimizer-fix](./2025-11-15-212100-selection-optimizer-fix.md)
 - [2025-11-15-210500-repo-mock-lifecycle-fix](./2025-11-15-210500-repo-mock-lifecycle-fix.md)
 - [2025-11-15-213000-restic-local-repo-fix](./2025-11-15-213000-restic-local-repo-fix.md)

@@ -345,6 +345,14 @@ S3_SERVICE_TEMPLATES = {
         endpoint_template="https://{region}.digitaloceanspaces.com",
         default_region="nyc3",
         requires_region=True
+    ),
+    
+    S3ServiceType.CUSTOM: S3ServiceTemplate(
+        service_type=S3ServiceType.CUSTOM,
+        name="Custom S3-Compatible Service",
+        description="Generic S3-compatible endpoint with custom configuration",
+        requires_region=False,
+        supports_custom_endpoint=True
     )
 }
 
@@ -442,6 +450,8 @@ class S3ConfigValidator:
                 warnings.append(
                     "MinIO typically uses HTTP by default. Verify your MinIO server supports HTTPS."
                 )
+        if config.service_type == S3ServiceType.CUSTOM and not config.endpoint:
+            warnings.append("Custom S3-compatible services require an explicit endpoint URL")
         
         return warnings
 

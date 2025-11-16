@@ -122,24 +122,19 @@ class TestS3ServiceManager:
         """Test creating custom S3-compatible configuration"""
         repo_id = "custom-repo"
         
-        # Custom service type may not be supported by create_service_config
-        # Test that it raises appropriate error or skip if not implemented
-        try:
-            config, warnings = s3_service_manager.create_custom_s3_config(
-                repo_id=repo_id,
-                access_key="test-access-key",
-                secret_key="test-secret-key",
-                bucket="test-bucket",
-                endpoint="s3.custom-provider.com"
-            )
-            
-            assert config is not None
-            assert config.endpoint == "s3.custom-provider.com"
-            assert config.bucket == "test-bucket"
-        except ValueError as e:
-            # If CUSTOM type is not supported, that's acceptable
-            assert "Unsupported service type" in str(e)
-            pytest.skip("CUSTOM service type not yet implemented")
+        config, warnings = s3_service_manager.create_custom_s3_config(
+            repo_id=repo_id,
+            access_key="test-access-key",
+            secret_key="test-secret-key",
+            bucket="test-bucket",
+            endpoint="s3.custom-provider.com"
+        )
+        
+        assert config is not None
+        assert config.service_type == S3ServiceType.CUSTOM
+        assert config.endpoint.startswith("https://") or config.endpoint.startswith("http://")
+        assert config.bucket == "test-bucket"
+        assert warnings == []
     
     @pytest.mark.asyncio
     @pytest.mark.unit
@@ -425,22 +420,18 @@ class TestS3ServiceManagerValidation:
     @pytest.mark.unit
     def test_custom_endpoint_validation(self, s3_service_manager):
         """Test custom endpoint validation"""
-        # Custom service type may not be supported yet
-        try:
-            config, warnings = s3_service_manager.create_custom_s3_config(
-                repo_id="test-repo",
-                access_key="test-key",
-                secret_key="test-secret",
-                bucket="test-bucket",
-                endpoint="https://s3.custom.com"
-            )
-            
-            assert config.endpoint == "https://s3.custom.com"
-        except ValueError as e:
-            if "Unsupported service type" in str(e):
-                pytest.skip("CUSTOM service type not yet implemented")
-            else:
-                raise
+        config, warnings = s3_service_manager.create_custom_s3_config(
+            repo_id="test-repo",
+            access_key="test-key",
+            secret_key="test-secret",
+            bucket="test-bucket",
+            endpoint="https://s3.custom.com",
+            use_ssl=True,
+            verify_ssl=True
+        )
+        
+        assert config.endpoint == "https://s3.custom.com"
+        assert warnings == []
     
     @pytest.mark.unit
     def test_region_required_for_wasabi(self, s3_service_manager):

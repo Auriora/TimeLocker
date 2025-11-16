@@ -183,27 +183,21 @@ class TestCLIErrorHandling:
             mock_manager.reset_mock()
 
     @pytest.mark.unit
-    @pytest.mark.skip(reason="Test needs refactoring - backup command architecture has changed and mocking strategy no longer works. KeyboardInterrupt handling is implemented but test needs to be rewritten to properly inject the interrupt.")
-    def test_keyboard_interrupt_handling(self):
-        # TODO: Rewrite this test to properly test KeyboardInterrupt handling
-        # The backup create command now has a complex initialization path that makes
-        # it difficult to inject KeyboardInterrupt via mocking. Consider:
-        # 1. Testing KeyboardInterrupt at a lower level (service layer)
-        # 2. Using a simpler command for testing interrupt handling
-        # 3. Refactoring backup command to make it more testable
-        with patch('src.TimeLocker.cli.get_cli_service_manager') as mock_get_service:
-            with patch('src.TimeLocker.cli._get_service_manager_for_command') as mock_get_for_command:
-                mock_manager = Mock()
-                mock_config_service = Mock()
-                mock_manager._config_service = mock_config_service
-                mock_get_service.return_value = mock_manager
-                mock_get_for_command.return_value = mock_manager
-                # Make execute_backup raise KeyboardInterrupt
-                mock_manager.execute_backup.side_effect = KeyboardInterrupt()
-                # Also make execute_backup_from_cli raise KeyboardInterrupt in case that's called
-                mock_manager.execute_backup_from_cli.side_effect = KeyboardInterrupt()
-                result = runner.invoke(app, ["backup", "create", "/tmp", "--dry-run"])
-                assert_exit_code(result, 130, "KeyboardInterrupt should map to exit code 130")
+    @patch('src.TimeLocker.cli_modules.commands.backup.get_cli_service_manager')
+    def test_keyboard_interrupt_handling(self, mock_get_service_manager):
+        """KeyboardInterrupt should map to exit code 130 for backup commands."""
+        mock_manager = Mock()
+        mock_get_service_manager.return_value = mock_manager
+        mock_manager.verify_backup_integrity.side_effect = KeyboardInterrupt()
+
+        result = runner.invoke(app, [
+            "backup", "verify",
+            "--repository", "test-repo"
+        ])
+
+        assert_exit_code(result, 130, "KeyboardInterrupt should map to exit code 130")
+        combined = combined_output(result)
+        assert "cancelled" in combined.lower()
 
     @pytest.mark.unit
     def test_invalid_option_values(self):

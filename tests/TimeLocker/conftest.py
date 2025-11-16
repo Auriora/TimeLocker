@@ -29,13 +29,22 @@ from src.TimeLocker.file_selections import FileSelection
 def mock_desktop_notifications(request):
     """Automatically mock desktop notifications to prevent popup alerts during tests"""
     # Skip mocking for notification service tests that specifically test desktop notifications
-    if 'test_notification_service.py' in str(request.fspath) and any(
-            test_name in request.node.name for test_name in [
-                    'test_send_linux_notification',
-                    'test_send_macos_notification',
-                    'test_send_windows_notification'
-            ]
-    ):
+    is_notification_service_test = (
+            'test_notification_service.py' in str(request.fspath)
+            and any(
+                test_name in request.node.name for test_name in [
+                        'test_send_linux_notification',
+                        'test_send_macos_notification',
+                        'test_send_windows_notification'
+                ]
+            )
+    )
+    is_cross_platform_monitoring_test = (
+            'test_monitoring_integration.py' in str(request.fspath)
+            and request.node.name.startswith('test_desktop_notification_')
+    )
+
+    if is_notification_service_test or is_cross_platform_monitoring_test:
         yield None
     else:
         with patch('TimeLocker.monitoring.notification_service.NotificationService._send_desktop_notification') as mock_desktop:

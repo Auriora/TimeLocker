@@ -251,7 +251,6 @@ class TestCLIIntegrationWorkflows:
                 assert "not implemented" in combined.lower()
 
     @pytest.mark.integration
-    @pytest.mark.skip(reason="Credentials commands not implemented. The credentials command group exists but has no registered subcommands.")
     @patch('src.TimeLocker.cli.get_cli_service_manager')
     def test_credential_management_workflow(self, mock_service_manager):
         """Test complete credential management workflow."""
@@ -265,24 +264,25 @@ class TestCLIIntegrationWorkflows:
         mock_manager.remove_repository_password.return_value = Mock(success=True)
 
         # Step 1: Unlock credential manager
-        result = runner.invoke(app, ["credentials", "unlock"])
+        result = runner.invoke(app, ["credentials", "unlock", "--password", "test-master"])
         assert_success(result, "Credentials unlock should succeed with mocked service manager")
 
         # Step 2: Set repository password
         result = runner.invoke(app, [
             "credentials", "set", "test-repo",
-            "--password", "test-password"
+            "--password", "test-password",
+            "--master-password", "test-master"
         ])
         assert_success(result, "Credentials set should succeed with mocked service manager")
 
         # Step 3: Remove repository password
         result = runner.invoke(app, [
-            "credentials", "remove", "test-repo"
+            "credentials", "remove", "test-repo",
+            "--password", "test-master"
         ])
         assert_success(result, "Credentials remove should succeed with mocked service manager")
 
     @pytest.mark.integration
-    @pytest.mark.skip(reason="Config show command not implemented. Only config import and export exist.")
     @patch('src.TimeLocker.cli.ConfigurationModule')
     def test_configuration_workflow(self, mock_config_module, temp_config_dir):
         """Test complete configuration workflow."""
@@ -309,28 +309,58 @@ class TestCLIIntegrationWorkflows:
         assert_success(result, "Config show should succeed with mocked configuration")
 
     @pytest.mark.integration
-    @pytest.mark.skip(reason="Targets deprecated - replaced by selections. Test needs rewrite to use selections commands.")
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     @patch('src.TimeLocker.cli.get_cli_service_manager')
-    def test_first_time_user_workflow(self, mock_service_manager, temp_repo_dir, temp_backup_dir):
-        """Test complete first-time user workflow."""
-        # Mock the service manager
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        
-        # Mock all operations for first-time setup
-        mock_manager.add_repository.return_value = Mock(success=True)
-        mock_manager.initialize_repository.return_value = Mock(success=True)
-        mock_manager.add_backup_target.return_value = Mock(success=True)
-        mock_manager.execute_backup.return_value = Mock(
-            success=True, snapshot_id="abc123def456"
-        )
-        mock_manager.list_snapshots.return_value = [
-            {"id": "abc123def456", "time": "2024-01-01T12:00:00Z"}
-        ]
+    def test_first_time_user_workflow(
+            self,
+            mock_cli_service_manager,
+            mock_repos_service_manager,
+            mock_backup_service_manager,
+            temp_repo_dir,
+            temp_backup_dir,
+            temp_config_dir,
+            monkeypatch
+    ):
+        """Test complete first-time user workflow using selections."""
+        # Isolate configuration and selection storage paths
+        config_home = temp_config_dir / "config"
+        data_home = temp_config_dir / "data"
+        config_home.mkdir(parents=True, exist_ok=True)
+        data_home.mkdir(parents=True, exist_ok=True)
+        monkeypatch.setenv("TIMELOCKER_TEST_MODE", "1")
+        monkeypatch.setenv("TIMELOCKER_CONFIG_DIR", str(config_home))
+        monkeypatch.setenv("XDG_CONFIG_HOME", str(config_home))
+        monkeypatch.setenv("XDG_DATA_HOME", str(data_home))
 
-        # Simulate first-time user workflow
-        
-        # Step 1: Add first repository
+        # Standardized mock service manager
+        mock_manager = create_mock_service_manager()
+        mock_cli_service_manager.return_value = mock_manager
+        mock_repos_service_manager.return_value = mock_manager
+        mock_backup_service_manager.return_value = mock_manager
+
+        # Provide backup orchestrator capable of execute_backup_job
+        orchestrator = Mock()
+        backup_result = Mock()
+        backup_result.status = Mock()
+        backup_result.status.value = "completed"
+        backup_result.snapshot_id = "abc123def456"
+        backup_result.files_processed = 42
+        backup_result.bytes_transferred = 1024
+        backup_result.duration = Mock()
+        backup_result.duration.total_seconds.return_value = 12.5
+        backup_result.warnings = []
+        backup_result.errors = []
+        orchestrator.execute_backup_job.return_value = backup_result
+        mock_manager._backup_orchestrator = orchestrator
+        mock_manager.backup_orchestrator = orchestrator
+
+        # Snapshot listing expectations
+        snapshot_entry = {"id": "abc123def456", "time": "2024-01-01T12:00:00Z"}
+        mock_manager.snapshot_service.list_snapshots.return_value = [snapshot_entry]
+        mock_manager.list_snapshots.return_value = [snapshot_entry]
+
+        # Step 1: Add first repository and set default
         result = runner.invoke(app, [
             "repos", "add", "my-backup", f"file://{temp_repo_dir}",
             "--description", "My first backup repository",
@@ -340,13 +370,40 @@ class TestCLIIntegrationWorkflows:
 
         # Step 2: Initialize repository
         result = runner.invoke(app, [
-            "repos", "init", "my-backup", "--yes"
+            "repos", "init", "my-backup", "--yes",
+            "--password", "test-repo-pass"
         ])
-        assert_success(result, "First repo init should succeed with mocked service manager")
+        assert_success(result, "Repository init should succeed with mocked service manager")
 
-        # Step 3: List snapshots to verify
+        # Step 3: Create an initial data selection template
+        selection_name = "quick-start-docs"
+        result = runner.invoke(app, [
+            "selections", "create", selection_name,
+            "--description", "Initial documents selection",
+            "--include-path", str(temp_backup_dir)
+        ])
+        assert_success(result, "Selection creation should succeed")
+
+        # Step 4: List selections to confirm discoverability
+        result = runner.invoke(app, ["selections", "list"])
+        assert_success(result, "Selection listing should succeed")
+
+        # Step 5: Run first backup using the selection template
+        result = runner.invoke(app, [
+            "backup", "create",
+            "--selection", selection_name,
+            "--repository", "my-backup",
+            "--dry-run"
+        ])
+        assert_success(result, "Backup create should succeed with mocked orchestrator")
+        combined = combined_output(result)
+        assert selection_name in combined
+
+        orchestrator.execute_backup_job.assert_called_once()
+
+        # Step 6: List snapshots to verify workflow summary
         result = runner.invoke(app, ["snapshots", "list"])
-        assert_success(result, "First snapshots list should succeed with mocked service manager")
+        assert_success(result, "Snapshots list should succeed with mocked service manager")
 
     @pytest.mark.integration
     @patch('src.TimeLocker.cli_modules.commands.backup.get_cli_service_manager')

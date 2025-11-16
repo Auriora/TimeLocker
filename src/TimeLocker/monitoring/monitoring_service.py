@@ -122,7 +122,11 @@ class MonitoringService(ServiceInterface):
     - Configuration management for monitoring preferences
     """
 
-    def __init__(self, config_dir: Optional[Path] = None):
+    def __init__(
+        self,
+        config_dir: Optional[Path] = None,
+        notification_service: Optional[NotificationService] = None,
+    ):
         """
         Initialize monitoring service.
         
@@ -139,7 +143,7 @@ class MonitoringService(ServiceInterface):
 
         # Initialize core monitoring components
         self.status_reporter = StatusReporter(config_dir / "status")
-        self.notifier = NotificationService(config_dir / "notifications")
+        self.notifier = notification_service or NotificationService(config_dir / "notifications")
         self.activity_logger = ActivityLogger(config_dir)
         self.backup_history = BackupHistory(config_dir / "history")
         self.storage_monitor = StorageMonitor(config_dir / "storage")
