@@ -294,3 +294,29 @@ class TestBackupOrchestratorJobExecution:
         assert backup_job.tool_configuration.encryption_enabled is True
         assert backup_job.tool_configuration.integrity_check_enabled is True
         assert 'tags' in backup_job.tool_configuration.tool_specific_options
+
+    def test_dry_run_reports_selected_file_counts(self, orchestrator, tmp_path):
+        """Ensure dry-run enumerates files from selection-applied source paths."""
+        data_dir = tmp_path / "docs"
+        data_dir.mkdir()
+        sample_file = data_dir / "report.txt"
+        sample_file.write_text("content")
+
+        job_config = BackupJobConfig(
+            job_id='dry-run-job',
+            repository_id='test-repo',
+            data_selection_id='selection-123',
+            execution_mode=ExecutionMode.ON_DEMAND
+        )
+        backup_job = BackupJob(
+            config=job_config,
+            source_paths=[str(data_dir)],
+            exclude_patterns=[],
+            include_patterns=[]
+        )
+
+        result = orchestrator._execute_job_dry_run(backup_job)
+
+        assert result.status == BackupStatus.COMPLETED
+        assert result.files_processed == 1
+        assert result.bytes_processed == len("content")

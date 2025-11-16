@@ -37,6 +37,7 @@ from ..selection_models import (
     PathComponent
 )
 from ..selection_manager import SelectionManager
+from ..selection_template_manager import TemplateNotFoundError
 from .tool_manager import ToolManager, Feature, ToolCapabilities
 from .plugin_wrapper import PluginWrapper
 
@@ -150,16 +151,30 @@ class DataSelectionIntegrationService:
         
         self._stats['cache_misses'] += 1
         
-        # Try to load from template manager
+        # Try to load from template manager using ID, then fall back to name for compatibility
         try:
             template = self.selection_manager.template_manager.get_template(selection_id)
-            if template:
-                config = template.selection_config
-                self._selection_cache[selection_id] = config
-                logger.info(f"Loaded selection config from template: {selection_id}")
-                return config
+        except TemplateNotFoundError:
+            try:
+                template = self.selection_manager.template_manager.get_template(
+                    selection_id,
+                    by_name=True
+                )
+                if template:
+                    logger.info(f"Resolved selection identifier '{selection_id}' by name.")
+            except TemplateNotFoundError:
+                template = None
         except Exception as e:
             logger.warning(f"Could not load selection config {selection_id}: {e}")
+            template = None
+
+        if template:
+            config = template.selection_config
+            self._selection_cache[template.id] = config
+            if selection_id != template.id:
+                self._selection_cache[selection_id] = config
+            logger.info(f"Loaded selection config from template: {template.id}")
+            return config
         
         return None
     

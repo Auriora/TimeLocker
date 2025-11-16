@@ -378,7 +378,7 @@ class SelectionTemplateManager:
                 "Template must have at least one include path, pattern, or pattern group"
             )
     
-    async def create_template(self, template: SelectionTemplate) -> str:
+    def create_template(self, template: SelectionTemplate) -> str:
         """
         Create a new selection template.
         
@@ -413,7 +413,7 @@ class SelectionTemplateManager:
         logger.info(f"Created template: {template.name} ({template.id})")
         return template.id
     
-    async def get_template_by_name(self, name: str) -> Optional[SelectionTemplate]:
+    def get_template_by_name(self, name: str) -> Optional[SelectionTemplate]:
         """
         Get a template by name.
         
@@ -437,7 +437,7 @@ class SelectionTemplateManager:
                 return template
         return None
     
-    async def get_template(self, identifier: str, by_name: bool = False) -> SelectionTemplate:
+    def get_template(self, identifier: str, by_name: bool = False) -> SelectionTemplate:
         """
         Get a template by ID or name.
         
@@ -452,7 +452,7 @@ class SelectionTemplateManager:
             TemplateNotFoundError: If the template is not found
         """
         if by_name:
-            template = await self.get_template_by_name(identifier)
+            template = self.get_template_by_name(identifier)
             if template is None:
                 raise TemplateNotFoundError(f"Template with name '{identifier}' not found")
             return template
@@ -471,7 +471,7 @@ class SelectionTemplateManager:
             
             return template
     
-    async def list_templates(self, filters: Optional[Dict[str, Any]] = None) -> List[SelectionTemplate]:
+    def list_templates(self, filters: Optional[Dict[str, Any]] = None) -> List[SelectionTemplate]:
         """
         List all templates with optional filtering.
         
@@ -518,7 +518,7 @@ class SelectionTemplateManager:
         
         return filtered_templates
     
-    async def update_template(self, template_id: str, updates: Dict[str, Any]) -> SelectionTemplate:
+    def update_template(self, template_id: str, updates: Dict[str, Any]) -> SelectionTemplate:
         """
         Update an existing template.
         
@@ -573,7 +573,7 @@ class SelectionTemplateManager:
         logger.info(f"Updated template: {template.name} ({template.id})")
         return template
     
-    async def delete_template(self, template_id: str) -> bool:
+    def delete_template(self, template_id: str) -> bool:
         """
         Delete a template.
         
@@ -605,7 +605,7 @@ class SelectionTemplateManager:
         logger.info(f"Deleted template: {template.name} ({template.id})")
         return True
     
-    async def duplicate_template(self, template_id: str, new_name: str) -> SelectionTemplate:
+    def duplicate_template(self, template_id: str, new_name: str) -> SelectionTemplate:
         """
         Duplicate an existing template with a new name.
         
@@ -640,12 +640,12 @@ class SelectionTemplateManager:
         )
         
         # Save the new template
-        await self.create_template(new_template)
+        self.create_template(new_template)
         
         logger.info(f"Duplicated template: {source_template.name} -> {new_name}")
         return new_template
     
-    async def get_template_usage(self, template_id: str) -> Dict[str, Any]:
+    def get_template_usage(self, template_id: str) -> Dict[str, Any]:
         """
         Get usage information for a template.
         
@@ -673,7 +673,7 @@ class SelectionTemplateManager:
             'is_system_template': template.is_system_template
         }
 
-    async def export_template(
+    def export_template(
         self,
         template_id: str,
         output_path: Path,
@@ -724,7 +724,7 @@ class SelectionTemplateManager:
             logger.error(f"Failed to export template: {e}")
             raise TemplateExportError(f"Export failed: {e}")
     
-    async def export_templates(
+    def export_templates(
         self,
         template_ids: List[str],
         output_path: Path,
@@ -778,7 +778,7 @@ class SelectionTemplateManager:
             logger.error(f"Failed to export templates: {e}")
             raise TemplateExportError(f"Export failed: {e}")
     
-    async def import_template(
+    def import_template(
         self,
         input_path: Path,
         merge_strategy: str = 'skip',
@@ -824,7 +824,7 @@ class SelectionTemplateManager:
             # Import each template
             for template_data in templates_data:
                 try:
-                    await self._import_single_template(
+                    self._import_single_template(
                         template_data,
                         merge_strategy,
                         validate,
@@ -849,7 +849,7 @@ class SelectionTemplateManager:
             logger.error(f"Failed to import templates: {e}")
             raise TemplateImportError(f"Import failed: {e}")
     
-    async def _import_single_template(
+    def _import_single_template(
         self,
         template_data: Dict[str, Any],
         merge_strategy: str,
@@ -929,7 +929,7 @@ class SelectionTemplateManager:
         except Exception as e:
             raise TemplateImportError(f"Failed to import template: {e}")
     
-    async def bulk_import(
+    def bulk_import(
         self,
         input_paths: List[Path],
         merge_strategy: str = 'skip',
@@ -950,7 +950,7 @@ class SelectionTemplateManager:
         
         for input_path in input_paths:
             try:
-                result = await self.import_template(input_path, merge_strategy, validate)
+                result = self.import_template(input_path, merge_strategy, validate)
                 
                 # Combine results
                 combined_result.imported_count += result.imported_count
@@ -976,7 +976,7 @@ class SelectionTemplateManager:
         
         return combined_result
     
-    async def validate_import_file(self, input_path: Path) -> Dict[str, Any]:
+    def validate_import_file(self, input_path: Path) -> Dict[str, Any]:
         """
         Validate an import file without actually importing.
         
@@ -1038,7 +1038,7 @@ class SelectionTemplateManager:
         
         return validation_result
     
-    async def export_all_templates(
+    def export_all_templates(
         self,
         output_path: Path,
         format: str = 'json',
@@ -1067,4 +1067,4 @@ class SelectionTemplateManager:
         if not template_ids:
             raise TemplateExportError("No templates to export")
         
-        return await self.export_templates(template_ids, output_path, format)
+        return self.export_templates(template_ids, output_path, format)

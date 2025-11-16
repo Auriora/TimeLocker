@@ -324,12 +324,12 @@ class TestTemplateImportExportWorkflows:
         )
         
         # Save template
-        template_id = await selection_manager.template_manager.create_template(template)
+        template_id = selection_manager.template_manager.create_template(template)
         assert template_id == template.id
         
         # Export template
         export_path = temp_storage_dir / "exported_template.json"
-        result_path = await selection_manager.template_manager.export_template(
+        result_path = selection_manager.template_manager.export_template(
             template_id,
             export_path,
             format='json'
@@ -339,7 +339,7 @@ class TestTemplateImportExportWorkflows:
         # Clear cache and import
         selection_manager.template_manager.templates_cache.clear()
         
-        import_result = await selection_manager.template_manager.import_template(
+        import_result = selection_manager.template_manager.import_template(
             export_path,
             merge_strategy='skip'
         )
@@ -350,7 +350,7 @@ class TestTemplateImportExportWorkflows:
         assert template_id in selection_manager.template_manager.templates_cache
         
         # Verify imported template matches original
-        imported = await selection_manager.template_manager.get_template(template_id)
+        imported = selection_manager.template_manager.get_template(template_id)
         assert imported.name == template.name
         assert imported.description == template.description
 
@@ -381,12 +381,12 @@ class TestTemplateImportExportWorkflows:
                 is_system_template=False
             )
             templates.append(template)
-            await selection_manager.template_manager.create_template(template)
+            selection_manager.template_manager.create_template(template)
         
         # Export all templates
         export_path = temp_storage_dir / "all_templates.json"
         template_ids = [t.id for t in templates]
-        await selection_manager.template_manager.export_templates(
+        selection_manager.template_manager.export_templates(
             template_ids,
             export_path,
             format='json'
@@ -396,7 +396,7 @@ class TestTemplateImportExportWorkflows:
         # Clear cache and import
         selection_manager.template_manager.templates_cache.clear()
         
-        import_result = await selection_manager.template_manager.import_template(
+        import_result = selection_manager.template_manager.import_template(
             export_path,
             merge_strategy='skip'
         )
@@ -434,10 +434,10 @@ class TestTemplateImportExportWorkflows:
             is_system_template=False
         )
         
-        await selection_manager.template_manager.create_template(template)
+        selection_manager.template_manager.create_template(template)
         
         # Retrieve template and create selection
-        retrieved_template = await selection_manager.template_manager.get_template(template.id)
+        retrieved_template = selection_manager.template_manager.get_template(template.id)
         selection = await selection_manager.create_selection(retrieved_template.selection_config)
         
         # Evaluate selection
@@ -478,23 +478,23 @@ class TestTemplateImportExportWorkflows:
             is_system_template=False
         )
         
-        await selection_manager.template_manager.create_template(template)
+        selection_manager.template_manager.create_template(template)
         
         # Export template
         export_path = temp_storage_dir / "template_for_merge.json"
-        await selection_manager.template_manager.export_template(
+        selection_manager.template_manager.export_template(
             template.id,
             export_path
         )
         
         # Modify template locally
-        await selection_manager.template_manager.update_template(
+        selection_manager.template_manager.update_template(
             template.id,
             {'description': 'Modified locally'}
         )
         
         # Test skip strategy
-        result_skip = await selection_manager.template_manager.import_template(
+        result_skip = selection_manager.template_manager.import_template(
             export_path,
             merge_strategy='skip'
         )
@@ -502,29 +502,29 @@ class TestTemplateImportExportWorkflows:
         assert result_skip.imported_count == 0
         
         # Verify local changes preserved
-        current = await selection_manager.template_manager.get_template(template.id)
+        current = selection_manager.template_manager.get_template(template.id)
         assert current.description == 'Modified locally'
         
         # Test overwrite strategy
-        result_overwrite = await selection_manager.template_manager.import_template(
+        result_overwrite = selection_manager.template_manager.import_template(
             export_path,
             merge_strategy='overwrite'
         )
         assert result_overwrite.imported_count == 1
         
         # Verify overwritten
-        current = await selection_manager.template_manager.get_template(template.id)
+        current = selection_manager.template_manager.get_template(template.id)
         assert current.description == 'Original description'
         
         # Test rename strategy
-        result_rename = await selection_manager.template_manager.import_template(
+        result_rename = selection_manager.template_manager.import_template(
             export_path,
             merge_strategy='rename'
         )
         assert result_rename.imported_count == 1
         
         # Should have two templates now
-        templates = await selection_manager.template_manager.list_templates()
+        templates = selection_manager.template_manager.list_templates()
         assert len(templates) == 2
 
 

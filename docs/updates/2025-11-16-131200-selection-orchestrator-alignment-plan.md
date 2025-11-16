@@ -53,7 +53,7 @@ all integration points (CLI, policy automation, background jobs).
    - Update developer docs describing the new API and selection identifier flow and
      log the change once implemented.
 
-- Rules consulted: AGENT-GUIDE-General-Preferences (50), AGENT-RULE-Documentation-Conventions (20)
+- Rules consulted: AGENT-GUIDE-General-Preferences (50), AGENT-RULE-Documentation-Conventions (20), AGENT-GUIDE-Operational-Best-Practices (40), AGENT-GUIDE-Coding-Standards (100)
   — Rules applied: same — Overrides: none.
 
 ### Spec Alignment & Follow-Ups
@@ -96,3 +96,15 @@ Outstanding follow-up work:
 # References
 
 - README.md (CLI overview)
+
+## 5. Implementation Summary
+
+- Made `SelectionTemplateManager` fully synchronous and updated CLI helpers, service interfaces, and tests to consume the new API without coroutine mistakes.
+- Normalized CLI selection flows via `CLIServiceManager.run_selection_backup`, ensuring template IDs drive orchestration metadata plus canonical summaries/suggestions.
+- Added compatibility fallback in `DataSelectionIntegrationService` so legacy selection names resolve to canonical templates, and captured selection metadata in job configs/dry-run output.
+- Extended CLI and orchestrator-level tests to cover the new service entrypoint, tag/dry-run forwarding, warning surfacing, and dry-run enumeration of selection-driven paths.
+
+## 6. Tests
+
+- `pytest tests/TimeLocker/cli/test_backup_data_selection_integration.py`
+- `pytest tests/TimeLocker/services/test_backup_orchestrator_job_execution.py::TestBackupOrchestratorJobExecution::test_dry_run_reports_selected_file_counts`

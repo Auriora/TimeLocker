@@ -134,7 +134,7 @@ async def demo_template_integration():
     )
     
     print("Creating template...")
-    template_id = await manager.template_manager.create_template(template)
+    template_id = manager.template_manager.create_template(template)
     print(f"✓ Template created: {template_id}")
     print(f"  - Name: {template.name}")
     print(f"  - Description: {template.description}")
@@ -142,7 +142,7 @@ async def demo_template_integration():
     
     # List templates
     print("\nListing available templates...")
-    templates = await manager.template_manager.list_templates()
+    templates = manager.template_manager.list_templates()
     print(f"✓ Found {len(templates)} template(s)")
     for tmpl in templates[:3]:  # Show first 3
         print(f"  - {tmpl.name} ({tmpl.id})")
@@ -287,7 +287,7 @@ async def demo_backup_integration():
         selection_config=template_config
     )
     
-    await manager.template_manager.create_template(template)
+    manager.template_manager.create_template(template)
     
     # Create backup target with template
     backup_target = BackupTarget(

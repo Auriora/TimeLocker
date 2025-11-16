@@ -409,6 +409,26 @@ def create_mock_service_manager() -> Mock:
             "status_counts": {}
     }
 
+    # Selection-template helpers for selection-driven backups
+    mock_service_manager.selection_template_exists = MagicMock(return_value=True)
+    mock_service_manager.get_selection_summary = MagicMock(
+            side_effect=lambda name: f"Selection template: {name}"
+    )
+    mock_service_manager.suggest_selection_creation = MagicMock(
+            side_effect=lambda name: f"Selection template '{name}' not found. Run tl selections create {name}."
+    )
+    mock_service_manager.run_selection_backup = MagicMock(
+            return_value=SimpleNamespace(
+                    status=SimpleNamespace(value="completed"),
+                    snapshot_id="selection-snapshot-001",
+                    files_processed=42,
+                    bytes_transferred=2048,
+                    duration=SimpleNamespace(total_seconds=lambda: 1.0),
+                    warnings=[],
+                    errors=[]
+            )
+    )
+
     # Expose stores for downstream fixtures (configuration manager, etc.)
     mock_service_manager._repo_store = repo_store
     mock_service_manager._ensure_repo = _ensure_repo

@@ -23,6 +23,7 @@ architecture with the CLI, maintaining backward compatibility while leveraging
 modern SOLID principles and the new integration architecture.
 """
 
+import asyncio
 import logging
 import time
 from datetime import datetime
@@ -38,6 +39,8 @@ from .interfaces import (
     BackupStatus,
     ConfigurationError
 )
+from .interfaces.backup_orchestrator import BackupOrchestratorError
+from .interfaces.data_models import ExecutionMode
 from .interfaces.service_interface import ServiceInterface
 from .interfaces.integration_data_models import ServiceContext, Event
 from .interfaces.integration_exceptions import (
@@ -53,6 +56,7 @@ from .services import (
 )
 from .services.snapshot_service import SnapshotService
 from .services.repository_service import RepositoryService
+from .selection_manager import SelectionManager
 from .utils.performance_utils import PerformanceModule
 from .config.configuration_module import ConfigurationModule
 from .config.configuration_path_resolver import ConfigurationPathResolver
@@ -270,6 +274,7 @@ class CLIServiceManager:
         except Exception as e:
             logger.warning(f"BackupOrchestrator failed to initialize: {e}")
             self._backup_orchestrator = None
+        self._selection_handler: Optional["BackupCLIHandler"] = None
         
         # Initialize new integration architecture components
         self._service_registry = ServiceRegistry()
@@ -404,6 +409,89 @@ class CLIServiceManager:
             
         except Exception as e:
             logger.warning(f"Failed to register some legacy services: {e}")
+
+    def _get_selection_handler(self) -> "BackupCLIHandler":
+        """
+        Lazily construct and cache the BackupCLIHandler used for selection workflows.
+        """
+        from .cli_modules.helpers.backup_cli_handler import BackupCLIHandler
+        if self._backup_orchestrator is None:
+            raise BackupOrchestratorError("Backup orchestrator is not available")
+        if self._selection_handler is None:
+            selection_manager = SelectionManager()
+            self._selection_handler = BackupCLIHandler(
+                selection_manager=selection_manager,
+                backup_orchestrator=self._backup_orchestrator
+            )
+        return self._selection_handler
+
+    @staticmethod
+    def _run_selection_coroutine(coroutine):
+        """
+        Execute an async selection coroutine from synchronous CLI contexts.
+        """
+        try:
+            return asyncio.run(coroutine)
+        except RuntimeError as exc:
+            raise RuntimeError(
+                "Selection operations must be invoked from a synchronous context."
+            ) from exc
+
+    def selection_template_exists(self, selection_name: str) -> bool:
+        """
+        Check whether a selection template exists by name.
+        """
+        handler = self._get_selection_handler()
+
+        async def _check():
+            return await handler.validate_selection_exists(selection_name)
+
+        return self._run_selection_coroutine(_check())
+
+    def get_selection_summary(self, selection_name: str) -> str:
+        """
+        Retrieve a formatted summary for the specified selection template.
+        """
+        handler = self._get_selection_handler()
+
+        async def _summary():
+            return await handler.get_selection_summary(selection_name)
+
+        return self._run_selection_coroutine(_summary())
+
+    def suggest_selection_creation(self, selection_name: str) -> str:
+        """
+        Provide a helpful hint when a selection template is missing.
+        """
+        handler = self._get_selection_handler()
+        return handler.suggest_template_creation(selection_name)
+
+    def run_selection_backup(
+        self,
+        selection_name: str,
+        repository: str,
+        tags: Optional[List[str]] = None,
+        dry_run: bool = False,
+        execution_mode: ExecutionMode = ExecutionMode.ON_DEMAND,
+        cli_options: Optional[Dict[str, Any]] = None
+    ) -> BackupResult:
+        """
+        Execute a backup job using a named selection template.
+        """
+        handler = self._get_selection_handler()
+        options = dict(cli_options) if cli_options else {}
+
+        async def _execute():
+            return await handler.execute_backup_with_selection(
+                selection_name=selection_name,
+                repository=repository,
+                tags=tags,
+                dry_run=dry_run,
+                execution_mode=execution_mode,
+                **options
+            )
+
+        return self._run_selection_coroutine(_execute())
     
     def initialize_services(self) -> bool:
         """
@@ -483,6 +571,7 @@ class CLIServiceManager:
             if self._service_context:
                 self._service_context.cleanup()
                 self._service_context = None
+            self._selection_handler = None
             
         except Exception as e:
             logger.error(f"Error during service shutdown: {e}")

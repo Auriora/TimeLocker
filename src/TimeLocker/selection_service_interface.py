@@ -71,7 +71,7 @@ class SelectionServiceInterface:
         logger.info(f"Creating selection from template: {template_id}")
         
         # Get template
-        template = await self.selection_manager.template_manager.get_template(template_id)
+        template = self.selection_manager.template_manager.get_template(template_id)
         
         # Start with template configuration
         config = template.selection_config
@@ -196,7 +196,7 @@ class SelectionServiceInterface:
         """
         logger.info("Listing available templates")
         
-        templates = await self.selection_manager.template_manager.list_templates(filters)
+        templates = self.selection_manager.template_manager.list_templates(filters)
         
         # Convert to simple dictionaries
         template_list = []
@@ -224,7 +224,7 @@ class SelectionServiceInterface:
         """
         logger.info(f"Getting template info: {template_id}")
         
-        template = await self.selection_manager.template_manager.get_template(template_id)
+        template = self.selection_manager.template_manager.get_template(template_id)
         
         return {
             'id': template.id,

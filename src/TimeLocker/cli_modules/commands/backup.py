@@ -5,7 +5,6 @@ This module contains CLI commands for creating and verifying backups.
 """
 
 import sys
-import asyncio
 import logging
 from typing import Optional, List, Annotated
 from pathlib import Path
@@ -91,26 +90,30 @@ def backup_create(
     if selection:
         try:
             from TimeLocker.cli_modules.helpers.backup_cli_handler import (
-                BackupCLIHandler,
                 SelectionTemplateNotFoundError,
-                InvalidSelectionConfigError
+                InvalidSelectionConfigError,
+                BackupCLIHandlerError,
             )
-            from TimeLocker.selection_manager import SelectionManager
-            from TimeLocker.services.backup_orchestrator import BackupOrchestrator
+            from TimeLocker.interfaces.backup_orchestrator import BackupOrchestratorError
             from .base import _create_config_service
             
             logger = logging.getLogger(__name__)
             logger.debug(f"Using selection template: {selection}")
             
-            # Initialize required services
             config_service = _create_config_service(config_dir)
-            selection_manager = SelectionManager()
-            
-            # Get service manager with backup orchestrator
             service_manager = _get_service_manager_for_command(config_dir)
             
-            # Verify backup orchestrator is available
-            if not hasattr(service_manager, '_backup_orchestrator') or service_manager._backup_orchestrator is None:
+            if service_manager is None:
+                show_error_panel(
+                    "Service Initialization Error",
+                    "CLI service manager is not available. Please ensure the CLI services are configured correctly."
+                )
+                raise typer.Exit(1)
+            
+            try:
+                template_exists = service_manager.selection_template_exists(selection)
+            except BackupOrchestratorError as exc:
+                logger.error("Backup orchestrator unavailable: %s", exc)
                 show_error_panel(
                     "Service Initialization Error",
                     "Backup orchestrator is not available.\n\n"
@@ -118,19 +121,16 @@ def backup_create(
                     "  tl config show"
                 )
                 raise typer.Exit(1)
+            except Exception as exc:
+                logger.error("Failed to verify selection template: %s", exc)
+                show_error_panel(
+                    "Selection Error",
+                    f"Could not verify selection template '{selection}': {exc}"
+                )
+                raise typer.Exit(1)
             
-            # Create BackupCLIHandler with service manager's orchestrator
-            cli_handler = BackupCLIHandler(
-                selection_manager=selection_manager,
-                backup_orchestrator=service_manager._backup_orchestrator
-            )
-            
-            # Validate selection template exists (async)
-            async def validate_template():
-                return await cli_handler.validate_selection_exists(selection)
-            
-            if not asyncio.run(validate_template()):
-                error_msg = cli_handler.suggest_template_creation(selection)
+            if not template_exists:
+                error_msg = service_manager.suggest_selection_creation(selection)
                 show_error_panel("Selection Template Not Found", error_msg)
                 raise typer.Exit(1)
             
@@ -166,11 +166,11 @@ def backup_create(
             # Display selection info
             console.print(f"📁 Using selection template: [bold cyan]{selection}[/bold cyan]")
             try:
-                async def get_summary():
-                    return await cli_handler.get_selection_summary(selection)
-                
-                summary = asyncio.run(get_summary())
-                console.print(f"[dim]{summary}[/dim]")
+                summary = service_manager.get_selection_summary(selection)
+                if summary:
+                    console.print(f"[dim]{summary}[/dim]")
+            except SelectionTemplateNotFoundError as exc:
+                logger.debug("Template summary unavailable: %s", exc)
             except Exception as e:
                 logger.debug(f"Could not get selection summary: {e}")
             
@@ -184,13 +184,32 @@ def backup_create(
                 'priority': 0
             }
             
-            result = asyncio.run(cli_handler.execute_backup_with_selection(
-                selection_name=selection,
-                repository=repository,
-                tags=tags,
-                dry_run=dry_run,
-                **cli_options
-            ))
+            try:
+                result = service_manager.run_selection_backup(
+                    selection_name=selection,
+                    repository=repository,
+                    tags=tags,
+                    dry_run=dry_run,
+                    cli_options=cli_options
+                )
+            except SelectionTemplateNotFoundError as exc:
+                show_error_panel("Selection Template Not Found", str(exc))
+                raise typer.Exit(1)
+            except InvalidSelectionConfigError as exc:
+                show_error_panel("Invalid Selection Configuration", str(exc))
+                raise typer.Exit(1)
+            except BackupCLIHandlerError as exc:
+                logger.error("Backup execution failed: %s", exc)
+                show_error_panel("Backup Error", f"Failed to execute selection-based backup: {exc}")
+                raise typer.Exit(1)
+            except BackupOrchestratorError as exc:
+                logger.error("Backup orchestrator error: %s", exc)
+                show_error_panel("Service Initialization Error", str(exc))
+                raise typer.Exit(1)
+            except Exception as exc:
+                logger.error("Unexpected error during selection backup: %s", exc)
+                show_error_panel("Backup Error", f"Failed to execute selection-based backup: {exc}")
+                raise typer.Exit(1)
             
             # Display results
             if result.status.value in ['completed', 'success']:

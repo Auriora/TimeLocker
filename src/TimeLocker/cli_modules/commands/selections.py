@@ -202,7 +202,7 @@ def create_selection(
 
         # Save template
         template_manager = SelectionTemplateManager()
-        template_id = asyncio.run(template_manager.create_template(template))
+        template_id = template_manager.create_template(template)
 
         _show_success(
                 "Selection Created",
@@ -243,7 +243,7 @@ def list_selections(
     """
     try:
         template_manager = SelectionTemplateManager()
-        templates = asyncio.run(template_manager.list_templates())
+        templates = template_manager.list_templates()
 
         # Filter by tag if specified
         if tag:
@@ -308,7 +308,7 @@ def show_selection(
     """
     try:
         template_manager = SelectionTemplateManager()
-        templates = asyncio.run(template_manager.list_templates())
+        templates = template_manager.list_templates()
 
         # Find template by name
         template = next((t for t in templates if t.name == name), None)
@@ -394,7 +394,7 @@ def edit_selection(
     """
     try:
         template_manager = SelectionTemplateManager()
-        templates = asyncio.run(template_manager.list_templates())
+        templates = template_manager.list_templates()
 
         # Find template by name
         template = next((t for t in templates if t.name == name), None)
@@ -467,7 +467,7 @@ def edit_selection(
             return
 
         # Update template
-        updated_template = asyncio.run(template_manager.update_template(template.id, updates))
+        updated_template = template_manager.update_template(template.id, updates)
 
         _show_success(
                 "Selection Updated",
@@ -500,7 +500,7 @@ def delete_selection(
     """
     try:
         template_manager = SelectionTemplateManager()
-        templates = asyncio.run(template_manager.list_templates())
+        templates = template_manager.list_templates()
 
         # Find template by name
         template = next((t for t in templates if t.name == name), None)
@@ -517,7 +517,7 @@ def delete_selection(
                 return
 
         # Delete template
-        asyncio.run(template_manager.delete_template(template.id))
+        template_manager.delete_template(template.id)
 
         _show_success(
                 "Selection Deleted",
@@ -552,7 +552,7 @@ def test_selection(
     """
     try:
         template_manager = SelectionTemplateManager()
-        templates = asyncio.run(template_manager.list_templates())
+        templates = template_manager.list_templates()
 
         # Find template by name
         template = next((t for t in templates if t.name == name), None)
@@ -641,7 +641,7 @@ def export_selection(
             raise typer.Exit(1)
 
         template_manager = SelectionTemplateManager()
-        templates = asyncio.run(template_manager.list_templates())
+        templates = template_manager.list_templates()
 
         # Find template by name
         template = next((t for t in templates if t.name == name), None)
@@ -659,12 +659,10 @@ def export_selection(
             output_path = output_path.with_suffix(f".{format_normalized}")
 
         # Export template directly to file
-        exported_path = asyncio.run(
-                template_manager.export_template(
-                        template.id,
-                        output_path=output_path,
-                        format=format_normalized
-                )
+        exported_path = template_manager.export_template(
+                template.id,
+                output_path=output_path,
+                format=format_normalized
         )
 
         _show_success(
@@ -717,12 +715,10 @@ def import_selection(
 
         # Import templates (SelectionTemplateManager auto-detects based on file extension)
         template_manager = SelectionTemplateManager()
-        result = asyncio.run(
-                template_manager.import_template(
-                        file,
-                        merge_strategy=merge,
-                        validate=True
-                )
+        result = template_manager.import_template(
+                file,
+                merge_strategy=merge,
+                validate=True
         )
 
         # Display results

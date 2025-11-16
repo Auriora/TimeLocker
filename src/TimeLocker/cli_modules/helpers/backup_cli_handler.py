@@ -23,7 +23,6 @@ and the data selection system, handling template resolution, validation,
 and translation to backup job configurations.
 """
 
-import asyncio
 import logging
 import uuid
 from pathlib import Path
@@ -119,7 +118,7 @@ class BackupCLIHandler:
             return False
         
         try:
-            template = await self.selection_manager.template_manager.get_template(
+            template = self.selection_manager.template_manager.get_template(
                 selection_name, by_name=True
             )
             return template is not None
@@ -128,6 +127,27 @@ class BackupCLIHandler:
         except Exception as e:
             logger.debug(f"Error checking template existence: {e}")
             return False
+
+    def _get_template_by_name(self, selection_name: str):
+        """
+        Resolve a selection template by name or raise a descriptive error.
+        """
+        try:
+            template = self.selection_manager.template_manager.get_template(
+                selection_name,
+                by_name=True
+            )
+        except TemplateNotFoundError as exc:
+            raise SelectionTemplateNotFoundError(
+                f"Selection template '{selection_name}' not found"
+            ) from exc
+
+        if template is None:
+            raise SelectionTemplateNotFoundError(
+                f"Selection template '{selection_name}' not found"
+            )
+
+        return template
     
     async def get_selection_summary(self, selection_name: str) -> str:
         """
@@ -143,13 +163,11 @@ class BackupCLIHandler:
             SelectionTemplateNotFoundError: If template doesn't exist
         """
         try:
-            template = await self.selection_manager.template_manager.get_template(
-                selection_name, by_name=True
-            )
+            template = self._get_template_by_name(selection_name)
             
             # Build summary from template configuration
             config = template.selection_config
-            summary_parts = [f"Selection: {selection_name}"]
+            summary_parts = [f"Selection: {template.name} ({template.id})"]
             
             if config.include_paths:
                 summary_parts.append(f"  Include paths: {len(config.include_paths)}")
@@ -162,10 +180,6 @@ class BackupCLIHandler:
             
             return "\n".join(summary_parts)
             
-        except TemplateNotFoundError as e:
-            raise SelectionTemplateNotFoundError(
-                f"Failed to get template '{selection_name}': {e}"
-            ) from e
         except SelectionError as e:
             raise SelectionTemplateNotFoundError(
                 f"Failed to get template '{selection_name}': {e}"
@@ -216,10 +230,10 @@ class BackupCLIHandler:
                 )
                 raise SelectionTemplateNotFoundError(error_msg)
             
-            # Get template by name
-            template = await self.selection_manager.template_manager.get_template(
-                selection_name, by_name=True
-            )
+            # Resolve template using canonical ID
+            template = self._get_template_by_name(selection_name)
+            selection_template_id = template.id
+            selection_display_name = template.name
             
             # Validate selection configuration
             validation_result = await self.selection_manager.validate_selection(
@@ -239,13 +253,14 @@ class BackupCLIHandler:
             
             # Translate selection template to backup job configuration
             job_config = self._translate_selection_to_job_config(
-                selection_name=selection_name,
-                template=template,
+                selection_template_id=selection_template_id,
+                selection_template_name=selection_display_name,
                 repository=repository,
                 tags=tags,
                 dry_run=dry_run,
                 execution_mode=execution_mode,
-                cli_options=cli_options
+                cli_options=cli_options,
+                user_selection_input=selection_name
             )
             
             # Execute backup job
@@ -276,13 +291,14 @@ class BackupCLIHandler:
     
     def _translate_selection_to_job_config(
         self,
-        selection_name: str,
-        template: Any,
+        selection_template_id: str,
+        selection_template_name: str,
         repository: str,
         tags: Optional[List[str]],
         dry_run: bool,
         execution_mode: ExecutionMode,
-        cli_options: Dict[str, Any]
+        cli_options: Dict[str, Any],
+        user_selection_input: Optional[str] = None
     ) -> BackupJobConfig:
         """
         Translate a selection template to a backup job configuration.
@@ -303,7 +319,7 @@ class BackupCLIHandler:
             BackupJobConfig ready for execution
         """
         # Generate unique job ID
-        job_id = f"backup-{selection_name}-{uuid.uuid4().hex[:8]}"
+        job_id = f"backup-{selection_template_id}-{uuid.uuid4().hex[:8]}"
         
         # Extract tool type from CLI options or use default
         tool_type = cli_options.get('tool_type', 'restic')
@@ -325,7 +341,7 @@ class BackupCLIHandler:
         job_config = BackupJobConfig(
             job_id=job_id,
             repository_id=repository,
-            data_selection_id=selection_name,
+            data_selection_id=selection_template_id,
             execution_mode=execution_mode,
             tool_type=tool_type,
             tags=tags or [],
@@ -334,14 +350,17 @@ class BackupCLIHandler:
             dry_run=dry_run,
             priority=cli_options.get('priority', 0),
             metadata={
-                'selection_template': selection_name,
+                'selection_template': selection_template_name,
+                'selection_template_id': selection_template_id,
+                'selection_template_name': selection_template_name,
+                'selection_argument': user_selection_input or selection_template_name,
                 'cli_invoked': True,
                 'cli_options': cli_options
             }
         )
         
         logger.debug(
-            f"Translated selection '{selection_name}' to job config: "
+            f"Translated selection '{selection_template_name}' to job config: "
             f"job_id={job_config.job_id}, repository={repository}, "
             f"tool={tool_type}, dry_run={dry_run}"
         )

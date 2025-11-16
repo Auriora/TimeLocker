@@ -94,10 +94,9 @@ class TestSelectionTemplateManager:
         assert len(template_manager.templates_cache) == 0
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_create_template(self, template_manager, sample_template):
+    def test_create_template(self, template_manager, sample_template):
         """Test creating a new template."""
-        template_id = await template_manager.create_template(sample_template)
+        template_id = template_manager.create_template(sample_template)
         
         assert template_id == sample_template.id
         assert template_id in template_manager.templates_cache
@@ -107,17 +106,15 @@ class TestSelectionTemplateManager:
         assert template_file.exists()
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_create_duplicate_template(self, template_manager, sample_template):
+    def test_create_duplicate_template(self, template_manager, sample_template):
         """Test creating a template with duplicate ID raises error."""
-        await template_manager.create_template(sample_template)
+        template_manager.create_template(sample_template)
         
         with pytest.raises(TemplateAlreadyExistsError):
-            await template_manager.create_template(sample_template)
+            template_manager.create_template(sample_template)
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_create_invalid_template(self, template_manager):
+    def test_create_invalid_template(self, template_manager):
         """Test creating an invalid template raises error."""
         # Template without name - will fail at model validation
         with pytest.raises(ValueError):
@@ -131,30 +128,27 @@ class TestSelectionTemplateManager:
             )
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_get_template(self, template_manager, sample_template):
+    def test_get_template(self, template_manager, sample_template):
         """Test retrieving a template by ID."""
         initial_usage = sample_template.usage_count
-        await template_manager.create_template(sample_template)
+        template_manager.create_template(sample_template)
         
-        retrieved = await template_manager.get_template(sample_template.id)
+        retrieved = template_manager.get_template(sample_template.id)
         
         assert retrieved.id == sample_template.id
         assert retrieved.name == sample_template.name
         assert retrieved.usage_count > initial_usage  # Should increment
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_get_nonexistent_template(self, template_manager):
+    def test_get_nonexistent_template(self, template_manager):
         """Test retrieving a non-existent template raises error."""
         with pytest.raises(TemplateNotFoundError):
-            await template_manager.get_template("nonexistent-id")
+            template_manager.get_template("nonexistent-id")
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_list_templates(self, template_manager, sample_template):
+    def test_list_templates(self, template_manager, sample_template):
         """Test listing all templates."""
-        await template_manager.create_template(sample_template)
+        template_manager.create_template(sample_template)
         
         # Create another template
         template2 = SelectionTemplate(
@@ -169,38 +163,36 @@ class TestSelectionTemplateManager:
             tags=["test"],
             is_system_template=False
         )
-        await template_manager.create_template(template2)
+        template_manager.create_template(template2)
         
-        templates = await template_manager.list_templates()
+        templates = template_manager.list_templates()
         
         assert len(templates) == 2
         assert any(t.id == sample_template.id for t in templates)
         assert any(t.id == template2.id for t in templates)
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_list_templates_with_filters(self, template_manager, sample_template):
+    def test_list_templates_with_filters(self, template_manager, sample_template):
         """Test listing templates with filters."""
-        await template_manager.create_template(sample_template)
+        template_manager.create_template(sample_template)
         
         # Filter by tag
-        templates = await template_manager.list_templates(filters={'tags': ['documents']})
+        templates = template_manager.list_templates(filters={'tags': ['documents']})
         assert len(templates) == 1
         assert templates[0].id == sample_template.id
         
         # Filter by name
-        templates = await template_manager.list_templates(filters={'name_contains': 'Test'})
+        templates = template_manager.list_templates(filters={'name_contains': 'Test'})
         assert len(templates) == 1
         
         # Filter by system template
-        templates = await template_manager.list_templates(filters={'is_system_template': False})
+        templates = template_manager.list_templates(filters={'is_system_template': False})
         assert len(templates) == 1
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_update_template(self, template_manager, sample_template):
+    def test_update_template(self, template_manager, sample_template):
         """Test updating a template."""
-        await template_manager.create_template(sample_template)
+        template_manager.create_template(sample_template)
         
         updates = {
             'name': 'Updated Template',
@@ -208,22 +200,20 @@ class TestSelectionTemplateManager:
             'tags': ['updated', 'test']
         }
         
-        updated = await template_manager.update_template(sample_template.id, updates)
+        updated = template_manager.update_template(sample_template.id, updates)
         
         assert updated.name == 'Updated Template'
         assert updated.description == 'Updated description'
         assert 'updated' in updated.tags
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_update_nonexistent_template(self, template_manager):
+    def test_update_nonexistent_template(self, template_manager):
         """Test updating a non-existent template raises error."""
         with pytest.raises(TemplateNotFoundError):
-            await template_manager.update_template("nonexistent-id", {'name': 'New Name'})
+            template_manager.update_template("nonexistent-id", {'name': 'New Name'})
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_update_system_template(self, template_manager):
+    def test_update_system_template(self, template_manager):
         """Test updating a system template raises error."""
         system_template = SelectionTemplate(
             id=str(uuid.uuid4()),
@@ -237,18 +227,17 @@ class TestSelectionTemplateManager:
             is_system_template=True
         )
         
-        await template_manager.create_template(system_template)
+        template_manager.create_template(system_template)
         
         with pytest.raises(TemplateValidationError):
-            await template_manager.update_template(system_template.id, {'name': 'New Name'})
+            template_manager.update_template(system_template.id, {'name': 'New Name'})
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_delete_template(self, template_manager, sample_template):
+    def test_delete_template(self, template_manager, sample_template):
         """Test deleting a template."""
-        await template_manager.create_template(sample_template)
+        template_manager.create_template(sample_template)
         
-        result = await template_manager.delete_template(sample_template.id)
+        result = template_manager.delete_template(sample_template.id)
         
         assert result is True
         assert sample_template.id not in template_manager.templates_cache
@@ -258,15 +247,13 @@ class TestSelectionTemplateManager:
         assert not template_file.exists()
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_delete_nonexistent_template(self, template_manager):
+    def test_delete_nonexistent_template(self, template_manager):
         """Test deleting a non-existent template raises error."""
         with pytest.raises(TemplateNotFoundError):
-            await template_manager.delete_template("nonexistent-id")
+            template_manager.delete_template("nonexistent-id")
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_delete_system_template(self, template_manager):
+    def test_delete_system_template(self, template_manager):
         """Test deleting a system template raises error."""
         system_template = SelectionTemplate(
             id=str(uuid.uuid4()),
@@ -280,19 +267,18 @@ class TestSelectionTemplateManager:
             is_system_template=True
         )
         
-        await template_manager.create_template(system_template)
+        template_manager.create_template(system_template)
         
         with pytest.raises(TemplateValidationError):
-            await template_manager.delete_template(system_template.id)
+            template_manager.delete_template(system_template.id)
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_duplicate_template(self, template_manager, sample_template):
+    def test_duplicate_template(self, template_manager, sample_template):
         """Test duplicating a template."""
-        await template_manager.create_template(sample_template)
+        template_manager.create_template(sample_template)
         
         new_name = "Duplicated Template"
-        duplicated = await template_manager.duplicate_template(sample_template.id, new_name)
+        duplicated = template_manager.duplicate_template(sample_template.id, new_name)
         
         assert duplicated.id != sample_template.id
         assert duplicated.name == new_name
@@ -301,20 +287,18 @@ class TestSelectionTemplateManager:
         assert duplicated.id in template_manager.templates_cache
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_duplicate_nonexistent_template(self, template_manager):
+    def test_duplicate_nonexistent_template(self, template_manager):
         """Test duplicating a non-existent template raises error."""
         with pytest.raises(TemplateNotFoundError):
-            await template_manager.duplicate_template("nonexistent-id", "New Name")
+            template_manager.duplicate_template("nonexistent-id", "New Name")
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_get_template_usage(self, template_manager, sample_template):
+    def test_get_template_usage(self, template_manager, sample_template):
         """Test getting template usage information."""
-        await template_manager.create_template(sample_template)
-        await template_manager.get_template(sample_template.id)  # Increment usage
+        template_manager.create_template(sample_template)
+        template_manager.get_template(sample_template.id)  # Increment usage
         
-        usage = await template_manager.get_template_usage(sample_template.id)
+        usage = template_manager.get_template_usage(sample_template.id)
         
         assert usage['template_id'] == sample_template.id
         assert usage['template_name'] == sample_template.name
@@ -323,13 +307,12 @@ class TestSelectionTemplateManager:
         assert 'updated_at' in usage
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_export_template_json(self, template_manager, sample_template, temp_storage_dir):
+    def test_export_template_json(self, template_manager, sample_template, temp_storage_dir):
         """Test exporting a template to JSON."""
-        await template_manager.create_template(sample_template)
+        template_manager.create_template(sample_template)
         
         output_path = temp_storage_dir / "exported_template.json"
-        result_path = await template_manager.export_template(
+        result_path = template_manager.export_template(
             sample_template.id,
             output_path,
             format='json'
@@ -347,13 +330,12 @@ class TestSelectionTemplateManager:
         assert data['name'] == sample_template.name
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_export_template_yaml(self, template_manager, sample_template, temp_storage_dir):
+    def test_export_template_yaml(self, template_manager, sample_template, temp_storage_dir):
         """Test exporting a template to YAML."""
-        await template_manager.create_template(sample_template)
+        template_manager.create_template(sample_template)
         
         output_path = temp_storage_dir / "exported_template.yaml"
-        result_path = await template_manager.export_template(
+        result_path = template_manager.export_template(
             sample_template.id,
             output_path,
             format='yaml'
@@ -363,19 +345,17 @@ class TestSelectionTemplateManager:
         assert output_path.exists()
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_export_nonexistent_template(self, template_manager, temp_storage_dir):
+    def test_export_nonexistent_template(self, template_manager, temp_storage_dir):
         """Test exporting a non-existent template raises error."""
         output_path = temp_storage_dir / "exported.json"
         
         with pytest.raises(TemplateNotFoundError):
-            await template_manager.export_template("nonexistent-id", output_path)
+            template_manager.export_template("nonexistent-id", output_path)
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_export_multiple_templates(self, template_manager, sample_template, temp_storage_dir):
+    def test_export_multiple_templates(self, template_manager, sample_template, temp_storage_dir):
         """Test exporting multiple templates."""
-        await template_manager.create_template(sample_template)
+        template_manager.create_template(sample_template)
         
         template2 = SelectionTemplate(
             id=str(uuid.uuid4()),
@@ -387,10 +367,10 @@ class TestSelectionTemplateManager:
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
-        await template_manager.create_template(template2)
+        template_manager.create_template(template2)
         
         output_path = temp_storage_dir / "exported_templates.json"
-        result_path = await template_manager.export_templates(
+        result_path = template_manager.export_templates(
             [sample_template.id, template2.id],
             output_path,
             format='json'
@@ -408,50 +388,47 @@ class TestSelectionTemplateManager:
         assert len(data['templates']) == 2
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_import_template(self, template_manager, sample_template, temp_storage_dir):
+    def test_import_template(self, template_manager, sample_template, temp_storage_dir):
         """Test importing a template from file."""
         # First export a template
-        await template_manager.create_template(sample_template)
+        template_manager.create_template(sample_template)
         export_path = temp_storage_dir / "export.json"
-        await template_manager.export_template(sample_template.id, export_path)
+        template_manager.export_template(sample_template.id, export_path)
         
         # Clear cache and import
         template_manager.templates_cache.clear()
         
-        result = await template_manager.import_template(export_path, merge_strategy='skip')
+        result = template_manager.import_template(export_path, merge_strategy='skip')
         
         assert result.success
         assert result.imported_count == 1
         assert sample_template.id in template_manager.templates_cache
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_import_template_skip_existing(self, template_manager, sample_template, temp_storage_dir):
+    def test_import_template_skip_existing(self, template_manager, sample_template, temp_storage_dir):
         """Test importing with skip strategy for existing templates."""
-        await template_manager.create_template(sample_template)
+        template_manager.create_template(sample_template)
         
         # Export and try to import again
         export_path = temp_storage_dir / "export.json"
-        await template_manager.export_template(sample_template.id, export_path)
+        template_manager.export_template(sample_template.id, export_path)
         
-        result = await template_manager.import_template(export_path, merge_strategy='skip')
+        result = template_manager.import_template(export_path, merge_strategy='skip')
         
         assert result.success
         assert result.skipped_count == 1
         assert result.imported_count == 0
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_import_template_rename_existing(self, template_manager, sample_template, temp_storage_dir):
+    def test_import_template_rename_existing(self, template_manager, sample_template, temp_storage_dir):
         """Test importing with rename strategy for existing templates."""
-        await template_manager.create_template(sample_template)
+        template_manager.create_template(sample_template)
         
         # Export and try to import again with rename
         export_path = temp_storage_dir / "export.json"
-        await template_manager.export_template(sample_template.id, export_path)
+        template_manager.export_template(sample_template.id, export_path)
         
-        result = await template_manager.import_template(export_path, merge_strategy='rename')
+        result = template_manager.import_template(export_path, merge_strategy='rename')
         
         assert result.success
         assert result.imported_count == 1
@@ -459,48 +436,45 @@ class TestSelectionTemplateManager:
         assert len(template_manager.templates_cache) == 2
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_import_template_overwrite_existing(self, template_manager, sample_template, temp_storage_dir):
+    def test_import_template_overwrite_existing(self, template_manager, sample_template, temp_storage_dir):
         """Test importing with overwrite strategy for existing templates."""
-        await template_manager.create_template(sample_template)
+        template_manager.create_template(sample_template)
         
         # Modify and export
-        await template_manager.update_template(sample_template.id, {'description': 'Modified'})
+        template_manager.update_template(sample_template.id, {'description': 'Modified'})
         export_path = temp_storage_dir / "export.json"
-        await template_manager.export_template(sample_template.id, export_path)
+        template_manager.export_template(sample_template.id, export_path)
         
         # Modify again locally
-        await template_manager.update_template(sample_template.id, {'description': 'Local change'})
+        template_manager.update_template(sample_template.id, {'description': 'Local change'})
         
         # Import with overwrite
-        result = await template_manager.import_template(export_path, merge_strategy='overwrite')
+        result = template_manager.import_template(export_path, merge_strategy='overwrite')
         
         assert result.success
         assert result.imported_count == 1
         
         # Should have overwritten description
-        template = await template_manager.get_template(sample_template.id)
+        template = template_manager.get_template(sample_template.id)
         assert template.description == 'Modified'
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_validate_import_file(self, template_manager, sample_template, temp_storage_dir):
+    def test_validate_import_file(self, template_manager, sample_template, temp_storage_dir):
         """Test validating an import file without importing."""
-        await template_manager.create_template(sample_template)
+        template_manager.create_template(sample_template)
         export_path = temp_storage_dir / "export.json"
-        await template_manager.export_template(sample_template.id, export_path)
+        template_manager.export_template(sample_template.id, export_path)
         
-        validation = await template_manager.validate_import_file(export_path)
+        validation = template_manager.validate_import_file(export_path)
         
         assert validation['valid']
         assert validation['template_count'] == 1
         assert len(validation['errors']) == 0
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_export_all_templates(self, template_manager, sample_template, temp_storage_dir):
+    def test_export_all_templates(self, template_manager, sample_template, temp_storage_dir):
         """Test exporting all templates."""
-        await template_manager.create_template(sample_template)
+        template_manager.create_template(sample_template)
         
         template2 = SelectionTemplate(
             id=str(uuid.uuid4()),
@@ -512,10 +486,10 @@ class TestSelectionTemplateManager:
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
-        await template_manager.create_template(template2)
+        template_manager.create_template(template2)
         
         output_path = temp_storage_dir / "all_templates.json"
-        result_path = await template_manager.export_all_templates(output_path, include_system=False)
+        result_path = template_manager.export_all_templates(output_path, include_system=False)
         
         assert result_path == output_path
         assert output_path.exists()
@@ -528,24 +502,22 @@ class TestSelectionTemplateManager:
         assert len(data['templates']) == 2
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_template_persistence(self, temp_storage_dir, sample_template):
+    def test_template_persistence(self, temp_storage_dir, sample_template):
         """Test that templates persist across manager instances."""
         # Create template with first manager
         manager1 = SelectionTemplateManager(storage_dir=temp_storage_dir)
-        await manager1.create_template(sample_template)
+        manager1.create_template(sample_template)
         
         # Create new manager instance
         manager2 = SelectionTemplateManager(storage_dir=temp_storage_dir)
         
         # Template should be loaded from storage
         assert sample_template.id in manager2.templates_cache
-        retrieved = await manager2.get_template(sample_template.id)
+        retrieved = manager2.get_template(sample_template.id)
         assert retrieved.name == sample_template.name
     
     @pytest.mark.unit
-    @pytest.mark.asyncio
-    async def test_template_validation_no_include_criteria(self, template_manager):
+    def test_template_validation_no_include_criteria(self, template_manager):
         """Test validation fails when template has no include criteria."""
         invalid_template = SelectionTemplate(
             id=str(uuid.uuid4()),
@@ -559,6 +531,6 @@ class TestSelectionTemplateManager:
         )
         
         with pytest.raises(TemplateValidationError) as exc_info:
-            await template_manager.create_template(invalid_template)
+            template_manager.create_template(invalid_template)
         
         assert "at least one include" in str(exc_info.value).lower()

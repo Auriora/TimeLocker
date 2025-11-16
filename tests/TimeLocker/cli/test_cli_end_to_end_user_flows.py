@@ -4,6 +4,7 @@ End-to-end CLI workflow tests covering repository setup, selection creation, and
 
 from __future__ import annotations
 
+import asyncio
 import os
 from contextlib import contextmanager
 from pathlib import Path
@@ -14,6 +15,9 @@ import pytest
 
 from src.TimeLocker.cli import app
 from TimeLocker.interfaces.data_models import BackupResult, BackupStatus
+from TimeLocker.selection_manager import SelectionManager
+from TimeLocker.selection_template_manager import SelectionTemplateManager
+from TimeLocker.cli_modules.helpers.backup_cli_handler import BackupCLIHandler
 from tests.TimeLocker.cli.test_utils import get_cli_runner, combined_output
 
 runner = get_cli_runner()
@@ -41,10 +45,57 @@ class StubBackupOrchestrator:
 
 
 class StubServiceManager:
-    """Service manager stub exposing only the orchestrator attribute used by the CLI."""
-
+    """Service manager stub that proxies selection operations to the real handler."""
+    
     def __init__(self, orchestrator: StubBackupOrchestrator) -> None:
         self._backup_orchestrator = orchestrator
+    
+    @staticmethod
+    def _run(coro):
+        return asyncio.run(coro)
+    
+    def _create_handler(self) -> BackupCLIHandler:
+        return BackupCLIHandler(
+            selection_manager=SelectionManager(),
+            backup_orchestrator=self._backup_orchestrator
+        )
+    
+    def selection_template_exists(self, selection_name: str) -> bool:
+        handler = self._create_handler()
+        async def _check():
+            return await handler.validate_selection_exists(selection_name)
+        return self._run(_check())
+    
+    def get_selection_summary(self, selection_name: str) -> str:
+        handler = self._create_handler()
+        async def _summary():
+            return await handler.get_selection_summary(selection_name)
+        return self._run(_summary())
+    
+    def suggest_selection_creation(self, selection_name: str) -> str:
+        handler = self._create_handler()
+        return handler.suggest_template_creation(selection_name)
+    
+    def run_selection_backup(
+        self,
+        selection_name: str,
+        repository: str,
+        tags=None,
+        dry_run: bool = False,
+        execution_mode=None,
+        cli_options=None
+    ):
+        handler = self._create_handler()
+        async def _execute():
+            return await handler.execute_backup_with_selection(
+                selection_name=selection_name,
+                repository=repository,
+                tags=tags,
+                dry_run=dry_run,
+                execution_mode=execution_mode,
+                **(cli_options or {})
+            )
+        return self._run(_execute())
 
 
 @contextmanager
@@ -161,7 +212,10 @@ class TestCLIEndToEndWorkflows:
         assert "Backup Completed" in output
         assert orchestrator.job_configs, "backup orchestrator was not invoked"
         job_config = orchestrator.job_configs[-1]
-        assert job_config.data_selection_id == selection_name
+        template_storage = Path(isolated_cli_environment["env"]["XDG_DATA_HOME"]) / "timelocker" / "templates"
+        template_manager = SelectionTemplateManager(storage_dir=template_storage)
+        template = template_manager.get_template(selection_name, by_name=True)
+        assert job_config.data_selection_id == template.id
         assert job_config.repository_id == repo_name
         assert job_config.metadata.get("cli_invoked") is True
 
@@ -192,4 +246,7 @@ class TestCLIEndToEndWorkflows:
         assert orchestrator.job_configs, "backup orchestrator was not invoked"
         job_config = orchestrator.job_configs[-1]
         assert job_config.repository_id == repo_name
-        assert job_config.data_selection_id == selection_name
+        template_storage = Path(isolated_cli_environment["env"]["XDG_DATA_HOME"]) / "timelocker" / "templates"
+        template_manager = SelectionTemplateManager(storage_dir=template_storage)
+        template = template_manager.get_template(selection_name, by_name=True)
+        assert job_config.data_selection_id == template.id

@@ -15,10 +15,8 @@ Tests Requirements:
 """
 
 import pytest
-import asyncio
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from pathlib import Path
-from datetime import timedelta
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 from src.TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import (
@@ -28,16 +26,10 @@ from tests.TimeLocker.cli.test_utils import (
     assert_output_contains
 )
 
-from TimeLocker.interfaces.data_models import (
-    BackupStatus,
-    ExecutionMode,
-    BackupJobConfig
-)
-from TimeLocker.selection_models import SelectionConfig, ValidationResult
 from TimeLocker.cli_modules.helpers.backup_cli_handler import (
-    BackupCLIHandler,
     SelectionTemplateNotFoundError,
-    InvalidSelectionConfigError
+    InvalidSelectionConfigError,
+    BackupCLIHandlerError
 )
 
 
@@ -48,50 +40,32 @@ class TestBackupCreateWithSelectionTemplate:
     """Test backup create command with selection templates (Requirement 10.1)"""
     
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    @patch('TimeLocker.selection_manager.SelectionManager')
-    @patch('TimeLocker.cli_modules.helpers.backup_cli_handler.BackupCLIHandler')
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
+    @patch('src.TimeLocker.cli_modules.commands.base._create_config_service')
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
     def test_backup_create_with_valid_selection_template(
         self,
-        mock_handler_class,
-        mock_selection_manager_class,
-        mock_service_manager
+        mock_get_manager,
+        mock_create_config_service,
+        mock_get_service_method
     ):
         """Test successful backup creation using a valid selection template"""
-        # Setup service manager mock
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager._backup_orchestrator = Mock()
+        mock_get_service_method.return_value = None
+        mock_create_config_service.return_value = Mock()
         
-        # Setup selection manager mock
-        mock_sm_instance = Mock()
-        mock_selection_manager_class.return_value = mock_sm_instance
-        
-        # Setup BackupCLIHandler mock
-        mock_handler = Mock()
-        mock_handler_class.return_value = mock_handler
-        
-        # Mock async methods
-        async def mock_validate(selection_name):
-            return True
-        
-        async def mock_summary(selection_name):
-            return "Test selection with 5 paths"
-        
-        async def mock_execute(*args, **kwargs):
-            return Mock(
-                status=Mock(value='completed'),
-                snapshot_id='test-snapshot-123',
-                files_processed=100,
-                bytes_transferred=1024000,
-                duration=Mock(total_seconds=lambda: 10.5),
-                warnings=[],
-                errors=[]
-            )
-        
-        mock_handler.validate_selection_exists = mock_validate
-        mock_handler.get_selection_summary = mock_summary
-        mock_handler.execute_backup_with_selection = mock_execute
+        service_manager = Mock()
+        service_manager.selection_template_exists.return_value = True
+        service_manager.get_selection_summary.return_value = "Test selection with 5 paths"
+        service_manager.run_selection_backup.return_value = Mock(
+            status=Mock(value='completed'),
+            snapshot_id='test-snapshot-123',
+            files_processed=100,
+            bytes_transferred=1024000,
+            duration=Mock(total_seconds=lambda: 10.5),
+            warnings=[],
+            errors=[]
+        )
+        mock_get_manager.return_value = service_manager
         
         # Execute command
         result = runner.invoke(app, [
@@ -104,39 +78,30 @@ class TestBackupCreateWithSelectionTemplate:
         assert_exit_code(result, 0)
         output = combined_output(result)
         assert "documents" in output.lower() or "selection" in output.lower()
+        service_manager.selection_template_exists.assert_called_once_with("documents")
+        service_manager.run_selection_backup.assert_called_once()
     
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    @patch('TimeLocker.selection_manager.SelectionManager')
-    @patch('TimeLocker.cli_modules.helpers.backup_cli_handler.BackupCLIHandler')
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
+    @patch('src.TimeLocker.cli_modules.commands.base._create_config_service')
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
     def test_backup_create_with_selection_and_tags(
         self,
-        mock_handler_class,
-        mock_selection_manager_class,
-        mock_service_manager
+        mock_get_manager,
+        mock_create_config_service,
+        mock_get_service_method
     ):
         """Test backup creation with selection template and custom tags"""
-        # Setup mocks
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager._backup_orchestrator = Mock()
+        mock_get_service_method.return_value = None
+        mock_create_config_service.return_value = Mock()
         
-        mock_sm_instance = Mock()
-        mock_selection_manager_class.return_value = mock_sm_instance
-        
-        mock_handler = Mock()
-        mock_handler_class.return_value = mock_handler
-        
-        # Track tags passed to execute method
         tags_received = []
         
-        async def mock_validate(selection_name):
-            return True
+        service_manager = Mock()
+        service_manager.selection_template_exists.return_value = True
+        service_manager.get_selection_summary.return_value = "Test selection"
         
-        async def mock_summary(selection_name):
-            return "Test selection"
-        
-        async def mock_execute(*args, **kwargs):
+        def capture_run_selection_backup(**kwargs):
             tags_received.extend(kwargs.get('tags', []))
             return Mock(
                 status=Mock(value='completed'),
@@ -148,9 +113,8 @@ class TestBackupCreateWithSelectionTemplate:
                 errors=[]
             )
         
-        mock_handler.validate_selection_exists = mock_validate
-        mock_handler.get_selection_summary = mock_summary
-        mock_handler.execute_backup_with_selection = mock_execute
+        service_manager.run_selection_backup.side_effect = capture_run_selection_backup
+        mock_get_manager.return_value = service_manager
         
         # Execute command with tags
         result = runner.invoke(app, [
@@ -166,41 +130,30 @@ class TestBackupCreateWithSelectionTemplate:
         assert "daily" in tags_received or "important" in tags_received
     
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    @patch('TimeLocker.selection_manager.SelectionManager')
-    @patch('TimeLocker.cli_modules.helpers.backup_cli_handler.BackupCLIHandler')
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
+    @patch('src.TimeLocker.cli_modules.commands.base._create_config_service')
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
     def test_backup_create_with_selection_dry_run(
         self,
-        mock_handler_class,
-        mock_selection_manager_class,
-        mock_service_manager
+        mock_get_manager,
+        mock_create_config_service,
+        mock_get_service_method
     ):
         """Test backup creation with selection template in dry-run mode"""
-        # Setup mocks
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager._backup_orchestrator = Mock()
+        mock_get_service_method.return_value = None
+        mock_create_config_service.return_value = Mock()
         
-        mock_sm_instance = Mock()
-        mock_selection_manager_class.return_value = mock_sm_instance
-        
-        mock_handler = Mock()
-        mock_handler_class.return_value = mock_handler
-        
-        # Track dry_run flag
         dry_run_received = []
         
-        async def mock_validate(selection_name):
-            return True
+        service_manager = Mock()
+        service_manager.selection_template_exists.return_value = True
+        service_manager.get_selection_summary.return_value = "Test selection"
         
-        async def mock_summary(selection_name):
-            return "Test selection"
-        
-        async def mock_execute(*args, **kwargs):
+        def capture_run_selection_backup(**kwargs):
             dry_run_received.append(kwargs.get('dry_run', False))
             return Mock(
                 status=Mock(value='completed'),
-                snapshot_id=None,  # No snapshot in dry-run
+                snapshot_id=None,
                 files_processed=75,
                 bytes_transferred=0,
                 duration=Mock(total_seconds=lambda: 2.0),
@@ -208,9 +161,8 @@ class TestBackupCreateWithSelectionTemplate:
                 errors=[]
             )
         
-        mock_handler.validate_selection_exists = mock_validate
-        mock_handler.get_selection_summary = mock_summary
-        mock_handler.execute_backup_with_selection = mock_execute
+        service_manager.run_selection_backup.side_effect = capture_run_selection_backup
+        mock_get_manager.return_value = service_manager
         
         # Execute command with dry-run
         result = runner.invoke(app, [
@@ -224,281 +176,133 @@ class TestBackupCreateWithSelectionTemplate:
         assert_exit_code(result, 0)
         assert True in dry_run_received
 
-
-class TestSelectionTemplateNotFound:
-    """Test error handling when selection template doesn't exist (Requirement 10.4)"""
-    
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    @patch('TimeLocker.selection_manager.SelectionManager')
-    @patch('TimeLocker.cli_modules.helpers.backup_cli_handler.BackupCLIHandler')
-    def test_backup_create_with_nonexistent_template(
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
+    @patch('src.TimeLocker.cli_modules.commands.base._create_config_service')
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    def test_backup_create_passes_cli_options(
         self,
-        mock_handler_class,
-        mock_selection_manager_class,
-        mock_service_manager
+        mock_get_manager,
+        mock_create_config_service,
+        mock_get_service_method
     ):
-        """Test error message when selection template doesn't exist"""
-        # Setup mocks
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager._backup_orchestrator = Mock()
+        mock_get_service_method.return_value = None
+        mock_create_config_service.return_value = Mock()
         
-        mock_sm_instance = Mock()
-        mock_selection_manager_class.return_value = mock_sm_instance
-        
-        mock_handler = Mock()
-        mock_handler_class.return_value = mock_handler
-        
-        # Mock template not found
-        async def mock_validate(selection_name):
-            return False
-        
-        mock_handler.validate_selection_exists = mock_validate
-        mock_handler.suggest_template_creation = Mock(
-            return_value="Template 'nonexistent' not found. Create it with: tl selections create nonexistent"
+        service_manager = Mock()
+        service_manager.selection_template_exists.return_value = True
+        service_manager.get_selection_summary.return_value = "Summary"
+        service_manager.run_selection_backup.return_value = Mock(
+            status=Mock(value='completed'),
+            snapshot_id='abc',
+            files_processed=1,
+            bytes_transferred=1,
+            duration=Mock(total_seconds=lambda: 0.1),
+            warnings=[],
+            errors=[]
         )
+        mock_get_manager.return_value = service_manager
         
-        # Execute command with nonexistent template
         result = runner.invoke(app, [
             "backup", "create",
-            "--selection", "nonexistent",
+            "--selection", "docs",
             "--repository", "test-repo"
         ])
         
-        # Verify error handling
-        assert_exit_code(result, 1)
-        output = combined_output(result)
-        assert "not found" in output.lower() or "error" in output.lower()
+        assert_exit_code(result, 0)
+        cli_options = service_manager.run_selection_backup.call_args[1]["cli_options"]
+        assert cli_options["tool_type"] == "restic"
+        assert cli_options["max_retries"] == 3
+
+class TestBackupSelectionErrors:
+    """Test error handling paths for selection-driven backups."""
     
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    @patch('TimeLocker.selection_manager.SelectionManager')
-    @patch('TimeLocker.cli_modules.helpers.backup_cli_handler.BackupCLIHandler')
-    def test_error_message_suggests_template_creation(
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
+    @patch('src.TimeLocker.cli_modules.commands.base._create_config_service')
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    def test_backup_create_with_nonexistent_template(
         self,
-        mock_handler_class,
-        mock_selection_manager_class,
-        mock_service_manager
+        mock_get_manager,
+        mock_create_config_service,
+        mock_get_service_method
     ):
-        """Test that error message suggests how to create the template"""
-        # Setup mocks
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager._backup_orchestrator = Mock()
+        mock_get_service_method.return_value = None
+        mock_create_config_service.return_value = Mock()
         
-        mock_sm_instance = Mock()
-        mock_selection_manager_class.return_value = mock_sm_instance
+        service_manager = Mock()
+        service_manager.selection_template_exists.return_value = False
+        service_manager.suggest_selection_creation.return_value = "Template missing. Run tl selections create missing."
+        mock_get_manager.return_value = service_manager
         
-        mock_handler = Mock()
-        mock_handler_class.return_value = mock_handler
-        
-        # Mock template not found with suggestion
-        async def mock_validate(selection_name):
-            return False
-        
-        mock_handler.validate_selection_exists = mock_validate
-        mock_handler.suggest_template_creation = Mock(
-            return_value=(
-                "Selection template 'missing' not found.\n\n"
-                "💡 Create a selection template using:\n"
-                "   tl selections create missing --paths /path/to/backup"
-            )
-        )
-        
-        # Execute command
         result = runner.invoke(app, [
             "backup", "create",
             "--selection", "missing",
             "--repository", "test-repo"
         ])
         
-        # Verify suggestion in output
         assert_exit_code(result, 1)
         output = combined_output(result)
-        # Check for helpful suggestions
-        assert "create" in output.lower() or "selections" in output.lower()
+        assert "missing" in output.lower()
+        service_manager.selection_template_exists.assert_called_once_with("missing")
     
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    @patch('TimeLocker.selection_manager.SelectionManager')
-    @patch('TimeLocker.cli_modules.helpers.backup_cli_handler.BackupCLIHandler')
-    def test_error_message_lists_available_templates(
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
+    @patch('src.TimeLocker.cli_modules.commands.base._create_config_service')
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    def test_backup_create_handles_invalid_selection_config(
         self,
-        mock_handler_class,
-        mock_selection_manager_class,
-        mock_service_manager
+        mock_get_manager,
+        mock_create_config_service,
+        mock_get_service_method
     ):
-        """Test that error message lists available templates when template not found"""
-        # Setup mocks
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager._backup_orchestrator = Mock()
+        mock_get_service_method.return_value = None
+        mock_create_config_service.return_value = Mock()
         
-        mock_sm_instance = Mock()
-        mock_selection_manager_class.return_value = mock_sm_instance
+        service_manager = Mock()
+        service_manager.selection_template_exists.return_value = True
+        service_manager.get_selection_summary.return_value = "Summary"
+        service_manager.run_selection_backup.side_effect = InvalidSelectionConfigError("invalid template")
+        mock_get_manager.return_value = service_manager
         
-        mock_handler = Mock()
-        mock_handler_class.return_value = mock_handler
-        
-        # Mock template not found with available templates
-        async def mock_validate(selection_name):
-            return False
-        
-        mock_handler.validate_selection_exists = mock_validate
-        mock_handler.suggest_template_creation = Mock(
-            return_value=(
-                "Selection template 'wrong' not found.\n\n"
-                "Available templates:\n"
-                "  - documents\n"
-                "  - photos\n"
-                "  - code\n\n"
-                "To create a new selection template:\n"
-                "  tl selections create wrong --paths /path/to/backup"
-            )
-        )
-        
-        # Execute command
         result = runner.invoke(app, [
             "backup", "create",
-            "--selection", "wrong",
+            "--selection", "bad-template",
             "--repository", "test-repo"
         ])
         
-        # Verify available templates are shown
         assert_exit_code(result, 1)
         output = combined_output(result)
-        assert "available" in output.lower() or "templates" in output.lower()
-
-
-class TestSelectionTemplateResolution:
-    """Test selection template resolution and parameter translation (Requirements 10.2, 10.3)"""
+        assert "invalid selection configuration" in output.lower()
     
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    @patch('TimeLocker.selection_manager.SelectionManager')
-    @patch('TimeLocker.cli_modules.helpers.backup_cli_handler.BackupCLIHandler')
-    def test_template_resolution_to_backup_config(
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
+    @patch('src.TimeLocker.cli_modules.commands.base._create_config_service')
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    def test_backup_create_handles_handler_errors(
         self,
-        mock_handler_class,
-        mock_selection_manager_class,
-        mock_service_manager
+        mock_get_manager,
+        mock_create_config_service,
+        mock_get_service_method
     ):
-        """Test that selection template is properly resolved to backup configuration"""
-        # Setup mocks
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager._backup_orchestrator = Mock()
+        mock_get_service_method.return_value = None
+        mock_create_config_service.return_value = Mock()
         
-        mock_sm_instance = Mock()
-        mock_selection_manager_class.return_value = mock_sm_instance
+        service_manager = Mock()
+        service_manager.selection_template_exists.return_value = True
+        service_manager.get_selection_summary.return_value = "Summary"
+        service_manager.run_selection_backup.side_effect = BackupCLIHandlerError("failed to run backup")
+        mock_get_manager.return_value = service_manager
         
-        mock_handler = Mock()
-        mock_handler_class.return_value = mock_handler
-        
-        # Track job config created
-        job_configs_created = []
-        
-        async def mock_validate(selection_name):
-            return True
-        
-        async def mock_summary(selection_name):
-            return "Selection with include/exclude patterns"
-        
-        async def mock_execute(*args, **kwargs):
-            # Capture the parameters passed
-            job_configs_created.append({
-                'selection_name': kwargs.get('selection_name'),
-                'repository': kwargs.get('repository'),
-                'execution_mode': kwargs.get('execution_mode')
-            })
-            return Mock(
-                status=Mock(value='completed'),
-                snapshot_id='test-123',
-                files_processed=100,
-                bytes_transferred=1024000,
-                duration=Mock(total_seconds=lambda: 10.0),
-                warnings=[],
-                errors=[]
-            )
-        
-        mock_handler.validate_selection_exists = mock_validate
-        mock_handler.get_selection_summary = mock_summary
-        mock_handler.execute_backup_with_selection = mock_execute
-        
-        # Execute command
         result = runner.invoke(app, [
             "backup", "create",
-            "--selection", "test-template",
-            "--repository", "my-repo"
-        ])
-        
-        # Verify template was resolved
-        assert_exit_code(result, 0)
-        assert len(job_configs_created) > 0
-        assert job_configs_created[0]['selection_name'] == 'test-template'
-        assert job_configs_created[0]['repository'] == 'my-repo'
-    
-    @pytest.mark.integration
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    @patch('TimeLocker.selection_manager.SelectionManager')
-    @patch('TimeLocker.cli_modules.helpers.backup_cli_handler.BackupCLIHandler')
-    def test_template_parameters_translated_to_backup_tool(
-        self,
-        mock_handler_class,
-        mock_selection_manager_class,
-        mock_service_manager
-    ):
-        """Test that template parameters are translated to backup tool format"""
-        # Setup mocks
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager._backup_orchestrator = Mock()
-        
-        mock_sm_instance = Mock()
-        mock_selection_manager_class.return_value = mock_sm_instance
-        
-        mock_handler = Mock()
-        mock_handler_class.return_value = mock_handler
-        
-        # Track CLI options passed
-        cli_options_received = []
-        
-        async def mock_validate(selection_name):
-            return True
-        
-        async def mock_summary(selection_name):
-            return "Complex selection with patterns"
-        
-        async def mock_execute(*args, **kwargs):
-            cli_options_received.append(kwargs)
-            return Mock(
-                status=Mock(value='completed'),
-                snapshot_id='test-123',
-                files_processed=50,
-                bytes_transferred=512000,
-                duration=Mock(total_seconds=lambda: 5.0),
-                warnings=[],
-                errors=[]
-            )
-        
-        mock_handler.validate_selection_exists = mock_validate
-        mock_handler.get_selection_summary = mock_summary
-        mock_handler.execute_backup_with_selection = mock_execute
-        
-        # Execute command
-        result = runner.invoke(app, [
-            "backup", "create",
-            "--selection", "complex-template",
+            "--selection", "docs",
             "--repository", "test-repo"
         ])
         
-        # Verify CLI options were passed
-        assert_exit_code(result, 0)
-        assert len(cli_options_received) > 0
-        # Verify tool_type and other options are present
-        options = cli_options_received[0]
-        assert 'tool_type' in options or 'max_retries' in options
+        assert_exit_code(result, 1)
+        output = combined_output(result)
+        assert "failed to execute selection-based backup" in output.lower()
 
 
 class TestHelpTextAccuracy:
@@ -589,169 +393,80 @@ class TestHelpTextAccuracy:
             assert "selection" in create_output.lower()
 
 
-class TestInvalidSelectionConfiguration:
-    """Test handling of invalid selection configurations"""
-    
-    @pytest.mark.integration
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    @patch('TimeLocker.selection_manager.SelectionManager')
-    @patch('TimeLocker.cli_modules.helpers.backup_cli_handler.BackupCLIHandler')
-    def test_backup_fails_with_invalid_selection_config(
-        self,
-        mock_handler_class,
-        mock_selection_manager_class,
-        mock_service_manager
-    ):
-        """Test that backup fails gracefully with invalid selection configuration"""
-        # Setup mocks
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager._backup_orchestrator = Mock()
-        
-        mock_sm_instance = Mock()
-        mock_selection_manager_class.return_value = mock_sm_instance
-        
-        mock_handler = Mock()
-        mock_handler_class.return_value = mock_handler
-        
-        # Mock invalid configuration
-        async def mock_validate(selection_name):
-            return True
-        
-        async def mock_summary(selection_name):
-            return "Invalid selection"
-        
-        async def mock_execute(*args, **kwargs):
-            raise InvalidSelectionConfigError(
-                "Selection template has invalid configuration: Missing include paths"
-            )
-        
-        mock_handler.validate_selection_exists = mock_validate
-        mock_handler.get_selection_summary = mock_summary
-        mock_handler.execute_backup_with_selection = mock_execute
-        
-        # Execute command
-        result = runner.invoke(app, [
-            "backup", "create",
-            "--selection", "invalid-template",
-            "--repository", "test-repo"
-        ])
-        
-        # Verify error handling
-        assert_exit_code(result, 1)
-        output = combined_output(result)
-        assert "invalid" in output.lower() or "error" in output.lower()
-
 
 class TestBackupExecutionWithSelection:
     """Test complete backup execution workflow with selection templates"""
     
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    @patch('TimeLocker.selection_manager.SelectionManager')
-    @patch('TimeLocker.cli_modules.helpers.backup_cli_handler.BackupCLIHandler')
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
+    @patch('src.TimeLocker.cli_modules.commands.base._create_config_service')
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
     def test_successful_backup_shows_snapshot_id(
         self,
-        mock_handler_class,
-        mock_selection_manager_class,
-        mock_service_manager
+        mock_get_manager,
+        mock_create_config_service,
+        mock_get_service_method
     ):
-        """Test that successful backup displays snapshot ID"""
-        # Setup mocks
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager._backup_orchestrator = Mock()
+        mock_get_service_method.return_value = None
+        mock_create_config_service.return_value = Mock()
         
-        mock_sm_instance = Mock()
-        mock_selection_manager_class.return_value = mock_sm_instance
+        service_manager = Mock()
+        service_manager.selection_template_exists.return_value = True
+        service_manager.get_selection_summary.return_value = "Summary"
+        service_manager.run_selection_backup.return_value = SimpleNamespace(
+            status=SimpleNamespace(value='completed'),
+            snapshot_id='test-snapshot-123',
+            files_processed=100,
+            bytes_transferred=1024000,
+            duration=SimpleNamespace(total_seconds=lambda: 10.0),
+            warnings=[],
+            errors=[]
+        )
+        mock_get_manager.return_value = service_manager
         
-        mock_handler = Mock()
-        mock_handler_class.return_value = mock_handler
-        
-        async def mock_validate(selection_name):
-            return True
-        
-        async def mock_summary(selection_name):
-            return "Test selection"
-        
-        async def mock_execute(*args, **kwargs):
-            return Mock(
-                status=Mock(value='completed'),
-                snapshot_id='abc123def456',
-                files_processed=250,
-                bytes_transferred=5242880,
-                duration=Mock(total_seconds=lambda: 15.5),
-                warnings=[],
-                errors=[]
-            )
-        
-        mock_handler.validate_selection_exists = mock_validate
-        mock_handler.get_selection_summary = mock_summary
-        mock_handler.execute_backup_with_selection = mock_execute
-        
-        # Execute command
         result = runner.invoke(app, [
             "backup", "create",
             "--selection", "test-template",
             "--repository", "test-repo"
         ])
         
-        # Verify snapshot ID is shown
         assert_exit_code(result, 0)
         output = combined_output(result)
-        assert "snapshot" in output.lower() or "abc123" in output.lower()
+        assert "snapshot" in output.lower()
     
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    @patch('TimeLocker.selection_manager.SelectionManager')
-    @patch('TimeLocker.cli_modules.helpers.backup_cli_handler.BackupCLIHandler')
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
+    @patch('src.TimeLocker.cli_modules.commands.base._create_config_service')
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
     def test_backup_with_warnings_displays_warnings(
         self,
-        mock_handler_class,
-        mock_selection_manager_class,
-        mock_service_manager
+        mock_get_manager,
+        mock_create_config_service,
+        mock_get_service_method
     ):
-        """Test that backup warnings are displayed to user"""
-        # Setup mocks
-        mock_manager = Mock()
-        mock_service_manager.return_value = mock_manager
-        mock_manager._backup_orchestrator = Mock()
+        mock_get_service_method.return_value = None
+        mock_create_config_service.return_value = Mock()
         
-        mock_sm_instance = Mock()
-        mock_selection_manager_class.return_value = mock_sm_instance
+        service_manager = Mock()
+        service_manager.selection_template_exists.return_value = True
+        service_manager.get_selection_summary.return_value = "Summary"
+        service_manager.run_selection_backup.return_value = SimpleNamespace(
+            status=SimpleNamespace(value='completed'),
+            snapshot_id='test-123',
+            files_processed=10,
+            bytes_transferred=100,
+            duration=SimpleNamespace(total_seconds=lambda: 1.0),
+            warnings=["Some files skipped", "Permission denied"],
+            errors=[]
+        )
+        mock_get_manager.return_value = service_manager
         
-        mock_handler = Mock()
-        mock_handler_class.return_value = mock_handler
-        
-        async def mock_validate(selection_name):
-            return True
-        
-        async def mock_summary(selection_name):
-            return "Test selection"
-        
-        async def mock_execute(*args, **kwargs):
-            return Mock(
-                status=Mock(value='completed'),
-                snapshot_id='test-123',
-                files_processed=100,
-                bytes_transferred=1024000,
-                duration=Mock(total_seconds=lambda: 10.0),
-                warnings=["Some files were skipped", "Permission denied on /root"],
-                errors=[]
-            )
-        
-        mock_handler.validate_selection_exists = mock_validate
-        mock_handler.get_selection_summary = mock_summary
-        mock_handler.execute_backup_with_selection = mock_execute
-        
-        # Execute command
         result = runner.invoke(app, [
             "backup", "create",
             "--selection", "test-template",
             "--repository", "test-repo"
         ])
         
-        # Verify warnings are shown
         assert_exit_code(result, 0)
         output = combined_output(result)
-        assert "warning" in output.lower() or "skipped" in output.lower()
+        assert "warning" in output.lower()

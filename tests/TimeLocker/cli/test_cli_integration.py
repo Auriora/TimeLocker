@@ -399,7 +399,10 @@ class TestCLIIntegrationWorkflows:
         combined = combined_output(result)
         assert selection_name in combined
 
-        orchestrator.execute_backup_job.assert_called_once()
+        mock_manager.run_selection_backup.assert_called_once()
+        run_kwargs = mock_manager.run_selection_backup.call_args.kwargs
+        assert run_kwargs["selection_name"] == selection_name
+        assert run_kwargs["repository"] == "my-backup"
 
         # Step 6: List snapshots to verify workflow summary
         result = runner.invoke(app, ["snapshots", "list"])
