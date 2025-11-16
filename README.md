@@ -246,23 +246,17 @@ tl backup create --selection home-documents --repository myrepo --dry-run
 
 ### More Detailed Examples
 
-```python
-# Using B2 backend
-repo = manager.from_uri(
-        "b2:bucket-name/backup?account_id=your-id&account_key=your-key",
-        password="your-password"
-)
+```bash
+# Configure a B2 repository and set it as default
+tl repos add my-b2 --uri "b2:bucket-name/backup?account_id=abc&account_key=xyz"
+tl repos set-default my-b2
 
-# Adding pattern groups
-selection = FileSelection()
-selection.add_pattern_group("office_documents")
-selection.add_pattern_group("source_code", SelectionType.EXCLUDE)
+# Create/preview a selection template with pattern groups
+tl selections create work-docs --include /home/user/work --pattern-group office_documents
+tl selections preview work-docs --limit 20
 
-# Creating snapshot
-snapshot = repo.create_snapshot(target)
-
-# Restoring files
-snapshot.restore("/path/to/restore")
+# Trigger a dry-run backup so you can review selection warnings
+tl backup create --selection work-docs --dry-run --tags team=ops --verbose
 ```
 
 ### Troubleshooting
