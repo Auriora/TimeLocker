@@ -31,8 +31,10 @@ explicitly opted in.
 ## 3. Implementation Notes
 
 - New tests: `tests/TimeLocker/scheduling/test_schedule_validator_contracts.py`.
+- Added ScheduleManager dry-run smoke: `tests/TimeLocker/scheduling/test_schedule_manager_smoke.py` to ensure scheduler writes are skipped in dry-run mode.
 - Telemetry guardrails: CI opt-out in `TelemetryConfig.from_env` plus test coverage.
-- Testing: `pytest tests/TimeLocker/scheduling/test_schedule_validator_contracts.py tests/TimeLocker/monitoring/test_telemetry.py`.
+- Testing:
+  `pytest tests/TimeLocker/scheduling/test_schedule_validator_contracts.py tests/TimeLocker/scheduling/test_schedule_manager_smoke.py tests/TimeLocker/monitoring/test_telemetry.py`.
 
 ## 4. Documentation & Links
 
