@@ -1,5 +1,6 @@
 # Update Index
 
+- [2025-11-22-120000-posthog-telemetry](./2025-11-22-120000-posthog-telemetry.md)
 - [2025-11-16-180401-cli-policy-e2e-tests](./2025-11-16-180401-cli-policy-e2e-tests.md)
 - [2025-11-16-173040-cli-backup-restore-e2e-tests](./2025-11-16-173040-cli-backup-restore-e2e-tests.md)
 - [2025-11-16-183900-cli-snapshot-restore-schedule-e2e-tests](./2025-11-16-183900-cli-snapshot-restore-schedule-e2e-tests.md)

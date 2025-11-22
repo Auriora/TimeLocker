@@ -36,6 +36,8 @@ from rich.logging import RichHandler
 
 from .utils import PromptService, PromptError, OutputFormatter, get_output_formatter
 
+from .monitoring.telemetry import record_exception, setup_telemetry_from_env
+
 from . import __version__
 from .backup_manager import BackupManager
 from .backup_target import BackupTarget
@@ -1083,7 +1085,23 @@ def cli_completion(
 
 def main() -> None:
     """Entry point for legacy integrations expecting TimeLocker.cli.main."""
-    app()
+    telemetry_handle = None
+    try:
+        telemetry_handle = setup_telemetry_from_env()
+        app()
+    except typer.Exit:
+        raise
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except Exception as exc:  # pylint: disable=broad-except
+        try:
+            record_exception(exc)
+        except Exception:  # pragma: no cover - telemetry must be fail-open
+            logger.debug("Failed to record exception to telemetry", exc_info=True)
+        raise
+    finally:
+        if telemetry_handle:
+            telemetry_handle.shutdown()
 
 
 @config_import_app.command("restic")
