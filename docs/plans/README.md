@@ -49,6 +49,10 @@ concrete than proposals and are created after a proposal has been accepted.
 - `_template.md`: A generic template for any plan.
 - `_template.test-coverage-plan.md`: A specific template for creating a plan to improve test coverage.
 
+## Current Plans
+
+- `2025-11-22-testing-scheduling-telemetry-plan.md` — stabilization of CLI repo tests, scheduling adapters, and telemetry guardrails.
+
 # References
 
 - Link to additional resources, specs, or tickets

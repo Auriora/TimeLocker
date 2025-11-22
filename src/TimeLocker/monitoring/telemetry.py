@@ -92,12 +92,18 @@ class TelemetryConfig:
         except ValueError:
             sample_ratio = 1.0
 
-        if env_flag.lower() == "false":
+        flag_lower = env_flag.lower()
+
+        if flag_lower == "false":
             enabled = False
-        elif env_flag.lower() in {"true", "1", "yes", "on"}:
+        elif flag_lower in {"true", "1", "yes", "on"}:
             enabled = True
         else:
-            enabled = bool(api_key)
+            # Auto-mode defaults to enabled only when a key is present, but will
+            # stay disabled in CI unless explicitly opted in to avoid surprise
+            # network calls during automated test runs.
+            ci_opt_out = os.getenv("CI") and not os.getenv("TIMELOCKER_TELEMETRY_CI_OPT_IN")
+            enabled = bool(api_key) and not ci_opt_out
 
         return cls(
                 enabled=enabled,

@@ -125,3 +125,13 @@ def test_backend_posthog_selected(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert calls["init"] == ("k", "https://eu.i.posthog.com")
     assert "capture" in calls
+
+
+def test_auto_mode_disables_in_ci_even_with_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("CI", "true")
+    monkeypatch.setenv("POSTHOG_API_KEY", "secret-key")
+    monkeypatch.delenv("TIMELOCKER_TELEMETRY_ENABLED", raising=False)
+    monkeypatch.delenv("TIMELOCKER_TELEMETRY_CI_OPT_IN", raising=False)
+
+    config = TelemetryConfig.from_env()
+    assert config.enabled is False
