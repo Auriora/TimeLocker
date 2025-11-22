@@ -17,6 +17,11 @@ def _get_api_key() -> str:
 def test_posthog_otlp_exception_log(monkeypatch: pytest.MonkeyPatch) -> None:
     """Send an exception as span+log to PostHog OTLP endpoints (requires API key)."""
 
+    try:
+        import posthog  # noqa: F401
+    except ImportError:
+        pytest.skip("posthog package not installed; skipping client backend test")
+
     api_key = _get_api_key()
     if not api_key:
         pytest.skip("POSTHOG_API_KEY not configured for system telemetry test")

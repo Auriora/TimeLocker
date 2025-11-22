@@ -25,21 +25,24 @@ that telemetry can be disabled or re-pointed via configuration.
 
 ## 2. Summary
 
-- Introduced `monitoring.telemetry` module that configures OTLP/HTTP exporters for PostHog (EU region) with sampler control and fail-open behaviour.
-- Wired CLI entrypoint to initialise telemetry on startup and record uncaught exceptions as spans without affecting exit codes.
-- Exposed env configuration: `POSTHOG_API_KEY`, `POSTHOG_OTLP_ENDPOINT` (default `https://eu.i.posthog.com`), `TIMELOCKER_TELEMETRY_ENABLED`, and
+- Introduced `monitoring.telemetry` module that configures OTLP/HTTP exporters for PostHog (EU region) with sampler control and fail-open behaviour, plus a
+  PostHog client backend.
+- Wired CLI entrypoint to initialise telemetry on startup and record uncaught exceptions as spans/logs without affecting exit codes.
+- Exposed env configuration: `POSTHOG_API_KEY`, `POSTHOG_OTLP_ENDPOINT` (default `https://eu.i.posthog.com`), `POSTHOG_OTLP_LOGS_ENDPOINT` (derived from the
+  base), `POSTHOG_HOST` (for client backend, default EU), `TIMELOCKER_TELEMETRY_ENABLED`, `TIMELOCKER_TELEMETRY_BACKEND`, and
   `TIMELOCKER_TELEMETRY_SAMPLE_RATIO`.
 
 ## 3. Implementation Notes
 
 - New module: `src/TimeLocker/monitoring/telemetry.py` (resource setup, exporter factories, exception recorder).
 - CLI startup now calls `setup_telemetry_from_env()`; exceptions flow through `record_exception` before re-raising.
-- Added unit coverage in `tests/TimeLocker/monitoring/test_telemetry.py` using dummy exporters to avoid network calls.
-- Added opt-in system test `tests/TimeLocker/monitoring/test_telemetry_system.py` (network/integration) that sends a span + metric to PostHog OTLP when
-  `POSTHOG_API_KEY` is set.
-- Dependencies: `opentelemetry-sdk`, `opentelemetry-exporter-otlp-proto-http` added to `pyproject.toml`.
-- Suggested runtime config: export `POSTHOG_API_KEY='phc_emB3QtpPpfAURUCtjiTJ1N9e3MY0S7mR4ooDBP6wX8L'` and optional sampling/env overrides; OTLP targets
-  `https://eu.i.posthog.com/ingest/otlp/v1/{traces|metrics}`.
+- Added unit coverage in `tests/TimeLocker/monitoring/test_telemetry.py` (including backend selection) using dummy exporters to avoid network calls.
+- Added opt-in system test `tests/TimeLocker/monitoring/test_telemetry_system.py` (network/integration) that sends a synthetic exception via the active backend
+  when `POSTHOG_API_KEY` is set.
+- Dependencies: `opentelemetry-sdk`, `opentelemetry-exporter-otlp-proto-http`, `posthog` added to `pyproject.toml`.
+- Suggested runtime config: export `POSTHOG_API_KEY='phc_emB3QtpPpfAURUCtjiTJ1N9e3MY0S7mR4ooDBP6wX8L'`; OTLP defaults to
+  `https://eu.i.posthog.com/otlp/v1/{traces|metrics}` and logs to `https://eu.i.posthog.com/i/v1/logs` unless overridden; set
+  `TIMELOCKER_TELEMETRY_BACKEND=posthog` to use the client backend.
 
 ## 4. Testing
 

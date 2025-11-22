@@ -8,6 +8,7 @@ from TimeLocker.monitoring.telemetry import (
     TelemetryConfig,
     TelemetryHandle,
     setup_telemetry,
+    setup_telemetry_from_env,
 )
 
 
@@ -88,3 +89,39 @@ def test_sample_ratio_clamped(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("TIMELOCKER_TELEMETRY_ENABLED", "true")
     config = TelemetryConfig.from_env()
     assert config.sample_ratio == 1.0
+
+
+def test_backend_posthog_selected(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls = {}
+
+    class FakePosthog:
+        def __init__(self, project_api_key: str, host: str):  # type: ignore[override]
+            calls["init"] = (project_api_key, host)
+
+        def capture(self, **kwargs):  # type: ignore[override]
+            calls.setdefault("capture", []).append(kwargs)
+
+        def flush(self):
+            calls["flush"] = True
+
+        def close(self):
+            calls["close"] = True
+
+    import types, sys
+
+    fake_module = types.SimpleNamespace(Posthog=FakePosthog)
+    sys.modules["posthog"] = fake_module  # type: ignore[assignment]
+
+    import TimeLocker.monitoring.telemetry as telemetry
+
+    monkeypatch.setenv("TIMELOCKER_TELEMETRY_BACKEND", "posthog")
+    monkeypatch.setenv("POSTHOG_API_KEY", "k")
+    monkeypatch.setenv("POSTHOG_HOST", "https://eu.i.posthog.com")
+
+    handle = setup_telemetry_from_env()
+    assert handle is not None
+    telemetry.record_exception(RuntimeError("boom"))
+    handle.shutdown()
+
+    assert calls["init"] == ("k", "https://eu.i.posthog.com")
+    assert "capture" in calls

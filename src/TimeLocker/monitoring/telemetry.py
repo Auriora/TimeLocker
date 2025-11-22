@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import os
+import uuid
 from dataclasses import dataclass
 from typing import Callable, Optional
 
@@ -31,9 +32,14 @@ from .. import __version__
 
 logger = logging.getLogger(__name__)
 
+# Global callbacks so existing call sites can remain unchanged
+_record_exception_cb: Callable[[BaseException], None] = lambda exc: None
+_shutdown_cb: Callable[[], None] = lambda: None
+
 DEFAULT_ENDPOINT = "https://eu.i.posthog.com"
 DEFAULT_SERVICE_NAME = "timelocker-cli"
-DEFAULT_LOGS_ENDPOINT = "https://us.i.posthog.com/i/v1/logs"  # PostHog logs beta (US only as of 2025-11-22)
+DEFAULT_LOGS_ENDPOINT = "https://eu.i.posthog.com/i/v1/logs"
+DEFAULT_POSTHOG_HOST = "https://eu.i.posthog.com"
 
 
 def _clamp_ratio(value: float) -> float:
@@ -137,6 +143,36 @@ class TelemetryHandle:
         self.shutdown()
 
 
+class PosthogTelemetryHandle:
+    """Simple wrapper for PostHog client to align with TelemetryHandle API."""
+
+    def __init__(self, client: Posthog) -> None:
+        self._client = client
+
+    def shutdown(self) -> None:
+        try:
+            self._client.flush()
+        except Exception:  # pragma: no cover
+            logger.debug("PostHog flush failed", exc_info=True)
+        try:
+            self._client.close()
+        except Exception:  # pragma: no cover
+            logger.debug("PostHog close failed", exc_info=True)
+
+    def record_exception(self, exc: BaseException) -> None:
+        try:
+            self._client.capture(
+                    distinct_id=str(uuid.uuid4()),
+                    event="timelocker.exception",
+                    properties={
+                            "exception.type":    type(exc).__name__,
+                            "exception.message": str(exc),
+                    },
+            )
+        except Exception:  # pragma: no cover
+            logger.debug("PostHog capture failed", exc_info=True)
+
+
 def _build_span_exporter(config: TelemetryConfig) -> SpanExporter:
     headers = {"Authorization": f"Bearer {config.api_key}"}
     return OTLPSpanExporter(endpoint=f"{config.endpoint}/otlp/v1/traces", headers=headers)
@@ -202,48 +238,102 @@ def setup_telemetry(
 
         _logs.set_logger_provider(logger_provider)
 
+        def _rec(exc: BaseException) -> None:
+            tracer = trace.get_tracer(config.service_name)
+            current_span = trace.get_current_span()
+
+            try:
+                if current_span.get_span_context().is_valid:
+                    span = current_span
+                    span.record_exception(exc)
+                    span.set_status(Status(StatusCode.ERROR, str(exc)))
+                else:
+                    with tracer.start_as_current_span("uncaught.exception") as span:
+                        span.record_exception(exc)
+                        span.set_status(Status(StatusCode.ERROR, str(exc)))
+            except Exception:
+                logger.debug("Failed to record span for exception", exc_info=True)
+
+            try:
+                from opentelemetry import _logs
+
+                logger_provider = _logs.get_logger_provider()
+                if logger_provider:
+                    otel_logger = logger_provider.get_logger(config.service_name)
+                    otel_logger.emit(
+                            severity_text="ERROR",
+                            body=f"Unhandled exception: {exc}",
+                            attributes={"exception.type": type(exc).__name__, "exception.message": str(exc)},
+                    )
+            except Exception:
+                logger.debug("Failed to emit OTEL log for exception", exc_info=True)
+
+        handle = TelemetryHandle(tracer_provider, meter_provider, logger_provider)
+
+        global _record_exception_cb, _shutdown_cb  # noqa: PLW0603
+        _record_exception_cb = _rec
+        _shutdown_cb = handle.shutdown
+
         logger.info("Telemetry initialised with endpoint %s", config.endpoint)
-        return TelemetryHandle(tracer_provider, meter_provider, logger_provider)
+        return handle
     except Exception as exc:
         logger.warning("Telemetry disabled due to exporter error: %s", exc)
         return None
 
 
 def setup_telemetry_from_env() -> Optional[TelemetryHandle]:
-    """Convenience wrapper using environment defaults."""
+    """Convenience wrapper using environment defaults and backend selector."""
 
+    backend = os.getenv("TIMELOCKER_TELEMETRY_BACKEND", "otel").lower()
     config = TelemetryConfig.from_env()
-    return setup_telemetry(config)
+
+    if backend == "posthog":
+        handle = _setup_posthog(config)
+    else:
+        handle = setup_telemetry(config)
+
+    if handle is None:
+        global _record_exception_cb, _shutdown_cb  # noqa: PLW0603
+        _record_exception_cb = lambda exc: None
+        _shutdown_cb = lambda: None
+
+    return handle
+
+
+def _setup_posthog(config: TelemetryConfig) -> Optional[PosthogTelemetryHandle]:
+    if not config.enabled:
+        logger.debug("Telemetry disabled by configuration")
+        return None
+    if not config.api_key:
+        logger.warning("Telemetry enabled but POSTHOG_API_KEY not provided; disabling")
+        return None
+
+    host = os.getenv("POSTHOG_HOST", DEFAULT_POSTHOG_HOST)
+    try:
+        from posthog import Posthog
+
+        client = Posthog(project_api_key=config.api_key, host=host)
+    except Exception as exc:
+        logger.warning("Telemetry disabled due to PostHog init error: %s", exc)
+        return None
+
+    handle = PosthogTelemetryHandle(client)
+
+    def _rec(exc: BaseException) -> None:
+        handle.record_exception(exc)
+
+    global _record_exception_cb, _shutdown_cb  # noqa: PLW0603
+    _record_exception_cb = _rec
+    _shutdown_cb = handle.shutdown
+
+    logger.info("Telemetry initialised with PostHog host %s", host)
+    return handle
 
 
 def record_exception(exc: BaseException) -> None:
-    """Record an exception as a span and a log. Fail-open on exporter errors."""
-
-    tracer = trace.get_tracer(DEFAULT_SERVICE_NAME)
-    current_span = trace.get_current_span()
+    """Record an exception via the active telemetry backend (fail-open)."""
 
     try:
-        if current_span.get_span_context().is_valid:
-            span = current_span
-            span.record_exception(exc)
-            span.set_status(Status(StatusCode.ERROR, str(exc)))
-        else:
-            with tracer.start_as_current_span("uncaught.exception") as span:
-                span.record_exception(exc)
-                span.set_status(Status(StatusCode.ERROR, str(exc)))
+        _record_exception_cb(exc)
     except Exception:  # pragma: no cover
-        logger.debug("Failed to record span for exception", exc_info=True)
-
-    try:
-        from opentelemetry import _logs
-
-        logger_provider = _logs.get_logger_provider()
-        if logger_provider:
-            otel_logger = logger_provider.get_logger(DEFAULT_SERVICE_NAME)
-            otel_logger.emit(
-                    severity_text="ERROR",
-                    body=f"Unhandled exception: {exc}",
-                    attributes={"exception.type": type(exc).__name__, "exception.message": str(exc)},
-            )
-    except Exception:  # pragma: no cover
-        logger.debug("Failed to emit OTEL log for exception", exc_info=True)
+        logger.debug("Telemetry exception recording failed", exc_info=True)
