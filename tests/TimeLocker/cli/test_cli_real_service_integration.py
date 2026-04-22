@@ -249,6 +249,23 @@ class TestCLIRealServiceIntegration:
         assert "test-repo" in output
 
     @pytest.mark.integration
+    def test_cli_service_manager_list_repositories_refreshes_config(self, temp_config_dir):
+        """CLIServiceManager should reflect repositories added after initialization."""
+        manager = CLIServiceManager(config_dir=temp_config_dir)
+
+        from src.TimeLocker.config.configuration_schema import RepositoryConfig
+        repo_config = RepositoryConfig(
+            name="refresh-repo",
+            location="file:///tmp/refresh-repo",
+            description="Repository added after manager initialization",
+        )
+        manager.config_module.add_repository(repo_config)
+
+        repositories = manager.list_repositories()
+
+        assert any(repo.get("name") == "refresh-repo" for repo in repositories)
+
+    @pytest.mark.integration
     @patch('src.TimeLocker.cli.get_cli_service_manager')
     def test_cli_repos_add_with_real_config(self, mock_get_manager, temp_config_dir):
         """Test repos add command with real configuration persistence"""

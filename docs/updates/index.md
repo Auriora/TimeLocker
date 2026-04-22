@@ -1,5 +1,6 @@
 # Update Index
 
+- [2026-04-22-100901-release-truth-and-restore-consolidation](./2026-04-22-100901-release-truth-and-restore-consolidation.md)
 - [2025-11-22-150500-scheduling-telemetry-guardrails](./2025-11-22-150500-scheduling-telemetry-guardrails.md)
 - [2025-11-22-120000-posthog-telemetry](./2025-11-22-120000-posthog-telemetry.md)
 - [2025-11-16-180401-cli-policy-e2e-tests](./2025-11-16-180401-cli-policy-e2e-tests.md)

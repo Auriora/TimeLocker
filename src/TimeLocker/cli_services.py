@@ -50,8 +50,6 @@ from .interfaces.integration_exceptions import (
 )
 from .services import (
     RepositoryFactory,
-    # ConfigurationService,  # TODO: Does not exist, needs to be implemented
-    # BackupOrchestrator,  # TODO: Does not exist, needs to be implemented
     ValidationService
 )
 from .services.snapshot_service import SnapshotService
@@ -233,16 +231,7 @@ class CLIServiceManager:
         self._performance_module = PerformanceModule()
         
         # Initialize modern config service
-        # TODO: ConfigurationService does not exist yet, needs to be implemented
-        # try:
-        #     self._config_service = ConfigurationService(
-        #             config_path=self._config_module.config_file,
-        #             validation_service=self._validation_service
-        #     )
-        # except Exception as e:
-        #     logger.warning(f"Configuration service failed to initialize: {e}")
-        #     self._config_service = None
-        self._config_service = None  # Placeholder until ConfigurationService is implemented
+        self._config_service = None
 
         # Initialize legacy services
         self._snapshot_service = SnapshotService(
@@ -256,23 +245,22 @@ class CLIServiceManager:
         )
         self._configure_repository_factory_credentials()
 
-        # Initialize BackupOrchestrator with proper dependencies
         try:
             from .services.backup_orchestrator import BackupOrchestrator
             from .services.configuration_service import ConfigurationService
             
-            # Create configuration service as provider
-            config_provider = ConfigurationService(
+            self._config_service = ConfigurationService(
                 config_path=self._config_module.config_file
             )
             
             self._backup_orchestrator = BackupOrchestrator(
-                configuration_provider=config_provider,
+                configuration_provider=self._config_service,
                 repository_factory=self._repository_factory
             )
-            logger.debug("BackupOrchestrator initialized successfully")
+            logger.debug("ConfigurationService and BackupOrchestrator initialized successfully")
         except Exception as e:
-            logger.warning(f"BackupOrchestrator failed to initialize: {e}")
+            logger.warning(f"Service layer failed to initialize cleanly: {e}")
+            self._config_service = None
             self._backup_orchestrator = None
         self._selection_handler: Optional["BackupCLIHandler"] = None
         
@@ -1230,16 +1218,37 @@ class CLIServiceManager:
         Returns:
             List of repository configurations
         """
+        repos: Any
         if self._config_service is not None:
             try:
-                # Try modern configuration service first
+                self._config_service.reload_config()
                 repos = self._config_service.get_repositories()
             except Exception:
-                # Fallback to configuration module
                 repos = self._config_module.get_repositories()
         else:
-            # Use configuration module
             repos = self._config_module.get_repositories()
+
+        if isinstance(repos, dict):
+            normalized_repositories: List[Dict[str, Any]] = []
+            for name, repo in repos.items():
+                repo_data: Dict[str, Any]
+                if hasattr(repo, "to_dict"):
+                    maybe_dict = repo.to_dict()
+                    repo_data = dict(maybe_dict) if isinstance(maybe_dict, dict) else {}
+                elif isinstance(repo, dict):
+                    repo_data = dict(repo)
+                else:
+                    repo_data = {}
+                    for attr in ("uri", "location", "description", "type", "engine", "status", "is_default"):
+                        if hasattr(repo, attr):
+                            value = getattr(repo, attr)
+                            if value is not None:
+                                repo_data[attr] = value
+                repo_data.setdefault("name", name)
+                normalized_repositories.append(repo_data)
+            repos = normalized_repositories
+        else:
+            repos = list(repos or [])
         
         # Apply filters if provided
         if filters:

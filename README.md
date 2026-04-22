@@ -3,16 +3,15 @@
 <!-- Project Info Badges -->
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?logo=gnu)](https://www.gnu.org/licenses/gpl-3.0)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg?logo=python&logoColor=white)](https://www.python.org/downloads/)
-[![Status: Development](https://img.shields.io/badge/Status-Development-orange.svg?logo=git)](https://github.com/Auriora/TimeLocker)
+[![Status: Beta](https://img.shields.io/badge/Status-Beta-yellow.svg?logo=git)](https://github.com/Auriora/TimeLocker)
 [![GitHub Actions CI](https://img.shields.io/github/actions/workflow/status/Auriora/TimeLocker/test-suite.yml?branch=main&label=CI&logo=github)](https://github.com/Auriora/TimeLocker/actions/workflows/test-suite.yml)
 [![Quality Gate](https://img.shields.io/badge/Quality%20Gate-80%25%20Coverage-brightgreen?logo=sonarqube)](https://github.com/Auriora/TimeLocker/actions)
 [![Contributing](https://img.shields.io/badge/Contributing-Welcome-brightgreen?logo=github)](CONTRIBUTING.md)
 
 ![TimeLocker](resources/images/TimeLocker-Logo-Color-White-64.png)
 
-TimeLocker provides a robust, object-oriented interface for managing backups using the Restic backup tool (in future other backup tools maybe supported). It
-simplifies backup operations by providing a high-level CLI that handles repository management, file selection patterns, and backup configurations across
-multiple storage backends including local, network, S3, and B2.
+TimeLocker provides a CLI-first interface for managing backups with Restic and related orchestration services. It covers repository management, file
+selection, scheduling, monitoring, and recovery workflows across local, S3-compatible, and B2 backends.
 
 > **Note**: TimeLocker is a **CLI-based application**. There is currently no desktop GUI or REST API - these are design specifications for future consideration.
 > The application includes optional system tray integration for desktop notifications.
@@ -66,26 +65,19 @@ This project is intended for:
 ```
 .
 ├── src/                                # Main source code
-│   ├── TimeLocker/                    # Core package
-│   │   ├── backup_manager.py          # Central backup operation coordinator
-│   │   ├── backup_repository.py       # Abstract base class for repositories
-│   │   ├── backup_snapshot.py         # Snapshot management functionality
-│   │   ├── backup_target.py           # Backup target configuration
-│   │   ├── file_selections.py         # File selection pattern management
-│   │   ├── command_builder/          # Command-line builder utilities
-│   │   │   ├── core.py               # Core command builder implementation
-│   │   │   └── __init__.py           # Package initialization
-│   │   ├── restic/                   # Restic-specific implementations
-│   │   │   ├── Repositories/         # Storage backend implementations
-│   │   │   │   ├── b2.py             # Backblaze B2 repository implementation
-│   │   │   │   ├── local.py          # Local filesystem repository
-│   │   │   │   └── s3.py             # Amazon S3 repository
-│   │   │   ├── errors.py             # Custom error definitions
-│   │   │   ├── logging.py            # Logging configuration
-│   │   │   ├── restic_command_definition.py # Restic command definitions
-│   │   │   └── restic_repository.py  # Base Restic repository implementation
-│   ├── json2command_definition/      # JSON to command definition converter
-│   └── man2json/                     # Man page to JSON converter
+│   ├── TimeLocker/                    # Main package
+│   │   ├── cli.py                    # Typer entrypoint for `timelocker` / `tl`
+│   │   ├── cli_modules/              # CLI command implementations and helpers
+│   │   ├── services/                 # Service layer and orchestration
+│   │   ├── config/                   # Filesystem-backed configuration system
+│   │   ├── monitoring/               # Telemetry, progress, notifications
+│   │   ├── scheduling/               # Schedule management and integrations
+│   │   ├── security/                 # Credential and privacy workflows
+│   │   ├── integration/              # Service manager and integration seams
+│   │   ├── policy/                   # Policy models and storage abstractions
+│   │   ├── restic/                   # Restic-specific repositories and commands
+│   │   ├── adapters/                 # Backup tool adapters
+│   │   └── interfaces/               # Shared contracts and data models
 ├── tests/                            # Test suite
 │   ├── TimeLocker/                   # Tests for core package
 │   │   ├── backup/                   # Tests for backup functionality
@@ -159,7 +151,7 @@ pip install -e .[dev]
 ```
 
 For detailed installation instructions, including platform-specific guidance, configuration, and troubleshooting, please refer to
-our [Installation Guide](docs/INSTALLATION.md).
+our [Installation Guide](docs/guides/user/installation.md).
 
 ### Quick Start
 
@@ -185,7 +177,10 @@ RESTIC_PASSWORD. The --password flag is available but discouraged; prefer secure
 
 #### Selection Templates & Service Manager
 
-TimeLocker’s modern backup flow revolves around reusable selection templates. Define the template once (via CLI or the SelectionTemplateManager) and run it through the same service entrypoint that powers the CLI.
+TimeLocker’s modern backup flow revolves around reusable selection templates. Define the template once and reuse it through the same service layer that powers the CLI.
+
+This repository is feature-rich but still actively being consolidated. Prefer the docs under `docs/guides/`, `docs/reference/`, and `docs/updates/` over
+older blanket status claims when assessing current maturity.
 
 ```python
 from pathlib import Path

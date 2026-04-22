@@ -6,15 +6,64 @@ allows targeted unit tests without invoking Typer CLI flows.
 """
 from __future__ import annotations
 
-from typing import Dict, Any, Optional
 import logging
+from collections.abc import Callable, Mapping
+from typing import Protocol
 
 try:  # Optional import; only catch import-related failures
-    from rich.console import Console
+    from rich.console import Console as RichConsole
 except (ImportError, ModuleNotFoundError):  # pragma: no cover - fallback minimal console
-    class Console:  # type: ignore
-        def print(self, *args, **kwargs):  # noqa: D401
-            print(*args)
+    RichConsole = None
+
+
+class ConsoleLike(Protocol):
+    """Minimal console surface used by CLI helpers."""
+
+    print: Callable[..., None]
+
+
+class CredentialStore(Protocol):
+    """Credential manager behavior required by store_backend_credentials."""
+
+    def is_locked(self) -> bool:
+        ...
+
+    def ensure_unlocked(self, allow_prompt: bool = True) -> bool:
+        ...
+
+    def store_repository_backend_credentials(
+            self,
+            repository_id: str,
+            backend_type: str,
+            credentials_dict: Mapping[str, object],
+    ) -> None:
+        ...
+
+
+class RepositoryConfigStore(Protocol):
+    """Configuration manager behavior required by store_backend_credentials."""
+
+    def update_repository(
+            self,
+            repository_name: str,
+            repository_config: dict[str, object],
+    ) -> None:
+        ...
+
+
+class _FallbackConsole:
+    """Minimal console implementation used when Rich is unavailable."""
+
+    def print(self, *args: object, **kwargs: object) -> None:
+        _ = kwargs.pop("style", None)
+        print(*args)
+
+
+def _create_console() -> ConsoleLike:
+    """Create the default console implementation for helper output."""
+    if RichConsole is not None:
+        return RichConsole()
+    return _FallbackConsole()
 
 
 # Lazy type hints to avoid circular imports at runtime
@@ -23,12 +72,12 @@ def store_backend_credentials(
         repository_name: str,
         backend_type: str,
         backend_name: str,
-        credentials_dict: Dict[str, Any],  # accept non-string values (e.g., booleans)
-        cred_mgr,
-        config_manager,
-        repository_config: Dict[str, Any],
-        console: Optional[Console] = None,
-        logger: Optional[logging.Logger] = None,
+        credentials_dict: Mapping[str, object],
+        cred_mgr: CredentialStore,
+        config_manager: RepositoryConfigStore,
+        repository_config: dict[str, object],
+        console: ConsoleLike | None = None,
+        logger: logging.Logger | None = None,
         allow_prompt: bool = True,
 ) -> bool:
     """Store backend credentials with proper credential manager unlocking & config update.
@@ -53,7 +102,7 @@ def store_backend_credentials(
     Raises:
         Any exception raised by cred_mgr.store_repository_backend_credentials will propagate.
     """
-    console = console or Console()
+    console = console or _create_console()
     logger = logger or logging.getLogger(__name__)
 
     # Ensure credential manager is unlocked
@@ -65,7 +114,11 @@ def store_backend_credentials(
             return False
 
     # Store credentials (may raise and bubble up; callers decide handling policy)
-    cred_mgr.store_repository_backend_credentials(repository_name, backend_type, credentials_dict)
+    cred_mgr.store_repository_backend_credentials(
+            repository_name,
+            backend_type,
+            dict(credentials_dict),
+    )
 
     # Update repository config
     repository_config['has_backend_credentials'] = True

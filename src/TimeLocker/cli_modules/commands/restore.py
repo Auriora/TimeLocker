@@ -16,36 +16,9 @@ from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 from rich.prompt import Prompt, Confirm
 
-try:  # pragma: no cover - allow running from src/ layout
-    import TimeLocker.cli_services as cli_services  # type: ignore
-except ModuleNotFoundError:  # pragma: no cover
-    import src.TimeLocker.cli_services as cli_services  # type: ignore
-
-# Import CLI helpers - use lazy import to avoid circular dependency
-def _get_cli_helpers():
-    """Lazy import of CLI helpers to avoid circular imports."""
-    from TimeLocker import cli as _cli_module
-    return _cli_module
-
-def show_success_panel(title: str, message: str, details=None):
-    """Display success panel."""
-    _get_cli_helpers().show_success_panel(title, message, details)
-
-def show_error_panel(title: str, message: str, details=None):
-    """Display error panel."""
-    _get_cli_helpers().show_error_panel(title, message, details)
-
-def setup_logging(verbose: bool, config_dir):
-    """Setup logging."""
-    _get_cli_helpers().setup_logging(verbose, config_dir)
-
-def _get_service_manager_for_command(config_dir):
-    """Get service manager."""
-    return _get_cli_helpers()._get_service_manager_for_command(config_dir)
-
-# Get console
-from rich.console import Console
-console = Console()
+from ..helpers.display import show_success_panel, show_error_panel, console
+from ..helpers.logging_setup import setup_logging
+from ..helpers.service_helpers import _get_service_manager_for_command
 
 # Import TimeLocker components
 from TimeLocker.recovery_orchestrator import RecoveryOrchestrator

@@ -17,9 +17,7 @@ Tests for store_backend_credentials helper:
 """
 
 import pytest
-import logging
-from unittest.mock import MagicMock, Mock, call
-from io import StringIO
+from unittest.mock import MagicMock
 
 from src.TimeLocker.cli_helpers import store_backend_credentials
 
@@ -33,11 +31,11 @@ def test_store_backend_credentials_locked_cannot_unlock():
     cred_mgr.ensure_unlocked.return_value = False
 
     config_manager = MagicMock()
-    repository_config = {}
+    repository_config: dict[str, object] = {}
     console = MagicMock()
     logger = MagicMock()
 
-    credentials = {
+    credentials: dict[str, object] = {
             'access_key_id':     'AKIA123',
             'secret_access_key': 'SECRET123'
     }
@@ -80,11 +78,11 @@ def test_store_backend_credentials_locked_unlocks_successfully():
     cred_mgr.ensure_unlocked.return_value = True
 
     config_manager = MagicMock()
-    repository_config = {'uri': 's3://bucket/path'}
+    repository_config: dict[str, object] = {'uri': 's3://bucket/path'}
     console = MagicMock()
     logger = MagicMock()
 
-    credentials = {
+    credentials: dict[str, object] = {
             'access_key_id':     'AKIA456',
             'secret_access_key': 'SECRET456'
     }
@@ -126,11 +124,11 @@ def test_store_backend_credentials_already_unlocked():
     cred_mgr.is_locked.return_value = False
 
     config_manager = MagicMock()
-    repository_config = {'uri': 's3://bucket/path'}
+    repository_config: dict[str, object] = {'uri': 's3://bucket/path'}
     console = MagicMock()
     logger = MagicMock()
 
-    credentials = {
+    credentials: dict[str, object] = {
             'access_key_id':     'AKIA789',
             'secret_access_key': 'SECRET789',
             'region':            'us-west-1'
@@ -168,9 +166,9 @@ def test_store_backend_credentials_with_all_optional_fields():
     cred_mgr.is_locked.return_value = False
 
     config_manager = MagicMock()
-    repository_config = {}
+    repository_config: dict[str, object] = {}
 
-    credentials = {
+    credentials: dict[str, object] = {
             'access_key_id':     'AKIAOPT',
             'secret_access_key': 'SECRETOPT',
             'region':            'eu-central-1',
@@ -204,9 +202,9 @@ def test_store_backend_credentials_without_optional_fields():
     cred_mgr.is_locked.return_value = False
 
     config_manager = MagicMock()
-    repository_config = {}
+    repository_config: dict[str, object] = {}
 
-    credentials = {
+    credentials: dict[str, object] = {
             'access_key_id':     'AKIAMIN',
             'secret_access_key': 'SECRETMIN'
     }
@@ -239,9 +237,9 @@ def test_store_backend_credentials_exception_propagates():
     cred_mgr.store_repository_backend_credentials.side_effect = RuntimeError("Storage failed")
 
     config_manager = MagicMock()
-    repository_config = {}
+    repository_config: dict[str, object] = {}
 
-    credentials = {
+    credentials: dict[str, object] = {
             'access_key_id':     'AKIAERR',
             'secret_access_key': 'SECRETERR'
     }

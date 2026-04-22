@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "timelocker"
-version = "1.0.0"
+version = "0.9.0"
 description = "High-level Python interface for backup operations using Restic"
 readme = "README.md"
 license = { text = "GPL-3.0" }
@@ -21,7 +21,7 @@ keywords = [
 ]
 classifiers = [
     # Development Status
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     # Intended Audience
     "Intended Audience :: Developers",
     "Intended Audience :: System Administrators",

@@ -129,7 +129,10 @@ def setup_logging(verbose: bool = False, config_dir: Optional[Path] = None) -> N
 
     # Get appropriate XDG directory for log files (cache directory)
     # Logs are temporary/cache data, not configuration or persistent data
-    log_dir = ConfigurationPathResolver.get_cache_directory() / "logs"
+    if config_dir is not None:
+        log_dir = Path(config_dir) / "cache" / "logs"
+    else:
+        log_dir = ConfigurationPathResolver.get_cache_directory() / "logs"
     log_dir.mkdir(parents=True, exist_ok=True)
 
     # Clear any existing handlers to avoid duplicates

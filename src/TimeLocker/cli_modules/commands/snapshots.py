@@ -28,12 +28,6 @@ from .base import (
     ConfigDirOption,
 )
 
-try:  # pragma: no cover - prefer src layout during development
-    from src.TimeLocker import cli as _cli_module  # type: ignore
-    from src.TimeLocker import cli_services as cli_services  # type: ignore
-except ModuleNotFoundError:  # pragma: no cover - fallback for installed package
-    from TimeLocker import cli as _cli_module  # type: ignore
-    import TimeLocker.cli_services as cli_services  # type: ignore
 from TimeLocker.utils.repository_resolver import validate_repository_name_or_uri
 from TimeLocker.utils.snapshot_validation import validate_snapshot_id_format
 

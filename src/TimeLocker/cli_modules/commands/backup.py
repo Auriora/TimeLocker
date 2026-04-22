@@ -14,21 +14,17 @@ import click
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 from rich.prompt import Prompt
 
-# Import from TimeLocker.cli module (cli.py) to avoid circular imports during transition
-from TimeLocker import cli as _cli_module
-
-# Import required functions and objects
-show_success_panel = _cli_module.show_success_panel
-show_error_panel = _cli_module.show_error_panel
-setup_logging = _cli_module.setup_logging
-_get_service_method = _cli_module._get_service_method
-_call_service_method = _cli_module._call_service_method
-_get_service_manager_for_command = _cli_module._get_service_manager_for_command
-_create_configuration_module = _cli_module._create_configuration_module
-console = _cli_module.console
+from ..helpers.display import show_success_panel, show_error_panel, console
+from ..helpers.logging_setup import setup_logging
+from ..helpers.service_helpers import (
+    _get_service_method,
+    _call_service_method,
+    _get_service_manager_for_command,
+    _create_configuration_module,
+)
 
 # Import from TimeLocker package
-from TimeLocker.cli_services import get_cli_service_manager, CLIBackupRequest
+from TimeLocker.cli_services import CLIBackupRequest
 from TimeLocker.completion import (
     file_path_completer,
     repository_completer,

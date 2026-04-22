@@ -15,80 +15,92 @@ import builtins
 import importlib
 import io
 import contextlib
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import asdict, is_dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Optional, List, Annotated, Dict, Any, TextIO
+from typing import IO, Annotated, Protocol, TextIO, TypedDict, cast, override
 from datetime import datetime
 import inspect
-import re
-from urllib.parse import urlparse
 
 import typer
 import click
 from rich.console import Console
 from rich.panel import Panel
-from rich.table import Table
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
-from rich.text import Text
-from rich.tree import Tree
-from rich import print as rprint
 from rich.logging import RichHandler
+from rich.text import Text
 
-from .utils import PromptService, PromptError, OutputFormatter, get_output_formatter
+from .utils import PromptService, PromptError, get_output_formatter
 
 from .monitoring.telemetry import record_exception, setup_telemetry_from_env
 
 from . import __version__
-from .backup_manager import BackupManager
-from .backup_target import BackupTarget
-from .file_selections import FileSelection, SelectionType
-from .restore_manager import RestoreManager
-from .snapshot_manager import SnapshotManager
-from .config import ConfigurationModule, ConfigurationValidator
+from .config import ConfigurationModule
 from .config.configuration_manager import ConfigurationManager, RepositoryNotFoundError
-from .interfaces.exceptions import ConfigurationError
-from .cli_services import get_cli_service_manager, CLIBackupRequest
+from .cli_services import get_cli_service_manager
 from .completion import (
     repository_name_completer,
-    snapshot_id_completer,
-    repository_uri_completer,
-    repository_completer,
-    file_path_completer,
 )
-from .importers.timeshift_importer import TimeshiftConfigParser, TimeshiftToTimeLockerMapper
 from . import monitoring as _timelocker_monitoring
 from .config import configuration_manager as _timelocker_config_manager_module
 
-from .utils.repository_resolver import validate_repository_name_or_uri
-from .utils.snapshot_validation import validate_snapshot_id_format
-from .cli_helpers import store_backend_credentials as store_backend_credentials_helper  # Added import for extracted helper
-from .security import SecurityService, RepositoryInfo, RepositoryMode, ConfirmationDialogs
-
+from .cli_helpers import (
+    CredentialStore as _CredentialStoreLike,
+    RepositoryConfigStore as _RepositoryConfigStoreLike,
+    store_backend_credentials as store_backend_credentials_helper,
+)
 # Test-friendly patch: ensure stderr is captured separately in Typer's CliRunner
 # so tests can safely access result.stderr when using CliRunner.
 try:
     from typer.testing import CliRunner as _TyperCliRunner
-    from click.testing import BytesIOCopy as _ClickBytesIOCopy
+    from click.testing import BytesIOCopy as _ClickBytesIOCopy, Result as _ClickResult
 
     if not getattr(_TyperCliRunner, "_timelocker_mixstderr_patched", False):
         _orig_invoke = _TyperCliRunner.invoke
 
 
-        def _patched_invoke(self, *args, **kwargs):
-            # Prefer separate stderr when supported by click
-            use_mix = False
-            if "mix_stderr" in kwargs:
-                use_mix = kwargs["mix_stderr"] is True
+        def _patched_invoke(
+                self: _TyperCliRunner,
+                app: typer.main.Typer,
+                args: str | Sequence[str] | None = None,
+                input: bytes | str | IO[bytes] | IO[str] | None = None,
+                env: Mapping[str, str | None] | None = None,
+                catch_exceptions: bool = True,
+                color: bool = False,
+                **extra: object,
+        ) -> _ClickResult:
+            invoke_kwargs: dict[str, object] = dict(extra)
+            if "mix_stderr" in invoke_kwargs:
+                _ = invoke_kwargs["mix_stderr"] is True
             else:
-                kwargs["mix_stderr"] = False
+                invoke_kwargs["mix_stderr"] = False
             # First attempt, may store a TypeError in result.exception on older click
             capture_buffer = io.StringIO()
             with contextlib.redirect_stdout(capture_buffer):
-                result = _orig_invoke(self, *args, **kwargs)
+                result = _orig_invoke(
+                        self,
+                        app,
+                        args=args,
+                        input=input,
+                        env=env,
+                        catch_exceptions=catch_exceptions,
+                        color=color,
+                        **invoke_kwargs,
+                )
             # Detect older click capturing the TypeError about mix_stderr
-            if getattr(result, "exception", None) and isinstance(result.exception, TypeError) and "mix_stderr" in str(result.exception):
-                kwargs.pop("mix_stderr", None)
-                result = _orig_invoke(self, *args, **kwargs)
+            exception = getattr(result, "exception", None)
+            if exception and isinstance(exception, TypeError) and "mix_stderr" in str(exception):
+                _ = invoke_kwargs.pop("mix_stderr", None)
+                result = _orig_invoke(
+                        self,
+                        app,
+                        args=args,
+                        input=input,
+                        env=env,
+                        catch_exceptions=catch_exceptions,
+                        color=color,
+                        **invoke_kwargs,
+                )
             # Ensure result.stderr is safe to access
             try:
                 if getattr(result, "stderr_bytes", None) is None:
@@ -103,11 +115,11 @@ try:
                     charset = getattr(self, "charset", "utf-8") or "utf-8"
                     if stdout_bytes:
                         decoded_stdout = stdout_bytes.decode(charset, errors="replace")
-                        result.stdout = decoded_stdout  # type: ignore[attr-defined]
-                        result.stdout_bytes = stdout_bytes  # type: ignore[attr-defined]
+                        setattr(result, "stdout", decoded_stdout)
+                        setattr(result, "stdout_bytes", stdout_bytes)
                     else:
-                        result.stdout = captured_stdout  # type: ignore[attr-defined]
-                        result.stdout_bytes = captured_stdout.encode(charset, errors="replace")  # type: ignore[attr-defined]
+                        setattr(result, "stdout", captured_stdout)
+                        setattr(result, "stdout_bytes", captured_stdout.encode(charset, errors="replace"))
             except Exception:
                 pass
             try:
@@ -116,23 +128,23 @@ try:
                     output_bytes = getattr(result, "output_bytes", b"")
                     charset = getattr(self, "charset", "utf-8") or "utf-8"
                     if output_bytes:
-                        result.output = output_bytes.decode(charset, errors="replace")  # type: ignore[attr-defined]
-                        result.output_bytes = output_bytes  # type: ignore[attr-defined]
+                        setattr(result, "output", output_bytes.decode(charset, errors="replace"))
+                        setattr(result, "output_bytes", output_bytes)
                     else:
-                        result.output = captured_stdout  # type: ignore[attr-defined]
-                        result.output_bytes = captured_stdout.encode(charset, errors="replace")  # type: ignore[attr-defined]
+                        setattr(result, "output", captured_stdout)
+                        setattr(result, "output_bytes", captured_stdout.encode(charset, errors="replace"))
             except Exception:
                 pass
             return result
 
 
         _TyperCliRunner.invoke = _patched_invoke
-        _TyperCliRunner._timelocker_mixstderr_patched = True
+        setattr(_TyperCliRunner, "_timelocker_mixstderr_patched", True)
     if not getattr(_ClickBytesIOCopy, "_timelocker_non_closing", False):
         _orig_bytesio_close = _ClickBytesIOCopy.close
 
 
-        def _non_closing_bytesio_close(self):  # type: ignore[override]
+        def _non_closing_bytesio_close(self: _ClickBytesIOCopy) -> None:  # type: ignore[override]
             """Keep Click's testing buffers readable after close()."""
             try:
                 self.flush()
@@ -142,7 +154,7 @@ try:
 
         _non_closing_bytesio_close.__doc__ = _orig_bytesio_close.__doc__
         _ClickBytesIOCopy.close = _non_closing_bytesio_close  # type: ignore[assignment]
-        _ClickBytesIOCopy._timelocker_non_closing = True  # type: ignore[attr-defined]
+        setattr(_ClickBytesIOCopy, "_timelocker_non_closing", True)
 except Exception:
     pass
 
@@ -163,7 +175,87 @@ _rich_print = console.print
 logger = logging.getLogger(__name__)
 
 
-def _stream_is_interactive(stream: Optional[TextIO]) -> bool:
+class _ValidationChangeBucket(TypedDict):
+    add: list[str]
+    update: list[str]
+    remove: list[str]
+
+
+class _ValidationChanges(TypedDict):
+    repositories: _ValidationChangeBucket
+    targets: _ValidationChangeBucket
+    policies: _ValidationChangeBucket
+    schedules: _ValidationChangeBucket
+
+
+class _ValidationResults(TypedDict):
+    valid: bool
+    errors: list[str]
+    warnings: list[str]
+    changes: _ValidationChanges
+
+
+class _CompletionConfig(TypedDict):
+    completion_file: Path | None
+    rc_file: Path | None
+    source_line: str | None
+    generate_cmd: str
+    reload_cmd: str
+
+
+type _ConfigObjectMap = dict[str, object]
+type _ConfigSectionMap = dict[str, _ConfigObjectMap]
+
+
+class _ServiceMethodResult(Protocol):
+    success: bool
+    errors: list[str]
+    warnings: list[str]
+
+
+class _TimeshiftImportResultLike(_ServiceMethodResult, Protocol):
+    repository_config: dict[str, object] | None
+    backup_target_config: dict[str, object] | None
+
+
+class _SupportsToDict(Protocol):
+    def to_dict(self) -> Mapping[str, object]: ...
+
+
+class _ConfigurationModuleFactory(Protocol):
+    def __call__(self, *, config_dir: Path | None = None) -> ConfigurationModule: ...
+
+
+class _UnlockableCredentialManager(Protocol):
+    def is_locked(self) -> bool: ...
+    def unlock(self, master_password: str, is_auto_unlock: bool = False) -> bool: ...
+
+
+class _CredentialManagerLike(_UnlockableCredentialManager, Protocol):
+    def ensure_unlocked(self, allow_prompt: bool = True) -> bool: ...
+    def remove_repository_backend_credentials(self, repository_name: str, backend_type: str) -> bool: ...
+    def has_repository_backend_credentials(self, repository_name: str, backend_type: str) -> bool: ...
+    def get_repository_backend_credentials(self, repository_name: str, backend_type: str) -> Mapping[str, str] | None: ...
+
+
+def _change_bucket_total(bucket: _ValidationChangeBucket) -> int:
+    """Count entries in a validation change bucket."""
+    return len(bucket["add"]) + len(bucket["update"]) + len(bucket["remove"])
+
+
+def _serialize_config_value(value: object) -> dict[str, object]:
+    """Convert config dataclasses or config-like objects into JSON-ready dictionaries."""
+    to_dict = getattr(value, "to_dict", None)
+    if callable(to_dict):
+        return cast(dict[str, object], to_dict())
+    if is_dataclass(value) and not isinstance(value, type):
+        return cast(dict[str, object], asdict(value))
+    if isinstance(value, dict):
+        return cast(dict[str, object], value)
+    return {}
+
+
+def _stream_is_interactive(stream: TextIO | None) -> bool:
     """
     Determine whether a given text stream supports interactive prompting.
 
@@ -188,13 +280,13 @@ _original_rich_console_input = Console.input
 
 
 def _patched_rich_console_input(
-        self,
-        prompt: Any = "",
+        self: Console,
+        prompt: str | Text = "",
         *,
         markup: bool = True,
         emoji: bool = True,
         password: bool = False,
-        stream: Optional[TextIO] = None,
+        stream: TextIO | None = None,
 ) -> str:
     """
     Override Rich console input to avoid getpass blocking on non-interactive streams.
@@ -202,8 +294,8 @@ def _patched_rich_console_input(
     Falls back to basic line reads whenever password prompts occur without a TTY, ensuring
     Typer's CliRunner and other automated harnesses can supply input programmatically.
     """
-    target_stream: Optional[TextIO] = stream or typer.get_text_stream("stdin")
-    if password and target_stream is not None and not _stream_is_interactive(target_stream):
+    target_stream = stream or typer.get_text_stream("stdin")
+    if password and not _stream_is_interactive(target_stream):
         if prompt:
             # Match Rich behaviour by rendering the prompt prior to reading input
             self.print(prompt, markup=markup, emoji=emoji, end="")
@@ -222,20 +314,20 @@ def _patched_rich_console_input(
     )
 
 
-def _console_print(*args, **kwargs):
+def _console_print(*args: object, **kwargs: object) -> None:
     console.file = typer.get_text_stream("stdout")
-    return _rich_print(*args, **kwargs)
+    cast(Callable[..., None], _rich_print)(*args, **kwargs)
 
 
 console.print = _console_print  # type: ignore[attr-defined]
 Console.input = _patched_rich_console_input  # type: ignore[attr-defined]
 
 sys.modules["TimeLocker.cli"] = sys.modules[__name__]
-sys.modules.setdefault("TimeLocker.config.configuration_manager", _timelocker_config_manager_module)
-sys.modules.setdefault("TimeLocker.monitoring", _timelocker_monitoring)
+_ = sys.modules.setdefault("TimeLocker.config.configuration_manager", _timelocker_config_manager_module)
+_ = sys.modules.setdefault("TimeLocker.monitoring", _timelocker_monitoring)
 
 
-def _combined_output_for_tests(result: Any) -> str:
+def _combined_output_for_tests(result: object) -> str:
     """
     Combine stdout and stderr for CLI runner results.
 
@@ -248,14 +340,14 @@ def _combined_output_for_tests(result: Any) -> str:
 
 
 if not hasattr(builtins, "_combined_output"):
-    builtins._combined_output = _combined_output_for_tests
+    setattr(builtins, "_combined_output", _combined_output_for_tests)
 
 
-def _register_builtin_symbol(symbol_name: str, module_path: str, fallback: Any = None) -> None:
+def _register_builtin_symbol(symbol_name: str, module_path: str, fallback: object | None = None) -> None:
     """Register a symbol in builtins for legacy tests if not already provided."""
     if hasattr(builtins, symbol_name):
         return
-    target = fallback
+    target: object | None = fallback
     try:
         module = importlib.import_module(module_path)
         target = getattr(module, symbol_name, fallback)
@@ -265,25 +357,29 @@ def _register_builtin_symbol(symbol_name: str, module_path: str, fallback: Any =
         setattr(builtins, symbol_name, target)
 
 
+StatusReporter: object
+StatusLevel: object
+
 try:
-    _monitoring_module = importlib.import_module("TimeLocker.monitoring")
-    StatusReporter = getattr(_monitoring_module, "StatusReporter")
-    StatusLevel = getattr(_monitoring_module, "StatusLevel")
+    from .monitoring.status_reporter import StatusLevel, StatusReporter
 except Exception:
-    class StatusLevel(Enum):  # type: ignore[misc]
+    class _FallbackStatusLevel(Enum):
         SUCCESS = "success"
         FAILURE = "failure"
         WARNING = "warning"
 
 
-    class StatusReporter:  # type: ignore[misc]
+    class _FallbackStatusReporter:
         """Fallback status reporter for tests when monitoring module is unavailable."""
 
-        def update_progress(self, **_kwargs: Any) -> None:  # pragma: no cover - noop
+        def update_progress(self, **_kwargs: object) -> None:  # pragma: no cover - noop
             return
 
-        def complete_operation(self, **_kwargs: Any) -> None:  # pragma: no cover - noop
+        def complete_operation(self, **_kwargs: object) -> None:  # pragma: no cover - noop
             return
+
+    StatusLevel = _FallbackStatusLevel
+    StatusReporter = _FallbackStatusReporter
 
 _register_builtin_symbol("StatusReporter", "TimeLocker.monitoring", StatusReporter)
 _register_builtin_symbol("StatusLevel", "TimeLocker.monitoring", StatusLevel)
@@ -333,34 +429,6 @@ app.add_typer(backup_app, name="backup")
 
 app.add_typer(snapshots_app, name="snapshots")
 
-# Import and register restore app (use importlib to avoid circular import through __init__.py)
-try:
-    import importlib.util
-
-    restore_spec = importlib.util.spec_from_file_location(
-            "restore_commands",
-            Path(__file__).parent / "cli_modules" / "commands" / "restore.py"
-    )
-    restore_module = importlib.util.module_from_spec(restore_spec)
-    restore_spec.loader.exec_module(restore_module)
-    app.add_typer(restore_module.restore_app, name="restore")
-except Exception as e:
-    logger.warning(f"Failed to import restore commands: {e}")
-
-# Import and register selections app
-try:
-    import importlib.util
-
-    selections_spec = importlib.util.spec_from_file_location(
-            "selections_commands",
-            Path(__file__).parent / "cli_modules" / "commands" / "selections.py"
-    )
-    selections_module = importlib.util.module_from_spec(selections_spec)
-    selections_spec.loader.exec_module(selections_module)
-    app.add_typer(selections_module.selections_app, name="selections")
-except Exception as e:
-    logger.warning(f"Failed to import selections commands: {e}")
-
 app.add_typer(repos_app, name="repos")
 app.add_typer(config_app, name="config")
 app.add_typer(credentials_app, name="credentials")
@@ -405,7 +473,7 @@ def cli_version(
 
 @app.command("help")
 def cli_help(
-        topic: Annotated[Optional[str], typer.Argument(help="Help topic (repos, backup, restore, policy, schedule, selections)")] = None,
+        topic: Annotated[str | None, typer.Argument(help="Help topic (repos, backup, restore, policy, schedule, selections)")] = None,
 ) -> None:
     """
     Show comprehensive help and usage examples for TimeLocker commands.
@@ -754,17 +822,20 @@ def cli_help(
                 "repos, backup, snapshots, restore, policy, schedule, selections, "
                 "config, credentials, security, monitor, logs, reports, migrate"
         )
+        unknown_topic_message = (
+                f"Unknown help topic: {topic}\n\n"
+                + f"Available topics: {available_topics}"
+        )
         show_error_panel(
                 "Unknown Topic",
-                f"Unknown help topic: {topic}\n\n"
-                f"Available topics: {available_topics}"
+                unknown_topic_message
         )
         raise typer.Exit(1)
 
 
 @app.command("completion")
 def cli_completion(
-        shell: Annotated[Optional[str], typer.Argument(help="Target shell (bash, zsh, fish, powershell)")] = None,
+        shell: Annotated[str | None, typer.Argument(help="Target shell (bash, zsh, fish, powershell)")] = None,
         install: Annotated[bool, typer.Option("--install", help="Install completion for the specified shell")] = False,
         uninstall: Annotated[bool, typer.Option("--uninstall", help="Uninstall completion for the specified shell")] = False,
         verify: Annotated[bool, typer.Option("--verify", help="Verify completion installation")] = False,
@@ -789,11 +860,14 @@ def cli_completion(
     action_requested = install or uninstall or verify
 
     if action_requested and shell is None:
+        missing_shell_message = (
+                "Please specify a shell when using --install, --uninstall, or --verify.\n\n"
+                + "Example: timelocker completion --install bash\n"
+                + f"Supported shells: {', '.join(supported_shells)}"
+        )
         show_error_panel(
                 "Missing Shell Argument",
-                "Please specify a shell when using --install, --uninstall, or --verify.\n\n"
-                f"Example: timelocker completion --install bash\n"
-                f"Supported shells: {', '.join(supported_shells)}"
+                missing_shell_message
         )
         raise typer.Exit(1)
 
@@ -848,7 +922,7 @@ def cli_completion(
     bash_completion_dir = data_dir / "bash-completion" / "completions"
     zsh_completion_dir = data_dir / "zsh" / "site-functions"
 
-    shell_configs = {
+    shell_configs: dict[str, _CompletionConfig] = {
             "bash":       {
                     "completion_file": bash_completion_dir / "timelocker",
                     "rc_file":         home / ".bashrc",
@@ -886,7 +960,7 @@ def cli_completion(
         console.print(f"\n[bold cyan]Verifying {shell.title()} Completion[/bold cyan]\n")
 
         is_installed = False
-        issues = []
+        issues: list[str] = []
 
         if shell == "powershell":
             console.print("[yellow]PowerShell completion verification not yet implemented[/yellow]")
@@ -935,7 +1009,7 @@ def cli_completion(
         # Uninstall completion
         console.print(f"\n[bold cyan]Uninstalling {shell.title()} Completion[/bold cyan]\n")
 
-        removed_items = []
+        removed_items: list[str] = []
 
         # Remove completion file
         completion_file = config["completion_file"]
@@ -956,9 +1030,9 @@ def cli_completion(
                         lines = f.readlines()
 
                     # Filter out the source line and TimeLocker completion comment
-                    new_lines = []
+                    new_lines: list[str] = []
                     skip_next = False
-                    for i, line in enumerate(lines):
+                    for line in lines:
                         # Skip TimeLocker completion comment and following blank line
                         if "# TimeLocker completion" in line:
                             skip_next = True
@@ -983,10 +1057,13 @@ def cli_completion(
 
         console.print()
         if removed_items:
+            uninstall_message = (
+                    f"Removed {', '.join(removed_items)} for {shell}\n\n"
+                    + f"Reload your shell with: {config['reload_cmd']}"
+            )
             show_success_panel(
                     "Completion Uninstalled",
-                    f"Removed {', '.join(removed_items)} for {shell}\n\n"
-                    f"Reload your shell with: {config['reload_cmd']}"
+                    uninstall_message
             )
         else:
             show_info_panel("Nothing to Uninstall", f"No {shell} completion found")
@@ -1022,14 +1099,17 @@ def cli_completion(
                         check=True
                 )
 
+                if completion_file is None:
+                    raise typer.Exit(1)
+
                 # Write completion script to file
                 with open(completion_file, 'w') as f:
-                    f.write(result.stdout)
+                    _ = f.write(result.stdout)
                     # Add completion for 'tl' alias
                     if shell == "bash":
-                        f.write("\ncomplete -o default -F _timelocker_completion tl\n")
+                        _ = f.write("\ncomplete -o default -F _timelocker_completion tl\n")
                     elif shell == "zsh":
-                        f.write("\ncompdef _timelocker_completion tl\n")
+                        _ = f.write("\ncompdef _timelocker_completion tl\n")
 
                 console.print(f"  [green]✓[/green] Generated: {completion_file}\n")
             except Exception as e:
@@ -1052,21 +1132,24 @@ def cli_completion(
                     else:
                         # Add source line
                         with open(rc_file, 'a') as f:
-                            f.write(f"\n# TimeLocker completion\n{config['source_line']}\n")
+                            _ = f.write(f"\n# TimeLocker completion\n{config['source_line']}\n")
                         console.print(f"  [green]✓[/green] Added to {rc_file}\n")
                 else:
                     # Create rc file with source line
                     with open(rc_file, 'w') as f:
-                        f.write(f"# TimeLocker completion\n{config['source_line']}\n")
+                        _ = f.write(f"# TimeLocker completion\n{config['source_line']}\n")
                     console.print(f"  [green]✓[/green] Created {rc_file}\n")
 
             console.print("[bold]Step 3:[/bold] Reload your shell")
             console.print(f"  Run: [cyan]{config['reload_cmd']}[/cyan]\n")
 
+            installation_message = (
+                    f"Follow the steps above to complete {shell} completion installation.\n\n"
+                    + "After reloading your shell, tab completion will be available for TimeLocker commands."
+            )
             show_success_panel(
                     "Installation Instructions",
-                    f"Follow the steps above to complete {shell} completion installation.\n\n"
-                    "After reloading your shell, tab completion will be available for TimeLocker commands."
+                    installation_message
             )
 
         except Exception as e:
@@ -1106,8 +1189,8 @@ def main() -> None:
 
 @config_import_app.command("restic")
 def config_import_restic(
-        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
-        config_file: Annotated[Optional[Path], typer.Option("--config-file", help="Optional configuration file to update")] = None,
+        config_dir: Annotated[Path | None, typer.Option("--config-dir", help="Configuration directory")] = None,
+        config_file: Annotated[Path | None, typer.Option("--config-file", help="Optional configuration file to update")] = None,
         dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview changes without modifying configuration")] = False,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
@@ -1123,16 +1206,14 @@ def config_import_restic(
             )
             return
 
-        result = _call_service_method(
+        result = cast(_ServiceMethodResult, _call_service_method(
                 import_method,
                 config_dir=config_dir,
                 config_file=str(config_file) if config_file else None,
                 dry_run=dry_run,
-        )
+        ))
 
-        success_flag = getattr(result, "success", None)
-        if success_flag is None:
-            success_flag = bool(result)
+        success_flag = result.success
 
         if success_flag:
             message = "Restic environment settings imported."
@@ -1140,8 +1221,7 @@ def config_import_restic(
                 message = "Restic configuration import dry-run completed."
             show_success_panel("Restic Import", message)
         else:
-            error_details = getattr(result, "errors", None)
-            show_error_panel("Restic Import Failed", "Failed to import restic configuration.", error_details)
+            show_error_panel("Restic Import Failed", "Failed to import restic configuration.", result.errors)
             raise typer.Exit(1)
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "Restic import cancelled by user")
@@ -1160,8 +1240,8 @@ YesOption = Annotated[bool, typer.Option("--yes", "-y", help="Confirm without pr
 
 @config_import_app.command("timeshift")
 def config_import_timeshift(
-        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
-        config_file: Annotated[Optional[Path], typer.Option("--config-file", help="Path to Timeshift configuration file")] = None,
+        config_dir: Annotated[Path | None, typer.Option("--config-dir", help="Configuration directory")] = None,
+        config_file: Annotated[Path | None, typer.Option("--config-file", help="Path to Timeshift configuration file")] = None,
         dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview changes without modifying configuration")] = False,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
         yes: YesOption = False,
@@ -1195,13 +1275,13 @@ def config_import_timeshift(
                 raise typer.Exit(1)
 
             mapper = TimeshiftToTimeLockerMapper()
-            result = mapper.import_configuration(
+            result = cast(_TimeshiftImportResultLike, mapper.import_configuration(
                     parsed_config,
                     repository_name=default_repo_name,
                     target_name=default_selection_name,
                     manual_repository_path=None,
                     backup_paths=None,
-            )
+            ))
 
             console.rule("Import from Timeshift")
             summary = parser.get_summary()
@@ -1210,6 +1290,8 @@ def config_import_timeshift(
 
             repo_config = result.repository_config or {}
             selection_config = result.backup_target_config or {}
+            selection_paths = cast(list[str], selection_config.get("paths", ["/"]))
+            exclude_patterns = cast(list[str], selection_config.get("exclude_patterns", []))
 
             console.print("\n[bold]Repository Configuration[/bold]")
             console.print(f"- Name: {repo_config.get('name', default_repo_name)}")
@@ -1219,13 +1301,13 @@ def config_import_timeshift(
 
             console.print("\n[bold]Selection Template Configuration[/bold]")
             console.print(f"- Template: {selection_config.get('name', default_selection_name)}")
-            console.print(f"- Paths: {', '.join(selection_config.get('paths', ['/']))}")
-            console.print(f"- Excludes: {', '.join(selection_config.get('exclude_patterns', [])) or 'None'}")
+            console.print(f"- Paths: {', '.join(selection_paths)}")
+            console.print(f"- Excludes: {', '.join(exclude_patterns) or 'None'}")
 
             if result.warnings:
                 console.print("\n[yellow]Warnings:[/yellow]")
                 for warning in result.warnings:
-                    console.print(f"- {warning}")
+                    console.print(f"- {cast(str, warning)}")
                 if str(parsed_config.get("btrfs_mode", "false")).lower() == "true":
                     console.print("- BTRFS Mode: Yes (Timeshift configuration indicates BTRFS snapshots were enabled.)")
 
@@ -1240,7 +1322,7 @@ def config_import_timeshift(
 
         assume_yes_flag = yes or True  # legacy behavior: always auto-confirm
 
-        result = _call_service_method(
+        result = cast(_ServiceMethodResult, _call_service_method(
                 import_method,
                 config_dir=config_dir,
                 config_file=str(config_file) if config_file else None,
@@ -1250,11 +1332,9 @@ def config_import_timeshift(
                 backup_paths=None,
                 assume_yes=assume_yes_flag,
                 dry_run=dry_run,
-        )
+        ))
 
-        success_flag = getattr(result, "success", None)
-        if success_flag is None:
-            success_flag = bool(result)
+        success_flag = result.success
 
         if success_flag:
             message = "Timeshift configuration imported successfully."
@@ -1262,8 +1342,7 @@ def config_import_timeshift(
                 message = "Timeshift configuration import dry-run completed."
             show_success_panel("Timeshift Import", message)
         else:
-            error_details = getattr(result, "errors", None)
-            show_error_panel("Timeshift Import Failed", "Failed to import Timeshift configuration.", error_details)
+            show_error_panel("Timeshift Import Failed", "Failed to import Timeshift configuration.", result.errors)
             raise typer.Exit(1)
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "Timeshift import cancelled by user")
@@ -1279,7 +1358,8 @@ def config_import_timeshift(
 class UserFacingLogFilter(logging.Filter):
     """Filter to identify user-facing log messages that should be displayed in CLI."""
 
-    def filter(self, record):
+    @override
+    def filter(self, record: logging.LogRecord) -> bool:
         # Only show messages that are relevant to users
         # This includes configuration errors, validation failures, and user action failures
 
@@ -1344,11 +1424,14 @@ class UserFacingLogFilter(logging.Filter):
 class CLILogHandler(RichHandler):
     """Custom log handler that formats user-facing messages as Rich panels."""
 
+    console: Console
+
     def __init__(self, console: Console):
         super().__init__(console=console, show_time=False, show_path=False)
         self.console = console
 
-    def emit(self, record):
+    @override
+    def emit(self, record: logging.LogRecord) -> None:
         try:
             # Format the message
             message = self.format(record)
@@ -1388,7 +1471,7 @@ class CLILogHandler(RichHandler):
             self.handleError(record)
 
 
-def setup_logging(verbose: bool = False, config_dir: Optional[Path] = None) -> None:
+def setup_logging(verbose: bool = False, _config_dir: Path | None = None) -> None:
     """Set up logging configuration with file output and user-facing CLI messages."""
     from .config.configuration_path_resolver import ConfigurationPathResolver
 
@@ -1445,20 +1528,21 @@ def setup_logging(verbose: bool = False, config_dir: Optional[Path] = None) -> N
 
 def format_file_size(size_bytes: int) -> str:
     """Format file size in human-readable format."""
+    size_value = float(size_bytes)
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if size_bytes < 1024.0:
-            return f"{size_bytes:.1f} {unit}"
-        size_bytes /= 1024.0
-    return f"{size_bytes:.1f} PB"
+        if size_value < 1024.0:
+            return f"{size_value:.1f} {unit}"
+        size_value /= 1024.0
+    return f"{size_value:.1f} PB"
 
 
-def show_success_panel(title: str, message: str, details: Optional[dict] = None) -> None:
+def show_success_panel(title: str, message: str, details: dict[str, object] | None = None) -> None:
     """Display a success panel with optional details."""
     formatter = get_output_formatter(console=console)
     formatter.format_success(title, message, details)
 
 
-def show_error_panel(title: str, message: str, details: Optional[List[str]] = None) -> None:
+def show_error_panel(title: str, message: str, details: list[str] | None = None) -> None:
     """Display an error panel with optional details."""
     formatter = get_output_formatter(console=console)
     formatter.format_error(title, message, details)
@@ -1470,13 +1554,13 @@ def show_info_panel(title: str, message: str) -> None:
     formatter.format_info(title, message)
 
 
-def _get_service_method(manager, method_name: str):
+def _get_service_method(manager: object, method_name: str) -> Callable[..., object] | None:
     """Return callable service manager method if available."""
     method = getattr(manager, method_name, None)
     return method if callable(method) else None
 
 
-def _call_service_method(method, **candidates):
+def _call_service_method(method: Callable[..., object] | None, **candidates: object) -> object:
     """Call service method with kwargs filtered to supported parameters."""
     if method is None:
         raise AttributeError("Service method is not available")
@@ -1485,7 +1569,7 @@ def _call_service_method(method, **candidates):
     params = signature.parameters
 
     # Remove potential 'self' parameter confusion
-    filtered = {}
+    filtered: dict[str, object] = {}
     accepts_kwargs = any(param.kind == inspect.Parameter.VAR_KEYWORD for param in params.values())
     if accepts_kwargs:
         return method(**candidates)
@@ -1496,122 +1580,35 @@ def _call_service_method(method, **candidates):
 
     missing_required = [
             name for name, param in params.items()
-            if name != "self" and param.default is inspect._empty and name not in filtered
+            if name != "self" and param.default is inspect.Signature.empty and name not in filtered
     ]
 
     if missing_required and candidates:
-        default_value = next(iter(candidates.values()))
+        default_value: object = next(iter(candidates.values()))
         for name in missing_required:
-            filtered.setdefault(name, default_value)
+            _ = filtered.setdefault(name, default_value)
 
     return method(**filtered)
 
 
-def _resolve_config_dir(config_dir: Optional[Path]) -> Optional[Path]:
+def _resolve_config_dir(config_dir: Path | None) -> Path | None:
     """Normalize configuration directory input."""
     return Path(config_dir) if config_dir is not None else None
 
 
-def _get_service_manager_for_command(config_dir: Optional[Path] = None):
+def _get_service_manager_for_command(config_dir: Path | None = None):
     """Fetch CLI service manager scoped to configuration directory."""
     return get_cli_service_manager(config_dir=_resolve_config_dir(config_dir))
 
 
-def _create_credential_manager(config_dir: Optional[Path] = None):
+def _create_credential_manager(config_dir: Path | None = None) -> _CredentialManagerLike:
     """Instantiate credential manager respecting configuration directory."""
     from .security.credential_manager import CredentialManager
 
-    return CredentialManager()
+    return cast(_CredentialManagerLike, cast(object, CredentialManager(config_dir=config_dir)))
 
 
-def _create_security_manager(config_dir: Optional[Path] = None):
-    """Create security manager with access manager integration."""
-    from .security import CredentialManager, AccessManager
-
-    credential_manager = CredentialManager(config_dir=config_dir)
-    security_service = SecurityService(credential_manager, config_dir=config_dir)
-    access_manager = AccessManager(config_dir=config_dir)
-
-    return security_service, access_manager
-
-
-def _authenticate_user_session(access_manager: 'AccessManager', user_id: Optional[str] = None) -> Optional[str]:
-    """
-    Authenticate user and create session if needed.
-    
-    Args:
-        access_manager: AccessManager instance
-        user_id: Optional user ID (defaults to current system user)
-        
-    Returns:
-        Session ID if authentication successful, None otherwise
-    """
-    try:
-        if user_id is None:
-            import os
-            user_id = os.getenv('USER', os.getenv('USERNAME', 'unknown'))
-
-        from .security.access_manager import UserCredentials
-        credentials = UserCredentials(user_id=user_id)
-
-        auth_result = access_manager.authenticate_user(credentials)
-        if auth_result.success:
-            return auth_result.session_id
-        else:
-            logger.warning(f"Authentication failed: {auth_result.error_message}")
-            return None
-
-    except Exception as e:
-        logger.error(f"Session authentication error: {e}")
-        return None
-
-
-def _validate_session_for_operation(access_manager: 'AccessManager', operation: str,
-                                    repository_id: Optional[str] = None) -> bool:
-    """
-    Validate session for operation and create if needed.
-    
-    Args:
-        access_manager: AccessManager instance
-        operation: Operation being performed
-        repository_id: Optional repository ID
-        
-    Returns:
-        True if session is valid for operation
-    """
-    try:
-        # Get or create session
-        active_sessions = access_manager.get_active_sessions()
-        session_id = None
-
-        if active_sessions:
-            # Use the most recent valid session
-            for session in sorted(active_sessions, key=lambda s: s.last_accessed, reverse=True):
-                if session.is_valid():
-                    session_id = session.session_id
-                    break
-
-        if not session_id:
-            # Create new session
-            session_id = _authenticate_user_session(access_manager)
-            if not session_id:
-                return False
-
-        # Validate session for operation
-        if not access_manager.validate_session(session_id):
-            return False
-
-        # Extend session
-        access_manager.extend_session(session_id)
-
-        return True
-
-    except Exception as e:
-        logger.error(f"Session validation error: {e}")
-        return False
-
-
-def _create_configuration_module(config_dir: Optional[Path] = None):
+def _create_configuration_module(config_dir: Path | None = None) -> ConfigurationModule:
     """Factory for configuration module respecting dynamic patching."""
     try:
         from .config import configuration_module as configuration_module_module
@@ -1621,22 +1618,24 @@ def _create_configuration_module(config_dir: Optional[Path] = None):
 
     cli_class = globals().get("ConfigurationModule", None)
 
-    def _is_mock(candidate: Any) -> bool:
+    def _is_mock(candidate: object) -> bool:
         return getattr(getattr(candidate, "__class__", None), "__module__", "").startswith("unittest.mock")
 
+    selected_class: _ConfigurationModuleFactory | None = None
+
     if _is_mock(cli_class):
-        selected_class = cli_class
+        selected_class = cast(_ConfigurationModuleFactory, cli_class)
     elif callable(module_class):
-        selected_class = module_class
+        selected_class = cast(_ConfigurationModuleFactory, module_class)
     elif callable(cli_class):
-        selected_class = cli_class
+        selected_class = cast(_ConfigurationModuleFactory, cli_class)
     else:
         raise RuntimeError("ConfigurationModule is not available for instantiation.")
 
     return selected_class(config_dir=config_dir)
 
 
-def _determine_backend_from_uri(uri: Optional[str]) -> Optional[str]:
+def _determine_backend_from_uri(uri: str | None) -> str | None:
     """Determine repository backend based on URI."""
     if not uri:
         return None
@@ -1663,24 +1662,28 @@ def _backend_display_name(backend: str) -> str:
     return mapping.get(backend, backend.upper())
 
 
-def _repository_config_to_dict(repository_obj, name: str) -> Dict[str, Any]:
+def _repository_config_to_dict(repository_obj: object, name: str) -> dict[str, object]:
     """Convert repository configuration object or mapping to dictionary."""
     if repository_obj is None:
         return {"name": name}
-    if hasattr(repository_obj, "to_dict"):
-        maybe_dict = repository_obj.to_dict()
-        data = dict(maybe_dict) if isinstance(maybe_dict, dict) else {"name": name}
-    elif isinstance(repository_obj, dict):
-        data = dict(repository_obj)
+    to_dict_method = getattr(repository_obj, "to_dict", None)
+    if callable(to_dict_method):
+        data: dict[str, object] = dict(cast(_SupportsToDict, repository_obj).to_dict())
+    elif isinstance(repository_obj, Mapping):
+        source_mapping = cast(Mapping[object, object], repository_obj)
+        data = {
+                str(key): value
+                for key, value in source_mapping.items()
+        }
     else:
         data = {"name": name}
         for attr in ("uri", "location", "description", "tags", "password", "has_backend_credentials"):
             if hasattr(repository_obj, attr):
-                value = getattr(repository_obj, attr)
+                value = cast(object, getattr(repository_obj, attr))
                 if value is not None:
                     key = "uri" if attr == "location" else attr
                     data[key] = value
-    data.setdefault("name", name)
+    _ = data.setdefault("name", name)
     # Normalise location/uri fields
     if "uri" not in data and "location" in data:
         data["uri"] = data.pop("location")
@@ -1691,9 +1694,9 @@ def _repository_config_to_dict(repository_obj, name: str) -> Dict[str, Any]:
 def repos_credentials_set(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         master_password: Annotated[
-            Optional[str], typer.Option("--master-password", "-m", help="Master password to unlock the credential manager if locked")] = None,
+            str | None, typer.Option("--master-password", "-m", help="Master password to unlock the credential manager if locked")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        config_dir: Annotated[Path | None, typer.Option("--config-dir", help="Configuration directory")] = None,
 ) -> None:
     """Store backend credentials for a repository."""
     setup_logging(verbose, config_dir)
@@ -1720,7 +1723,7 @@ def repos_credentials_set(
         credential_manager = _create_credential_manager(config_dir)
         if repository_factory is not None:
             try:
-                setattr(repository_factory, "_credential_manager", credential_manager)
+                setattr(cast(object, repository_factory), "_credential_manager", credential_manager)
             except Exception as attach_exc:
                 logging.getLogger(__name__).debug("Unable to attach credential manager to repository factory: %s", attach_exc)
 
@@ -1728,7 +1731,7 @@ def repos_credentials_set(
             _ensure_manager_unlocked(credential_manager, master_password, interactive)
         else:
             try:
-                credential_manager.ensure_unlocked(allow_prompt=interactive)
+                _ = credential_manager.ensure_unlocked(allow_prompt=interactive)
             except Exception:
                 if interactive:
                     raise
@@ -1744,7 +1747,7 @@ def repos_credentials_set(
             show_error_panel("Missing Parameter", str(e))
             raise typer.Exit(2)
 
-        credentials_payload = {
+        credentials_payload: dict[str, object] = {
                 "access_key_id":     access_key,
                 "secret_access_key": secret_key,
         }
@@ -1758,8 +1761,8 @@ def repos_credentials_set(
                 backend_type=backend_type,
                 backend_name=_backend_display_name(backend_type),
                 credentials_dict=credentials_payload,
-                cred_mgr=credential_manager,
-                config_manager=config_module,
+                cred_mgr=cast(_CredentialStoreLike, cast(object, credential_manager)),
+                config_manager=cast(_RepositoryConfigStoreLike, config_module),
                 repository_config=repository_config,
                 console=console,
                 logger=logging.getLogger(__name__),
@@ -1788,9 +1791,9 @@ def repos_credentials_remove(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         yes: Annotated[bool, typer.Option("--yes", "-y", help="Confirm removal without prompt")] = False,
         master_password: Annotated[
-            Optional[str], typer.Option("--master-password", "-m", help="Master password to unlock the credential manager if locked")] = None,
+            str | None, typer.Option("--master-password", "-m", help="Master password to unlock the credential manager if locked")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        config_dir: Annotated[Path | None, typer.Option("--config-dir", help="Configuration directory")] = None,
 ) -> None:
     """Remove stored backend credentials for a repository."""
     setup_logging(verbose, config_dir)
@@ -1851,9 +1854,9 @@ def repos_credentials_remove(
 def repos_credentials_show(
         name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
         master_password: Annotated[
-            Optional[str], typer.Option("--master-password", "-m", help="Master password to unlock the credential manager if locked")] = None,
+            str | None, typer.Option("--master-password", "-m", help="Master password to unlock the credential manager if locked")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        config_dir: Annotated[Path | None, typer.Option("--config-dir", help="Configuration directory")] = None,
 ) -> None:
     """Display stored backend credentials for a repository."""
     setup_logging(verbose, config_dir)
@@ -1873,7 +1876,7 @@ def repos_credentials_show(
             _ensure_manager_unlocked(credential_manager, master_password, interactive)
         else:
             try:
-                credential_manager.ensure_unlocked(allow_prompt=interactive)
+                _ = credential_manager.ensure_unlocked(allow_prompt=interactive)
             except Exception:
                 if interactive:
                     raise
@@ -1896,17 +1899,14 @@ def repos_credentials_show(
             return
 
         # Format credentials data for table display
-        table_data = []
+        table_data: list[dict[str, str]] = []
         for key, value in credentials.items():
             display_key = key.replace('_', ' ').title()
-            if isinstance(value, str):
-                if len(value) > 4 and any(token in key for token in ["secret", "key"]):
-                    masked = value[:4] + "•••" + value[-2:]
-                else:
-                    masked = value
-                display_value = masked
+            display_value = value
+            if len(value) > 4 and any(token in key for token in ["secret", "key"]):
+                display_value = value[:4] + "•••" + value[-2:]
             else:
-                display_value = str(value)
+                display_value = value
             table_data.append({"Field": display_key, "Value": display_value})
 
         formatter = get_output_formatter(console=console)
@@ -1928,10 +1928,12 @@ def repos_credentials_show(
         raise typer.Exit(1)
 
 
-def _ensure_manager_unlocked(manager, master_password: Optional[str], interactive: bool) -> None:
+def _ensure_manager_unlocked(
+        manager: _UnlockableCredentialManager,
+        master_password: str | None,
+        interactive: bool,
+) -> None:
     """Unlock credential manager when required or raise typer.Exit."""
-    if not hasattr(manager, "is_locked"):
-        return
     if not manager.is_locked():
         return
 
@@ -1961,7 +1963,7 @@ def config_export_config(
         include_credentials: Annotated[bool, typer.Option("--credentials/--no-credentials", help="Include credential references (not actual secrets)")] = False,
         overwrite: Annotated[bool, typer.Option("--overwrite", "-f", help="Overwrite existing file")] = False,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        config_dir: Annotated[Path | None, typer.Option("--config-dir", help="Configuration directory")] = None,
 ) -> None:
     """
     Export TimeLocker configuration to a file.
@@ -1997,81 +1999,89 @@ def config_export_config(
         config = config_module.get_config()
 
         # Build export data based on options
-        export_data = {
+        export_data: dict[str, object] = {
                 "metadata": {
                         "exported_at":        datetime.now().isoformat(),
                         "timelocker_version": __version__,
                         "export_type":        "full" if all([include_repositories, include_selections, include_policies, include_schedules]) else "selective"
                 },
-                "general":  config.general.to_dict() if hasattr(config.general, 'to_dict') else {}
+                "general": _serialize_config_value(config.general),
         }
 
         # Add repositories if requested
         if include_repositories:
-            repos_data = {}
+            repos_data: dict[str, dict[str, object]] = {}
             for name, repo in config.repositories.items():
-                repo_dict = repo.to_dict() if hasattr(repo, 'to_dict') else {}
+                repo_dict = _serialize_config_value(repo)
                 # Remove sensitive data unless explicitly requested
                 if not include_credentials:
-                    repo_dict.pop('password', None)
-                    repo_dict.pop('has_backend_credentials', None)
+                    _ = repo_dict.pop('password', None)
+                    _ = repo_dict.pop('has_backend_credentials', None)
                 repos_data[name] = repo_dict
             export_data["repositories"] = repos_data
 
         # Add data selections if requested
         if include_selections:
-            selections_data = {}
-            if hasattr(config, 'data_selections'):
-                for name, selection in config.data_selections.items():
-                    selection_dict = selection.to_dict() if hasattr(selection, 'to_dict') else {}
-                    selections_data[name] = selection_dict
+            selections_data: dict[str, dict[str, object]] = {}
+            data_selections = getattr(config, "data_selections", {})
+            if isinstance(data_selections, Mapping):
+                typed_data_selections = cast(Mapping[object, object], data_selections)
+                for name, selection in typed_data_selections.items():
+                    selections_data[str(name)] = _serialize_config_value(selection)
             export_data["data_selections"] = selections_data
 
         # Add policies if requested (if they exist in config)
-        if include_policies and hasattr(config, 'policies'):
-            policies_data = {}
-            for name, policy in config.policies.items():
-                policy_dict = policy.to_dict() if hasattr(policy, 'to_dict') else {}
-                policies_data[name] = policy_dict
+        if include_policies:
+            policies_data: dict[str, dict[str, object]] = {}
+            policies = getattr(config, "policies", {})
+            if isinstance(policies, Mapping):
+                typed_policies = cast(Mapping[object, object], policies)
+                for name, policy in typed_policies.items():
+                    policies_data[str(name)] = _serialize_config_value(policy)
             export_data["policies"] = policies_data
 
         # Add schedules if requested (if they exist in config)
-        if include_schedules and hasattr(config, 'schedules'):
-            schedules_data = {}
-            for name, schedule in config.schedules.items():
-                schedule_dict = schedule.to_dict() if hasattr(schedule, 'to_dict') else {}
-                schedules_data[name] = schedule_dict
+        if include_schedules:
+            schedules_data: dict[str, dict[str, object]] = {}
+            schedules = getattr(config, "schedules", {})
+            if isinstance(schedules, Mapping):
+                typed_schedules = cast(Mapping[object, object], schedules)
+                for name, schedule in typed_schedules.items():
+                    schedules_data[str(name)] = _serialize_config_value(schedule)
             export_data["schedules"] = schedules_data
 
         # Add security and monitoring settings
-        if hasattr(config, 'security'):
-            security_dict = config.security.to_dict() if hasattr(config.security, 'to_dict') else {}
-            # Remove sensitive data
+        security = getattr(config, "security", None)
+        if security is not None:
+            typed_security = cast(object, security)
+            security_dict = _serialize_config_value(typed_security)
             if not include_credentials:
-                security_dict.pop('master_password', None)
-                security_dict.pop('encryption_key', None)
+                _ = security_dict.pop('master_password', None)
+                _ = security_dict.pop('encryption_key', None)
             export_data["security"] = security_dict
 
-        if hasattr(config, 'monitoring'):
-            export_data["monitoring"] = config.monitoring.to_dict() if hasattr(config.monitoring, 'to_dict') else {}
+        monitoring = getattr(config, "monitoring", None)
+        if monitoring is not None:
+            typed_monitoring = cast(object, monitoring)
+            export_data["monitoring"] = _serialize_config_value(typed_monitoring)
 
         # Write export file
         with open(file, 'w') as f:
             json.dump(export_data, f, indent=2)
 
         # Show success message with summary
-        summary_parts = []
+        summary_parts: list[str] = []
         if include_repositories:
-            repo_count = len(export_data.get("repositories", {}))
+            repo_count = len(cast(dict[str, object], export_data.get("repositories", {})))
             summary_parts.append(f"{repo_count} repositories")
         if include_selections:
-            selection_count = len(export_data.get("data_selections", {}))
+            selection_count = len(cast(dict[str, object], export_data.get("data_selections", {})))
             summary_parts.append(f"{selection_count} selections")
         if include_policies:
-            policy_count = len(export_data.get("policies", {}))
+            policy_count = len(cast(dict[str, object], export_data.get("policies", {})))
             summary_parts.append(f"{policy_count} policies")
         if include_schedules:
-            schedule_count = len(export_data.get("schedules", {}))
+            schedule_count = len(cast(dict[str, object], export_data.get("schedules", {})))
             summary_parts.append(f"{schedule_count} schedules")
 
         summary = ", ".join(summary_parts) if summary_parts else "configuration"
@@ -2102,7 +2112,7 @@ def migrate_validate(
         show_changes: Annotated[bool, typer.Option("--show-changes", help="Show detailed change summary")] = True,
         check_compatibility: Annotated[bool, typer.Option("--check-compatibility", help="Check version compatibility")] = True,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        config_dir: Annotated[Path | None, typer.Option("--config-dir", help="Configuration directory")] = None,
 ) -> None:
     """
     Validate configuration file for import without making changes.
@@ -2135,7 +2145,7 @@ def migrate_validate(
         # Load and parse source configuration
         try:
             with open(source, 'r') as f:
-                import_data = json.load(f)
+                import_data = cast(_ConfigObjectMap, json.load(f))
         except json.JSONDecodeError as e:
             show_error_panel(
                     "Invalid JSON",
@@ -2148,7 +2158,7 @@ def migrate_validate(
         current_config = config_module.get_config()
 
         # Validation results
-        validation_results = {
+        validation_results: _ValidationResults = {
                 "valid":    True,
                 "errors":   [],
                 "warnings": [],
@@ -2156,24 +2166,25 @@ def migrate_validate(
                         "repositories": {"add": [], "update": [], "remove": []},
                         "targets":      {"add": [], "update": [], "remove": []},
                         "policies":     {"add": [], "update": [], "remove": []},
-                        "schedules":    {"add": [], "update": [], "remove": []}
-                }
+                        "schedules":    {"add": [], "update": [], "remove": []},
+                },
         }
 
         # Check metadata and version compatibility
-        metadata = import_data.get("metadata", {})
+        metadata = cast(_ConfigObjectMap, import_data.get("metadata", {}))
         import_version = metadata.get("timelocker_version", "unknown")
 
         if check_compatibility:
             # Simple version check - in production, this would be more sophisticated
             if import_version != "unknown" and import_version != __version__:
-                validation_results["warnings"].append(
+                version_warning = (
                         f"Configuration was exported from version {import_version}, "
                         f"current version is {__version__}. Some features may not be compatible."
                 )
+                validation_results["warnings"].append(version_warning)
 
         # Validate repositories
-        import_repos = import_data.get("repositories", {})
+        import_repos = cast(_ConfigSectionMap, import_data.get("repositories", {}))
         current_repos = {name: repo for name, repo in current_config.repositories.items()}
 
         for repo_name, repo_data in import_repos.items():
@@ -2190,15 +2201,16 @@ def migrate_validate(
                 import_uri = repo_data.get("uri") or repo_data.get("location")
                 if current_uri != import_uri:
                     validation_results["changes"]["repositories"]["update"].append(repo_name)
-                    validation_results["warnings"].append(
+                    repository_warning = (
                             f"Repository '{repo_name}' exists with different URI. "
                             f"Import will update: {current_uri} -> {import_uri}"
                     )
+                    validation_results["warnings"].append(repository_warning)
             else:
                 validation_results["changes"]["repositories"]["add"].append(repo_name)
 
         # Validate backup targets
-        import_targets = import_data.get("backup_targets", {})
+        import_targets = cast(_ConfigSectionMap, import_data.get("backup_targets", {}))
         current_targets = {name: target for name, target in current_config.backup_targets.items()}
 
         for target_name, target_data in import_targets.items():
@@ -2223,7 +2235,7 @@ def migrate_validate(
                 validation_results["changes"]["targets"]["add"].append(target_name)
 
         # Validate policies if present
-        import_policies = import_data.get("policies", {})
+        import_policies = cast(_ConfigSectionMap, import_data.get("policies", {}))
         if import_policies:
             for policy_name, policy_data in import_policies.items():
                 # Check repository references
@@ -2236,7 +2248,7 @@ def migrate_validate(
                 validation_results["changes"]["policies"]["add"].append(policy_name)
 
         # Validate schedules if present
-        import_schedules = import_data.get("schedules", {})
+        import_schedules = cast(_ConfigSectionMap, import_data.get("schedules", {}))
         if import_schedules:
             for schedule_name, schedule_data in import_schedules.items():
                 # Check policy references
@@ -2284,17 +2296,19 @@ def migrate_validate(
             console.print("[bold]Change Summary:[/bold]")
 
             changes = validation_results["changes"]
-            total_changes = sum(
-                    len(changes[category][action])
-                    for category in changes
-                    for action in changes[category]
-            )
+            change_sections: list[tuple[str, _ValidationChangeBucket]] = [
+                    ("repositories", changes["repositories"]),
+                    ("targets", changes["targets"]),
+                    ("policies", changes["policies"]),
+                    ("schedules", changes["schedules"]),
+            ]
+            total_changes = sum(_change_bucket_total(bucket) for _, bucket in change_sections)
 
             if total_changes == 0:
                 console.print("  No changes detected\n")
             else:
-                for category, actions in changes.items():
-                    category_changes = sum(len(items) for items in actions.values())
+                for category, actions in change_sections:
+                    category_changes = _change_bucket_total(actions)
                     if category_changes > 0:
                         console.print(f"\n  [bold]{category.title()}:[/bold]")
                         if actions["add"]:
@@ -2342,7 +2356,7 @@ def config_import_config(
         dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview changes without applying them")] = False,
         yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation prompts")] = False,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
-        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
+        config_dir: Annotated[Path | None, typer.Option("--config-dir", help="Configuration directory")] = None,
 ) -> None:
     """
     Import TimeLocker configuration from a file.
@@ -2373,7 +2387,7 @@ def config_import_config(
         # Load import data
         try:
             with open(file, 'r') as f:
-                import_data = json.load(f)
+                import_data = cast(_ConfigObjectMap, json.load(f))
         except json.JSONDecodeError as e:
             show_error_panel(
                     "Invalid JSON",
@@ -2388,7 +2402,7 @@ def config_import_config(
         console.print("\n[bold cyan]Configuration Import[/bold cyan]\n")
         console.print(f"[bold]Source:[/bold] {file}")
 
-        metadata = import_data.get("metadata", {})
+        metadata = cast(_ConfigObjectMap, import_data.get("metadata", {}))
         if metadata:
             console.print(f"[bold]Exported:[/bold] {metadata.get('exported_at', 'unknown')}")
             console.print(f"[bold]Version:[/bold] {metadata.get('timelocker_version', 'unknown')}")
@@ -2397,10 +2411,14 @@ def config_import_config(
         console.print(f"[bold]Overwrite:[/bold] {'Yes' if overwrite else 'No'}\n")
 
         # Count items to import
-        repo_count = len(import_data.get("repositories", {}))
-        target_count = len(import_data.get("backup_targets", {}))
-        policy_count = len(import_data.get("policies", {}))
-        schedule_count = len(import_data.get("schedules", {}))
+        import_repos = cast(_ConfigSectionMap, import_data.get("repositories", {}))
+        import_targets = cast(_ConfigSectionMap, import_data.get("backup_targets", {}))
+        import_policies = cast(_ConfigSectionMap, import_data.get("policies", {}))
+        import_schedules = cast(_ConfigSectionMap, import_data.get("schedules", {}))
+        repo_count = len(import_repos)
+        target_count = len(import_targets)
+        policy_count = len(import_policies)
+        schedule_count = len(import_schedules)
 
         console.print(f"Items to import:")
         console.print(f"  • {repo_count} repositories")
@@ -2416,10 +2434,13 @@ def config_import_config(
                 raise typer.Exit(0)
 
         if dry_run:
-            show_info_panel(
-                    "Dry Run Complete",
+            dry_run_message = (
                     "Configuration validated successfully. No changes were made.\n\n"
                     "Run without --dry-run to apply changes."
+            )
+            show_info_panel(
+                    "Dry Run Complete",
+                    dry_run_message
             )
             raise typer.Exit(0)
 

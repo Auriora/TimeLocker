@@ -14,21 +14,19 @@ from functools import wraps
 import typer
 import click
 
-# Import from parent cli.py during transition
-from TimeLocker import cli as _cli_module
-
-# Common display functions
-show_success_panel = _cli_module.show_success_panel
-show_error_panel = _cli_module.show_error_panel
-show_info_panel = _cli_module.show_info_panel
-setup_logging = _cli_module.setup_logging
-console = _cli_module.console
-
-# Common service helpers
-_get_service_method = _cli_module._get_service_method
-_call_service_method = _cli_module._call_service_method
-_get_service_manager_for_command = _cli_module._get_service_manager_for_command
-_create_configuration_module = _cli_module._create_configuration_module
+from ..helpers.display import (
+    show_success_panel,
+    show_error_panel,
+    show_info_panel,
+    console,
+)
+from ..helpers.logging_setup import setup_logging
+from ..helpers.service_helpers import (
+    _get_service_method,
+    _call_service_method,
+    _get_service_manager_for_command,
+    _create_configuration_module,
+)
 
 # Import ConfigService, RepositoryResolver, and ServiceFacade
 from ..services.config_service import ConfigService

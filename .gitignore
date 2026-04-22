@@ -45,3 +45,5 @@ minio-data/
 repo_initialized.flag
 
 *.log
+
+.cache

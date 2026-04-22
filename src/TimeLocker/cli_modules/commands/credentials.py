@@ -22,6 +22,7 @@ from .base import (
     create_typer_app,
     with_error_handling,
     with_logging,
+    setup_logging,
     show_success_panel,
     show_error_panel,
     show_info_panel,
@@ -42,11 +43,6 @@ from .base import (
 # Import PromptService
 from TimeLocker.utils import PromptService, PromptError
 
-# Import from TimeLocker package
-from TimeLocker import cli as _cli_module
-from TimeLocker.cli_services import get_cli_service_manager
-from TimeLocker.cli import setup_logging, _create_credential_manager, _ensure_manager_unlocked
-
 # Module-specific imports
 from TimeLocker.security.credential_manager import (
     CredentialManager,
@@ -55,6 +51,20 @@ from TimeLocker.security.credential_manager import (
 from TimeLocker.config.configuration_manager import ConfigurationManager
 from TimeLocker.completion import repository_name_completer
 from getpass import getpass
+from ..helpers.service_helpers import _create_credential_manager
+
+
+def _ensure_manager_unlocked(
+        manager: CredentialManager,
+        password: Optional[str] = None,
+        interactive: bool = True,
+) -> bool:
+    """Unlock a credential manager when needed."""
+    if manager.is_unlocked():
+        return True
+    if not password:
+        return False
+    return bool(manager.unlock(password))
 
 # Create Typer app
 credentials_app = create_typer_app(
@@ -79,7 +89,7 @@ def credentials_unlock(
     prompt_service = PromptService(console=console)
     try:
         try:
-            service_manager = get_cli_service_manager()
+            service_manager = _get_service_manager_for_command(config_dir)
         except Exception:
             service_manager = None
 
@@ -140,7 +150,7 @@ def credentials_store(
     prompt_service = PromptService(console=console)
     try:
         try:
-            service_manager = get_cli_service_manager()
+            service_manager = _get_service_manager_for_command(config_dir)
         except Exception:
             service_manager = None
 
@@ -168,7 +178,9 @@ def credentials_store(
                     logging.getLogger(__name__).debug("Service password store failed, falling back to credential manager: %s", exc)
 
         manager = _create_credential_manager(config_dir)
-        _ensure_manager_unlocked(manager, master_password, prompt_service.is_interactive())
+        if not _ensure_manager_unlocked(manager, master_password, prompt_service.is_interactive()):
+            show_error_panel("Unlock Required", "Master password is required to unlock the credential manager.")
+            raise typer.Exit(1)
 
         result = manager.store_repository_password(repository, password)
         if result is False:
@@ -218,7 +230,9 @@ def credentials_list(
     prompt_service = PromptService(console=console)
     try:
         manager = _create_credential_manager(config_dir)
-        _ensure_manager_unlocked(manager, password, prompt_service.is_interactive())
+        if not _ensure_manager_unlocked(manager, password, prompt_service.is_interactive()):
+            show_error_panel("Unlock Required", "Master password is required to unlock the credential manager.")
+            raise typer.Exit(1)
 
         repositories = manager.list_repositories() if hasattr(manager, "list_repositories") else []
 
@@ -261,7 +275,7 @@ def credentials_remove(
     prompt_service = PromptService(console=console)
     try:
         try:
-            service_manager = get_cli_service_manager()
+            service_manager = _get_service_manager_for_command(config_dir)
         except Exception:
             service_manager = None
 
@@ -282,7 +296,9 @@ def credentials_remove(
                     logging.getLogger(__name__).debug("Service credential removal failed, falling back to local removal: %s", exc)
 
         manager = _create_credential_manager(config_dir)
-        _ensure_manager_unlocked(manager, password, prompt_service.is_interactive())
+        if not _ensure_manager_unlocked(manager, password, prompt_service.is_interactive()):
+            show_error_panel("Unlock Required", "Master password is required to unlock the credential manager.")
+            raise typer.Exit(1)
 
         result = manager.remove_repository(repository)
         if result:
@@ -297,5 +313,3 @@ def credentials_remove(
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
-
-

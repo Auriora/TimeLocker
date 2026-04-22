@@ -15,25 +15,47 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
 import shutil
-import hashlib
+import re
 from datetime import datetime
 from pathlib import Path
-from typing import List, Optional, Dict, Any, Callable, Union
+from typing import Callable, Protocol
 from enum import Enum
 import logging
 
 from .backup_repository import BackupRepository
 from .backup_snapshot import BackupSnapshot
 from .snapshot_manager import SnapshotManager
-from .recovery_errors import (
-    RestoreError, RestoreTargetError, RestorePermissionError,
-    RestoreVerificationError, FileConflictError, InsufficientSpaceError,
-    SnapshotCorruptedError, RestoreInterruptedError
-)
 
 logger = logging.getLogger(__name__)
+
+
+class _ValidationFailureLike(Protocol):
+    error_message: str
+
+
+class _ValidationWarningLike(Protocol):
+    message: str
+
+
+class _PreRecoveryValidationResultLike(Protocol):
+    failed_validations: list[_ValidationFailureLike]
+    warnings: list[_ValidationWarningLike]
+    is_valid: bool
+
+
+class _RecoveryValidatorLike(Protocol):
+    def validate_pre_recovery(
+        self,
+        snapshot_id: str,
+        target_path: str,
+        selection_criteria: object | None,
+    ) -> _PreRecoveryValidationResultLike: ...
+
+
+class _ProgressMonitorLike(Protocol):
+    def start_monitoring(self, operation_id: str) -> None: ...
+    def stop_monitoring(self, operation_id: str) -> None: ...
 
 
 class ConflictResolution(Enum):
@@ -47,28 +69,28 @@ class ConflictResolution(Enum):
 class RestoreOptions:
     """Configuration options for restore operations"""
 
-    def __init__(self):
-        self.target_path: Optional[Path] = None
-        self.include_paths: List[Path] = []
-        self.exclude_paths: List[Path] = []
+    def __init__(self) -> None:
+        self.target_path: Path | None = None
+        self.include_paths: list[Path] = []
+        self.exclude_paths: list[Path] = []
         self.conflict_resolution: ConflictResolution = ConflictResolution.PROMPT
         self.verify_after_restore: bool = True
         self.create_target_directory: bool = True
         self.preserve_permissions: bool = True
         self.dry_run: bool = False
-        self.progress_callback: Optional[Callable[[str, int, int], None]] = None
+        self.progress_callback: Callable[[str, int, int], None] | None = None
 
-    def with_target_path(self, path: Union[str, Path]) -> 'RestoreOptions':
+    def with_target_path(self, path: str | Path) -> 'RestoreOptions':
         """Set the target path for restore"""
         self.target_path = Path(path)
         return self
 
-    def with_include_paths(self, paths: List[Union[str, Path]]) -> 'RestoreOptions':
+    def with_include_paths(self, paths: list[str | Path]) -> 'RestoreOptions':
         """Set paths to include in restore"""
         self.include_paths = [Path(p) for p in paths]
         return self
 
-    def with_exclude_paths(self, paths: List[Union[str, Path]]) -> 'RestoreOptions':
+    def with_exclude_paths(self, paths: list[str | Path]) -> 'RestoreOptions':
         """Set paths to exclude from restore"""
         self.exclude_paths = [Path(p) for p in paths]
         return self
@@ -97,24 +119,24 @@ class RestoreOptions:
 class RestoreResult:
     """Result of a restore operation"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.success: bool = False
         self.snapshot_id: str = ""
-        self.target_path: Optional[Path] = None
+        self.target_path: Path | None = None
         self.files_restored: int = 0
         self.files_skipped: int = 0
         self.files_failed: int = 0
         self.bytes_restored: int = 0
         self.duration_seconds: float = 0.0
-        self.errors: List[str] = []
-        self.warnings: List[str] = []
+        self.errors: list[str] = []
+        self.warnings: list[str] = []
         self.verification_passed: bool = False
 
-    def add_error(self, error: str):
+    def add_error(self, error: str) -> None:
         """Add an error message"""
         self.errors.append(error)
 
-    def add_warning(self, warning: str):
+    def add_warning(self, warning: str) -> None:
         """Add a warning message"""
         self.warnings.append(warning)
 
@@ -129,12 +151,12 @@ class RestoreManager:
     """
 
     def __init__(
-        self, 
-        repository: BackupRepository, 
-        snapshot_manager: Optional[SnapshotManager] = None,
-        recovery_validator: Optional['RecoveryValidator'] = None,
-        progress_monitor: Optional['ProgressMonitor'] = None
-    ):
+        self,
+        repository: BackupRepository,
+        snapshot_manager: SnapshotManager | None = None,
+        recovery_validator: _RecoveryValidatorLike | None = None,
+        progress_monitor: _ProgressMonitorLike | None = None,
+    ) -> None:
         """
         Initialize RestoreManager
         
@@ -144,15 +166,15 @@ class RestoreManager:
             recovery_validator: Optional RecoveryValidator for enhanced validation
             progress_monitor: Optional ProgressMonitor for progress tracking
         """
-        self.repository = repository
-        self.snapshot_manager = snapshot_manager or SnapshotManager(repository)
+        self.repository: BackupRepository = repository
+        self.snapshot_manager: SnapshotManager = snapshot_manager or SnapshotManager(repository)
         
         # New recovery architecture integration
-        self.recovery_validator = recovery_validator
-        self.progress_monitor = progress_monitor
+        self.recovery_validator: _RecoveryValidatorLike | None = recovery_validator
+        self.progress_monitor: _ProgressMonitorLike | None = progress_monitor
         
         # Track whether we're using enhanced recovery features
-        self._enhanced_mode = recovery_validator is not None or progress_monitor is not None
+        self._enhanced_mode: bool = recovery_validator is not None or progress_monitor is not None
         
         if self._enhanced_mode:
             logger.info("RestoreManager initialized with enhanced recovery features")
@@ -348,6 +370,9 @@ class RestoreManager:
             restored_files = list(options.target_path.rglob('*'))
             file_count = len([f for f in restored_files if f.is_file()])
 
+            if file_count > 0 and result.files_restored == 0:
+                self._capture_restored_tree_stats(result)
+
             if file_count == 0:
                 result.add_warning("No files found in target directory after restore")
                 return False
@@ -401,14 +426,36 @@ class RestoreManager:
             result.add_warning(f"Could not check for file conflicts: {e}")
 
     def _parse_restore_output(self, output: str, result: RestoreResult):
-        """Parse restore command output for statistics"""
-        # This is a simplified implementation
-        # Real implementation would parse actual restic output
-        result.files_restored = 1  # Placeholder
-        result.bytes_restored = 0  # Placeholder
+        """Parse restore command output for statistics without inventing values."""
+        if not output:
+            return
+
+        file_match = re.search(r"(?P<count>\d+)\s+files?\s+restored", output, re.IGNORECASE)
+        if file_match:
+            result.files_restored = int(file_match.group("count"))
+
+        bytes_patterns = [
+            r"(?P<count>\d+)\s+bytes?\s+restored",
+            r"restored\s+(?P<count>\d+)\s+bytes?",
+            r"total_bytes[\"'=:\s]+(?P<count>\d+)",
+        ]
+        for pattern in bytes_patterns:
+            match = re.search(pattern, output, re.IGNORECASE)
+            if match:
+                result.bytes_restored = int(match.group("count"))
+                break
 
         if "error" in output.lower():
             result.add_warning("Restore completed with warnings - check logs for details")
+
+    def _capture_restored_tree_stats(self, result: RestoreResult) -> None:
+        """Populate restore counters from the target tree when available."""
+        if not result.target_path or not result.target_path.exists():
+            return
+
+        files = [path for path in result.target_path.rglob("*") if path.is_file()]
+        result.files_restored = len(files)
+        result.bytes_restored = sum(path.stat().st_size for path in files)
     
     def _verify_restore_enhanced(
         self, 
@@ -441,6 +488,9 @@ class RestoreManager:
             # Count restored files
             restored_files = list(options.target_path.rglob('*'))
             file_count = len([f for f in restored_files if f.is_file()])
+
+            if file_count > 0 and result.files_restored == 0:
+                self._capture_restored_tree_stats(result)
             
             if file_count == 0:
                 result.add_warning("No files found in target directory after restore")
@@ -464,7 +514,7 @@ class RestoreManager:
             result.add_error(f"Verification failed: {e}")
             return False
     
-    def get_recovery_validator(self) -> Optional['RecoveryValidator']:
+    def get_recovery_validator(self) -> _RecoveryValidatorLike | None:
         """
         Get the recovery validator instance if available.
         
@@ -473,7 +523,7 @@ class RestoreManager:
         """
         return self.recovery_validator
     
-    def get_progress_monitor(self) -> Optional['ProgressMonitor']:
+    def get_progress_monitor(self) -> _ProgressMonitorLike | None:
         """
         Get the progress monitor instance if available.
         
@@ -491,7 +541,7 @@ class RestoreManager:
         """
         return self._enhanced_mode
     
-    def set_recovery_validator(self, validator: Optional['RecoveryValidator']) -> None:
+    def set_recovery_validator(self, validator: _RecoveryValidatorLike | None) -> None:
         """
         Set or update the recovery validator.
         
@@ -502,7 +552,7 @@ class RestoreManager:
         self._enhanced_mode = validator is not None or self.progress_monitor is not None
         logger.info(f"Recovery validator {'enabled' if validator else 'disabled'}")
     
-    def set_progress_monitor(self, monitor: Optional['ProgressMonitor']) -> None:
+    def set_progress_monitor(self, monitor: _ProgressMonitorLike | None) -> None:
         """
         Set or update the progress monitor.
         

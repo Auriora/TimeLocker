@@ -23,7 +23,7 @@ def test_store_backend_credentials_locked_cannot_unlock():
     cred_mgr.ensure_unlocked.return_value = False  # Cannot unlock
     
     config_manager = MagicMock()
-    repository_config = {}
+    repository_config: dict[str, object] = {}
     
     # Capture console output
     string_io = io.StringIO()
@@ -63,7 +63,7 @@ def test_store_backend_credentials_locked_unlocks_successfully():
     cred_mgr.ensure_unlocked.return_value = True  # Successfully unlocks
     
     config_manager = MagicMock()
-    repository_config = {}
+    repository_config: dict[str, object] = {}
     
     # Capture console output
     string_io = io.StringIO()
@@ -106,7 +106,7 @@ def test_store_backend_credentials_already_unlocked():
     cred_mgr.is_locked.return_value = False  # Already unlocked
     
     config_manager = MagicMock()
-    repository_config = {}
+    repository_config: dict[str, object] = {}
     
     # Call helper function
     result = store_backend_credentials(
@@ -142,9 +142,9 @@ def test_store_backend_credentials_with_insecure_tls_and_region():
     cred_mgr.is_locked.return_value = False
     
     config_manager = MagicMock()
-    repository_config = {}
+    repository_config: dict[str, object] = {}
     
-    credentials_dict = {
+    credentials_dict: dict[str, object] = {
         'access_key': 'AKIA4',
         'secret_key': 'SECRET4',
         'region': 'eu-central-1',
@@ -187,9 +187,9 @@ def test_store_backend_credentials_without_optional_fields():
     cred_mgr.is_locked.return_value = False
     
     config_manager = MagicMock()
-    repository_config = {}
+    repository_config: dict[str, object] = {}
     
-    credentials_dict = {
+    credentials_dict: dict[str, object] = {
         'access_key': 'AKIA5',
         'secret_key': 'SECRET5'
         # No region, no insecure_tls
@@ -227,7 +227,7 @@ def test_store_backend_credentials_exception_propagates():
     cred_mgr.store_repository_backend_credentials.side_effect = Exception("Storage failed")
     
     config_manager = MagicMock()
-    repository_config = {}
+    repository_config: dict[str, object] = {}
     
     # Call helper function - should raise exception
     with pytest.raises(Exception, match="Storage failed"):
@@ -254,9 +254,9 @@ def test_store_backend_credentials_b2_backend():
     cred_mgr.is_locked.return_value = False
     
     config_manager = MagicMock()
-    repository_config = {}
+    repository_config: dict[str, object] = {}
     
-    credentials_dict = {
+    credentials_dict: dict[str, object] = {
         'account_id': 'B2_ACCOUNT_ID',
         'application_key': 'B2_APP_KEY'
     }

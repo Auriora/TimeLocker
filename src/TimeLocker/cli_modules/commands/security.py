@@ -41,10 +41,6 @@ from .base import (
     DryRunOption,
 )
 
-# Import from TimeLocker package
-from TimeLocker import cli as _cli_module
-from TimeLocker.cli_services import get_cli_service_manager
-
 # Module-specific imports
 from TimeLocker.security import (
     SecurityService,

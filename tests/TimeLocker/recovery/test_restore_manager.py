@@ -298,6 +298,24 @@ class TestRestoreManager:
 
     @pytest.mark.restore
     @pytest.mark.unit
+    def test_parse_restore_output_uses_real_values(self):
+        """Restore output parsing should use reported values rather than placeholders."""
+        result = self.restore_manager.restore_snapshot(
+            "abc123",
+            RestoreOptions().with_target_path(self.temp_dir / "restore_target")
+        )
+
+        parsed = self.restore_manager._parse_restore_output(
+            "Restore complete: 12 files restored, 4096 bytes restored",
+            result,
+        )
+
+        assert parsed is None
+        assert result.files_restored == 12
+        assert result.bytes_restored == 4096
+
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_restore_error_and_warning_handling(self):
         """Test error and warning collection in restore result"""
         result = self.restore_manager.restore_snapshot("abc123", RestoreOptions())

@@ -57,7 +57,7 @@ def _create_credential_manager(config_dir: Optional[Path] = None):
     """Instantiate credential manager respecting configuration directory."""
     from ...security.credential_manager import CredentialManager
 
-    return CredentialManager()
+    return CredentialManager(config_dir=config_dir)
 
 
 def _create_security_manager(config_dir: Optional[Path] = None):
