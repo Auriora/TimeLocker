@@ -1,6 +1,8 @@
 # Documentation Status Report
 
-**Date**: 2026-04-22
+Last updated: 2026-04-23
+
+**Date**: 2026-04-23
 **Status**: ⚠️ Partially Current - consolidation in progress
 
 ## Overview
@@ -39,6 +41,12 @@ README, this report, and release-oriented metadata.
 | Desktop GUI      | Design only    | [Component Breakdown](2-architecture/component-breakdown.md)                    |
 | Database Storage | Design only    | [Data Model](2-architecture/data-model.md)                                      |
 
+## Repo Reality Snapshot
+
+- The repository currently exposes a large CLI surface and a broad automated test suite.
+- Recent top-level cleanup improved release and status accuracy, but some secondary status pages were still anchored to older milestone language.
+- The highest current documentation risk is overstating maturity or pointing readers at outdated "latest status" artifacts.
+
 ## Quality Snapshot
 
 ### Coverage: GOOD
@@ -50,9 +58,9 @@ README, this report, and release-oriented metadata.
 
 ### Accuracy: MIXED
 
-- Top-level install and status claims needed correction.
+- Top-level install and status claims have been improved, but older milestone reports are still easy to misread as current state.
 - Older update entries still describe blockers that have since changed.
-- Code examples in implementation/reference docs are often useful, but not every top-level example is currently verified.
+- Code examples in implementation/reference docs are often useful, but not every example has been re-verified against the latest command composition.
 
 ### Organization: STRONG
 
@@ -65,6 +73,7 @@ README, this report, and release-oriented metadata.
 1. Top-level release and maturity claims were overstated relative to current implementation quality.
 2. The root `README.md` had drifted from the current repository layout and linked to a non-existent install path.
 3. Status documents, including this one, needed to stop presenting prior audits as authoritative without re-validation.
+4. `docs/README.md` still referenced an older phase-completion report as the latest project status even after the April 2026 consolidation pass.
 
 ## Maintenance Guidance
 
@@ -104,7 +113,7 @@ README, this report, and release-oriented metadata.
 
 ## Verification
 
-Last focused documentation review: **2026-04-22**
+Last focused documentation review: **2026-04-23**
 Next recommended audit: **2026-05-15**
 
 This review was checked against:
@@ -112,6 +121,7 @@ This review was checked against:
 - Codebase: `/src/TimeLocker/`
 - Top-level docs: `README.md`, `docs/README.md`, `docs/DOCUMENTATION-STATUS.md`
 - Current implementation seams under `src/TimeLocker/cli_services.py` and `src/TimeLocker/restore_manager.py`
+- Current CLI composition seam under `src/TimeLocker/cli.py` and `src/TimeLocker/cli_modules/commands/`
 
 ## Contact
 
@@ -122,5 +132,5 @@ For documentation issues or questions:
 
 ---
 
-**Status Summary**: ⚠️ Documentation coverage is broad, but top-level release/status surfaces required correction and should continue to be treated as active
-maintenance areas.
+**Status Summary**: ⚠️ Documentation coverage is broad and mostly usable, but high-visibility status surfaces still require active maintenance so they do not
+overstate maturity or lag behind current consolidation work.

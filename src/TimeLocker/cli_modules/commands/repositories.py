@@ -1548,49 +1548,6 @@ def repos_lock(
 
 
 
-@repos_app.command("unlock")
-@with_error_handling("Unlock Error")
-@with_logging
-def repos_unlock(
-        name: Annotated[str, typer.Argument(help="Repository name", autocompletion=repository_name_completer)],
-        lock_id: Annotated[Optional[str], typer.Option("--lock-id", help="Specific lock ID to remove")] = None,
-        verbose: VerboseOption = False,
-        config_dir: ConfigDirOption = None,
-) -> None:
-    """Unlock repository."""
-    setup_logging(verbose, config_dir)
-    try:
-        # Initialize security service
-        security_service, access_manager = _create_security_manager(config_dir)
-
-        # Validate session for repository operations
-        if not _validate_session_for_operation(access_manager, "repository_unlock", name):
-            show_error_panel("Authentication Required", 
-                           "Session authentication failed. Please ensure you have proper access.")
-            raise typer.Exit(1)
-
-        # Get current user
-        import os
-        current_user = os.getenv('USER', os.getenv('USERNAME', 'system'))
-
-        # Unlock repository
-        success = security_service.unlock_repository(name, lock_id, current_user)
-        
-        if success:
-            show_success_panel("Repository Unlocked", f"Repository '{name}' unlocked successfully.")
-        else:
-            show_error_panel("Unlock Failed", f"Failed to unlock repository '{name}'. Repository may not be locked.")
-            raise typer.Exit(1)
-        
-    except Exception as e:
-        show_error_panel("Unlock Error", f"Failed to unlock repository '{name}': {e}")
-        if verbose:
-            console.print_exception()
-        raise typer.Exit(1)
-
-
-
-
 @repos_app.command("mode")
 @with_error_handling("Mode Error")
 @with_logging

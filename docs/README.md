@@ -1,5 +1,7 @@
 # TimeLocker Documentation
 
+Last updated: 2026-04-23
+
 ## Overview
 
 TimeLocker is a high-level interface over Restic that centralizes repository management, snapshot operations, and credential handling for reliable backups
@@ -50,16 +52,21 @@ contributors and operators can navigate the knowledge base quickly.
 
 ## 📊 Project Status Summary
 
-- **Latest Status**: [Phase 1 Completion Status Report](./reports/2025-11-08-082339-phase1-completion-status.md) - Phase 1 Foundation Services 100% complete!
-- **Implementation Notes**: See [updates index](./updates/index.md) for the most recent change logs, including the [Repository Manager Implementation](./updates/2025-11-08-082339-repository-manager-implementation.md).
-- **Open Work Queue**: [Tasks-to-Issues Map](./0-project-management/tasks-to-issues-map.md) is the authoritative crosswalk between docs and GitHub issues.
-- **Active Plans**: The [plans directory](./plans/README.md) tracks approved execution plans; update or add entries before large initiatives.
+- **Current posture**: Beta CLI application with broad feature coverage and active consolidation work across the command layer and top-level docs.
+- **Status reference**: [Documentation Status Report](./DOCUMENTATION-STATUS.md) is the current high-level assessment; prefer it over older milestone reports.
+- **Implementation history**: See the [updates index](./updates/index.md) for the latest implementation and consolidation notes.
+- **Open work queue**: [Tasks-to-Issues Map](./0-project-management/tasks-to-issues-map.md) is the authoritative crosswalk between docs and GitHub issues.
+- **Active plans**: The [plans directory](./plans/README.md) tracks approved execution plans and stabilization work.
 
-## 🎯 Next Implementation Focus
+## 🎯 Current Focus
 
-Refer to the newest update in [docs/updates](./updates/index.md) and any active plan documents (
-e.g., [cli_helpers_extraction.md](./plans/cli_helpers_extraction.md)) to confirm current priorities. Align new work with the mapped GitHub issues to keep
-traceability intact.
+The current highest-value work is stabilization and consolidation rather than net-new top-level features. In particular:
+
+- keep top-level docs aligned with the observable CLI and package layout
+- continue reducing command-layer duplication between `src/TimeLocker/cli.py` and `src/TimeLocker/cli_modules/`
+- prefer targeted testing and focused cleanup over broad maturity claims
+
+Use the newest entries in [docs/updates](./updates/index.md) and the active items in [plans/](./plans/README.md) to confirm the latest execution target.
 
 ## 🏗️ Architecture Overview
 
@@ -120,4 +127,4 @@ traceability intact.
 3. Ensure new documents include metadata consistent with their directory’s README and templates (e.g., `docs/_template/`).
 4. Align ongoing work with the authoritative mappings in [tasks-to-issues-map.md](./0-project-management/tasks-to-issues-map.md) to preserve traceability.
 
-*Last Updated: 2025-11-08*
+*Last Updated: 2026-04-23*

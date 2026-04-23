@@ -13,6 +13,9 @@
 TimeLocker provides a CLI-first interface for managing backups with Restic and related orchestration services. It covers repository management, file
 selection, scheduling, monitoring, and recovery workflows across local, S3-compatible, and B2 backends.
 
+This repository is feature-rich but still being consolidated. Treat the top-level docs as a current orientation layer, and use `docs/updates/`,
+`docs/plans/`, and the implementation/testing docs to judge current maturity in more detail.
+
 > **Note**: TimeLocker is a **CLI-based application**. There is currently no desktop GUI or REST API - these are design specifications for future consideration.
 > The application includes optional system tray integration for desktop notifications.
 
@@ -179,8 +182,8 @@ RESTIC_PASSWORD. The --password flag is available but discouraged; prefer secure
 
 TimeLocker’s modern backup flow revolves around reusable selection templates. Define the template once and reuse it through the same service layer that powers the CLI.
 
-This repository is feature-rich but still actively being consolidated. Prefer the docs under `docs/guides/`, `docs/reference/`, and `docs/updates/` over
-older blanket status claims when assessing current maturity.
+This repository is feature-rich but still actively being consolidated. Prefer the docs under `docs/guides/`, `docs/reference/`, `docs/plans/`, and
+`docs/updates/` over older milestone-style status claims when assessing current maturity.
 
 ```python
 from pathlib import Path

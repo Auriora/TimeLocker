@@ -8,6 +8,7 @@ import pytest
 import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
+from typer.main import get_command
 
 from src.TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import (
@@ -101,6 +102,28 @@ class TestReposCommands:
         assert result.exit_code == 0
         assert "stats" in output.lower()
         assert "statistics" in output.lower()
+
+    @pytest.mark.unit
+    def test_repos_command_graph_has_single_unlock_command(self):
+        """Test that repos exposes unlock exactly once in the public command graph."""
+        click_app = get_command(app)
+        repos_group = click_app.commands["repos"]
+
+        unlock_names = [name for name in repos_group.commands if name == "unlock"]
+
+        assert unlock_names == ["unlock"]
+
+    @pytest.mark.unit
+    def test_repos_unlock_public_contract_uses_service_unlock_parameters(self):
+        """Test that repos unlock exposes the expected service-level parameters."""
+        click_app = get_command(app)
+        repos_group = click_app.commands["repos"]
+        unlock_command = repos_group.commands["unlock"]
+
+        param_names = [param.name for param in unlock_command.params]
+
+        assert param_names == ["name", "repository", "password", "verbose", "config_dir"]
+        assert "lock_id" not in param_names
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli.get_cli_service_manager')
