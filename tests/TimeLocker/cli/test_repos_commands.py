@@ -26,6 +26,15 @@ runner = get_cli_runner()
 class TestReposCommands:
     """Test suite for repos command group."""
 
+    @staticmethod
+    def _mock_repo_config_service(name: str = "test-repo") -> MagicMock:
+        """Create a ConfigService stub compatible with repos add persistence flow."""
+        config_service = MagicMock()
+        config_service.get_repository.side_effect = Exception(f"Repository '{name}' not found")
+        config_service.add_repository.return_value = None
+        config_service._config_module = MagicMock()
+        return config_service
+
     @pytest.mark.unit
     def test_repos_help_output(self):
         """Test repos command group help output."""
@@ -126,7 +135,7 @@ class TestReposCommands:
         assert "lock_id" not in param_names
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     def test_repos_list_command(self, mock_service_manager):
         """Test repos list command execution."""
         mock_manager = create_mock_cli_service_manager()
@@ -148,12 +157,14 @@ class TestReposCommands:
         assert result.exit_code in [0, 1, 2]
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    def test_repos_add_with_parameters(self, mock_service_manager):
+    @patch('src.TimeLocker.cli_modules.commands.repositories._create_config_service')
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
+    def test_repos_add_with_parameters(self, mock_service_manager, mock_create_config_service):
         """Test repos add command with all parameters."""
         mock_manager = create_mock_cli_service_manager()
         mock_service_manager.return_value = mock_manager
         mock_manager.add_repository.return_value = {"success": True}
+        mock_create_config_service.return_value = self._mock_repo_config_service()
 
         result = runner.invoke(app, [
                 "repos", "add", "test-repo", "file:///tmp/test-repo",
@@ -175,12 +186,14 @@ class TestReposCommands:
         assert result.exit_code != 0
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    def test_repos_add_with_set_default(self, mock_service_manager):
+    @patch('src.TimeLocker.cli_modules.commands.repositories._create_config_service')
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
+    def test_repos_add_with_set_default(self, mock_service_manager, mock_create_config_service):
         """Test repos add command with set-default flag."""
         mock_manager = create_mock_cli_service_manager()
         mock_service_manager.return_value = mock_manager
         mock_manager.add_repository.return_value = {"success": True}
+        mock_create_config_service.return_value = self._mock_repo_config_service()
 
         result = runner.invoke(app, [
                 "repos", "add", "test-repo", "file:///tmp/test-repo",
@@ -192,7 +205,7 @@ class TestReposCommands:
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_modules.commands.repositories.ConfigurationManager')
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     def test_repos_remove_command(self, mock_service_manager, mock_config_manager_class):
         """Test repos remove command execution."""
         # Mock the service manager
@@ -217,7 +230,7 @@ class TestReposCommands:
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_modules.commands.repositories.ConfigurationManager')
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     def test_repos_show_command(self, mock_service_manager, mock_config_manager_class):
         """Test repos show command execution."""
         # Mock the service manager
@@ -249,7 +262,7 @@ class TestReposCommands:
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_modules.commands.repositories.ConfigurationManager')
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     def test_repos_default_command(self, mock_service_manager, mock_config_manager_class):
         """Test repos default command execution."""
         # Mock the service manager
@@ -276,7 +289,7 @@ class TestReposCommands:
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_modules.commands.repositories.ConfigurationManager')
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     def test_repos_init_command(self, mock_service_manager, mock_config_manager_class, tmp_path):
         """Test repos init command execution."""
         # Create temporary directory for repository
@@ -314,7 +327,7 @@ class TestReposCommands:
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_modules.commands.repositories.ConfigurationManager')
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     def test_repos_init_with_repository_uri(self, mock_service_manager, mock_config_manager_class, tmp_path):
         """Test repos init command with repository URI."""
         # Create temporary directory for repository
@@ -352,7 +365,7 @@ class TestReposCommands:
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_modules.commands.repositories.ConfigurationManager')
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     def test_repos_check_command(self, mock_service_manager, mock_config_manager_class, tmp_path):
         """Test repos check command execution."""
         # Create temporary directory for repository
@@ -385,7 +398,7 @@ class TestReposCommands:
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_modules.commands.repositories.ConfigurationManager')
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     def test_repos_stats_command(self, mock_service_manager, mock_config_manager_class, tmp_path):
         """Test repos stats command execution."""
         # Create temporary directory for repository
@@ -421,7 +434,7 @@ class TestReposCommands:
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_modules.commands.repositories.ConfigurationManager')
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     def test_repos_unlock_command(self, mock_service_manager, mock_config_manager_class):
         """Test repos unlock command execution."""
         mock_manager = create_mock_cli_service_manager()
@@ -446,7 +459,7 @@ class TestReposCommands:
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_modules.commands.repositories.ConfigurationManager')
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     def test_repos_migrate_command(self, mock_service_manager, mock_config_manager_class):
         """Test repos migrate command execution."""
         mock_manager = create_mock_cli_service_manager()
@@ -471,7 +484,7 @@ class TestReposCommands:
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli_modules.commands.repositories.ConfigurationManager')
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     def test_repos_forget_command(self, mock_service_manager, mock_config_manager_class):
         """Test repos forget command execution."""
         mock_manager = create_mock_cli_service_manager()
@@ -495,7 +508,7 @@ class TestReposCommands:
         assert_success(result)
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     def test_repos_validate_all_command(self, mock_service_manager):
         """Test repos validate-all command execution."""
         mock_manager = create_mock_cli_service_manager()
@@ -505,7 +518,7 @@ class TestReposCommands:
         assert_success(result)
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     def test_repos_validate_all_json_command(self, mock_service_manager):
         """Test repos validate-all command with JSON output."""
         mock_manager = create_mock_cli_service_manager()
