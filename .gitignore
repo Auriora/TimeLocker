@@ -47,3 +47,4 @@ repo_initialized.flag
 *.log
 
 .cache
+.codex
