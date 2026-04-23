@@ -313,8 +313,8 @@ def backup_create(
         with progress_service.spinner("Initializing backup...") as progress:
 
             # Initialize service manager
-            logger.debug("About to call get_cli_service_manager()")
-            service_manager = get_cli_service_manager()
+            logger.debug("About to create service manager for backup command")
+            service_manager = _get_service_manager_for_command(config_dir)
             logger.debug(f"Service manager created: {type(service_manager)}")
 
             # Create backup request
@@ -424,7 +424,7 @@ def backup_verify(
         raise typer.Exit(1)
 
     try:
-        service_manager = get_cli_service_manager()
+        service_manager = _get_service_manager_for_command(config_dir)
 
         # If --latest was provided without an explicit snapshot, we'll let the service
         # interpret None as "latest" or handle resolution internally. Tests only

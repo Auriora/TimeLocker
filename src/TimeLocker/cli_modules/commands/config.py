@@ -17,6 +17,8 @@ from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
 
+from ..helpers.logging_setup import setup_logging
+
 # Import from base module (Phase 3 patterns)
 from .base import (
     CommandBase,
@@ -198,7 +200,7 @@ def config_performance(
     """Show configuration system performance metrics."""
     setup_logging(verbose, config_dir)
     try:
-        from .config.configuration_performance_monitor import ConfigurationPerformanceMonitor
+        from TimeLocker.config.configuration_performance_monitor import ConfigurationPerformanceMonitor
         
         # Create performance monitor (this would normally be a singleton in the actual system)
         monitor = ConfigurationPerformanceMonitor()
@@ -293,8 +295,8 @@ def config_validate(
     """Validate configuration with detailed error reporting."""
     setup_logging(verbose, config_dir)
     try:
-        from .config.configuration_validator import ConfigurationValidator
-        from .config.configuration_path_resolver import ConfigurationPathResolver
+        from TimeLocker.config.configuration_validator import ConfigurationValidator
+        from TimeLocker.config.configuration_path_resolver import ConfigurationPathResolver
         import json
         
         # Get configuration file path
@@ -401,8 +403,8 @@ def config_diff(
     """Compare configuration files or sections."""
     setup_logging(verbose, config_dir)
     try:
-        from .config.configuration_backup_manager import ConfigurationBackupManager
-        from .config.configuration_path_resolver import ConfigurationPathResolver
+        from TimeLocker.config.configuration_backup_manager import ConfigurationBackupManager
+        from TimeLocker.config.configuration_path_resolver import ConfigurationPathResolver
         import json
         
         resolver = ConfigurationPathResolver(config_dir)
@@ -539,4 +541,3 @@ def config_diff(
         if verbose:
             console.print_exception()
         raise typer.Exit(1)
-

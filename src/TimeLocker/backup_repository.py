@@ -23,7 +23,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from backup_snapshot import BackupSnapshot
+    from .backup_snapshot import BackupSnapshot
 
 from .backup_target import BackupTarget
 
@@ -163,6 +163,10 @@ class BackupRepository(ABC):
             prune: If True, automatically run prune after forgetting snapshots
         """
         ...
+
+    def verify_backup(self, snapshot_id: Optional[str] = None) -> bool:
+        """Verify repository or snapshot integrity when a backend supports it."""
+        return self.check()
 
     @abstractmethod
     def prune_data(self) -> bool:

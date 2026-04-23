@@ -39,6 +39,7 @@ licensing. These documents are typically stable and serve as authoritative sourc
 ### Guides and Specifications
 - [Repository URI Guide](repository-uri-guide.md) - Guide to repository URI formats
 - [TimeLocker CLI Command Hierarchy](timelocker-cli-command-hierarchy.md) - CLI command structure
+- [Repository Orientation and Change Map](repo-orientation-and-change-map.md) - CLI map, subsystem map, and code-change starting points
 
 ## 3. What Does NOT Belong Here?
 

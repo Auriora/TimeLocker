@@ -73,7 +73,7 @@ class ApplicationPresetManager:
                 self._create_mysql_preset(),
                 self._create_docker_preset(),
         ]
-        self.SYSTEM_PRESETS = {preset.id: preset for preset in presets}
+        type(self).SYSTEM_PRESETS = {preset.id: preset for preset in presets}
 
     def _create_postgresql_preset(self) -> ApplicationPreset:
         """Create PostgreSQL database preset"""

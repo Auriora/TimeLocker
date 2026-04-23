@@ -73,6 +73,7 @@ Use the newest entries in [docs/updates](./updates/index.md) and the active item
 - High-level architecture and deployment topology: [./2-architecture/README.md](./2-architecture/README.md)
 - Detailed module breakdowns and code tours: [./3-implementation/README.md](./3-implementation/README.md)
 - CLI command structure and hierarchy: [timelocker-cli-command-hierarchy.md](./reference/timelocker-cli-command-hierarchy.md)
+- Practical repo navigation for contributors: [repo-orientation-and-change-map.md](./reference/repo-orientation-and-change-map.md)
 - Credential and repository flow summaries: see user guides in `./guides/user/` and testing artifacts in `./4-testing/`.
 
 ## 🧪 Testing

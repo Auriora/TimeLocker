@@ -15,9 +15,10 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
+from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from typing_extensions import Self
 
@@ -25,20 +26,22 @@ if TYPE_CHECKING:
     from .backup_repository import BackupRepository
 
 
-class BackupSnapshot():
+class BackupSnapshot:
     """Interface for backup snapshots"""
     repo: 'BackupRepository'
     id: str
     timestamp: datetime
-    paths: list[Path]
-    tags: List[str]
+    paths: Path | list[Path]
+    tags: list[str]
     size: int
 
-    def __init__(self, repo: 'BackupRepository', snapshot_id: str, timestamp: datetime, paths: list[Path]):
+    def __init__(self, repo: 'BackupRepository', snapshot_id: str, timestamp: datetime, paths: Path | list[Path]):
         self.repo = repo
         self.id = snapshot_id
         self.timestamp = timestamp
         self.paths = paths
+        self.tags = []
+        self.size = 0
 
     def restore(self, target_path: Optional[Path] = None) -> str:
         """Restore this snapshot"""
@@ -62,7 +65,7 @@ class BackupSnapshot():
         """List files in this snapshot"""
         return []  # Mock implementation - in real code would list snapshot contents
 
-    def get_stats(self) -> dict:
+    def get_stats(self) -> dict[str, int]:
         """Get snapshot stats"""
         return {
             'total_size': 0,
@@ -74,17 +77,17 @@ class BackupSnapshot():
         """Verify snapshot integrity"""
         return False  # Mock implementation - in real code would verify snapshot integrity
 
-    def delete(self, prune: bool = False) -> str:
+    def delete(self, prune: bool = False) -> bool:
         """Delete this snapshot"""
         return self.repo.forget_snapshot(self.id, prune)
 
     @classmethod
-    def from_dict(cls, repository: 'BackupRepository', data: Dict) -> Self:
+    def from_dict(cls, repository: 'BackupRepository', data: Mapping[str, object]) -> Self:
         """Create a snapshot instance from dictionary data"""
+        raw_path = Path(str(data['path']))
         return cls(
             repo=repository,
-            snapshot_id=data['id'],
-            timestamp=datetime.fromisoformat(data['timestamp']),
-            paths=Path(data['path'])
+            snapshot_id=str(data['id']),
+            timestamp=datetime.fromisoformat(str(data['timestamp'])),
+            paths=raw_path
         )
-

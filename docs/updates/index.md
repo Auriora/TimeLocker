@@ -1,5 +1,7 @@
 # Update Index
 
+- [2026-04-23-152305-runtime-fault-fix-plan-execution](./2026-04-23-152305-runtime-fault-fix-plan-execution.md)
+- [2026-04-23-150946-repo-maps-reference](./2026-04-23-150946-repo-maps-reference.md)
 - [2026-04-23-142743-repo-unlock-contract-cleanup](./2026-04-23-142743-repo-unlock-contract-cleanup.md)
 - [2026-04-23-142132-docs-state-refresh](./2026-04-23-142132-docs-state-refresh.md)
 - [2026-04-22-100901-release-truth-and-restore-consolidation](./2026-04-22-100901-release-truth-and-restore-consolidation.md)
