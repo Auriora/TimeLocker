@@ -7,8 +7,8 @@ for combining validation logic.
 """
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from typing import Any, List, Optional, Callable, Dict
+from dataclasses import dataclass, field as dataclass_field
+from typing import Any, Callable, Optional
 from enum import Enum
 
 
@@ -27,9 +27,9 @@ class ValidationIssue:
     field: str
     message: str
     code: str
-    context: Dict[str, Any] = field(default_factory=dict)
+    context: dict[str, Any] = dataclass_field(default_factory=dict)
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary format."""
         return {
             'severity': self.severity.value,
@@ -50,15 +50,15 @@ class ValidationResult:
     """
     
     valid: bool = True
-    issues: List[ValidationIssue] = field(default_factory=list)
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    issues: list[ValidationIssue] = dataclass_field(default_factory=list)
+    metadata: dict[str, Any] = dataclass_field(default_factory=dict)
     
     def add_error(
         self,
         field: str,
         message: str,
         code: str = "VALIDATION_ERROR",
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> None:
         """
         Add an error to the validation result.
@@ -83,7 +83,7 @@ class ValidationResult:
         field: str,
         message: str,
         code: str = "VALIDATION_WARNING",
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> None:
         """
         Add a warning to the validation result.
@@ -107,7 +107,7 @@ class ValidationResult:
         field: str,
         message: str,
         code: str = "VALIDATION_INFO",
-        context: Optional[Dict[str, Any]] = None
+        context: dict[str, Any] | None = None
     ) -> None:
         """
         Add an informational message to the validation result.
@@ -138,15 +138,15 @@ class ValidationResult:
         self.issues.extend(other.issues)
         self.metadata.update(other.metadata)
     
-    def get_errors(self) -> List[ValidationIssue]:
+    def get_errors(self) -> list[ValidationIssue]:
         """Get all error issues."""
         return [i for i in self.issues if i.severity == ValidationSeverity.ERROR]
     
-    def get_warnings(self) -> List[ValidationIssue]:
+    def get_warnings(self) -> list[ValidationIssue]:
         """Get all warning issues."""
         return [i for i in self.issues if i.severity == ValidationSeverity.WARNING]
     
-    def get_info(self) -> List[ValidationIssue]:
+    def get_info(self) -> list[ValidationIssue]:
         """Get all info issues."""
         return [i for i in self.issues if i.severity == ValidationSeverity.INFO]
     
@@ -158,7 +158,7 @@ class ValidationResult:
         """Check if result has any warnings."""
         return any(i.severity == ValidationSeverity.WARNING for i in self.issues)
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary format."""
         return {
             'valid': self.valid,
@@ -196,7 +196,7 @@ class ValidationError(Exception):
         self.result = result
         self.field = field
     
-    def get_error_messages(self) -> List[str]:
+    def get_error_messages(self) -> list[str]:
         """Get all error messages from the validation result."""
         if self.result is not None:
             return [issue.message for issue in self.result.get_errors()]
@@ -221,7 +221,7 @@ class Validator(ABC):
         self.field_name = field_name or "value"
     
     @abstractmethod
-    def validate(self, value: Any, context: Optional[Dict[str, Any]] = None) -> ValidationResult:
+    def validate(self, value: Any, context: dict[str, Any] | None = None) -> ValidationResult:
         """
         Validate a value.
         
@@ -234,7 +234,7 @@ class Validator(ABC):
         """
         pass
     
-    def __call__(self, value: Any, context: Optional[Dict[str, Any]] = None) -> ValidationResult:
+    def __call__(self, value: Any, context: dict[str, Any] | None = None) -> ValidationResult:
         """Allow validator to be called as a function."""
         return self.validate(value, context)
     
@@ -256,7 +256,7 @@ class CompositeValidator(Validator):
     
     def __init__(
         self,
-        validators: List[Validator],
+        validators: list[Validator],
         require_all: bool = True,
         field_name: Optional[str] = None
     ):
@@ -273,7 +273,7 @@ class CompositeValidator(Validator):
         self.validators = validators
         self.require_all = require_all
     
-    def validate(self, value: Any, context: Optional[Dict[str, Any]] = None) -> ValidationResult:
+    def validate(self, value: Any, context: dict[str, Any] | None = None) -> ValidationResult:
         """
         Validate value using all validators.
         
@@ -336,7 +336,7 @@ class OptionalValidator(Validator):
         self.validator = validator
         self.allow_empty = allow_empty
     
-    def validate(self, value: Any, context: Optional[Dict[str, Any]] = None) -> ValidationResult:
+    def validate(self, value: Any, context: dict[str, Any] | None = None) -> ValidationResult:
         """
         Validate value if present.
         
@@ -368,7 +368,7 @@ class ConditionalValidator(Validator):
     def __init__(
         self,
         validator: Validator,
-        condition: Callable[[Any, Optional[Dict[str, Any]]], bool],
+        condition: Callable[[Any, dict[str, Any] | None], bool],
         field_name: Optional[str] = None
     ):
         """
@@ -383,7 +383,7 @@ class ConditionalValidator(Validator):
         self.validator = validator
         self.condition = condition
     
-    def validate(self, value: Any, context: Optional[Dict[str, Any]] = None) -> ValidationResult:
+    def validate(self, value: Any, context: dict[str, Any] | None = None) -> ValidationResult:
         """
         Validate value if condition is met.
         

@@ -24,7 +24,7 @@ providing clear error categorization and recovery guidance.
 class SchedulingError(Exception):
     """Base exception for all scheduling operations."""
     
-    def __init__(self, message: str, details: dict = None):
+    def __init__(self, message: str, details: dict[str, object] | None = None):
         """
         Initialize scheduling error.
         
@@ -33,8 +33,8 @@ class SchedulingError(Exception):
             details: Optional dictionary with additional error context
         """
         super().__init__(message)
-        self.message = message
-        self.details = details or {}
+        self.message: str = message
+        self.details: dict[str, object] = details or {}
 
 
 class PlatformSchedulerError(SchedulingError):

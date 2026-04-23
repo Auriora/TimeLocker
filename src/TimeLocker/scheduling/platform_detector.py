@@ -20,40 +20,53 @@ This module provides automatic detection of available platform schedulers
 and selects the most appropriate scheduler for the current system.
 """
 
+import logging
 import platform
 import subprocess
 from pathlib import Path
-from typing import Type, List, Dict, Any
-import logging
+from typing import TYPE_CHECKING, TypedDict
 
 from .scheduling_exceptions import UnsupportedPlatformError
 
+if TYPE_CHECKING:
+    from .platform_adapter import PlatformAdapter
+
 logger = logging.getLogger(__name__)
+
+
+class PlatformInfo(TypedDict):
+    """Structured platform diagnostics returned by ``get_platform_info``."""
+
+    system: str
+    platform: str
+    python_version: str
+    available_schedulers: list[str]
+    recommended_scheduler: str | None
 
 
 class PlatformDetector:
     """
     Detects platform capabilities and selects appropriate scheduler adapter.
-    
+
     This class provides static methods to detect available schedulers on the
     current platform and select the best option based on system capabilities.
     """
-    
+
     @staticmethod
-    def detect_best_scheduler() -> Type['PlatformAdapter']:
+    def detect_best_scheduler() -> type["PlatformAdapter"]:
         """
         Detect the best available scheduler for the current platform.
-        
+
         Returns:
             Type[PlatformAdapter]: The most appropriate adapter class
-            
+
         Raises:
             UnsupportedPlatformError: If no supported scheduler is found
         """
         system = platform.system().lower()
-        
+
         logger.info(f"Detecting scheduler for platform: {system}")
-        
+
         if system == "linux":
             return PlatformDetector._detect_linux_scheduler()
         elif system == "darwin":
@@ -62,27 +75,26 @@ class PlatformDetector:
             return PlatformDetector._detect_windows_scheduler()
         else:
             raise UnsupportedPlatformError(
-                f"Platform {system} is not supported",
-                details={"platform": system}
+                f"Platform {system} is not supported", details={"platform": system}
             )
-    
+
     @staticmethod
-    def _detect_linux_scheduler() -> Type['PlatformAdapter']:
+    def _detect_linux_scheduler() -> type["PlatformAdapter"]:
         """
         Detect best scheduler for Linux systems.
-        
+
         Preference order: systemd > cron
-        
+
         Returns:
             Type[PlatformAdapter]: Best available Linux scheduler adapter
-            
+
         Raises:
             UnsupportedPlatformError: If no supported scheduler is found
         """
         # Import here to avoid circular dependencies
         from .systemd_adapter import SystemdAdapter
         from .cron_adapter import CronAdapter
-        
+
         if PlatformDetector._has_systemd():
             logger.info("Detected systemd scheduler")
             return SystemdAdapter
@@ -92,26 +104,26 @@ class PlatformDetector:
         else:
             raise UnsupportedPlatformError(
                 "No supported scheduler found on Linux system",
-                details={"platform": "linux", "checked": ["systemd", "cron"]}
+                details={"platform": "linux", "checked": ["systemd", "cron"]},
             )
-    
+
     @staticmethod
-    def _detect_macos_scheduler() -> Type['PlatformAdapter']:
+    def _detect_macos_scheduler() -> type["PlatformAdapter"]:
         """
         Detect best scheduler for macOS systems.
-        
+
         Preference order: launchd > cron
-        
+
         Returns:
             Type[PlatformAdapter]: Best available macOS scheduler adapter
-            
+
         Raises:
             UnsupportedPlatformError: If no supported scheduler is found
         """
         # Import here to avoid circular dependencies
         from .launchd_adapter import LaunchdAdapter
         from .cron_adapter import CronAdapter
-        
+
         if PlatformDetector._has_launchd():
             logger.info("Detected launchd scheduler")
             return LaunchdAdapter
@@ -121,37 +133,36 @@ class PlatformDetector:
         else:
             raise UnsupportedPlatformError(
                 "No supported scheduler found on macOS system",
-                details={"platform": "darwin", "checked": ["launchd", "cron"]}
+                details={"platform": "darwin", "checked": ["launchd", "cron"]},
             )
-    
+
     @staticmethod
-    def _detect_windows_scheduler() -> Type['PlatformAdapter']:
+    def _detect_windows_scheduler() -> type["PlatformAdapter"]:
         """
         Detect scheduler for Windows systems.
-        
+
         Returns:
             Type[PlatformAdapter]: Windows Task Scheduler adapter
-            
+
         Raises:
             UnsupportedPlatformError: If Task Scheduler is not available
         """
         # Import here to avoid circular dependencies
         from .windows_adapter import WindowsTaskSchedulerAdapter
-        
+
         if PlatformDetector._has_task_scheduler():
             logger.info("Detected Windows Task Scheduler")
             return WindowsTaskSchedulerAdapter
         else:
             raise UnsupportedPlatformError(
-                "Windows Task Scheduler not available",
-                details={"platform": "windows"}
+                "Windows Task Scheduler not available", details={"platform": "windows"}
             )
-    
+
     @staticmethod
     def _has_systemd() -> bool:
         """
         Check if systemd is available and user services are supported.
-        
+
         Returns:
             bool: True if systemd user services are available
         """
@@ -160,7 +171,7 @@ class PlatformDetector:
                 ["systemctl", "--user", "status"],
                 capture_output=True,
                 timeout=5,
-                text=True
+                text=True,
             )
             # systemctl returns 0 for success, even if no services are running
             available = result.returncode == 0
@@ -178,21 +189,18 @@ class PlatformDetector:
         except Exception as e:
             logger.debug(f"systemd check failed with exception: {e}")
             return False
-    
+
     @staticmethod
     def _has_cron() -> bool:
         """
         Check if cron is available.
-        
+
         Returns:
             bool: True if cron is available
         """
         try:
             result = subprocess.run(
-                ["crontab", "-l"],
-                capture_output=True,
-                timeout=5,
-                text=True
+                ["crontab", "-l"], capture_output=True, timeout=5, text=True
             )
             # crontab returns 0 if has entries, 1 if no entries (both are valid)
             available = result.returncode in [0, 1]
@@ -210,12 +218,12 @@ class PlatformDetector:
         except Exception as e:
             logger.debug(f"cron check failed with exception: {e}")
             return False
-    
+
     @staticmethod
     def _has_launchd() -> bool:
         """
         Check if launchd is available.
-        
+
         Returns:
             bool: True if launchd is available
         """
@@ -226,21 +234,18 @@ class PlatformDetector:
         else:
             logger.debug("launchctl not found at /bin/launchctl")
         return available
-    
+
     @staticmethod
     def _has_task_scheduler() -> bool:
         """
         Check if Windows Task Scheduler is available.
-        
+
         Returns:
             bool: True if Task Scheduler is available
         """
         try:
             result = subprocess.run(
-                ["schtasks", "/query"],
-                capture_output=True,
-                timeout=5,
-                text=True
+                ["schtasks", "/query"], capture_output=True, timeout=5, text=True
             )
             available = result.returncode == 0
             if available:
@@ -257,24 +262,25 @@ class PlatformDetector:
         except Exception as e:
             logger.debug(f"Task Scheduler check failed with exception: {e}")
             return False
-    
+
     @staticmethod
-    def get_platform_info() -> Dict[str, Any]:
+    def get_platform_info() -> PlatformInfo:
         """
         Get detailed platform information for diagnostics.
-        
+
         Returns:
             dict: Platform information including system, available schedulers
         """
         system = platform.system().lower()
-        
-        info = {
+
+        info: PlatformInfo = {
             "system": system,
             "platform": platform.platform(),
             "python_version": platform.python_version(),
-            "available_schedulers": []
+            "available_schedulers": [],
+            "recommended_scheduler": None,
         }
-        
+
         # Check all possible schedulers
         if PlatformDetector._has_systemd():
             info["available_schedulers"].append("systemd")
@@ -284,11 +290,10 @@ class PlatformDetector:
             info["available_schedulers"].append("launchd")
         if PlatformDetector._has_task_scheduler():
             info["available_schedulers"].append("windows_task_scheduler")
-        
+
         try:
             best_scheduler = PlatformDetector.detect_best_scheduler()
             info["recommended_scheduler"] = best_scheduler.__name__
         except UnsupportedPlatformError:
             info["recommended_scheduler"] = None
-        
         return info
