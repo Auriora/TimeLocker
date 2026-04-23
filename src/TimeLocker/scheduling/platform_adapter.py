@@ -21,7 +21,6 @@ scheduling adapters, providing a unified interface for all schedulers.
 """
 
 from abc import ABC, abstractmethod
-from typing import List
 import logging
 
 from .scheduling_models import (
@@ -32,7 +31,7 @@ from .scheduling_models import (
     ValidationResult
 )
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
 
 
 class PlatformAdapter(ABC):
@@ -50,7 +49,9 @@ class PlatformAdapter(ABC):
     
     def __init__(self):
         """Initialize the platform adapter."""
-        self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        self.logger: logging.Logger = logging.getLogger(
+            f"{__name__}.{self.__class__.__name__}"
+        )
         self.logger.info(f"Initializing {self.__class__.__name__}")
     
     @abstractmethod
@@ -119,7 +120,7 @@ class PlatformAdapter(ABC):
         pass
     
     @abstractmethod
-    async def list_schedules(self) -> List[PlatformScheduleInfo]:
+    async def list_schedules(self) -> list[PlatformScheduleInfo]:
         """
         List all platform-specific scheduled tasks.
         

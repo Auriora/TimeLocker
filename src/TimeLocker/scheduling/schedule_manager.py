@@ -22,9 +22,8 @@ coordinating between platform adapters and TimeLocker components.
 
 import logging
 import uuid
-from typing import Optional, List, Dict, Any
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from datetime import datetime
 
 from .platform_detector import PlatformDetector
 from .platform_adapter import PlatformAdapter
@@ -65,7 +64,12 @@ from .schedule_utilities import (
     ScheduleOptimization
 )
 
-logger = logging.getLogger(__name__)
+logger: logging.Logger = logging.getLogger(__name__)
+
+
+def _utc_now() -> datetime:
+    """Return a timezone-aware UTC timestamp."""
+    return datetime.now(timezone.utc)
 
 
 class ScheduleManager:
@@ -78,9 +82,9 @@ class ScheduleManager:
     
     def __init__(
         self,
-        config: Optional[SchedulingConfiguration] = None,
-        adapter: Optional[PlatformAdapter] = None,
-        config_dir: Optional[Path] = None
+        config: SchedulingConfiguration | None = None,
+        adapter: PlatformAdapter | None = None,
+        config_dir: Path | None = None
     ):
         """
         Initialize schedule manager.
@@ -90,21 +94,21 @@ class ScheduleManager:
             adapter: Optional platform adapter (auto-detects if not provided)
             config_dir: Optional configuration directory
         """
-        self.logger = logging.getLogger(f"{__name__}.ScheduleManager")
+        self.logger: logging.Logger = logging.getLogger(f"{__name__}.ScheduleManager")
         
         # Determine configuration directory
         if config_dir is None:
             from ..config.configuration_path_resolver import ConfigurationPathResolver
             config_dir = ConfigurationPathResolver.get_config_directory() / "scheduling"
         
-        self.config_dir = Path(config_dir)
+        self.config_dir: Path = Path(config_dir)
         self.config_dir.mkdir(parents=True, exist_ok=True)
         
         # Load or use provided configuration
         if config is None:
             config_path = self.config_dir / "scheduling_config.json"
             if config_path.exists():
-                self.config = SchedulingConfiguration.load_from_file(config_path)
+                self.config: SchedulingConfiguration = SchedulingConfiguration.load_from_file(config_path)
             else:
                 self.config = SchedulingConfiguration()
                 self.logger.info("Using default scheduling configuration")
@@ -114,23 +118,23 @@ class ScheduleManager:
         # Detect or use provided platform adapter
         if adapter is None:
             adapter_class = PlatformDetector.detect_best_scheduler()
-            self.adapter = adapter_class()
+            self.adapter: PlatformAdapter = adapter_class()
             self.logger.info(f"Auto-detected platform adapter: {self.adapter.get_platform_name()}")
         else:
             self.adapter = adapter
             self.logger.info(f"Using provided platform adapter: {self.adapter.get_platform_name()}")
         
         # Initialize integration clients
-        self.policy_client = PolicyManagementClient()
-        self.data_selection_client = DataSelectionClient()
-        self.repository_client = RepositoryManagementClient()
-        self.monitoring_client = MonitoringClient()
+        self.policy_client: PolicyManagementClient = PolicyManagementClient()
+        self.data_selection_client: DataSelectionClient = DataSelectionClient()
+        self.repository_client: RepositoryManagementClient = RepositoryManagementClient()
+        self.monitoring_client: MonitoringClient = MonitoringClient()
         
         # Register for policy update notifications
         self.policy_client.register_policy_update_callback(self._handle_policy_update)
         
         # Initialize audit logger
-        self.audit_logger = SchedulingAuditLogger(
+        self.audit_logger: SchedulingAuditLogger = SchedulingAuditLogger(
             self.config_dir,
             retention_days=self.config.audit_retention_days
         )
@@ -143,17 +147,17 @@ class ScheduleManager:
         )
         
         # Initialize schedule storage
-        self.storage = ScheduleStorage(self.config_dir / "schedules")
+        self.storage: ScheduleStorage = ScheduleStorage(self.config_dir / "schedules")
         
         # Initialize validator and tester
-        self.validator = ScheduleValidator(
+        self.validator: ScheduleValidator = ScheduleValidator(
             platform_adapter=self.adapter,
             policy_client=self.policy_client,
             data_selection_client=self.data_selection_client,
             repository_client=self.repository_client
         )
         
-        self.tester = ScheduleTester(
+        self.tester: ScheduleTester = ScheduleTester(
             platform_adapter=self.adapter,
             validator=self.validator,
             policy_client=self.policy_client,
@@ -162,14 +166,14 @@ class ScheduleManager:
         )
         
         # Initialize schedule utilities
-        self.conflict_detector = ScheduleConflictDetector(
+        self.conflict_detector: ScheduleConflictDetector = ScheduleConflictDetector(
             max_concurrent_executions=self.config.max_concurrent_executions
         )
-        self.auto_rescheduler = AutomaticRescheduler(self.conflict_detector)
-        self.optimizer = ScheduleOptimizer()
+        self.auto_rescheduler: AutomaticRescheduler = AutomaticRescheduler(self.conflict_detector)
+        self.optimizer: ScheduleOptimizer = ScheduleOptimizer()
         
         # In-memory cache of schedules
-        self._schedules: Dict[str, ScheduleConfig] = {}
+        self._schedules: dict[str, ScheduleConfig] = {}
         self._load_schedules_from_storage()
         
         self.logger.info("ScheduleManager initialized successfully")
@@ -206,8 +210,8 @@ class ScheduleManager:
                 retry_config=request.retry_config,
                 monitoring_config=request.monitoring_config,
                 platform_specific_config=request.platform_specific_config,
-                created_at=datetime.utcnow(),
-                updated_at=datetime.utcnow(),
+                created_at=_utc_now(),
+                updated_at=_utc_now(),
                 created_by=""  # TODO: Get from context
             )
             
@@ -327,7 +331,7 @@ class ScheduleManager:
             if updates.platform_specific_config is not None:
                 schedule_config.platform_specific_config.update(updates.platform_specific_config)
             
-            schedule_config.updated_at = datetime.utcnow()
+            schedule_config.updated_at = _utc_now()
             
             # Validate updated configuration
             validation_result = await self.validate_schedule_configuration(schedule_config)
@@ -500,8 +504,8 @@ class ScheduleManager:
     
     async def list_scheduled_backups(
         self,
-        filters: Optional[ScheduleFilters] = None
-    ) -> List[ScheduleInfo]:
+        filters: ScheduleFilters | None = None
+    ) -> list[ScheduleInfo]:
         """
         List all scheduled backups with optional filtering.
         
@@ -639,7 +643,7 @@ class ScheduleManager:
         """
         return self.adapter.get_platform_name()
 
-    async def get_schedule_health_summary(self) -> Dict[str, Any]:
+    async def get_schedule_health_summary(self) -> dict[str, object]:
         """
         Get health summary for all schedules.
         
@@ -682,17 +686,17 @@ class ScheduleManager:
                 'warning_schedules': warning_count,
                 'error_schedules': error_count,
                 'platform': self.adapter.get_platform_name(),
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': _utc_now().isoformat()
             }
             
         except Exception as e:
             self.logger.error(f"Failed to get schedule health summary: {e}")
             return {
                 'error': str(e),
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': _utc_now().isoformat()
             }
     
-    async def get_next_scheduled_runs(self, limit: int = 10) -> List[Dict[str, Any]]:
+    async def get_next_scheduled_runs(self, limit: int = 10) -> list[dict[str, object]]:
         """
         Get the next scheduled backup runs across all schedules.
         
@@ -759,7 +763,7 @@ class ScheduleManager:
             
             # Update configuration
             schedule_config.enabled = True
-            schedule_config.updated_at = datetime.utcnow()
+            schedule_config.updated_at = _utc_now()
             
             # Update platform schedule
             try:
@@ -821,7 +825,7 @@ class ScheduleManager:
             
             # Update configuration
             schedule_config.enabled = False
-            schedule_config.updated_at = datetime.utcnow()
+            schedule_config.updated_at = _utc_now()
             
             # Update platform schedule
             try:
@@ -860,9 +864,9 @@ class ScheduleManager:
     
     def get_audit_trail(
         self,
-        schedule_id: Optional[str] = None,
+        schedule_id: str | None = None,
         days: int = 7
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, object]]:
         """
         Get audit trail for scheduling operations.
         
@@ -874,8 +878,7 @@ class ScheduleManager:
             List of audit entries
         """
         try:
-            from datetime import timedelta
-            start_date = datetime.utcnow() - timedelta(days=days)
+            start_date = _utc_now() - timedelta(days=days)
             
             entries = self.audit_logger.get_audit_trail(
                 schedule_id=schedule_id,
@@ -957,7 +960,7 @@ class ScheduleManager:
             return HealthCheckResult(
                 is_healthy=False,
                 check_type="platform_scheduler",
-                timestamp=datetime.utcnow(),
+                timestamp=_utc_now(),
                 details={'error': str(e)},
                 issues=[f"Health check error: {str(e)}"],
                 recommendations=["Check platform scheduler installation and permissions"]
@@ -982,7 +985,7 @@ class ScheduleManager:
             return HealthCheckResult(
                 is_healthy=False,
                 check_type="system_resources",
-                timestamp=datetime.utcnow(),
+                timestamp=_utc_now(),
                 details={'error': str(e)},
                 issues=[f"Health check error: {str(e)}"],
                 recommendations=["Check system configuration and permissions"]
@@ -1066,9 +1069,9 @@ class ScheduleManager:
 
     def generate_compliance_report(
         self,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
-        schedule_ids: Optional[List[str]] = None
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
+        schedule_ids: list[str] | None = None
     ):
         """
         Generate comprehensive compliance report for scheduled backups.
@@ -1133,7 +1136,7 @@ class ScheduleManager:
             self.logger.error(f"Failed to export compliance report: {e}")
             return False
     
-    def get_policy_compliance_summary(self, policy_id: str) -> Dict[str, Any]:
+    def get_policy_compliance_summary(self, policy_id: str) -> dict[str, object]:
         """
         Get compliance summary for all schedules using a specific policy.
         
@@ -1161,7 +1164,7 @@ class ScheduleManager:
                 'error': str(e)
             }
     
-    def get_audit_statistics(self) -> Dict[str, Any]:
+    def get_audit_statistics(self) -> dict[str, object]:
         """
         Get statistics about audit logs.
         
@@ -1182,9 +1185,9 @@ class ScheduleManager:
     def export_audit_trail(
         self,
         output_file: Path,
-        schedule_id: Optional[str] = None,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None
+        schedule_id: str | None = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None
     ) -> bool:
         """
         Export audit trail to a file for compliance reporting.
@@ -1219,7 +1222,7 @@ class ScheduleManager:
     async def detect_schedule_conflicts(
         self,
         time_window_hours: int = 24
-    ) -> List[ScheduleConflict]:
+    ) -> list[ScheduleConflict]:
         """
         Detect conflicts between all scheduled backups.
         
@@ -1255,9 +1258,9 @@ class ScheduleManager:
     
     async def resolve_schedule_conflicts(
         self,
-        conflicts: Optional[List[ScheduleConflict]] = None,
+        conflicts: list[ScheduleConflict] | None = None,
         auto_apply: bool = False
-    ) -> List[ConflictResolution]:
+    ) -> list[ConflictResolution]:
         """
         Generate resolutions for schedule conflicts.
         
@@ -1332,7 +1335,7 @@ class ScheduleManager:
     async def optimize_schedules(
         self,
         auto_apply: bool = False
-    ) -> List[ScheduleOptimization]:
+    ) -> list[ScheduleOptimization]:
         """
         Analyze and optimize schedule configurations.
         
@@ -1498,10 +1501,8 @@ class ScheduleManager:
                 return False
             
             # Calculate next retry time based on retry config
-            from datetime import datetime, timedelta
-            
             retry_delay = timedelta(minutes=schedule.retry_config.initial_delay_minutes)
-            next_retry_time = datetime.utcnow() + retry_delay
+            next_retry_time = _utc_now() + retry_delay
             
             self.logger.info(
                 f"Rescheduling failed backup {schedule_id} for {next_retry_time.isoformat()}"
@@ -1535,7 +1536,7 @@ class ScheduleManager:
             self.logger.error(error_msg)
             raise SchedulingError(error_msg) from e
     
-    def get_conflict_summary(self) -> Dict[str, Any]:
+    def get_conflict_summary(self) -> dict[str, object]:
         """
         Get summary of schedule conflicts.
         
@@ -1561,17 +1562,17 @@ class ScheduleManager:
                 'medium_conflicts': len(medium),
                 'low_conflicts': len(low),
                 'requires_immediate_action': len(critical) > 0,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': _utc_now().isoformat()
             }
             
         except Exception as e:
             self.logger.error(f"Failed to get conflict summary: {e}")
             return {
                 'error': str(e),
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': _utc_now().isoformat()
             }
     
-    def get_optimization_summary(self) -> Dict[str, Any]:
+    def get_optimization_summary(self) -> dict[str, object]:
         """
         Get summary of optimization opportunities.
         
@@ -1597,17 +1598,17 @@ class ScheduleManager:
                 'resource_usage_opportunities': len(resource),
                 'timing_opportunities': len(timing),
                 'average_improvement_potential': round(avg_improvement, 2),
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': _utc_now().isoformat()
             }
             
         except Exception as e:
             self.logger.error(f"Failed to get optimization summary: {e}")
             return {
                 'error': str(e),
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': _utc_now().isoformat()
             }
     
-    async def _handle_policy_update(self, policy_id: str, updates: Dict[str, Any]) -> None:
+    async def _handle_policy_update(self, policy_id: str, updates: dict[str, object]) -> None:
         """
         Handle policy update notifications and synchronize affected schedules.
         
@@ -1727,7 +1728,7 @@ class ScheduleManager:
         except Exception as e:
             self.logger.error(f"Error handling policy update for {policy_id}: {e}", exc_info=True)
     
-    async def synchronize_policy_schedules(self, policy_id: str) -> Dict[str, Any]:
+    async def synchronize_policy_schedules(self, policy_id: str) -> dict[str, object]:
         """
         Synchronize all schedules using a specific policy.
         
@@ -1814,7 +1815,7 @@ class ScheduleManager:
             self.logger.error(error_msg)
             raise SchedulingError(error_msg) from e
     
-    def get_schedules_by_policy(self, policy_id: str) -> List[ScheduleInfo]:
+    def get_schedules_by_policy(self, policy_id: str) -> list[ScheduleInfo]:
         """
         Get all schedules that use a specific policy.
         
@@ -1855,7 +1856,7 @@ class ScheduleManager:
     def register_health_check_webhook(
         self,
         webhook_url: str,
-        schedule_id: Optional[str] = None
+        schedule_id: str | None = None
     ) -> None:
         """
         Register a health check webhook for monitoring integration.
@@ -1877,7 +1878,7 @@ class ScheduleManager:
         self.monitoring_client.unregister_health_check_webhook(webhook_url)
         self.logger.info(f"Unregistered health check webhook: {webhook_url}")
     
-    async def send_health_check_pings(self) -> Dict[str, Any]:
+    async def send_health_check_pings(self) -> dict[str, object]:
         """
         Send health check pings for all enabled schedules.
         
@@ -1937,7 +1938,7 @@ class ScheduleManager:
             self.logger.error(error_msg)
             return {
                 'error': str(e),
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': _utc_now().isoformat()
             }
     
     async def report_scheduling_metrics(self) -> None:
@@ -1957,7 +1958,7 @@ class ScheduleManager:
                 'next_runs': next_runs,
                 'conflict_summary': conflict_summary,
                 'optimization_summary': optimization_summary,
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': _utc_now().isoformat()
             }
             
             # Report to monitoring
@@ -2028,7 +2029,7 @@ class ScheduleManager:
             self.logger.error(error_msg)
             raise SchedulingError(error_msg) from e
     
-    async def monitor_all_schedules(self) -> Dict[str, Any]:
+    async def monitor_all_schedules(self) -> dict[str, object]:
         """
         Monitor health status for all schedules and report to monitoring system.
         
@@ -2085,5 +2086,5 @@ class ScheduleManager:
             self.logger.error(error_msg)
             return {
                 'error': str(e),
-                'timestamp': datetime.utcnow().isoformat()
+                'timestamp': _utc_now().isoformat()
             }

@@ -264,11 +264,7 @@ class ToolManager:
         # Cache the result
         self._capabilities_cache[tool_type] = capabilities
 
-        logger.info(
-            f"Detected capabilities for {tool_type} v{capabilities.version}: "
-            f"{len(capabilities.native_features)} native, "
-            f"{len(capabilities.wrapper_features)} wrapper features"
-        )
+        logger.info(f"Detected capabilities for {tool_type} v{capabilities.version}: {len(capabilities.native_features)} native, {len(capabilities.wrapper_features)} wrapper features")
 
         return capabilities
 
@@ -319,8 +315,7 @@ class ToolManager:
             }
 
             logger.info(
-                f"Optimized parallel operations to {config.parallel_operations}: "
-                f"{parallel_config.optimization_reason}"
+                f"Optimized parallel operations to {config.parallel_operations}: {parallel_config.optimization_reason}"
             )
 
             # Log recommendations
@@ -359,12 +354,7 @@ class ToolManager:
             tool_type, capabilities, job
         )
 
-        logger.info(
-            f"Tool configuration complete for {tool_type}: "
-            f"parallel={config.parallel_operations}, "
-            f"compression={config.compression_level}, "
-            f"encryption={config.encryption_enabled}"
-        )
+        logger.info(f"Tool configuration complete for {tool_type}: parallel={config.parallel_operations}, compression={config.compression_level}, encryption={config.encryption_enabled}")
 
         return config
 
@@ -455,18 +445,12 @@ class ToolManager:
         if job.config.priority > 5:  # High priority job
             if capabilities.performance_characteristics.parallel_efficiency > 0.8:
                 result["recommendations"].append(
-                    (
-                        f"{tool_type} has excellent parallel performance - "
-                        "consider increasing parallel operations"
-                    )
+                    f"{tool_type} has excellent parallel performance - consider increasing parallel operations"
                 )
 
         result["is_compatible"] = len(result["missing_features"]) == 0
 
-        logger.info(
-            f"Compatibility check complete: compatible={result['is_compatible']}, "
-            f"warnings={len(result['warnings'])}"
-        )
+        logger.info(f"Compatibility check complete: compatible={result['is_compatible']}, warnings={len(result['warnings'])}")
 
         return result
 
@@ -828,7 +812,7 @@ class ToolManager:
             return 4  # Balanced compression
 
     def _get_tool_specific_options(
-        self, tool_type: str, capabilities: ToolCapabilities, job: BackupJob
+        self, tool_type: str, capabilities: ToolCapabilities, _job: BackupJob
     ) -> ToolOptionMap:
         """
         Get tool-specific configuration options.
@@ -915,10 +899,7 @@ class ToolManager:
             operation_id, configured_parallelism
         )
 
-        logger.debug(
-            f"Started parallel execution monitoring for {operation_id} "
-            f"with {tool_type} at parallelism={configured_parallelism}"
-        )
+        logger.debug(f"Started parallel execution monitoring for {operation_id} with {tool_type} at parallelism={configured_parallelism}")
 
     def update_parallel_execution_metrics(
         self,
@@ -959,8 +940,7 @@ class ToolManager:
         )
 
         logger.warning(
-            f"Applied graceful degradation for {operation_id}: "
-            f"{current_parallelism} -> {new_parallelism}"
+            f"Applied graceful degradation for {operation_id}: {current_parallelism} -> {new_parallelism}"
         )
 
         return new_parallelism

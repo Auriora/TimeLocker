@@ -24,18 +24,29 @@ determine optimal parallelization settings for backup operations.
 """
 
 import logging
-import os
+from typing import Protocol
+
 import psutil
-from typing import Dict, List, Optional, Any, TYPE_CHECKING
 from dataclasses import dataclass, field
 from enum import Enum
 
-from ..interfaces.data_models import BackupJob, ToolConfiguration
-
-if TYPE_CHECKING:
-    from .tool_manager import ToolCapabilities, Feature
+from ..interfaces.data_models import BackupJob
 
 logger = logging.getLogger(__name__)
+PARALLEL_PROCESSING_FEATURE = "parallel_processing"
+
+
+class PerformanceCharacteristicsLike(Protocol):
+    parallel_efficiency: float
+    compression_overhead: str
+
+
+class ToolCapabilitiesLike(Protocol):
+    tool_name: str
+    configuration_options: dict[str, object]
+    performance_characteristics: PerformanceCharacteristicsLike
+    native_features: set[object]
+    wrapper_features: set[object]
 
 
 class ResourceConstraintLevel(Enum):
@@ -66,7 +77,7 @@ class SystemResources:
     memory_available_gb: float
     memory_usage_percent: float
     disk_io_busy_percent: float = 0.0
-    network_bandwidth_mbps: Optional[float] = None
+    network_bandwidth_mbps: float | None = None
     
     def get_constraint_level(self) -> ResourceConstraintLevel:
         """
@@ -114,7 +125,7 @@ class ParallelizationConfig:
     resource_constraint_level: ResourceConstraintLevel
     optimization_reason: str
     degradation_applied: bool = False
-    recommendations: List[str] = field(default_factory=list)
+    recommendations: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -135,8 +146,8 @@ class ParallelExecutionMetrics:
     configured_parallelism: int
     actual_parallelism: int = 0
     parallel_efficiency: float = 0.0
-    resource_usage: Dict[str, float] = field(default_factory=dict)
-    bottlenecks: List[str] = field(default_factory=list)
+    resource_usage: dict[str, float] = field(default_factory=dict)
+    bottlenecks: list[str] = field(default_factory=list)
     degradation_events: int = 0
 
 
@@ -151,10 +162,12 @@ class ParallelExecutionOptimizer:
     - Performance monitoring and bottleneck identification
     """
     
-    def __init__(self, 
-                 enable_dynamic_adjustment: bool = True,
-                 min_parallel_operations: int = 1,
-                 max_parallel_operations: int = 16):
+    def __init__(
+        self,
+        enable_dynamic_adjustment: bool = True,
+        min_parallel_operations: int = 1,
+        max_parallel_operations: int = 16,
+    ):
         """
         Initialize parallel execution optimizer.
         
@@ -163,24 +176,24 @@ class ParallelExecutionOptimizer:
             min_parallel_operations: Minimum parallel operations
             max_parallel_operations: Maximum parallel operations
         """
-        self.enable_dynamic_adjustment = enable_dynamic_adjustment
-        self.min_parallel_operations = min_parallel_operations
-        self.max_parallel_operations = max_parallel_operations
+        self.enable_dynamic_adjustment: bool = enable_dynamic_adjustment
+        self.min_parallel_operations: int = min_parallel_operations
+        self.max_parallel_operations: int = max_parallel_operations
         
         # Track execution metrics
-        self._execution_metrics: Dict[str, ParallelExecutionMetrics] = {}
+        self._execution_metrics: dict[str, ParallelExecutionMetrics] = {}
         
         logger.debug(
-            f"ParallelExecutionOptimizer initialized: "
+            "ParallelExecutionOptimizer initialized: "
             f"dynamic_adjustment={enable_dynamic_adjustment}, "
             f"min={min_parallel_operations}, max={max_parallel_operations}"
         )
     
     def calculate_optimal_parallelism(
         self,
-        capabilities: 'ToolCapabilities',
+        capabilities: ToolCapabilitiesLike,
         job: BackupJob,
-        system_resources: Optional[SystemResources] = None
+        system_resources: SystemResources | None = None,
     ) -> ParallelizationConfig:
         """
         Calculate optimal parallelization configuration.
@@ -198,15 +211,12 @@ class ParallelExecutionOptimizer:
         """
         logger.debug(f"Calculating optimal parallelism for job {job.config.job_id}")
         
-        # Import Feature here to avoid circular import
-        from .tool_manager import Feature
-        
         # Get current system resources if not provided
         if system_resources is None:
             system_resources = self.get_system_resources()
         
         # Check if tool supports parallel processing
-        if not capabilities.has_feature(Feature.PARALLEL_PROCESSING):
+        if not self._has_feature(capabilities, PARALLEL_PROCESSING_FEATURE):
             logger.info(
                 f"Tool {capabilities.tool_name} does not support parallel processing"
             )
@@ -221,7 +231,9 @@ class ParallelExecutionOptimizer:
             )
         
         # Get tool-specific limits
-        tool_max_parallel = capabilities.configuration_options.get('max_parallel_files', 8)
+        tool_max_parallel = self._get_int_option(
+            capabilities.configuration_options, "max_parallel_files", 8
+        )
         tool_efficiency = capabilities.performance_characteristics.parallel_efficiency
         
         # Start with base calculation
@@ -274,7 +286,8 @@ class ParallelExecutionOptimizer:
         
         logger.info(
             f"Optimal parallelism calculated: {final_parallelism} "
-            f"(base={base_parallelism}, constraint={system_resources.get_constraint_level().value})"
+            f"(base={base_parallelism}, "
+            f"constraint={system_resources.get_constraint_level().value})"
         )
         
         return config
@@ -293,9 +306,12 @@ class ParallelExecutionOptimizer:
             
             # Get memory information
             memory = psutil.virtual_memory()
-            memory_total_gb = memory.total / (1024 ** 3)
-            memory_available_gb = memory.available / (1024 ** 3)
-            memory_usage_percent = memory.percent
+            memory_total_raw: object = memory.total
+            memory_available_raw: object = memory.available
+            memory_percent_raw: object = memory.percent
+            memory_total_gb = self._to_float(memory_total_raw) / (1024**3)
+            memory_available_gb = self._to_float(memory_available_raw) / (1024**3)
+            memory_usage_percent = self._to_float(memory_percent_raw)
             
             # Get disk I/O information
             disk_io_busy = 0.0
@@ -359,8 +375,7 @@ class ParallelExecutionOptimizer:
         self._execution_metrics[operation_id] = metrics
         
         logger.debug(
-            f"Started execution monitoring for {operation_id} "
-            f"with parallelism={configured_parallelism}"
+            f"Started execution monitoring for {operation_id} with parallelism={configured_parallelism}"
         )
         
         return metrics
@@ -368,9 +383,9 @@ class ParallelExecutionOptimizer:
     def update_execution_metrics(
         self,
         operation_id: str,
-        actual_parallelism: Optional[int] = None,
-        resource_usage: Optional[Dict[str, float]] = None,
-        bottleneck: Optional[str] = None
+        actual_parallelism: int | None = None,
+        resource_usage: dict[str, float] | None = None,
+        bottleneck: str | None = None,
     ) -> None:
         """
         Update execution metrics during operation.
@@ -429,8 +444,7 @@ class ParallelExecutionOptimizer:
         )
         
         logger.warning(
-            f"Applying graceful degradation for {operation_id}: "
-            f"{current_parallelism} -> {new_parallelism}. Reason: {reason}"
+            f"Applying graceful degradation for {operation_id}: {current_parallelism} -> {new_parallelism}. Reason: {reason}"
         )
         
         # Update metrics
@@ -441,7 +455,9 @@ class ParallelExecutionOptimizer:
         
         return new_parallelism
     
-    def get_execution_metrics(self, operation_id: str) -> Optional[ParallelExecutionMetrics]:
+    def get_execution_metrics(
+        self, operation_id: str
+    ) -> ParallelExecutionMetrics | None:
         """
         Get execution metrics for an operation.
         
@@ -488,7 +504,7 @@ class ParallelExecutionOptimizer:
     def _apply_tool_adjustments(
         self,
         base_parallelism: int,
-        capabilities: 'ToolCapabilities',
+        capabilities: ToolCapabilitiesLike,
         job: BackupJob
     ) -> int:
         """
@@ -570,9 +586,9 @@ class ParallelExecutionOptimizer:
         self,
         final_parallelism: int,
         resources: SystemResources,
-        capabilities: 'ToolCapabilities',
-        job: BackupJob
-    ) -> List[str]:
+        capabilities: ToolCapabilitiesLike,
+        _job: BackupJob,
+    ) -> list[str]:
         """
         Generate optimization recommendations.
         
@@ -585,7 +601,7 @@ class ParallelExecutionOptimizer:
         Returns:
             List of recommendations
         """
-        recommendations = []
+        recommendations: list[str] = []
         
         # Check if we're limited by resources
         if resources.get_constraint_level() in [
@@ -593,29 +609,25 @@ class ParallelExecutionOptimizer:
             ResourceConstraintLevel.CRITICAL
         ]:
             recommendations.append(
-                "System resources are constrained. Consider running backups "
-                "during off-peak hours for better performance."
+                "System resources are constrained. Consider running backups during off-peak hours for better performance."
             )
         
         # Check if tool efficiency is low
         if capabilities.performance_characteristics.parallel_efficiency < 0.6:
             recommendations.append(
-                f"Tool {capabilities.tool_name} has low parallel efficiency. "
-                "Consider using a tool with better parallel performance for large datasets."
+                f"Tool {capabilities.tool_name} has low parallel efficiency. Consider using a tool with better parallel performance for large datasets."
             )
         
         # Check if parallelism is very low
         if final_parallelism <= 2 and resources.cpu_count > 4:
             recommendations.append(
-                "Parallelism is limited. Check system resources and tool configuration "
-                "to enable higher parallelism."
+                "Parallelism is limited. Check system resources and tool configuration to enable higher parallelism."
             )
         
         # Check memory availability
         if resources.memory_available_gb < 2.0:
             recommendations.append(
-                "Low memory available. Consider freeing memory or adding more RAM "
-                "for better backup performance."
+                "Low memory available. Consider freeing memory or adding more RAM for better backup performance."
             )
         
         return recommendations
@@ -625,7 +637,7 @@ class ParallelExecutionOptimizer:
         final_parallelism: int,
         base_parallelism: int,
         resources: SystemResources,
-        capabilities: 'ToolCapabilities'
+        capabilities: ToolCapabilitiesLike,
     ) -> str:
         """
         Generate human-readable optimization reason.
@@ -659,3 +671,26 @@ class ParallelExecutionOptimizer:
                 f"Increased from {base_parallelism} to {final_parallelism} based on "
                 f"tool capabilities and available resources"
             )
+
+    def _get_int_option(
+        self, options: dict[str, object], key: str, default: int
+    ) -> int:
+        """Return an integer configuration option or the provided default."""
+        value = options.get(key, default)
+        return value if isinstance(value, int) else default
+
+    def _to_float(self, value: object) -> float:
+        """Convert a numeric-like value to float with a conservative fallback."""
+        if isinstance(value, (int, float)):
+            return float(value)
+        return 0.0
+
+    def _has_feature(
+        self, capabilities: ToolCapabilitiesLike, feature_value: str
+    ) -> bool:
+        """Check for a feature by enum value without importing the feature enum."""
+        all_features = capabilities.native_features | capabilities.wrapper_features
+        return any(
+            getattr(feature, "value", feature) == feature_value
+            for feature in all_features
+        )
