@@ -407,6 +407,13 @@ app = typer.Typer(
 )
 app.info.options_metavar = "⟨OPTIONS⟩"
 
+
+def _merge_typer_app(target_app: typer.Typer, source_app: typer.Typer) -> None:
+    """Merge registered commands and groups from one Typer app into another."""
+    target_app.registered_commands.extend(source_app.registered_commands)
+    target_app.registered_groups.extend(source_app.registered_groups)
+
+
 # Create sub-apps for new hierarchy
 backup_app = typer.Typer(help="Backup operations", no_args_is_help=True, context_settings=CLI_CONTEXT_SETTINGS)
 backup_app.info.options_metavar = "⟨OPTIONS⟩"
@@ -2476,33 +2483,21 @@ def config_import_config(
 try:
     from .cli_modules.commands.repositories import repos_app as _repos_commands_app
 
-    # Copy commands from the repositories module's app to our repos_app
-    for command in _repos_commands_app.registered_commands:
-        repos_app.registered_commands.append(command)
-    for group in _repos_commands_app.registered_groups:
-        repos_app.registered_groups.append(group)
+    _merge_typer_app(repos_app, _repos_commands_app)
 except ImportError as e:
     logging.getLogger(__name__).debug(f"Could not import repository commands: {e}")
 
 try:
     from .cli_modules.commands.backup import backup_app as _backup_commands_app
 
-    # Copy commands from the backup module's app to our backup_app
-    for command in _backup_commands_app.registered_commands:
-        backup_app.registered_commands.append(command)
-    for group in _backup_commands_app.registered_groups:
-        backup_app.registered_groups.append(group)
+    _merge_typer_app(backup_app, _backup_commands_app)
 except ImportError as e:
     logging.getLogger(__name__).debug(f"Could not import backup commands: {e}")
 
 try:
     from .cli_modules.commands.snapshots import snapshots_app as _snapshots_commands_app
 
-    # Copy commands from the snapshots module's app to our snapshots_app
-    for command in _snapshots_commands_app.registered_commands:
-        snapshots_app.registered_commands.append(command)
-    for group in _snapshots_commands_app.registered_groups:
-        snapshots_app.registered_groups.append(group)
+    _merge_typer_app(snapshots_app, _snapshots_commands_app)
 except ImportError as e:
     logging.getLogger(__name__).debug(f"Could not import snapshots commands: {e}")
 
@@ -2553,29 +2548,20 @@ except ImportError as e:
 try:
     from .cli_modules.commands.credentials import credentials_app as _credentials_commands_app
 
-    # Copy commands from the credentials module's app to our credentials_app
-    for command in _credentials_commands_app.registered_commands:
-        credentials_app.registered_commands.append(command)
-    for group in _credentials_commands_app.registered_groups:
-        credentials_app.registered_groups.append(group)
+    _merge_typer_app(credentials_app, _credentials_commands_app)
 except ImportError as e:
     logging.getLogger(__name__).debug(f"Could not import credentials commands: {e}")
 
 try:
     from .cli_modules.commands.config import config_app as _config_commands_app
 
-    # Copy commands from the config module's app to our config_app
-    for command in _config_commands_app.registered_commands:
-        config_app.registered_commands.append(command)
-    for group in _config_commands_app.registered_groups:
-        config_app.registered_groups.append(group)
+    _merge_typer_app(config_app, _config_commands_app)
 except ImportError as e:
     logging.getLogger(__name__).debug(f"Could not import config commands: {e}")
 
 try:
     from .cli_modules.commands.security import security_app as _security_commands_app
 
-    # Add security app to main app
-    app.add_typer(_security_commands_app, name="security")
+    _merge_typer_app(security_app, _security_commands_app)
 except ImportError as e:
     logging.getLogger(__name__).debug(f"Could not import security commands: {e}")

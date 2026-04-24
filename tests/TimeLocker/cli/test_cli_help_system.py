@@ -7,6 +7,7 @@ Tests help output, command discovery, documentation completeness, and user guida
 import pytest
 import re
 from typer.testing import CliRunner
+from typer.main import get_command
 
 from src.TimeLocker.cli import app
 
@@ -223,6 +224,16 @@ class TestCLIHelpSystem:
         command_groups = ["backup", "snapshots", "repos", "selections", "config", "credentials"]
         for group in command_groups:
             assert group in combined, f"Command group '{group}' not discoverable in main help"
+
+    @pytest.mark.unit
+    def test_top_level_command_names_are_unique(self):
+        """Ensure root command registration does not duplicate top-level group names."""
+        click_command = get_command(app)
+        command_names = list(click_command.commands.keys())
+
+        assert len(command_names) == len(set(command_names)), (
+            "Top-level command registration contains duplicate command names."
+        )
 
     @pytest.mark.unit
     def test_option_documentation_quality(self):

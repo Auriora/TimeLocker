@@ -51,6 +51,7 @@ concrete than proposals and are created after a proposal has been accepted.
 
 ## Current Plans
 
+- `2026-04-23-173102-cli-consolidation-stabilization-plan.md` — phased cleanup plan for CLI registration, config access, repository resolution, and monitoring seams.
 - `2026-04-23-165145-adjacent-static-analysis-cleanup-plan.md` — follow-up cleanup plan for adjacent services and scheduling static-analysis debt after `tool_manager.py`.
 - `2025-11-22-testing-scheduling-telemetry-plan.md` — stabilization of CLI repo tests, scheduling adapters, and telemetry guardrails.
 
