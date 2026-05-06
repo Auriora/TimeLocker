@@ -33,6 +33,12 @@ from TimeLocker.completion import (
 from TimeLocker.backup_manager import BackupManager
 from TimeLocker.config.configuration_manager import RepositoryNotFoundError
 from TimeLocker.interfaces.exceptions import ConfigurationError
+from TimeLocker.cli_modules.helpers.backup_cli_handler import (
+    BackupCLIHandlerError,
+    InvalidSelectionConfigError,
+    SelectionTemplateNotFoundError,
+)
+from TimeLocker.interfaces.backup_orchestrator import BackupOrchestratorError
 from TimeLocker.utils.repository_resolver import validate_repository_name_or_uri
 from TimeLocker.utils.snapshot_validation import validate_snapshot_id_format
 from TimeLocker.utils import get_progress_service, ProgressTemplates
@@ -51,8 +57,8 @@ backup_app.info.options_metavar = "⟨OPTIONS⟩"
 @backup_app.command("create")
 def backup_create(
         sources: Annotated[Optional[List[Path]], typer.Argument(help="Source paths to backup", autocompletion=file_path_completer)] = None,
-        repository: Annotated[str, typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
-        password: Annotated[str, typer.Option("--password", "-p", help="Repository password")] = None,
+        repository: Annotated[Optional[str], typer.Option("--repository", "-r", help="Repository name or URI", autocompletion=repository_completer)] = None,
+        password: Annotated[Optional[str], typer.Option("--password", "-p", help="Repository password")] = None,
         selection: Annotated[Optional[str], typer.Option("--selection", "-s", help="Use configured data selection template", autocompletion=selection_name_completer)] = None,
         name: Annotated[Optional[str], typer.Option("--name", "-n", help="Backup name")] = None,
         exclude: Annotated[Optional[List[str]], typer.Option("--exclude", "-e", help="Exclude pattern")] = None,
@@ -84,12 +90,6 @@ def backup_create(
     # Handle selection-based backup using BackupCLIHandler
     if selection:
         try:
-            from TimeLocker.cli_modules.helpers.backup_cli_handler import (
-                SelectionTemplateNotFoundError,
-                InvalidSelectionConfigError,
-                BackupCLIHandlerError,
-            )
-            from TimeLocker.interfaces.backup_orchestrator import BackupOrchestratorError
             from .base import _create_config_service
             
             logger = logging.getLogger(__name__)
@@ -270,6 +270,8 @@ def backup_create(
             
             # Resolve repository name to URI
             actual_repository_name = repository or resolver.get_default_repository()
+            if actual_repository_name is None:
+                raise RepositoryNotFoundError("No repository specified and no default repository configured")
             repository_uri = resolver.resolve_repository_uri(repository)
             
             # Resolve credentials through credential chain
@@ -321,7 +323,7 @@ def backup_create(
             logger.debug(f"Creating CLIBackupRequest with sources={sources}, repository_uri={repository_uri}")
             logger.debug(f"CLI collected password: {'***' if password else 'None'}")
             backup_request = CLIBackupRequest(
-                    sources=sources,
+                    sources=sources or [],
                     repository_uri=repository_uri,
                     password=password,
                     target_name=None,  # No longer using backup targets
@@ -337,9 +339,10 @@ def backup_create(
             # Execute backup using modern orchestrator
             progress.update(description="Executing backup...")
             # Prefer legacy execute_backup when available (for tests mocking this method)
-            if hasattr(service_manager, "execute_backup"):
+            legacy_execute_backup = getattr(service_manager, "execute_backup", None)
+            if callable(legacy_execute_backup):
                 logger.debug("Calling service_manager.execute_backup (legacy API)")
-                result = service_manager.execute_backup(backup_request)
+                result = legacy_execute_backup(backup_request)
             else:
                 logger.debug("Calling service_manager.execute_backup_from_cli (new API)")
                 result = service_manager.execute_backup_from_cli(backup_request)
@@ -374,17 +377,19 @@ def backup_create(
             success_msg = "Backup operation completed successfully!"
             warnings = _safe_attr(result, "warnings", []) or []
             if warnings:
-                success_msg += f" ({len(warnings)} warnings)"
+                warning_count = len(warnings) if isinstance(warnings, (list, tuple)) else 1
+                success_msg += f" ({warning_count} warnings)"
 
             show_success_panel("Backup Completed", success_msg, details)
 
             # Show warnings if any
-            for warning in warnings:
-                console.print(f"⚠️  [yellow]Warning:[/yellow] {warning}")
+            if isinstance(warnings, (list, tuple)):
+                for warning in warnings:
+                    console.print(f"⚠️  [yellow]Warning:[/yellow] {warning}")
         else:
             error_msg = "Backup operation failed"
             errors = _safe_attr(result, "errors", []) or []
-            if errors:
+            if isinstance(errors, (list, tuple)) and errors:
                 try:
                     error_msg += f": {'; '.join(str(err) for err in errors)}"
                 except Exception:
@@ -407,10 +412,11 @@ def backup_verify(
         snapshot: Annotated[
             Optional[str], typer.Option("--snapshot", "-s", help="Specific snapshot ID to verify", autocompletion=snapshot_id_completer)] = None,
         latest: Annotated[bool, typer.Option("--latest", help="Verify the latest snapshot")] = False,
+        config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
 ) -> None:
     """Verify backup integrity for a repository or a specific snapshot."""
-    setup_logging(verbose)
+    setup_logging(verbose, config_dir)
 
     # Validate inputs early (but only when provided so --help still works with exit 0)
     try:

@@ -1,5 +1,6 @@
 # Update Index
 
+- [2026-05-06-190611-static-analysis-runtime-api-cleanup](./2026-05-06-190611-static-analysis-runtime-api-cleanup.md)
 - [2026-05-06-181759-static-analysis-triage](./2026-05-06-181759-static-analysis-triage.md)
 - [2026-05-06-181418-cli-configservice-command-standardization](./2026-05-06-181418-cli-configservice-command-standardization.md)
 - [2026-05-06-175815-servicefacade-alignment-slice](./2026-05-06-175815-servicefacade-alignment-slice.md)

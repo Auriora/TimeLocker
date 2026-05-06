@@ -59,7 +59,7 @@ def _ensure_manager_unlocked(
         interactive: bool = True,
 ) -> bool:
     """Unlock a credential manager when needed."""
-    if manager.is_unlocked():
+    if not manager.is_locked():
         return True
     if not password:
         return False
@@ -114,6 +114,9 @@ def credentials_unlock(
             except PromptError as e:
                 show_error_panel("Missing Parameter", str(e))
                 raise typer.Exit(2)
+        if password is None:
+            show_error_panel("Missing Parameter", "Master password is required.")
+            raise typer.Exit(2)
 
         manager = _create_credential_manager(config_dir)
         if manager.unlock(password):
@@ -159,6 +162,9 @@ def credentials_store(
             except PromptError as e:
                 show_error_panel("Missing Parameter", str(e))
                 raise typer.Exit(2)
+        if password is None:
+            show_error_panel("Missing Parameter", "Repository password is required.")
+            raise typer.Exit(2)
 
         if service_manager:
             set_method = _get_service_method(service_manager, "set_repository_password")

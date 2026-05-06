@@ -167,7 +167,7 @@ def _format_assignment_table(assignments: List[PolicyAssignment]) -> Table:
 def policy_backup_create(
     name: Annotated[str, typer.Argument(help="Policy name")],
     description: Annotated[str, typer.Option("--description", "-d", help="Policy description")] = "",
-    repository: Annotated[List[str], typer.Option("--repository", "-r", help="Target repository (can be specified multiple times)", autocompletion=repository_name_completer)] = None,
+    repository: Annotated[Optional[List[str]], typer.Option("--repository", "-r", help="Target repository (can be specified multiple times)", autocompletion=repository_name_completer)] = None,
     backup_tool: Annotated[str, typer.Option("--tool", "-t", help="Backup tool to use")] = "restic",
     selections: Annotated[Optional[List[str]], typer.Option("--selection", "-s", help="Data selection template to include (repeat for multiple)", autocompletion=selection_name_completer)] = None,
     retention_policy: Annotated[Optional[str], typer.Option("--retention", help="Retention policy ID to link")] = None,
@@ -723,12 +723,16 @@ def policy_enforce(
         
         config_manager = ConfigurationManager(config_dir=config_dir)
         repo_config = config_manager.get_repository(repository)
+        repository_uri = repo_config.get('uri') or repo_config.get('location')
+        if not repository_uri:
+            show_error_panel("Repository Configuration Error", f"Repository '{repository}' has no configured URI or location.")
+            raise typer.Exit(1)
         
         # Create enforcement context
         from TimeLocker.policy.engine import EnforcementContext
         context = EnforcementContext(
             repository_id=repository,
-            repository_uri=repo_config.get('uri') or repo_config.get('location'),
+            repository_uri=repository_uri,
             policy_ids=[policy_id] if policy_id else None,
             dry_run=dry_run
         )
@@ -789,13 +793,17 @@ def policy_simulate(
         from TimeLocker.config.configuration_manager import ConfigurationManager
         config_manager = ConfigurationManager(config_dir=config_dir)
         repo_config = config_manager.get_repository(repository)
+        repository_uri = repo_config.get('uri') or repo_config.get('location')
+        if not repository_uri:
+            show_error_panel("Repository Configuration Error", f"Repository '{repository}' has no configured URI or location.")
+            raise typer.Exit(1)
         
         # Create simulation target
         from TimeLocker.policy.models import PolicyTarget
         target = PolicyTarget(
             target_type=TargetType.REPOSITORY,
             target_id=repository,
-            repository_uri=repo_config.get('uri') or repo_config.get('location')
+            repository_uri=repository_uri
         )
         
         # Run simulation
@@ -813,6 +821,7 @@ def policy_simulate(
             progress.update(task, completed=True)
         
         # Display results
+        storage_impact = getattr(result, 'storage_impact', None)
         if json_output:
             import json
             simulation_data = {
@@ -821,8 +830,8 @@ def policy_simulate(
                 "snapshots_to_prune": len(result.snapshots_to_prune) if hasattr(result, 'snapshots_to_prune') else 0,
                 "snapshots_to_retain": len(result.snapshots_to_retain) if hasattr(result, 'snapshots_to_retain') else 0,
                 "storage_impact": {
-                    "bytes_freed": result.storage_impact.bytes_freed if hasattr(result, 'storage_impact') else 0,
-                } if hasattr(result, 'storage_impact') else {},
+                    "bytes_freed": storage_impact.estimated_space_freed_bytes,
+                } if storage_impact else {},
                 "conflicts": [c.description for c in result.conflicts] if hasattr(result, 'conflicts') else [],
                 "warnings": result.compliance_warnings if hasattr(result, 'compliance_warnings') else [],
             }
@@ -830,8 +839,8 @@ def policy_simulate(
         else:
             # Format storage impact
             storage_freed = "N/A"
-            if hasattr(result, 'storage_impact') and result.storage_impact:
-                bytes_freed = result.storage_impact.bytes_freed
+            if storage_impact:
+                bytes_freed = storage_impact.estimated_space_freed_bytes
                 storage_freed = _format_size(bytes_freed)
             
             console.print(Panel(
@@ -856,7 +865,7 @@ def policy_simulate(
         CommandBase.handle_error(e, verbose, "Policy Simulation Error")
 
 
-def _format_size(size_bytes: int) -> str:
+def _format_size(size_bytes: float) -> str:
     """Format file size in human-readable format."""
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
         if size_bytes < 1024.0:

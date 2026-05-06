@@ -301,8 +301,7 @@ def config_validate(
         if config_file:
             target_file = Path(config_file)
         else:
-            resolver = ConfigurationPathResolver(config_dir)
-            target_file = resolver.get_config_file()
+            target_file = ConfigurationPathResolver.get_config_file_path(config_dir)
         
         try:
             validate_path(target_file, must_exist=True, must_be_file=True, field_name="configuration file")
@@ -362,9 +361,10 @@ def config_validate(
                 console.print(f"  {i}. {warning}")
         
         # Show detailed information if requested
-        if detailed and hasattr(result, 'details'):
+        details_by_section = getattr(result, 'details', None)
+        if detailed and isinstance(details_by_section, dict):
             console.print(f"\n[bold]Detailed Validation Results:[/bold]")
-            for section, details in result.details.items():
+            for section, details in details_by_section.items():
                 console.print(f"  [cyan]{section}:[/cyan] {details}")
         
         # Summary
@@ -405,13 +405,11 @@ def config_diff(
         from TimeLocker.config.configuration_path_resolver import ConfigurationPathResolver
         import json
         
-        resolver = ConfigurationPathResolver(config_dir)
-        
         # Determine what to compare
         if backup_id:
             # Compare current config with backup
-            current_file = resolver.get_config_file()
-            backup_dir = resolver.get_config_directory() / "backups"
+            current_file = ConfigurationPathResolver.get_config_file_path(config_dir)
+            backup_dir = ConfigurationPathResolver.get_backup_directory(config_dir)
             backup_file = backup_dir / f"{backup_id}.json"
             
             try:
@@ -463,7 +461,7 @@ def config_diff(
             config2 = {section: config2.get(section, {})}
         
         # Compare configurations using backup manager's comparison logic
-        backup_manager = ConfigurationBackupManager(resolver.get_config_directory() / "backups")
+        backup_manager = ConfigurationBackupManager(ConfigurationPathResolver.get_backup_directory(config_dir))
         differences = backup_manager._compare_configurations(config1, config2)
         
         if json_output:

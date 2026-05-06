@@ -9,7 +9,7 @@ import sys
 import os
 import logging
 import logging.handlers
-from typing import Optional, List, Annotated, Dict, Any
+from typing import Optional, List, Annotated, Dict, Any, cast
 from pathlib import Path
 
 import typer
@@ -56,6 +56,7 @@ from TimeLocker.interfaces.exceptions import ConfigurationError
 from TimeLocker.security import (
     SecurityService,
     CredentialManager,
+    AccessManager,
     RepositoryInfo,
     RepositoryMode
 )
@@ -83,7 +84,7 @@ repos_app = create_typer_app(
 
 # Helper functions
 
-def _format_size(size_bytes: int) -> str:
+def _format_size(size_bytes: float) -> str:
     """Format file size in human-readable format."""
     if size_bytes is None:
         return "Unknown"
@@ -143,6 +144,22 @@ def _repository_config_to_dict(repository_obj, name: str) -> Dict[str, Any]:
     if "uri" not in data and "location" in data:
         data["uri"] = data.pop("location")
     return data
+
+
+def _normalize_repository_list(raw_repositories: Any) -> List[Any]:
+    """Normalize service repository-list responses to a list for CLI rendering."""
+    if raw_repositories is None:
+        return []
+    if isinstance(raw_repositories, list):
+        return raw_repositories
+    if isinstance(raw_repositories, dict):
+        return list(raw_repositories.values())
+    if isinstance(raw_repositories, tuple):
+        return list(raw_repositories)
+    try:
+        return list(raw_repositories)
+    except TypeError:
+        return []
 
 
 def _create_credential_manager(config_dir: Optional[Path] = None):
@@ -299,7 +316,7 @@ def repos_list(
     try:
         manager = _get_service_manager_for_command(config_dir)
         list_method = _get_service_method(manager, "list_repositories")
-        repositories = []
+        repositories: List[Any] = []
         if list_method:
             try:
                 # Build filter dictionary
@@ -309,7 +326,7 @@ def repos_list(
                 if filter_engine:
                     filters['engine'] = filter_engine
                 
-                repositories = list_method(filters=filters if filters else None) or []
+                repositories = _normalize_repository_list(list_method(filters=filters if filters else None))
             except Exception as exc:
                 logging.getLogger(__name__).debug("Service repository listing failed: %s", exc)
                 raise
@@ -705,7 +722,7 @@ def repos_add(
                         console.print("[yellow]⚠️  Skipping credential storage; no interactive input available.[/yellow]")
                         raise
 
-                    credentials_payload = {
+                    credentials_payload: Dict[str, object] = {
                             "access_key_id":     access_key,
                             "secret_access_key": secret_key,
                     }
@@ -719,7 +736,7 @@ def repos_add(
                             backend_type=backend_type,
                             backend_name=_backend_display_name(backend_type),
                             credentials_dict=credentials_payload,
-                            cred_mgr=credential_manager,
+                            cred_mgr=cast(Any, credential_manager),
                             config_manager=config_service.get_legacy_config_module(),
                             repository_config=repository_config,
                             console=console,
@@ -1112,32 +1129,22 @@ def repos_update(
         
         # Update description if provided
         if description is not None:
-            if hasattr(repo_config, 'description'):
-                repo_config.description = description
-            elif isinstance(repo_config, dict):
-                repo_config['description'] = description
+            repo_config['description'] = description
             updates.append("description")
         
         # Handle metadata updates
         if clear_metadata:
-            if hasattr(repo_config, 'metadata'):
-                repo_config.metadata = {}
-            elif isinstance(repo_config, dict):
-                repo_config['metadata'] = {}
+            repo_config['metadata'] = {}
             updates.append("cleared all metadata")
         
         # Remove specific metadata keys
         if remove_metadata:
             removed_keys = []
             for key in remove_metadata:
-                if hasattr(repo_config, 'metadata') and repo_config.metadata:
-                    if key in repo_config.metadata:
-                        del repo_config.metadata[key]
-                        removed_keys.append(key)
-                elif isinstance(repo_config, dict) and 'metadata' in repo_config:
-                    if key in repo_config['metadata']:
-                        del repo_config['metadata'][key]
-                        removed_keys.append(key)
+                metadata_values = repo_config.get('metadata')
+                if isinstance(metadata_values, dict) and key in metadata_values:
+                    del metadata_values[key]
+                    removed_keys.append(key)
             
             if removed_keys:
                 updates.append(f"removed metadata keys: {', '.join(removed_keys)}")
@@ -1155,14 +1162,11 @@ def repos_update(
                 metadata_dict[key.strip()] = value.strip()
             
             # Update metadata
-            if hasattr(repo_config, 'metadata'):
-                if not repo_config.metadata:
-                    repo_config.metadata = {}
-                repo_config.metadata.update(metadata_dict)
-            elif isinstance(repo_config, dict):
-                if 'metadata' not in repo_config:
-                    repo_config['metadata'] = {}
-                repo_config['metadata'].update(metadata_dict)
+            metadata_values = repo_config.get('metadata')
+            if not isinstance(metadata_values, dict):
+                metadata_values = {}
+                repo_config['metadata'] = metadata_values
+            metadata_values.update(metadata_dict)
             
             updates.append(f"added/updated metadata ({len(metadata_dict)} items)")
         
@@ -1177,11 +1181,7 @@ def repos_update(
         
         if unset_default:
             # Check if this is the default repository
-            is_default = False
-            if hasattr(repo_config, 'is_default'):
-                is_default = repo_config.is_default
-            elif isinstance(repo_config, dict):
-                is_default = repo_config.get('is_default', False)
+            is_default = bool(repo_config.get('is_default', False))
             
             if is_default:
                 clear_default_method = _get_service_method(manager, "clear_default_repository")
@@ -1189,10 +1189,7 @@ def repos_update(
                     _call_service_method(clear_default_method)
                 else:
                     # Clear default flag
-                    if hasattr(repo_config, 'is_default'):
-                        repo_config.is_default = False
-                    elif isinstance(repo_config, dict):
-                        repo_config['is_default'] = False
+                    repo_config['is_default'] = False
                 updates.append("removed default repository status")
             else:
                 console.print(f"[yellow]Repository '{name}' is not the default repository.[/yellow]")
@@ -1205,7 +1202,7 @@ def repos_update(
         # Save updated configuration
         config = config_manager.get_config()
         if config and hasattr(config, 'repositories'):
-            config.repositories[name] = repo_config
+            config.repositories[name] = cast(Any, repo_config)
             config_manager.save_config(config)
         
         # Display update summary
@@ -1237,7 +1234,7 @@ def repos_edit(
         description: Annotated[Optional[str], typer.Option("--description", "-d", help="Update repository description")] = None,
         password: Annotated[Optional[str], typer.Option("--password", "-p", help="Update repository password")] = None,
         update_credentials: Annotated[bool, typer.Option("--update-credentials", help="Update backend credentials interactively")] = False,
-        interactive: Annotated[bool, typer.Option("--interactive/--no-interactive", help="Enable interactive mode for all fields")] = None,
+        interactive: Annotated[Optional[bool], typer.Option("--interactive/--no-interactive", help="Enable interactive mode for all fields")] = None,
         verbose: VerboseOption = False,
         config_dir: ConfigDirOption = None,
 ) -> None:
@@ -1392,7 +1389,7 @@ def repos_edit(
         if updates:
             config = config_manager.get_config()
             if config and hasattr(config, 'repositories'):
-                config.repositories[name] = repo_config
+                config.repositories[name] = cast(Any, repo_config)
                 config_manager.save_config(config)
         
         # Handle credential updates
@@ -1412,7 +1409,7 @@ def repos_edit(
                     region = Prompt.ask("AWS Region", default="")
                     insecure_tls = Confirm.ask("Allow insecure TLS?", default=False)
                     
-                    credentials_payload = {
+                    credentials_payload: Dict[str, object] = {
                         "access_key_id": access_key,
                         "secret_access_key": secret_key,
                     }
@@ -1427,8 +1424,8 @@ def repos_edit(
                         backend_type=backend_type,
                         backend_name=_backend_display_name(backend_type),
                         credentials_dict=credentials_payload,
-                        cred_mgr=credential_manager,
-                        config_manager=config_manager,
+                        cred_mgr=cast(Any, credential_manager),
+                        config_manager=_create_config_service(config_dir).get_legacy_config_module(),
                         repository_config=_repository_config_to_dict(repo_config, name),
                         console=console,
                         logger=logging.getLogger(__name__),
@@ -2367,7 +2364,7 @@ def repos_validate_all(
             show_error_panel("Not Implemented", "Repository listing is not available in this build.")
             raise typer.Exit(1)
         
-        repositories = list_method() or []
+        repositories = _normalize_repository_list(list_method())
         
         if not repositories:
             show_info_panel("No Repositories", "No repositories configured to validate.")
