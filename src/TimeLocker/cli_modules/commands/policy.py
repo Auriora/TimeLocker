@@ -5,21 +5,14 @@ This module contains CLI commands for policy management operations including
 policy creation, assignment, enforcement, simulation, and audit reporting.
 """
 
-import sys
-import logging
-from typing import Optional, List, Annotated, Dict, Any
+from typing import Optional, List, Annotated, Any
 from pathlib import Path
-from datetime import datetime, timedelta
-import json
 
 import typer
-import click
 from rich.table import Table
 from rich.panel import Panel
-from rich.prompt import Confirm, Prompt
-from rich.tree import Tree
+from rich.prompt import Confirm
 from rich.progress import Progress, SpinnerColumn, TextColumn
-from rich import print as rprint
 
 # Import from base module
 from .base import (
@@ -31,11 +24,6 @@ from .base import (
     show_error_panel,
     show_info_panel,
     console,
-    _get_service_method,
-    _call_service_method,
-    _get_service_manager_for_command,
-    _create_config_service,
-    ConfigService,
     VerboseOption,
     JsonOption,
     YesOption,
@@ -49,9 +37,6 @@ from TimeLocker.policy import (
     PolicyType,
     TargetType,
     RetentionType,
-    PolicyStatus,
-    BackupPolicy,
-    RetentionPolicy,
     RetentionRule,
     PolicyAssignment,
 )
@@ -118,6 +103,26 @@ def _get_policy_manager(config_dir: Optional[Path] = None) -> PolicyManager:
     return manager
 
 
+def _format_optional_datetime(value: object, fmt: str = "%Y-%m-%d %H:%M", default: str = "N/A") -> str:
+    """Format datetime-like values while tolerating missing legacy fields."""
+    if value is None:
+        return default
+    strftime = getattr(value, "strftime", None)
+    if callable(strftime):
+        return str(strftime(fmt))
+    return str(value)
+
+
+def _optional_isoformat(value: object) -> Optional[str]:
+    """Return an ISO timestamp for datetime-like values, or None when absent."""
+    if value is None:
+        return None
+    isoformat = getattr(value, "isoformat", None)
+    if callable(isoformat):
+        return str(isoformat())
+    return str(value)
+
+
 def _format_policy_table(policies: List[Any], policy_type: str) -> Table:
     """Format policies as a Rich table."""
     table = Table(title=f"{policy_type} Policies")
@@ -127,7 +132,7 @@ def _format_policy_table(policies: List[Any], policy_type: str) -> Table:
     table.add_column("Created", style="yellow")
     
     for policy in policies:
-        created = policy.created_at.strftime("%Y-%m-%d %H:%M") if hasattr(policy, 'created_at') else "N/A"
+        created = _format_optional_datetime(getattr(policy, 'created_at', None))
         table.add_row(
             policy.id[:8],
             policy.name,
@@ -237,7 +242,7 @@ def policy_backup_list(
                     "description": p.description,
                     "repositories": p.target_repositories,
                     "tool": p.backup_tool,
-                    "created_at": p.created_at.isoformat() if hasattr(p, 'created_at') else None,
+                    "created_at": _optional_isoformat(getattr(p, 'created_at', None)),
                 }
                 for p in policies
             ]
@@ -278,7 +283,7 @@ def policy_backup_show(
                 "backup_tool": policy.backup_tool,
                 "retention_policy_id": policy.retention_policy_id,
                 "tags": policy.tags,
-                "created_at": policy.created_at.isoformat() if hasattr(policy, 'created_at') else None,
+                "created_at": _optional_isoformat(getattr(policy, 'created_at', None)),
             }
             console.print(json.dumps(policy_data, indent=2))
         else:
@@ -290,7 +295,7 @@ def policy_backup_show(
                 f"[bold]Backup Tool:[/bold] {policy.backup_tool}\n"
                 f"[bold]Retention Policy:[/bold] {policy.retention_policy_id or 'None'}\n"
                 f"[bold]Tags:[/bold] {', '.join(f'{k}={v}' for k, v in policy.tags.items()) if policy.tags else 'None'}\n"
-                f"[bold]Created:[/bold] {policy.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(policy, 'created_at') else 'N/A'}",
+                f"[bold]Created:[/bold] {_format_optional_datetime(getattr(policy, 'created_at', None), '%Y-%m-%d %H:%M:%S')}",
                 title=f"[bold green]Backup Policy: {policy.name}[/bold green]",
                 border_style="green"
             ))
@@ -443,7 +448,7 @@ def policy_retention_list(
                     "description": p.description,
                     "rules": [{"type": r.type.value, "count": r.count} for r in p.rules],
                     "priority": p.priority,
-                    "created_at": p.created_at.isoformat() if hasattr(p, 'created_at') else None,
+                    "created_at": _optional_isoformat(getattr(p, 'created_at', None)),
                 }
                 for p in policies
             ]
@@ -488,7 +493,7 @@ def policy_retention_show(
                     for r in policy.rules
                 ],
                 "priority": policy.priority,
-                "created_at": policy.created_at.isoformat() if hasattr(policy, 'created_at') else None,
+                "created_at": _optional_isoformat(getattr(policy, 'created_at', None)),
             }
             console.print(json.dumps(policy_data, indent=2))
         else:
@@ -504,7 +509,7 @@ def policy_retention_show(
                 f"[bold]Description:[/bold] {policy.description}\n"
                 f"[bold]Priority:[/bold] {policy.priority}\n"
                 f"[bold]Rules:[/bold]\n{rules_text}\n"
-                f"[bold]Created:[/bold] {policy.created_at.strftime('%Y-%m-%d %H:%M:%S') if hasattr(policy, 'created_at') else 'N/A'}",
+                f"[bold]Created:[/bold] {_format_optional_datetime(getattr(policy, 'created_at', None), '%Y-%m-%d %H:%M:%S')}",
                 title=f"[bold green]Retention Policy: {policy.name}[/bold green]",
                 border_style="green"
             ))
@@ -647,7 +652,7 @@ def policy_assignment_list(
                     "target_id": a.target_id,
                     "priority": a.priority,
                     "active": a.active,
-                    "assigned_at": a.assigned_at.isoformat() if hasattr(a, 'assigned_at') else None,
+                    "assigned_at": _optional_isoformat(getattr(a, 'assigned_at', None)),
                 }
                 for a in assignments
             ]
@@ -686,7 +691,7 @@ def policy_assignment_delete(
                 return
         
         policy_manager.delete_assignment(assignment_id)
-        show_success_panel("Assignment Deleted", f"Deleted policy assignment")
+        show_success_panel("Assignment Deleted", "Deleted policy assignment")
     except Exception as e:
         CommandBase.handle_error(e, verbose, "Policy Assignment Delete Error")
 
@@ -717,8 +722,6 @@ def policy_enforce(
                 show_info_panel("Operation Cancelled", "Policy enforcement cancelled.")
                 return
         
-        # Get repository service for enforcement
-        from TimeLocker.services.repository_service import RepositoryService
         from TimeLocker.config.configuration_manager import ConfigurationManager
         
         config_manager = ConfigurationManager(config_dir=config_dir)
@@ -983,7 +986,7 @@ def policy_audit(
                     "policy_id": r.policy_id,
                     "target_id": r.target_id,
                     "enforcement_type": r.enforcement_type.value,
-                    "execution_time": r.execution_time.isoformat() if hasattr(r, 'execution_time') else None,
+                    "execution_time": _optional_isoformat(getattr(r, 'execution_time', None)),
                     "snapshots_affected": len(r.snapshots_affected) if hasattr(r, 'snapshots_affected') else 0,
                     "errors": r.errors if hasattr(r, 'errors') else [],
                 }
@@ -1004,7 +1007,7 @@ def policy_audit(
             table.add_column("Status", style="blue")
             
             for record in records:
-                execution_time = record.execution_time.strftime("%Y-%m-%d %H:%M") if hasattr(record, 'execution_time') else "N/A"
+                execution_time = _format_optional_datetime(getattr(record, 'execution_time', None))
                 snapshots_count = len(record.snapshots_affected) if hasattr(record, 'snapshots_affected') else 0
                 has_errors = len(record.errors) > 0 if hasattr(record, 'errors') else False
                 status = "❌ Error" if has_errors else "✓ Success"
