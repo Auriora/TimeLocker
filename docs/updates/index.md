@@ -1,5 +1,6 @@
 # Update Index
 
+- [2026-05-06-201601-repository-boundary-type-cleanup](./2026-05-06-201601-repository-boundary-type-cleanup.md)
 - [2026-05-06-200919-repositories-ruff-cleanup](./2026-05-06-200919-repositories-ruff-cleanup.md)
 - [2026-05-06-200221-backup-result-static-analysis-cleanup](./2026-05-06-200221-backup-result-static-analysis-cleanup.md)
 - [2026-05-06-195516-policy-date-static-analysis-cleanup](./2026-05-06-195516-policy-date-static-analysis-cleanup.md)

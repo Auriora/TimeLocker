@@ -9,6 +9,7 @@ import sys
 import os
 import logging
 import logging.handlers
+from collections.abc import Callable, Iterable, Mapping
 from typing import Optional, List, Annotated, Dict, Any, cast
 from pathlib import Path
 
@@ -65,7 +66,36 @@ repos_app = create_typer_app(
 
 # Helper functions
 
-def _format_size(size_bytes: float) -> str:
+_REPOSITORY_CONFIG_ATTRIBUTES = (
+    "uri",
+    "location",
+    "description",
+    "tags",
+    "password",
+    "has_backend_credentials",
+)
+
+
+def _mapping_to_plain_dict(mapping: Mapping[object, object]) -> dict[str, object]:
+    """Convert a mapping with arbitrary keys into a string-keyed dictionary."""
+    return {str(key): value for key, value in mapping.items()}
+
+
+def _mapping_value(mapping: Mapping[object, object], key: str, default: object) -> object:
+    """Return a typed mapping value for CLI display coercion."""
+    return mapping.get(key, default)
+
+
+def _coerce_optional_float(value: object) -> float | None:
+    """Return numeric values as floats for size formatting."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    return None
+
+
+def _format_size(size_bytes: float | None) -> str:
     """Format file size in human-readable format."""
     if size_bytes is None:
         return "Unknown"
@@ -103,44 +133,51 @@ def _backend_display_name(backend: str) -> str:
     return mapping.get(backend, backend.upper())
 
 
-def _repository_config_to_dict(repository_obj, name: str) -> Dict[str, Any]:
+def _repository_config_to_dict(repository_obj: object, name: str) -> dict[str, object]:
     """Convert repository configuration object or mapping to dictionary."""
     if repository_obj is None:
         return {"name": name}
-    if hasattr(repository_obj, "to_dict"):
-        maybe_dict = repository_obj.to_dict()
-        data = dict(maybe_dict) if isinstance(maybe_dict, dict) else {"name": name}
-    elif isinstance(repository_obj, dict):
-        data = dict(repository_obj)
+    data: dict[str, object]
+    if isinstance(repository_obj, Mapping):
+        data = _mapping_to_plain_dict(cast(Mapping[object, object], repository_obj))
     else:
-        data = {"name": name}
-        for attr in ("uri", "location", "description", "tags", "password", "has_backend_credentials"):
-            if hasattr(repository_obj, attr):
-                value = getattr(repository_obj, attr)
+        to_dict_method = getattr(repository_obj, "to_dict", None)
+        if callable(to_dict_method):
+            maybe_dict = cast(Callable[[], object], to_dict_method)()
+            data = (
+                _mapping_to_plain_dict(cast(Mapping[object, object], maybe_dict))
+                if isinstance(maybe_dict, Mapping)
+                else dict(name=name)
+            )
+        else:
+            data = dict(name=name)
+            for attr in _REPOSITORY_CONFIG_ATTRIBUTES:
+                value = cast(object, getattr(repository_obj, attr, None))
                 if value is not None:
                     key = "uri" if attr == "location" else attr
                     data[key] = value
-    data.setdefault("name", name)
+
+    if "name" not in data:
+        data["name"] = name
     # Normalise location/uri fields
     if "uri" not in data and "location" in data:
         data["uri"] = data.pop("location")
     return data
 
 
-def _normalize_repository_list(raw_repositories: Any) -> List[Any]:
+def _normalize_repository_list(raw_repositories: object) -> list[object]:
     """Normalize service repository-list responses to a list for CLI rendering."""
     if raw_repositories is None:
         return []
     if isinstance(raw_repositories, list):
-        return raw_repositories
-    if isinstance(raw_repositories, dict):
-        return list(raw_repositories.values())
+        return cast(list[object], raw_repositories)
+    if isinstance(raw_repositories, Mapping):
+        return list(cast(Iterable[object], raw_repositories.values()))
     if isinstance(raw_repositories, tuple):
+        return list(cast(tuple[object, ...], raw_repositories))
+    if isinstance(raw_repositories, Iterable) and not isinstance(raw_repositories, (str, bytes)):
         return list(raw_repositories)
-    try:
-        return list(raw_repositories)
-    except TypeError:
-        return []
+    return []
 
 
 def _create_credential_manager(config_dir: Optional[Path] = None):
@@ -297,7 +334,7 @@ def repos_list(
     try:
         manager = _get_service_manager_for_command(config_dir)
         list_method = _get_service_method(manager, "list_repositories")
-        repositories: List[Any] = []
+        repositories: list[object] = []
         if list_method:
             try:
                 # Build filter dictionary
@@ -346,15 +383,16 @@ def repos_list(
         
         # Populate table
         for repo in repositories:
-            if isinstance(repo, dict):
-                name = str(repo.get("name", "unknown"))
-                uri = str(repo.get("uri", repo.get("location", "unknown")))
-                description = str(repo.get("description", ""))
-                is_default = repo.get("is_default", False)
-                repo_type = str(repo.get("type", "N/A"))
-                repo_engine = str(repo.get("engine", "N/A"))
-                repo_status = str(repo.get("status", "unknown"))
-                last_validated = repo.get("last_validated", "Never")
+            if isinstance(repo, Mapping):
+                repo_mapping = cast(Mapping[object, object], repo)
+                name = str(_mapping_value(repo_mapping, "name", "unknown"))
+                uri = str(_mapping_value(repo_mapping, "uri", _mapping_value(repo_mapping, "location", "unknown")))
+                description = str(_mapping_value(repo_mapping, "description", ""))
+                is_default = bool(_mapping_value(repo_mapping, "is_default", False))
+                repo_type = str(_mapping_value(repo_mapping, "type", "N/A"))
+                repo_engine = str(_mapping_value(repo_mapping, "engine", "N/A"))
+                repo_status = str(_mapping_value(repo_mapping, "status", "unknown"))
+                last_validated = _mapping_value(repo_mapping, "last_validated", "Never")
             else:
                 name = str(getattr(repo, "name", "unknown"))
                 uri = str(getattr(repo, "uri", getattr(repo, "location", "unknown")))
@@ -529,20 +567,22 @@ def repos_add(
                     console.print(f"\n[yellow]⚠️  Existing repository detected at {uri}[/yellow]")
                     
                     # Display existing repository information
-                    if isinstance(existing_repo_info, dict):
-                        engine_type = existing_repo_info.get("engine_type", "unknown")
-                        requires_creds = existing_repo_info.get("requires_credentials", False)
-                        last_modified = existing_repo_info.get("last_modified", "unknown")
-                        estimated_size = existing_repo_info.get("estimated_size")
+                    if isinstance(existing_repo_info, Mapping):
+                        existing_repo_mapping = cast(Mapping[object, object], existing_repo_info)
+                        engine_type = _mapping_value(existing_repo_mapping, "engine_type", "unknown")
+                        requires_creds = bool(_mapping_value(existing_repo_mapping, "requires_credentials", False))
+                        last_modified = _mapping_value(existing_repo_mapping, "last_modified", "unknown")
+                        estimated_size = _coerce_optional_float(_mapping_value(existing_repo_mapping, "estimated_size", None))
                     else:
-                        engine_type = getattr(existing_repo_info, "engine_type", "unknown")
-                        requires_creds = getattr(existing_repo_info, "requires_credentials", False)
-                        last_modified = getattr(existing_repo_info, "last_modified", "unknown")
-                        estimated_size = getattr(existing_repo_info, "estimated_size", None)
+                        existing_repo_obj = cast(object, existing_repo_info)
+                        engine_type = cast(object, getattr(existing_repo_obj, "engine_type", "unknown"))
+                        requires_creds = bool(getattr(existing_repo_obj, "requires_credentials", False))
+                        last_modified = cast(object, getattr(existing_repo_obj, "last_modified", "unknown"))
+                        estimated_size = _coerce_optional_float(getattr(existing_repo_obj, "estimated_size", None))
                     
                     console.print(f"  Engine: {engine_type}")
                     console.print(f"  Last Modified: {last_modified}")
-                    if estimated_size:
+                    if estimated_size is not None:
                         console.print(f"  Estimated Size: {_format_size(estimated_size)}")
                     if requires_creds:
                         console.print("  [yellow]Requires credentials to access[/yellow]")
@@ -558,7 +598,7 @@ def repos_add(
                         console.print("\n[red bold]⚠️  WARNING: REPOSITORY RE-INITIALIZATION WILL PERMANENTLY DELETE ALL DATA ⚠️[/red bold]")
                         console.print(f"[red]Repository URI: {uri}[/red]")
                         console.print(f"[red]Engine: {engine_type}[/red]")
-                        if estimated_size:
+                        if estimated_size is not None:
                             console.print(f"[red]Size: {_format_size(estimated_size)}[/red]")
                         console.print(f"[red]Last modified: {last_modified}[/red]")
                         console.print("\n[red]This action cannot be undone. All backup data will be permanently lost.[/red]\n")
