@@ -4,15 +4,13 @@ Backup operation commands.
 This module contains CLI commands for creating and verifying backups.
 """
 
-import sys
 import logging
-from typing import Optional, List, Annotated
+import sys
+from typing import Optional, List, Annotated, TypeAlias, cast
 from pathlib import Path
 
 import typer
 import click
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeElapsedColumn
-from rich.prompt import Prompt
 
 from ..helpers.display import show_success_panel, show_error_panel, console
 from ..helpers.logging_setup import setup_logging
@@ -30,7 +28,6 @@ from TimeLocker.completion import (
     selection_name_completer,
     snapshot_id_completer,
 )
-from TimeLocker.backup_manager import BackupManager
 from TimeLocker.config.configuration_manager import RepositoryNotFoundError
 from TimeLocker.interfaces.exceptions import ConfigurationError
 from TimeLocker.cli_modules.helpers.backup_cli_handler import (
@@ -41,7 +38,7 @@ from TimeLocker.cli_modules.helpers.backup_cli_handler import (
 from TimeLocker.interfaces.backup_orchestrator import BackupOrchestratorError
 from TimeLocker.utils.repository_resolver import validate_repository_name_or_uri
 from TimeLocker.utils.snapshot_validation import validate_snapshot_id_format
-from TimeLocker.utils import get_progress_service, ProgressTemplates
+from TimeLocker.utils import get_progress_service
 
 # Create Typer app for backup operations
 CLI_CONTEXT_SETTINGS = {"max_content_width": 110}
@@ -52,6 +49,39 @@ backup_app = typer.Typer(
     context_settings=CLI_CONTEXT_SETTINGS
 )
 backup_app.info.options_metavar = "⟨OPTIONS⟩"
+
+BackupDisplayValue: TypeAlias = str | int | float | bool | list[object] | dict[str, object] | tuple[object, ...]
+
+
+def _safe_backup_attr(
+        obj: object,
+        attr: str,
+        default: BackupDisplayValue | None = None,
+) -> BackupDisplayValue | None:
+    """Read simple result attributes without leaking unknown service result types."""
+    try:
+        value = cast(object, getattr(obj, attr))
+    except AttributeError:
+        return default
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, list):
+        return cast(list[object], value)
+    if isinstance(value, dict):
+        return cast(dict[str, object], value)
+    if isinstance(value, tuple):
+        return cast(tuple[object, ...], value)
+    return default
+
+
+def _safe_backup_sequence(obj: object, attr: str) -> list[object] | tuple[object, ...]:
+    """Return list-like result attributes for display loops."""
+    value = _safe_backup_attr(obj, attr, [])
+    if isinstance(value, list):
+        return value
+    if isinstance(value, tuple):
+        return value
+    return []
 
 
 @backup_app.command("create")
@@ -131,17 +161,17 @@ def backup_create(
             
             # Get default repository if not specified
             if not repository:
-                default_repo_name = None
+                default_repo_name: object = None
                 default_method = _get_service_method(service_manager, "get_default_repository")
                 if default_method:
                     try:
-                        default_repo_name = _call_service_method(default_method)
+                        default_repo_name = cast(object, _call_service_method(default_method))
                     except Exception as exc:
                         logger.debug("Service default repository lookup failed: %s", exc)
                 
                 if not default_repo_name:
                     try:
-                        default_repo_name = config_service.get_default_repository()
+                        default_repo_name = cast(object, config_service.get_default_repository())
                     except Exception as exc:
                         logger.debug("ConfigService default repository lookup failed: %s", exc)
                 
@@ -304,8 +334,7 @@ def backup_create(
             raise typer.Exit(1)
 
     password = resolved_password
-    if repository_uri is None:
-        repository_uri = fallback_repository_uri
+    repository_uri = repository_uri or fallback_repository_uri
 
     try:
         logger = logging.getLogger(__name__)
@@ -349,23 +378,15 @@ def backup_create(
             logger.debug(f"Backup result: {getattr(result, 'status', 'unknown')}")
 
         # Display results using new BackupResult data model
-        def _safe_attr(obj, attr, default=None):
-            try:
-                value = getattr(obj, attr)
-            except AttributeError:
-                return default
-            if isinstance(value, (str, int, float, bool, list, dict, tuple)):
-                return value
-            return default
-
-        is_successful = _safe_attr(result, "is_successful", None)
+        is_successful = _safe_backup_attr(result, "is_successful", None)
         if is_successful is None:
-            is_successful = _safe_attr(result, "success", False)
+            is_successful = _safe_backup_attr(result, "success", False)
         if bool(is_successful):
-            files_processed = _safe_attr(result, "files_processed", 0)
-            bytes_processed = _safe_attr(result, "bytes_processed", 0)
-            duration_value = _safe_attr(result, "duration", None)
-            snapshot_id_value = _safe_attr(result, "snapshot_id", "Unknown") or "Unknown"
+            files_processed = _safe_backup_attr(result, "files_processed", 0)
+            bytes_processed = _safe_backup_attr(result, "bytes_processed", 0)
+            duration_value = _safe_backup_attr(result, "duration", None)
+            snapshot_id_raw = _safe_backup_attr(result, "snapshot_id", "Unknown")
+            snapshot_id_value = snapshot_id_raw if isinstance(snapshot_id_raw, str) and snapshot_id_raw else "Unknown"
 
             details = {
                     "Snapshot ID":     snapshot_id_value,
@@ -375,21 +396,19 @@ def backup_create(
             }
 
             success_msg = "Backup operation completed successfully!"
-            warnings = _safe_attr(result, "warnings", []) or []
+            warnings = _safe_backup_sequence(result, "warnings")
             if warnings:
-                warning_count = len(warnings) if isinstance(warnings, (list, tuple)) else 1
-                success_msg += f" ({warning_count} warnings)"
+                success_msg += f" ({len(warnings)} warnings)"
 
             show_success_panel("Backup Completed", success_msg, details)
 
             # Show warnings if any
-            if isinstance(warnings, (list, tuple)):
-                for warning in warnings:
-                    console.print(f"⚠️  [yellow]Warning:[/yellow] {warning}")
+            for warning in warnings:
+                console.print(f"⚠️  [yellow]Warning:[/yellow] {warning}")
         else:
             error_msg = "Backup operation failed"
-            errors = _safe_attr(result, "errors", []) or []
-            if isinstance(errors, (list, tuple)) and errors:
+            errors = _safe_backup_sequence(result, "errors")
+            if errors:
                 try:
                     error_msg += f": {'; '.join(str(err) for err in errors)}"
                 except Exception:
