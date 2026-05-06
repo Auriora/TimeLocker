@@ -688,13 +688,6 @@ def repos_add(
         else:
             config_manager = ConfigurationManager(config_dir=config_dir)
             config_manager.add_repository(name, uri, description)
-        if set_default:
-            default_method = _get_service_method(manager, "set_default_repository")
-            if default_method:
-                _call_service_method(default_method, name=name, repository=name, repository_name=name)
-            else:
-                config_manager = ConfigurationManager(config_dir=config_dir)
-                config_manager.set_default_repository(name)
 
         config_service = None
         try:
@@ -715,6 +708,14 @@ def repos_add(
                     logging.getLogger(__name__).debug("Failed to persist repository via ConfigService: %s", repo_exc)
         except Exception as module_exc:
             logging.getLogger(__name__).debug("ConfigService unavailable for repository persistence: %s", module_exc)
+
+        if set_default:
+            default_method = _get_service_method(manager, "set_default_repository")
+            if default_method:
+                _call_service_method(default_method, name=name, repository=name, repository_name=name)
+            else:
+                config_manager = ConfigurationManager(config_dir=config_dir)
+                config_manager.set_default_repository(name)
 
         if backend_type == "s3":
             try:
