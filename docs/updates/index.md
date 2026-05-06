@@ -1,5 +1,7 @@
 # Update Index
 
+- [2026-05-06-171653-timelocker-doc-code-alignment-findings](./2026-05-06-171653-timelocker-doc-code-alignment-findings.md)
+- [2026-04-24-062202-monitoring-facade-first-slice](./2026-04-24-062202-monitoring-facade-first-slice.md)
 - [2026-04-23-173102-cli-consolidation-first-slice](./2026-04-23-173102-cli-consolidation-first-slice.md)
 - [2026-04-23-172500-adjacent-static-analysis-cleanup-execution](./2026-04-23-172500-adjacent-static-analysis-cleanup-execution.md)
 - [2026-04-23-162451-tool-manager-type-cleanup](./2026-04-23-162451-tool-manager-type-cleanup.md)

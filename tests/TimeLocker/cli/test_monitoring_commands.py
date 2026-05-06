@@ -12,7 +12,6 @@ from tests.TimeLocker.cli.test_utils import (
     get_cli_runner,
     combined_output,
     assert_success,
-    assert_exit_code,
     assert_help_quality,
     create_mock_cli_service_manager,
 )
@@ -44,25 +43,21 @@ class TestMonitorCommands:
         assert_help_quality(result, "monitor stats")
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.monitoring._create_config_service')
     @patch('src.TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
-    def test_monitor_health_command(self, mock_get_service_manager, mock_create_config_service):
+    def test_monitor_health_command(self, mock_get_service_manager):
         """Test monitor health command execution."""
         mock_manager = create_mock_cli_service_manager()
         mock_get_service_manager.return_value = mock_manager
-        mock_create_config_service.return_value = mock_manager._config_service
         
         result = runner.invoke(app, ["monitor", "health"])
         assert_success(result)
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.monitoring._create_config_service')
     @patch('src.TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
-    def test_monitor_stats_command(self, mock_get_service_manager, mock_create_config_service):
+    def test_monitor_stats_command(self, mock_get_service_manager):
         """Test monitor stats command execution."""
         mock_manager = create_mock_cli_service_manager()
         mock_get_service_manager.return_value = mock_manager
-        mock_create_config_service.return_value = mock_manager._config_service
         
         result = runner.invoke(app, ["monitor", "stats"])
         assert_success(result)
@@ -126,37 +121,31 @@ class TestReportsCommands:
         assert_help_quality(result, "reports generate")
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.monitoring._create_config_service')
     @patch('src.TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
-    def test_reports_generate_backup_history(self, mock_get_service_manager, mock_create_config_service):
+    def test_reports_generate_backup_history(self, mock_get_service_manager):
         """Test reports generate command for backup history."""
         mock_manager = create_mock_cli_service_manager()
         mock_get_service_manager.return_value = mock_manager
-        mock_create_config_service.return_value = mock_manager._config_service
         
         result = runner.invoke(app, ["reports", "generate", "backup-history"])
         assert result.exit_code in [0, 1, 2]
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.monitoring._create_config_service')
     @patch('src.TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
-    def test_reports_generate_storage_usage(self, mock_get_service_manager, mock_create_config_service):
+    def test_reports_generate_storage_usage(self, mock_get_service_manager):
         """Test reports generate command for storage usage."""
         mock_manager = create_mock_cli_service_manager()
         mock_get_service_manager.return_value = mock_manager
-        mock_create_config_service.return_value = mock_manager._config_service
         
         result = runner.invoke(app, ["reports", "generate", "storage-usage"])
         assert result.exit_code in [0, 1, 2]
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.monitoring._create_config_service')
     @patch('src.TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
-    def test_reports_generate_performance(self, mock_get_service_manager, mock_create_config_service):
+    def test_reports_generate_performance(self, mock_get_service_manager):
         """Test reports generate command for performance."""
         mock_manager = create_mock_cli_service_manager()
         mock_get_service_manager.return_value = mock_manager
-        mock_create_config_service.return_value = mock_manager._config_service
         
         result = runner.invoke(app, ["reports", "generate", "performance"])
         assert result.exit_code in [0, 1, 2]

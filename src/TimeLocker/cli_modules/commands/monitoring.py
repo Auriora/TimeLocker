@@ -5,20 +5,18 @@ This module contains CLI commands for system monitoring, health checks,
 statistics, logging, and report generation.
 """
 
-import sys
 import logging
 import json
-from typing import Optional, List, Annotated, Dict, Any
+from typing import Optional, Annotated, Dict, Any
 from pathlib import Path
 from datetime import datetime, timedelta
 
 import typer
-import click
 from rich.table import Table
 from rich.panel import Panel
-from rich.prompt import Confirm, Prompt
-from rich.tree import Tree
+from rich.prompt import Confirm
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from TimeLocker.utils.service_facade import ServiceFacade, create_service_facade
 
 # Import from base module
 from .base import (
@@ -31,14 +29,10 @@ from .base import (
     show_info_panel,
     console,
     _get_service_manager_for_command,
-    _create_configuration_module,
-    _create_config_service,
-    ConfigService,
     VerboseOption,
     JsonOption,
     YesOption,
     ConfigDirOption,
-    DryRunOption,
 )
 
 # Validation imports
@@ -75,8 +69,9 @@ def _format_size(size_bytes: int) -> str:
 def _get_system_health_data(config_dir: Optional[Path] = None) -> Dict[str, Any]:
     """Get system health data."""
     try:
-        service_manager = _get_service_manager_for_command(config_dir)
-        config_service = _create_config_service(config_dir)
+        facade = _setup_monitoring_facade(config_dir)
+        service_manager = facade.service_manager
+        config_service = facade.get_configuration_service()
         
         # Get repositories
         repositories = list(config_service.get_repositories().values())
@@ -128,6 +123,12 @@ def _get_system_health_data(config_dir: Optional[Path] = None) -> Dict[str, Any]
         }
 
 
+def _setup_monitoring_facade(config_dir: Optional[Path] = None) -> ServiceFacade:
+    """Create a facade using the module's patch-friendly service manager lookup."""
+    service_manager = _get_service_manager_for_command(config_dir)
+    return create_service_facade(config_dir=config_dir, service_manager=service_manager)
+
+
 # Monitor Commands
 
 @monitor_app.command("status")
@@ -146,7 +147,8 @@ def monitor_status(
     Requirements: 8.1, 8.3, 8.5
     """
     try:
-        service_manager = _get_service_manager_for_command(config_dir)
+        facade = _setup_monitoring_facade(config_dir)
+        service_manager = facade.service_manager
         
         # Get system status
         status = service_manager.get_system_monitoring_status()
@@ -236,7 +238,8 @@ def monitor_operations(
     Requirements: 8.1, 8.3, 8.5
     """
     try:
-        service_manager = _get_service_manager_for_command(config_dir)
+        facade = _setup_monitoring_facade(config_dir)
+        service_manager = facade.service_manager
         
         if operation_id:
             # Show specific operation
@@ -422,7 +425,8 @@ def monitor_history(
     Requirements: 8.1
     """
     try:
-        service_manager = _get_service_manager_for_command(config_dir)
+        facade = _setup_monitoring_facade(config_dir)
+        service_manager = facade.service_manager
         
         # Get backup history
         history = service_manager.get_cli_backup_history(
@@ -497,8 +501,9 @@ def monitor_stats(
 ) -> None:
     """Display statistics summary across all repositories."""
     try:
-        service_manager = _get_service_manager_for_command(config_dir)
-        config_service = _create_config_service(config_dir)
+        facade = _setup_monitoring_facade(config_dir)
+        service_manager = facade.service_manager
+        config_service = facade.get_configuration_service()
         
         if repository:
             # Get stats for specific repository
@@ -553,7 +558,7 @@ def monitor_stats(
                             str(stats.get('total_files', 0)),
                             "[green]✓[/green]"
                         )
-                    except Exception as e:
+                    except Exception:
                         table.add_row(
                             repo_name,
                             "N/A",
@@ -588,7 +593,8 @@ def logs_search(
     Requirements: 8.2
     """
     try:
-        service_manager = _get_service_manager_for_command(config_dir)
+        facade = _setup_monitoring_facade(config_dir)
+        service_manager = facade.service_manager
         
         # Search logs
         logs = service_manager.search_monitoring_logs(
@@ -651,7 +657,8 @@ def logs_recent(
     Requirements: 8.1, 8.2
     """
     try:
-        service_manager = _get_service_manager_for_command(config_dir)
+        facade = _setup_monitoring_facade(config_dir)
+        service_manager = facade.service_manager
         
         # Get logs with filters
         logs = service_manager.get_cli_monitoring_logs(
@@ -846,8 +853,9 @@ def reports_generate(
 ) -> None:
     """Generate backup history, storage usage, or performance reports."""
     try:
-        service_manager = _get_service_manager_for_command(config_dir)
-        config_service = _create_config_service(config_dir)
+        facade = _setup_monitoring_facade(config_dir)
+        service_manager = facade.service_manager
+        config_service = facade.get_configuration_service()
         
         report_type = report_type.lower()
         
@@ -891,7 +899,7 @@ def reports_generate(
             
         elif report_type == "storage-usage":
             # Get storage usage
-            repositories = [repository] if repository else [r.get('name') for r in config_module.list_repositories()]
+            repositories = [repository] if repository else list(config_service.get_repositories().keys())
             
             usage = []
             for repo_name in repositories:

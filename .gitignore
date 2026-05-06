@@ -48,3 +48,6 @@ repo_initialized.flag
 
 .cache
 .codex
+.codegraph/
+graphify*
+.graphify*
