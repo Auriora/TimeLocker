@@ -29,6 +29,9 @@ documentation.
 
 - **Tool-Driven Exploration**: Always use available codebase exploration tools (semantic search, file search, directory listing, etc.) to gather information
   before making assumptions or generating code.
+- **Python Agent IDE Preference**: Prefer the Python Agent IDE plugin, its skills, and its MCP tools for repository exploration, context gathering, impact
+  analysis, diagnostics, and test targeting. This preference still applies when the tools are slow, return partial results, or encounter timeouts; report the
+  observed limitations, retry or narrow the request when useful, and fall back only when the plugin is unavailable or does not expose the required capability.
 - **Minimal and Contextual Edits**: When editing files, specify only the minimal code necessary for the change, using context markers to avoid accidental code
   removal. Never output unchanged code unless necessary for context.
 - **Error Handling**: Attempt to fix linter or syntax errors if the solution is clear. After three unsuccessful attempts, escalate to the user.
