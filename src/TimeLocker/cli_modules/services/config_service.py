@@ -421,6 +421,15 @@ class ConfigService:
     def config_dir(self) -> Path:
         """Get configuration directory path."""
         return self._config_module.config_dir
+
+    def get_legacy_config_module(self) -> ConfigurationModule:
+        """
+        Return the underlying configuration module for compatibility adapters.
+
+        New command code should use ConfigService methods directly. This accessor
+        exists for older helper APIs that still require ConfigurationModule.
+        """
+        return self._config_module
     
     def get_performance_stats(self) -> Dict[str, Any]:
         """

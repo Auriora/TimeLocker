@@ -1,5 +1,6 @@
 # Update Index
 
+- [2026-05-06-181418-cli-configservice-command-standardization](./2026-05-06-181418-cli-configservice-command-standardization.md)
 - [2026-05-06-175815-servicefacade-alignment-slice](./2026-05-06-175815-servicefacade-alignment-slice.md)
 - [2026-05-06-175047-python-agent-ide-preference](./2026-05-06-175047-python-agent-ide-preference.md)
 - [2026-05-06-171653-timelocker-doc-code-alignment-findings](./2026-05-06-171653-timelocker-doc-code-alignment-findings.md)

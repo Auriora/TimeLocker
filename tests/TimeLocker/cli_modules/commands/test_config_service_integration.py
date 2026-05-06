@@ -5,9 +5,10 @@ This test suite verifies that CLI commands properly use ConfigService
 instead of direct ConfigurationModule access.
 """
 
+import ast
 import pytest
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 from TimeLocker.cli_modules.commands.base import (
     _create_config_service,
@@ -84,6 +85,31 @@ class TestConfigServiceIntegration:
         
         mock_config_service_class.assert_called_once_with(config_dir=custom_dir)
         assert result == mock_instance
+
+    def test_command_modules_do_not_use_configuration_module_directly(self):
+        """Command modules should route configuration access through ConfigService."""
+        commands_dir = Path(__file__).parents[4] / "src" / "TimeLocker" / "cli_modules" / "commands"
+        allowed_files = {"base.py"}
+        violations = []
+
+        for path in sorted(commands_dir.glob("*.py")):
+            if path.name in allowed_files or path.name.startswith("__"):
+                continue
+
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ImportFrom):
+                    imported_names = {alias.name for alias in node.names}
+                    if "ConfigurationModule" in imported_names:
+                        violations.append(f"{path.name}:{node.lineno} imports ConfigurationModule")
+                    if "_create_configuration_module" in imported_names:
+                        violations.append(f"{path.name}:{node.lineno} imports _create_configuration_module")
+                elif isinstance(node, ast.Name) and node.id == "ConfigurationModule":
+                    violations.append(f"{path.name}:{node.lineno} references ConfigurationModule")
+                elif isinstance(node, ast.Attribute) and node.attr == "_config_module":
+                    violations.append(f"{path.name}:{node.lineno} accesses ConfigService._config_module")
+
+        assert violations == []
 
 
 class TestConfigServiceCommandUsage:

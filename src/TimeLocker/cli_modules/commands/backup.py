@@ -20,7 +20,6 @@ from ..helpers.service_helpers import (
     _get_service_method,
     _call_service_method,
     _get_service_manager_for_command,
-    _create_configuration_module,
 )
 
 # Import from TimeLocker package

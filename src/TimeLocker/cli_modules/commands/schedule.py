@@ -31,7 +31,6 @@ from .base import (
     show_info_panel,
     console,
     _get_service_manager_for_command,
-    _create_configuration_module,
     _create_config_service,
     ConfigService,
     VerboseOption,

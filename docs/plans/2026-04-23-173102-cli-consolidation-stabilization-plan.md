@@ -93,7 +93,7 @@ Implement the consolidation in bounded slices:
    Status: Completed on 2026-04-23
    Success check: CLI help tests fail if duplicate root registrations reappear.
 4. Standardize CLI command modules on `ConfigService`
-   Status: Pending
+   Status: Completed on 2026-05-06
    Success check: no new command code instantiates `ConfigurationModule` directly outside explicit compatibility helpers.
 5. Standardize CLI command modules on `RepositoryResolver`
    Status: Pending

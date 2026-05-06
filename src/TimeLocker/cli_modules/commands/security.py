@@ -31,7 +31,6 @@ from .base import (
     _get_service_method,
     _call_service_method,
     _get_service_manager_for_command,
-    _create_configuration_module,
     _create_config_service,
     ConfigService,
     VerboseOption,
@@ -572,10 +571,10 @@ def security_config(
 
     try:
         # Initialize security configuration CLI
-        from .security.security_configuration_cli import SecurityConfigurationCLI
-        from .config import ConfigurationModule
-        
-        config_module = ConfigurationModule(config_dir=config_dir)
+        from TimeLocker.security.security_configuration_cli import SecurityConfigurationCLI
+
+        config_service = _create_config_service(config_dir)
+        config_module = config_service.get_legacy_config_module()
         security_cli = SecurityConfigurationCLI(config_module=config_module)
 
         # Show configuration

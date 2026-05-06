@@ -32,7 +32,6 @@ from .base import (
     _get_service_method,
     _call_service_method,
     _get_service_manager_for_command,
-    _create_configuration_module,
     _create_config_service,
     ConfigService,
     VerboseOption,
@@ -44,7 +43,6 @@ from .base import (
 
 # Module-specific imports
 from TimeLocker.config import (
-    ConfigurationModule,
     ConfigurationValidator
 )
 from TimeLocker.config.configuration_manager import (

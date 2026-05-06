@@ -32,7 +32,6 @@ from .base import (
     _get_service_method,
     _call_service_method,
     _get_service_manager_for_command,
-    _create_configuration_module,
     _create_config_service,
     ConfigService,
     VerboseOption,
@@ -54,7 +53,6 @@ from TimeLocker.config.configuration_manager import (
     RepositoryNotFoundError
 )
 from TimeLocker.interfaces.exceptions import ConfigurationError
-from TimeLocker.config import ConfigurationModule
 from TimeLocker.security import (
     SecurityService,
     CredentialManager,
@@ -722,7 +720,7 @@ def repos_add(
                             backend_name=_backend_display_name(backend_type),
                             credentials_dict=credentials_payload,
                             cred_mgr=credential_manager,
-                            config_manager=config_service._config_module,  # Pass underlying module for compatibility
+                            config_manager=config_service.get_legacy_config_module(),
                             repository_config=repository_config,
                             console=console,
                             logger=logging.getLogger(__name__),
