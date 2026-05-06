@@ -21,7 +21,6 @@ from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeEl
 
 # Import from base module (Phase 3 patterns)
 from .base import (
-    CommandBase,
     create_typer_app,
     with_error_handling,
     with_logging,
@@ -33,7 +32,6 @@ from .base import (
     _call_service_method,
     _get_service_manager_for_command,
     _create_config_service,
-    ConfigService,
     VerboseOption,
     JsonOption,
     YesOption,
@@ -41,39 +39,22 @@ from .base import (
     DryRunOption,
 )
 
-# Module-specific imports
-from TimeLocker.services.repository_manager import RepositoryManager
-
 # Validation imports
 from ..validation import validate_repository_name, validate_required_string, ValidationError
-from TimeLocker.services.repository_service import RepositoryService
-from TimeLocker.services.repository_factory import RepositoryFactory
-from TimeLocker.config.configuration_manager import (
-    ConfigurationManager,
-    RepositoryNotFoundError
-)
+from TimeLocker.config.configuration_manager import ConfigurationManager
 from TimeLocker.interfaces.exceptions import ConfigurationError
 from TimeLocker.security import (
     SecurityService,
     CredentialManager,
     AccessManager,
-    RepositoryInfo,
-    RepositoryMode
 )
-from TimeLocker.backup_manager import BackupManager
 from TimeLocker.completion import (
     repository_name_completer,
-    repository_completer,
     repository_uri_completer
 )
-from TimeLocker.utils.repository_resolver import (
-    validate_repository_name_or_uri,
-    resolve_repository_uri
-)
-from TimeLocker.utils import get_progress_service, ProgressTemplates
+from TimeLocker.utils import get_progress_service
 from TimeLocker.cli_helpers import store_backend_credentials as store_backend_credentials_helper
 from urllib.parse import urlparse
-import re
 
 # Create Typer app
 repos_app = create_typer_app(
@@ -339,7 +320,7 @@ def repos_list(
         if not repositories:
             if filter_status or filter_engine:
                 show_info_panel("No Matching Repositories", 
-                              f"No repositories found matching the specified filters.")
+                              "No repositories found matching the specified filters.")
             else:
                 show_info_panel("No Repositories", "No repositories configured. Add one with 'tl repos add'.")
             return
@@ -1273,7 +1254,6 @@ def repos_edit(
     
     try:
         config_manager = ConfigurationManager(config_dir=config_dir)
-        manager = _get_service_manager_for_command(config_dir)
         
         # Get existing repository configuration
         try:
@@ -1319,9 +1299,9 @@ def repos_edit(
             
             # Display and prompt for password
             if current_password:
-                console.print(f"\n[bold]Current Password:[/bold] ••••••••")
+                console.print("\n[bold]Current Password:[/bold] ••••••••")
             else:
-                console.print(f"\n[bold]Current Password:[/bold] (none)")
+                console.print("\n[bold]Current Password:[/bold] (none)")
             
             update_password = Confirm.ask("Update password?", default=False)
             if update_password:
@@ -1637,7 +1617,7 @@ def repos_init(
         try:
             repo_config = config_manager.get_repository(name)
             repo_uri = repository or repo_config.get("uri")
-        except Exception as e:
+        except Exception:
             show_error_panel("Configuration Error", f"Repository '{name}' not found in configuration.")
             raise typer.Exit(1)
         
@@ -2152,9 +2132,9 @@ def repos_prune(
             message_lines.append(f"[bold]Repository:[/bold] {name}")
             
             if dry_run:
-                message_lines.append(f"[bold]Mode:[/bold] Dry run (no changes made)")
+                message_lines.append("[bold]Mode:[/bold] Dry run (no changes made)")
             else:
-                message_lines.append(f"[bold]Mode:[/bold] Prune completed")
+                message_lines.append("[bold]Mode:[/bold] Prune completed")
             
             if space_freed:
                 message_lines.append(f"[bold]Space Freed:[/bold] {_format_size(space_freed)}")
@@ -2263,7 +2243,7 @@ def repos_validate(
             # Build success message
             status_lines = []
             status_lines.append(f"[bold]Repository:[/bold] {name}")
-            status_lines.append(f"[bold]Status:[/bold] [green]Valid[/green]")
+            status_lines.append("[bold]Status:[/bold] [green]Valid[/green]")
             
             if check_connectivity:
                 status_lines.append(f"[bold]Connectivity:[/bold] [green]{connectivity_status}[/green]")
@@ -2291,7 +2271,7 @@ def repos_validate(
             # Build error message
             error_lines = []
             error_lines.append(f"[bold]Repository:[/bold] {name}")
-            error_lines.append(f"[bold]Status:[/bold] [red]Invalid[/red]")
+            error_lines.append("[bold]Status:[/bold] [red]Invalid[/red]")
             
             if check_connectivity:
                 status_color = "red" if connectivity_status.lower() in ["disconnected", "failed", "error"] else "yellow"
@@ -2488,7 +2468,7 @@ def repos_validate_all(
         total = len(results)
         passed = total - failed_count
         
-        console.print(f"\n[bold]Summary:[/bold]")
+        console.print("\n[bold]Summary:[/bold]")
         console.print(f"  Total: {total}")
         console.print(f"  [green]Passed: {passed}[/green]")
         if failed_count > 0:
