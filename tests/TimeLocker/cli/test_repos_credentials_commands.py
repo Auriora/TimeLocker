@@ -11,6 +11,7 @@ Covers:
 """
 
 import pytest
+from types import SimpleNamespace
 from unittest.mock import Mock, patch
 from typer.testing import CliRunner
 
@@ -18,8 +19,6 @@ from src.TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import (
     combined_output,
     assert_success,
-    assert_handled_error,
-    assert_exit_code
 )
 
 runner = CliRunner(env={'COLUMNS': '200'})
@@ -49,8 +48,7 @@ def mock_prompt_service():
 # New fixture to DRY up repeated ConfigurationModule/CredentialManager S3 repo setup
 @pytest.fixture
 def repo_s3_mocks(mock_cm, mock_config_module):
-    repo_obj = Mock()
-    repo_obj.uri = 's3://bucket/path'
+    repo_obj = SimpleNamespace(uri='s3://bucket/path')
     mock_config_module.return_value.get_repository.return_value = repo_obj
     cm_instance = Mock()
     cm_instance.is_locked.return_value = False
@@ -110,8 +108,7 @@ def test_repos_credentials_set_s3_insecure_tls(repo_s3_mocks):
 
 @pytest.mark.unit
 def test_repos_credentials_set_unsupported_type(mock_config_module, mock_cm):
-    repo_obj = Mock()
-    repo_obj.uri = 'file:///some/path'
+    repo_obj = SimpleNamespace(uri='file:///some/path')
     mock_config_module.return_value.get_repository.return_value = repo_obj
     mock_cm.return_value.is_locked.return_value = False
 
@@ -133,8 +130,7 @@ def test_repos_credentials_remove_found(repo_s3_mocks):
 
 @pytest.mark.unit
 def test_repos_credentials_remove_not_found(mock_config_module, mock_cm):
-    repo_obj = Mock()
-    repo_obj.uri = 's3://bucket/path'
+    repo_obj = SimpleNamespace(uri='s3://bucket/path')
     mock_config_module.return_value.get_repository.return_value = repo_obj
     cm_instance = Mock()
     cm_instance.is_locked.return_value = False
@@ -163,8 +159,7 @@ def test_repos_credentials_show_present(repo_s3_mocks):
 
 @pytest.mark.unit
 def test_repos_credentials_show_absent(mock_config_module, mock_cm):
-    repo_obj = Mock()
-    repo_obj.uri = 's3://bucket/path'
+    repo_obj = SimpleNamespace(uri='s3://bucket/path')
     mock_config_module.return_value.get_repository.return_value = repo_obj
     cm_instance = Mock()
     cm_instance.is_locked.return_value = False
@@ -179,8 +174,7 @@ def test_repos_credentials_show_absent(mock_config_module, mock_cm):
 
 @pytest.mark.unit
 def test_repos_credentials_show_non_backend_repo(mock_config_module, mock_cm):
-    repo_obj = Mock()
-    repo_obj.uri = 'file:///some/path'
+    repo_obj = SimpleNamespace(uri='file:///some/path')
     mock_config_module.return_value.get_repository.return_value = repo_obj
     cm_instance = Mock()
     cm_instance.is_locked.return_value = False
@@ -194,8 +188,7 @@ def test_repos_credentials_show_non_backend_repo(mock_config_module, mock_cm):
 
 @pytest.mark.unit
 def test_repos_credentials_set_locked_manager_then_fail_to_unlock(mock_config_module, mock_cm):
-    repo_obj = Mock()
-    repo_obj.uri = 's3://bucket/path'
+    repo_obj = SimpleNamespace(uri='s3://bucket/path')
     mock_config_module.return_value.get_repository.return_value = repo_obj
 
     cm_instance = Mock()
@@ -214,8 +207,7 @@ def test_repos_credentials_set_locked_manager_then_fail_to_unlock(mock_config_mo
 
 @pytest.mark.unit
 def test_repos_credentials_set_locked_manager_then_unlock(mock_config_module, mock_cm):
-    repo_obj = Mock()
-    repo_obj.uri = 's3://bucket/path'
+    repo_obj = SimpleNamespace(uri='s3://bucket/path')
     mock_config_module.return_value.get_repository.return_value = repo_obj
 
     cm_instance = Mock()

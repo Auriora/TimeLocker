@@ -162,7 +162,7 @@ class TestCLIErrorHandling:
             assert result.exit_code in (1, 2), f"Restricted path should yield handled or usage error: {path} (got {result.exit_code})"
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     def test_service_manager_exceptions(self, mock_service_manager):
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager

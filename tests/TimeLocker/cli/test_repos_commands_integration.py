@@ -10,19 +10,16 @@ Requirements tested: 1.1-1.8, 3.1-3.5, 5.1-5.5
 """
 
 import pytest
-import tempfile
 import json
 from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock, call
+from unittest.mock import Mock, patch, MagicMock
 from types import SimpleNamespace
-from datetime import datetime
 
 from src.TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import (
     get_cli_runner,
     combined_output,
     assert_success,
-    assert_exit_code
 )
 from TimeLocker.interfaces.exceptions import ConfigurationError
 
@@ -41,7 +38,7 @@ def temp_repo_dir(tmp_path):
 def mock_service_manager():
     """Mock service manager for integration tests."""
     from tests.TimeLocker.cli.test_utils import create_mock_cli_service_manager
-    with patch('src.TimeLocker.cli.get_cli_service_manager') as mock:
+    with patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command') as mock:
         manager = create_mock_cli_service_manager()
         mock.return_value = manager
         yield manager
@@ -207,7 +204,6 @@ class TestRepositoryCreationWithExistingDetection:
         
         # Command may succeed or fail depending on implementation
         # The key is that existing repository is detected
-        output = combined_output(result)
         # Just verify the detection happened
         assert result.exit_code in [0, 1]
     
@@ -230,7 +226,6 @@ class TestRepositoryCreationWithExistingDetection:
         ])
         
         # Command may succeed or fail depending on implementation
-        output = combined_output(result)
         # Just verify command was attempted
         assert result.exit_code in [0, 1]
     
@@ -344,7 +339,6 @@ class TestRepositoryValidationCommands:
         result = runner.invoke(app, ["repos", "validate-all"])
         
         # Command may not exist, so allow various exit codes
-        output = combined_output(result)
         # Just verify command was attempted
         assert result.exit_code in [0, 1, 2]
     
@@ -619,10 +613,13 @@ class TestRepositoryStateTransitions:
         assert_success(result)
         
         # Step 3: Update repository - mock repository exists
-        repo_obj = Mock()
-        repo_obj.name = "lifecycle-repo"
-        repo_obj.uri = repo_uri
-        mock_config_module.get_repository.side_effect = lambda *_args, **_kwargs: repo_obj
+        repo_config = {
+            "name": "lifecycle-repo",
+            "uri": repo_uri,
+            "description": "Lifecycle test",
+            "metadata": {},
+        }
+        mock_config_module.get_repository.side_effect = lambda *_args, **_kwargs: repo_config
         mock_service_manager.repository_service.update_repository.return_value = Mock(success=True)
         
         result = runner.invoke(app, [
@@ -655,10 +652,13 @@ class TestRepositoryStateTransitions:
         assert_success(result)
         
         # Update repository metadata (status changes not directly supported via CLI)
-        repo_obj = Mock()
-        repo_obj.name = "state-repo"
-        repo_obj.uri = "file:///state"
-        mock_config_module.get_repository.side_effect = lambda *_args, **_kwargs: repo_obj
+        repo_config = {
+            "name": "state-repo",
+            "uri": "file:///state",
+            "status": "active",
+            "metadata": {},
+        }
+        mock_config_module.get_repository.side_effect = lambda *_args, **_kwargs: repo_config
         mock_service_manager.repository_service.update_repository.return_value = Mock(success=True)
         
         result = runner.invoke(app, [
