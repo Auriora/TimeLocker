@@ -5,7 +5,8 @@ This module contains CLI commands for policy management operations including
 policy creation, assignment, enforcement, simulation, and audit reporting.
 """
 
-from typing import Optional, List, Annotated, Any
+from collections.abc import Sequence
+from typing import Optional, List, Annotated
 from pathlib import Path
 
 import typer
@@ -33,10 +34,12 @@ from .base import (
 
 # Import from TimeLocker package
 from TimeLocker.policy import (
+    BackupPolicy,
     PolicyManager,
     PolicyType,
     TargetType,
     RetentionType,
+    RetentionPolicy,
     RetentionRule,
     PolicyAssignment,
 )
@@ -123,7 +126,12 @@ def _optional_isoformat(value: object) -> Optional[str]:
     return str(value)
 
 
-def _format_policy_table(policies: List[Any], policy_type: str) -> Table:
+def _format_policy_description(description: str, limit: int = 50) -> str:
+    """Return a display-safe policy description."""
+    return description[:limit] + "..." if len(description) > limit else description
+
+
+def _format_policy_table(policies: Sequence[BackupPolicy | RetentionPolicy], policy_type: str) -> Table:
     """Format policies as a Rich table."""
     table = Table(title=f"{policy_type} Policies")
     table.add_column("ID", style="cyan")
@@ -132,11 +140,11 @@ def _format_policy_table(policies: List[Any], policy_type: str) -> Table:
     table.add_column("Created", style="yellow")
     
     for policy in policies:
-        created = _format_optional_datetime(getattr(policy, 'created_at', None))
+        created = _format_optional_datetime(policy.created_at)
         table.add_row(
             policy.id[:8],
             policy.name,
-            policy.description[:50] + "..." if len(policy.description) > 50 else policy.description,
+            _format_policy_description(policy.description),
             created
         )
     
@@ -185,19 +193,21 @@ def policy_backup_create(
         policy_manager = _get_policy_manager(config_dir)
         
         # Parse tags
-        tag_dict = {}
+        tag_dict: dict[str, str] = {}
         if tags:
             for tag in tags:
                 if "=" in tag:
                     key, value = tag.split("=", 1)
                     tag_dict[key.strip()] = value.strip()
+        data_selection_refs: list[str] = list(selections or [])
+        target_repositories: list[str] = list(repository or [])
         
         from TimeLocker.policy.models import ScheduleConfig
         policy = policy_manager.create_backup_policy(
             name=name,
             description=description,
-            data_selection_refs=selections or [],
-            target_repositories=repository or [],
+            data_selection_refs=data_selection_refs,
+            target_repositories=target_repositories,
             backup_tool=backup_tool,
             schedule=ScheduleConfig(enabled=False),
             execution_params={},
@@ -356,7 +366,7 @@ def policy_retention_create(
         policy_manager = _get_policy_manager(config_dir)
         
         # Build retention rules
-        rules = []
+        rules: list[RetentionRule] = []
         if hourly is not None:
             rules.append(RetentionRule(
                 type=RetentionType.HOURLY,
@@ -408,7 +418,7 @@ def policy_retention_create(
         )
         
         # Format rules for display
-        rule_summary = []
+        rule_summary: list[str] = []
         for rule in policy.rules:
             rule_summary.append(f"{rule.type.value}: {rule.count}")
         

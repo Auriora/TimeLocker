@@ -128,22 +128,21 @@ def backup_create(
             config_service = _create_config_service(config_dir)
             service_manager = _get_service_manager_for_command(config_dir)
             
-            if service_manager is None:
-                show_error_panel(
-                    "Service Initialization Error",
-                    "CLI service manager is not available. Please ensure the CLI services are configured correctly."
-                )
-                raise typer.Exit(1)
-            
             try:
                 template_exists = service_manager.selection_template_exists(selection)
             except BackupOrchestratorError as exc:
                 logger.error("Backup orchestrator unavailable: %s", exc)
+                initialization_message = "\n".join(
+                    [
+                        "Backup orchestrator is not available.",
+                        "",
+                        "This may be due to a configuration issue. Please check your configuration:",
+                        "  tl config show",
+                    ]
+                )
                 show_error_panel(
                     "Service Initialization Error",
-                    "Backup orchestrator is not available.\n\n"
-                    "This may be due to a configuration issue. Please check your configuration:\n"
-                    "  tl config show"
+                    initialization_message
                 )
                 raise typer.Exit(1)
             except Exception as exc:
@@ -180,11 +179,17 @@ def backup_create(
                 if isinstance(default_repo_name, str) and default_repo_name.strip():
                     repository = default_repo_name
                 else:
+                    repository_message = "\n".join(
+                        [
+                            "No repository specified and no default repository configured.",
+                            "",
+                            "💡 Specify a repository with --repository or set a default:",
+                            "   tl repos set-default <name>",
+                        ]
+                    )
                     show_error_panel(
                         "Repository Required",
-                        "No repository specified and no default repository configured.\n\n"
-                        "💡 Specify a repository with --repository or set a default:\n"
-                        "   tl repos set-default <name>"
+                        repository_message
                     )
                     raise typer.Exit(1)
             
@@ -441,6 +446,8 @@ def backup_verify(
     try:
         if repository:
             validate_repository_name_or_uri(repository)
+        if latest and snapshot:
+            raise ValueError("Use either --snapshot or --latest, not both.")
         if snapshot:
             validate_snapshot_id_format(snapshot, allow_latest=True)
     except ValueError as ve:
@@ -450,10 +457,7 @@ def backup_verify(
     try:
         service_manager = _get_service_manager_for_command(config_dir)
 
-        # If --latest was provided without an explicit snapshot, we'll let the service
-        # interpret None as "latest" or handle resolution internally. Tests only
-        # assert exit codes, not behavior here.
-        snapshot_id = snapshot if snapshot else None
+        snapshot_id = "latest" if latest else snapshot
 
         # Use empty string when repository not provided; service will handle/return False
         repo_input = repository or ""

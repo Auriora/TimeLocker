@@ -86,6 +86,11 @@ def _mapping_value(mapping: Mapping[object, object], key: str, default: object) 
     return mapping.get(key, default)
 
 
+def _object_value(obj: object, attr: str, default: object) -> object:
+    """Return an object attribute for CLI display coercion."""
+    return getattr(obj, attr, default)
+
+
 def _coerce_optional_float(value: object) -> float | None:
     """Return numeric values as floats for size formatting."""
     if isinstance(value, bool):
@@ -874,34 +879,44 @@ def repos_show(
             raise typer.Exit(1)
         
         # Extract repository information
-        if isinstance(repository_info, dict):
-            repo_name = repository_info.get("name", name)
-            repo_uri = repository_info.get("uri", repository_info.get("location", "N/A"))
-            repo_description = repository_info.get("description", "")
-            repo_metadata = repository_info.get("metadata", {})
-            is_default = repository_info.get("is_default", False)
-            repo_type = repository_info.get("type", "N/A")
-            repo_engine = repository_info.get("engine", "N/A")
-            created_at = repository_info.get("created_at", "N/A")
-            updated_at = repository_info.get("updated_at", "N/A")
-            repo_status = repository_info.get("status", "unknown")
-            last_validated = repository_info.get("last_validated", "Never")
-            validation_result = repository_info.get("validation_result", {})
-            usage_stats = repository_info.get("usage_stats", {})
+        if isinstance(repository_info, Mapping):
+            repository_mapping = cast(Mapping[object, object], repository_info)
+            repo_name = _mapping_value(repository_mapping, "name", name)
+            repo_uri = _mapping_value(
+                repository_mapping,
+                "uri",
+                _mapping_value(repository_mapping, "location", "N/A"),
+            )
+            repo_description = _mapping_value(repository_mapping, "description", "")
+            repo_metadata = _mapping_value(repository_mapping, "metadata", {})
+            is_default = bool(_mapping_value(repository_mapping, "is_default", False))
+            repo_type = _mapping_value(repository_mapping, "type", "N/A")
+            repo_engine = _mapping_value(repository_mapping, "engine", "N/A")
+            created_at = _mapping_value(repository_mapping, "created_at", "N/A")
+            updated_at = _mapping_value(repository_mapping, "updated_at", "N/A")
+            repo_status = _mapping_value(repository_mapping, "status", "unknown")
+            last_validated = _mapping_value(repository_mapping, "last_validated", "Never")
+            validation_result = _mapping_value(repository_mapping, "validation_result", {})
+            usage_stats = _mapping_value(repository_mapping, "usage_stats", {})
         else:
-            repo_name = getattr(repository_info, "name", name)
-            repo_uri = getattr(repository_info, "uri", getattr(repository_info, "location", "N/A"))
-            repo_description = getattr(repository_info, "description", "")
-            repo_metadata = getattr(repository_info, "metadata", {})
-            is_default = getattr(repository_info, "is_default", False)
-            repo_type = getattr(repository_info, "type", "N/A")
-            repo_engine = getattr(repository_info, "engine", "N/A")
-            created_at = getattr(repository_info, "created_at", "N/A")
-            updated_at = getattr(repository_info, "updated_at", "N/A")
-            repo_status = getattr(repository_info, "status", "unknown")
-            last_validated = getattr(repository_info, "last_validated", "Never")
-            validation_result = getattr(repository_info, "validation_result", {})
-            usage_stats = getattr(repository_info, "usage_stats", {})
+            repository_obj = cast(object, repository_info)
+            repo_name = _object_value(repository_obj, "name", name)
+            repo_uri = _object_value(
+                repository_obj,
+                "uri",
+                _object_value(repository_obj, "location", "N/A"),
+            )
+            repo_description = _object_value(repository_obj, "description", "")
+            repo_metadata = _object_value(repository_obj, "metadata", {})
+            is_default = bool(_object_value(repository_obj, "is_default", False))
+            repo_type = _object_value(repository_obj, "type", "N/A")
+            repo_engine = _object_value(repository_obj, "engine", "N/A")
+            created_at = _object_value(repository_obj, "created_at", "N/A")
+            updated_at = _object_value(repository_obj, "updated_at", "N/A")
+            repo_status = _object_value(repository_obj, "status", "unknown")
+            last_validated = _object_value(repository_obj, "last_validated", "Never")
+            validation_result = _object_value(repository_obj, "validation_result", {})
+            usage_stats = _object_value(repository_obj, "usage_stats", {})
         
         # Build display content
         panel_lines = []
@@ -934,14 +949,16 @@ def repos_show(
             
             # Show validation results if available
             if validation_result:
-                if isinstance(validation_result, dict):
-                    val_success = validation_result.get("success", False)
-                    connectivity = validation_result.get("connectivity_status", "unknown")
-                    integrity = validation_result.get("integrity_status", "unknown")
+                if isinstance(validation_result, Mapping):
+                    validation_mapping = cast(Mapping[object, object], validation_result)
+                    val_success = bool(_mapping_value(validation_mapping, "success", False))
+                    connectivity = _mapping_value(validation_mapping, "connectivity_status", "unknown")
+                    integrity = _mapping_value(validation_mapping, "integrity_status", "unknown")
                 else:
-                    val_success = getattr(validation_result, "success", False)
-                    connectivity = getattr(validation_result, "connectivity_status", "unknown")
-                    integrity = getattr(validation_result, "integrity_status", "unknown")
+                    validation_obj = cast(object, validation_result)
+                    val_success = bool(_object_value(validation_obj, "success", False))
+                    connectivity = _object_value(validation_obj, "connectivity_status", "unknown")
+                    integrity = _object_value(validation_obj, "integrity_status", "unknown")
                 
                 val_color = "green" if val_success else "red"
                 panel_lines.append(f"[bold]Validation:[/bold] [{val_color}]{'Passed' if val_success else 'Failed'}[/{val_color}]")
@@ -955,12 +972,14 @@ def repos_show(
         
         # Performance metrics
         if show_performance and validation_result:
-            if isinstance(validation_result, dict):
-                perf_metrics = validation_result.get("performance_metrics", {})
+            if isinstance(validation_result, Mapping):
+                validation_mapping = cast(Mapping[object, object], validation_result)
+                perf_metrics = _mapping_value(validation_mapping, "performance_metrics", {})
             else:
-                perf_metrics = getattr(validation_result, "performance_metrics", {})
+                validation_obj = cast(object, validation_result)
+                perf_metrics = _object_value(validation_obj, "performance_metrics", {})
             
-            if perf_metrics:
+            if isinstance(perf_metrics, Mapping) and perf_metrics:
                 panel_lines.append("\n[bold cyan]Performance Metrics[/bold cyan]")
                 for metric, value in perf_metrics.items():
                     if isinstance(value, float):
@@ -969,7 +988,7 @@ def repos_show(
                         panel_lines.append(f"[bold]{metric}:[/bold] {value}")
         
         # Usage statistics
-        if usage_stats and isinstance(usage_stats, dict) and usage_stats:
+        if isinstance(usage_stats, Mapping) and usage_stats:
             panel_lines.append("\n[bold cyan]Usage Statistics[/bold cyan]")
             for key, value in usage_stats.items():
                 panel_lines.append(f"[bold]{key}:[/bold] {value}")
