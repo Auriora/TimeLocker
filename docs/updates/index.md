@@ -1,5 +1,6 @@
 # Update Index
 
+- [2026-05-06-204145-backup-e2e-patch-target-fix](./2026-05-06-204145-backup-e2e-patch-target-fix.md)
 - [2026-05-06-203537-repos-add-set-default-fix](./2026-05-06-203537-repos-add-set-default-fix.md)
 - [2026-05-06-203255-unrelated-e2e-failure-investigation](./2026-05-06-203255-unrelated-e2e-failure-investigation.md)
 - [2026-05-06-202457-cli-static-analysis-five-slice-cleanup](./2026-05-06-202457-cli-static-analysis-five-slice-cleanup.md)

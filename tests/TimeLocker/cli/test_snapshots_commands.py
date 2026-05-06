@@ -8,7 +8,7 @@ import pytest
 from unittest.mock import Mock, patch
 
 from src.TimeLocker.cli import app
-from .test_utils import runner, combined_output, assert_success, assert_exit_code, create_mock_cli_service_manager
+from .test_utils import runner, combined_output, assert_success, create_mock_cli_service_manager
 
 
 class TestSnapshotsCommands:
@@ -52,7 +52,7 @@ class TestSnapshotsCommands:
         assert "search" in combined.lower()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.snapshots._get_service_manager_for_command')
     def test_snapshots_list_command(self, mock_get_service_manager):
         mock_manager = create_mock_cli_service_manager()
         mock_manager.snapshot_service.list_snapshots.return_value = []
@@ -61,7 +61,7 @@ class TestSnapshotsCommands:
         assert_success(result)
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.snapshots._get_service_manager_for_command')
     def test_snapshots_list_with_repository(self, mock_get_service_manager):
         mock_manager = create_mock_cli_service_manager()
         mock_manager.snapshot_service.list_snapshots.return_value = []
@@ -77,7 +77,7 @@ class TestSnapshotsCommands:
         assert "invalid" in combined.lower()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.snapshots._get_service_manager_for_command')
     def test_snapshots_show_valid_id(self, mock_get_service_manager):
         mock_manager = create_mock_cli_service_manager()
         mock_manager.snapshot_service.get_snapshot.return_value = Mock(id="abc123def456", time="2024-01-01T12:00:00Z")
@@ -87,7 +87,7 @@ class TestSnapshotsCommands:
 
     @pytest.mark.unit
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.snapshots._get_service_manager_for_command')
     def test_snapshots_find_command(self, mock_get_service_manager):
         mock_manager = create_mock_cli_service_manager()
         mock_manager.snapshot_service.find_snapshots.return_value = []
@@ -96,7 +96,7 @@ class TestSnapshotsCommands:
         assert_success(result)
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.snapshots._get_service_manager_for_command')
     def test_snapshots_find_with_options(self, mock_get_service_manager):
         mock_manager = create_mock_cli_service_manager()
         mock_manager.snapshot_service.find_snapshots.return_value = []
@@ -112,7 +112,7 @@ class TestSnapshotsCommands:
         assert "invalid" in combined.lower()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.snapshots._get_service_manager_for_command')
     def test_snapshots_prune_command(self, mock_get_service_manager):
         mock_manager = create_mock_cli_service_manager()
         mock_manager.snapshot_service.prune_snapshots = Mock(return_value=Mock(success=True))
@@ -121,7 +121,7 @@ class TestSnapshotsCommands:
         assert_success(result)
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.snapshots._get_service_manager_for_command')
     def test_snapshots_diff_command(self, mock_get_service_manager):
         mock_manager = create_mock_cli_service_manager()
         mock_manager.snapshot_service.diff_snapshots = Mock(return_value=Mock())

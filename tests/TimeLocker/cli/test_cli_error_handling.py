@@ -183,7 +183,7 @@ class TestCLIErrorHandling:
             mock_manager.reset_mock()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.backup.get_cli_service_manager')
+    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
     def test_keyboard_interrupt_handling(self, mock_get_service_manager):
         """KeyboardInterrupt should map to exit code 130 for backup commands."""
         mock_manager = Mock()

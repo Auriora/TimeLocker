@@ -5,7 +5,6 @@ End-to-end CLI workflow tests covering repository setup, selection creation, and
 from __future__ import annotations
 
 import asyncio
-import os
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
@@ -116,12 +115,8 @@ def stubbed_backup_services() -> Iterator[StubBackupOrchestrator]:
     """
     orchestrator = StubBackupOrchestrator()
     stub_manager = StubServiceManager(orchestrator)
-    with (
-            patch("src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command",
-                  return_value=stub_manager),
-            patch("src.TimeLocker.cli_modules.commands.backup.get_cli_service_manager",
-                  return_value=stub_manager),
-    ):
+    with patch("src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command",
+               return_value=stub_manager):
         yield orchestrator
 
 
