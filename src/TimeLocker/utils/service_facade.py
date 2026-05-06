@@ -11,11 +11,6 @@ but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program. If not, see <https://www.gnu.org/licenses/>.
-"""
-
-"""
 Service Facade for CLI Commands
 
 This module provides a simplified interface for accessing TimeLocker services
@@ -23,11 +18,15 @@ from CLI commands, reducing code duplication and providing consistent error hand
 
 Requirements addressed:
 - Requirement 3: Simplified service access through ServiceFacade
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
-from typing import Optional, Dict, Any
 from pathlib import Path
+from types import TracebackType
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -79,6 +78,27 @@ class ServiceFacade:
         self._services_cache: Dict[str, Any] = {}
         
         logger.debug(f"ServiceFacade initialized with config_dir: {config_dir}")
+
+    def __enter__(self) -> "ServiceFacade":
+        """
+        Initialize services and return this facade for context-manager usage.
+
+        Returns:
+            ServiceFacade instance
+        """
+        self.initialize_services()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        """
+        Shutdown services when leaving a context-manager block.
+        """
+        self.shutdown_services()
     
     def _ensure_service_manager(self) -> Any:
         """
@@ -172,16 +192,17 @@ class ServiceFacade:
                 restore_service = service_manager.recovery_orchestrator
             
             if restore_service is None:
-                # Fallback: create RestoreManager directly
-                from ..restore_manager import RestoreManager
-                restore_service = RestoreManager()
-                logger.debug("Created RestoreManager as fallback")
+                raise ServiceAccessError(
+                    "Restore service not available. "
+                    "Configure restore_service or recovery_orchestrator on the service manager; "
+                    "RestoreManager requires a repository and cannot be created as a generic fallback."
+                )
             
             self._services_cache['restore'] = restore_service
             logger.debug("Restore service accessed successfully")
             return restore_service
             
-        except ServiceInitializationError:
+        except (ServiceInitializationError, ServiceAccessError):
             raise
         except Exception as e:
             raise ServiceAccessError(
@@ -413,14 +434,18 @@ class ServiceFacade:
         Returns:
             Dictionary mapping service names to health status
         """
-        health_status = {}
+        health_status: Dict[str, bool] = {}
         
         try:
             service_manager = self._ensure_service_manager()
             
             # Check service manager health
             if hasattr(service_manager, 'get_service_health'):
-                health_status = service_manager.get_service_health()
+                manager_health = service_manager.get_service_health()
+                health_status = {
+                    str(service_name): bool(is_healthy)
+                    for service_name, is_healthy in manager_health.items()
+                }
             else:
                 # Fallback: check individual services
                 services_to_check = [
@@ -434,7 +459,7 @@ class ServiceFacade:
                         service = getattr(service_manager, attr_name, None)
                         if service is not None:
                             if hasattr(service, 'health_check'):
-                                health_status[service_name] = service.health_check()
+                                health_status[service_name] = bool(service.health_check())
                             else:
                                 health_status[service_name] = True
                         else:
@@ -448,7 +473,7 @@ class ServiceFacade:
             
         except Exception as e:
             logger.error(f"Health check failed: {e}")
-            return {'service_facade': False, 'error': str(e)}
+            return {'service_facade': False}
     
     def get_service_status(self) -> Dict[str, Dict[str, Any]]:
         """

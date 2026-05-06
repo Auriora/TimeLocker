@@ -49,6 +49,8 @@ stable.
 
 ## 4. Suggested Follow-Up
 
+- Resolution note: The ServiceFacade alignment items in this section were implemented in
+  `docs/updates/2026-05-06-175815-servicefacade-alignment-slice.md`.
 - Update `docs/2-architecture/integration-layer.md` to remove or replace stale ServiceFacade context-manager and facade-operation examples.
 - Decide whether ServiceFacade should gain context-manager support. If yes, implement and test it before documenting it as an architectural feature.
 - Add focused tests for `ServiceFacade.get_restore_service()` fallback behavior and `ServiceFacade.health_check()` error behavior.

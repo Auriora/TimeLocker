@@ -421,11 +421,19 @@ Simplified service access pattern:
 **Usage Pattern**:
 
 ```python
-with ServiceFacade(config_dir) as facade:
-    # Automatically handles initialization and cleanup
-    repositories = facade.list_repositories()
-    backup_result = facade.execute_backup(policy_id)
+from TimeLocker.utils.service_facade import ServiceFacade
+
+with ServiceFacade(config_dir=config_dir) as facade:
+    # Automatically handles service-manager initialization and cleanup.
+    repository_service = facade.get_repository_service()
+    backup_service = facade.get_backup_service()
+    health_status = facade.health_check()
 ```
+
+`ServiceFacade` exposes service-access methods such as `get_repository_service()`,
+`get_backup_service()`, and `health_check()`. Domain operations such as listing
+repositories or executing backups remain owned by the returned services and CLI command
+modules rather than by the facade itself.
 
 ## 10. CLI Integration
 

@@ -1,5 +1,6 @@
 # Update Index
 
+- [2026-05-06-175815-servicefacade-alignment-slice](./2026-05-06-175815-servicefacade-alignment-slice.md)
 - [2026-05-06-175047-python-agent-ide-preference](./2026-05-06-175047-python-agent-ide-preference.md)
 - [2026-05-06-171653-timelocker-doc-code-alignment-findings](./2026-05-06-171653-timelocker-doc-code-alignment-findings.md)
 - [2026-04-24-062202-monitoring-facade-first-slice](./2026-04-24-062202-monitoring-facade-first-slice.md)

@@ -145,7 +145,7 @@ ServiceFacade handles fallbacks automatically:
 # Tries configuration_service first, falls back to config_module
 config_service = facade.get_configuration_service()
 
-# Tries restore_service, then recovery_orchestrator, then creates RestoreManager
+# Tries restore_service, then recovery_orchestrator
 restore_service = facade.get_restore_service()
 ```
 

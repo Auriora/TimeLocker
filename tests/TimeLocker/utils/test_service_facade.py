@@ -7,11 +7,10 @@ service access for CLI commands.
 
 import pytest
 from pathlib import Path
-from unittest.mock import Mock, MagicMock, patch
+from unittest.mock import Mock, patch
 
 from TimeLocker.utils.service_facade import (
     ServiceFacade,
-    ServiceFacadeError,
     ServiceInitializationError,
     ServiceAccessError,
     create_service_facade
@@ -37,6 +36,20 @@ class TestServiceFacade:
         
         assert facade._service_manager is mock_service_manager
         assert not facade._initialized
+
+    def test_context_manager_initializes_and_shutdowns_services(self):
+        """Test ServiceFacade context manager handles service lifecycle"""
+        mock_service_manager = Mock()
+        mock_service_manager.initialize_services = Mock()
+        mock_service_manager.shutdown_services = Mock()
+
+        with ServiceFacade(service_manager=mock_service_manager) as facade:
+            assert facade._initialized
+
+        assert not facade._initialized
+        assert facade._services_cache == {}
+        mock_service_manager.initialize_services.assert_called_once()
+        mock_service_manager.shutdown_services.assert_called_once()
     
     def test_ensure_service_manager_creates_manager(self):
         """Test _ensure_service_manager creates service manager if needed"""
@@ -241,14 +254,15 @@ class TestServiceFacade:
         mock_service_manager.initialize_services = Mock()
         mock_service_manager.get_service_health = Mock(return_value={
             'repository': True,
-            'snapshot': True
+            'snapshot': True,
+            'configuration': 'healthy',
         })
         
         facade = ServiceFacade(service_manager=mock_service_manager)
         
         result = facade.health_check()
         
-        assert result == {'repository': True, 'snapshot': True}
+        assert result == {'repository': True, 'snapshot': True, 'configuration': True}
         mock_service_manager.get_service_health.assert_called_once()
     
     def test_health_check_fallback(self):
@@ -275,6 +289,17 @@ class TestServiceFacade:
         assert result['repository'] is True
         assert result['snapshot'] is True
         assert result['configuration'] is False
+
+    def test_health_check_failure_returns_bool_only_status(self):
+        """Test health_check keeps the declared bool-only shape on failure"""
+        mock_service_manager = Mock()
+        mock_service_manager.initialize_services.side_effect = Exception("boom")
+
+        facade = ServiceFacade(service_manager=mock_service_manager)
+
+        result = facade.health_check()
+
+        assert result == {'service_facade': False}
     
     def test_get_service_status_success(self):
         """Test get_service_status returns comprehensive status"""
@@ -370,8 +395,8 @@ class TestServiceFacade:
         assert result is mock_recovery
         assert facade._services_cache['restore'] is mock_recovery
     
-    def test_get_restore_service_fallback(self):
-        """Test get_restore_service creates RestoreManager as fallback"""
+    def test_get_restore_service_without_configured_service_raises(self):
+        """Test get_restore_service fails clearly without a configured service"""
         mock_service_manager = Mock()
         mock_service_manager.initialize_services = Mock()
         # No restore_service or recovery_orchestrator
@@ -381,11 +406,8 @@ class TestServiceFacade:
         facade = ServiceFacade(service_manager=mock_service_manager)
         
         with patch('TimeLocker.restore_manager.RestoreManager') as mock_restore_class:
-            mock_restore = Mock()
-            mock_restore_class.return_value = mock_restore
-            
-            result = facade.get_restore_service()
-            
-            assert result is mock_restore
-            assert facade._services_cache['restore'] is mock_restore
-            mock_restore_class.assert_called_once()
+            with pytest.raises(ServiceAccessError) as exc_info:
+                facade.get_restore_service()
+
+            assert "Restore service not available" in str(exc_info.value)
+            mock_restore_class.assert_not_called()
