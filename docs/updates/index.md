@@ -1,5 +1,6 @@
 # Update Index
 
+- [2026-05-06-214605-scheduling-credential-static-analysis-smoke](./2026-05-06-214605-scheduling-credential-static-analysis-smoke.md)
 - [2026-05-06-212010-services-integration-validation](./2026-05-06-212010-services-integration-validation.md)
 - [2026-05-06-211110-cli-test-patch-target-cleanup](./2026-05-06-211110-cli-test-patch-target-cleanup.md)
 - [2026-05-06-204145-backup-e2e-patch-target-fix](./2026-05-06-204145-backup-e2e-patch-target-fix.md)

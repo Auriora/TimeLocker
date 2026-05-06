@@ -25,7 +25,7 @@ import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from enum import Enum
 
 logger = logging.getLogger(__name__)
@@ -396,7 +396,7 @@ class SchedulingAuditLogger:
         Returns:
             List of audit entries matching filters
         """
-        entries = []
+        entries: List[AuditEntry] = []
         
         if not self.audit_log.exists():
             return entries
@@ -517,54 +517,52 @@ class SchedulingAuditLogger:
             Dictionary containing audit log statistics
         """
         try:
-            stats = {
-                'total_entries': 0,
-                'total_size_bytes': 0,
-                'oldest_entry': None,
-                'newest_entry': None,
-                'event_type_counts': {},
-                'log_files': 0,
-                'retention_days': self.retention_days
-            }
+            total_entries = 0
+            total_size_bytes = 0
+            oldest_entry: datetime | None = None
+            newest_entry: datetime | None = None
+            event_type_counts: dict[str, int] = {}
+            log_files = 0
             
             # Count entries in current log
             if self.audit_log.exists():
-                stats['log_files'] += 1
-                stats['total_size_bytes'] += self.audit_log.stat().st_size
+                log_files += 1
+                total_size_bytes += self.audit_log.stat().st_size
                 
                 with open(self.audit_log, 'r') as f:
                     for line in f:
                         try:
                             data = json.loads(line.strip())
-                            stats['total_entries'] += 1
+                            total_entries += 1
                             
                             # Track event types
                             event_type = data.get('event_type', 'unknown')
-                            stats['event_type_counts'][event_type] = \
-                                stats['event_type_counts'].get(event_type, 0) + 1
+                            event_type_counts[event_type] = event_type_counts.get(event_type, 0) + 1
                             
                             # Track timestamps
                             timestamp = datetime.fromisoformat(data['timestamp'])
-                            if stats['oldest_entry'] is None or timestamp < stats['oldest_entry']:
-                                stats['oldest_entry'] = timestamp
-                            if stats['newest_entry'] is None or timestamp > stats['newest_entry']:
-                                stats['newest_entry'] = timestamp
+                            if oldest_entry is None or timestamp < oldest_entry:
+                                oldest_entry = timestamp
+                            if newest_entry is None or timestamp > newest_entry:
+                                newest_entry = timestamp
                                 
                         except (json.JSONDecodeError, ValueError, KeyError):
                             continue
             
             # Count rotated logs
             for log_file in self.audit_dir.glob("scheduling_audit_*.log"):
-                stats['log_files'] += 1
-                stats['total_size_bytes'] += log_file.stat().st_size
-            
-            # Convert timestamps to ISO format for JSON serialization
-            if stats['oldest_entry']:
-                stats['oldest_entry'] = stats['oldest_entry'].isoformat()
-            if stats['newest_entry']:
-                stats['newest_entry'] = stats['newest_entry'].isoformat()
-            
-            return stats
+                log_files += 1
+                total_size_bytes += log_file.stat().st_size
+
+            return {
+                'total_entries': total_entries,
+                'total_size_bytes': total_size_bytes,
+                'oldest_entry': oldest_entry.isoformat() if oldest_entry else None,
+                'newest_entry': newest_entry.isoformat() if newest_entry else None,
+                'event_type_counts': event_type_counts,
+                'log_files': log_files,
+                'retention_days': self.retention_days
+            }
             
         except Exception as e:
             self.logger.error(f"Failed to get audit statistics: {e}")
@@ -810,3 +808,85 @@ class SchedulingAuditLogger:
         
         self._write_audit_entry(entry)
         self.logger.info(f"Audit: Automatic reschedule - {schedule_id}")
+
+    def log_schedule_auto_disabled(
+        self,
+        schedule_id: str,
+        disable_details: Dict[str, Any]
+    ) -> None:
+        """
+        Log an automatic schedule disable event.
+
+        Args:
+            schedule_id: Schedule identifier
+            disable_details: Details explaining why the schedule was disabled
+        """
+        entry = AuditEntry(
+            timestamp=datetime.utcnow(),
+            event_type=AuditEventType.SCHEDULE_DISABLED,
+            schedule_id=schedule_id,
+            execution_id=None,
+            user=None,
+            details={
+                'auto_disabled': True,
+                **disable_details
+            }
+        )
+
+        self._write_audit_entry(entry)
+        self.logger.info(f"Audit: Schedule auto-disabled - {schedule_id}")
+
+    def log_policy_update_processed(
+        self,
+        schedule_id: str,
+        update_details: Dict[str, Any]
+    ) -> None:
+        """
+        Log that a schedule was checked after a policy update.
+
+        Args:
+            schedule_id: Schedule identifier
+            update_details: Policy update processing details
+        """
+        entry = AuditEntry(
+            timestamp=datetime.utcnow(),
+            event_type=AuditEventType.SCHEDULE_UPDATED,
+            schedule_id=schedule_id,
+            execution_id=None,
+            user=None,
+            details={
+                'policy_update_processed': True,
+                **update_details
+            }
+        )
+
+        self._write_audit_entry(entry)
+        self.logger.info(f"Audit: Policy update processed - {schedule_id}")
+
+    def log_policy_synchronization(
+        self,
+        policy_id: str,
+        synchronization_details: Dict[str, Any]
+    ) -> None:
+        """
+        Log policy-to-schedule synchronization results.
+
+        Args:
+            policy_id: Policy identifier
+            synchronization_details: Synchronization result details
+        """
+        entry = AuditEntry(
+            timestamp=datetime.utcnow(),
+            event_type=AuditEventType.SCHEDULE_UPDATED,
+            schedule_id=None,
+            execution_id=None,
+            user=None,
+            details={
+                'policy_synchronization': True,
+                'policy_id': policy_id,
+                **synchronization_details
+            }
+        )
+
+        self._write_audit_entry(entry)
+        self.logger.info(f"Audit: Policy synchronization - {policy_id}")

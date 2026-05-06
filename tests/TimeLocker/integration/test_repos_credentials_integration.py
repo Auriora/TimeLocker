@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 
 import pytest
+from click.testing import Result
 from typer.testing import CliRunner
 
 from src.TimeLocker.cli import app
@@ -21,7 +22,7 @@ from src.TimeLocker.cli import app
 runner = CliRunner(env={'COLUMNS': '200'})
 
 
-def _combined_output(result):
+def _combined_output(result: Result) -> str:
     out = result.stdout or ""
     err = getattr(result, "stderr", "") or ""
     return out + "\n" + err
@@ -46,7 +47,7 @@ fi
 
 
 @pytest.mark.integration
-def test_backend_credentials_store_and_show_s3():
+def test_backend_credentials_store_and_show_s3() -> None:
     with runner.isolated_filesystem():
         # Prepare isolated HOME so credential manager writes inside sandbox
         home_dir = Path.cwd() / "home"
@@ -58,8 +59,8 @@ def test_backend_credentials_store_and_show_s3():
 
         # Create stub restic executable to satisfy version verification
         restic_path = bin_dir / "restic"
-        restic_path.write_text(_create_stub_restic_script())
-        restic_path.chmod(0o755)
+        _ = restic_path.write_text(_create_stub_restic_script())
+        _ = restic_path.chmod(0o755)
 
         base_path = os.environ.get('PATH', '')
         env = {
@@ -71,7 +72,7 @@ def test_backend_credentials_store_and_show_s3():
         }
 
         # 1. Add repository (S3) - minimal host/bucket form
-        add_result = runner.invoke(
+        add_result: Result = runner.invoke(
                 app,
                 [
                         'repos', 'add', 'myrepo', 's3://dummyhost/bucket',
@@ -81,12 +82,12 @@ def test_backend_credentials_store_and_show_s3():
                 ],
                 env=env
         )
-        assert add_result.exit_code in (0, 1), _combined_output(add_result)
+        assert add_result.exit_code == 0, _combined_output(add_result)
 
         # 2. Store repository backend credentials (simulate interactive input)
         # Prompts expected in order: Access Key ID, Secret Access Key, Region, Confirm insecure TLS (y/n)
         credentials_input = "AKIAINT\nSECRETINT\nus-west-1\nn\n"
-        set_result = runner.invoke(
+        set_result: Result = runner.invoke(
                 app,
                 [
                         'repos', 'credentials', 'set', 'myrepo',
@@ -96,11 +97,11 @@ def test_backend_credentials_store_and_show_s3():
                 env=env
         )
         combined_set = _combined_output(set_result).lower()
-        assert set_result.exit_code in (0, 1), combined_set
+        assert set_result.exit_code == 0, combined_set
         assert 'credential' in combined_set
 
         # 3. Show credentials to verify retrieval
-        show_result = runner.invoke(
+        show_result: Result = runner.invoke(
                 app,
                 [
                         'repos', 'credentials', 'show', 'myrepo',
@@ -109,11 +110,37 @@ def test_backend_credentials_store_and_show_s3():
                 env=env
         )
         combined_show = _combined_output(show_result).lower()
-        assert show_result.exit_code in (0, 1), combined_show
+        assert show_result.exit_code == 0, combined_show
         # Validate that Access Key line and region appear
         assert 'access key' in combined_show
         assert 'region' in combined_show
         assert 'us-west-1' in combined_show
+
+        # 4. Remove credentials and verify the runtime show path reports absence cleanly
+        remove_result: Result = runner.invoke(
+                app,
+                [
+                        'repos', 'credentials', 'remove', 'myrepo',
+                        '--yes',
+                        '--config-dir', str(config_dir)
+                ],
+                env=env
+        )
+        combined_remove = _combined_output(remove_result).lower()
+        assert remove_result.exit_code == 0, combined_remove
+        assert 'removed' in combined_remove
+
+        show_removed_result: Result = runner.invoke(
+                app,
+                [
+                        'repos', 'credentials', 'show', 'myrepo',
+                        '--config-dir', str(config_dir)
+                ],
+                env=env
+        )
+        combined_show_removed = _combined_output(show_removed_result).lower()
+        assert show_removed_result.exit_code == 0, combined_show_removed
+        assert 'no' in combined_show_removed and 'credential' in combined_show_removed
 
         # Sanity check that encrypted credential file was created
         cred_file = home_dir / '.timelocker' / 'credentials' / 'credentials.enc'

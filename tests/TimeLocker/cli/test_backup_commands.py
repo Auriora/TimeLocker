@@ -6,13 +6,11 @@ Tests backup command parsing, parameter validation, help output, and error handl
 
 import pytest
 import tempfile
-from pathlib import Path
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 from src.TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import (
-    get_cli_runner, combined_output, create_mock_service_manager,
-    assert_success, assert_help_quality, assert_output_contains, assert_exit_code
+    get_cli_runner, combined_output, assert_help_quality, assert_output_contains
 )
 
 # Set wider terminal width to prevent help text truncation in CI
@@ -23,7 +21,7 @@ class TestBackupCommands:
     """Test suite for backup command group."""
 
     @pytest.mark.unit
-    def test_backup_help_output(self):
+    def test_backup_help_output(self) -> None:
         """Test backup command group help output."""
         result = runner.invoke(app, ["backup", "--help"])
         assert_help_quality(result, "backup")
@@ -35,7 +33,7 @@ class TestBackupCommands:
         assert_output_contains(result, "verify", case_sensitive=False)
 
     @pytest.mark.unit
-    def test_backup_create_help(self):
+    def test_backup_create_help(self) -> None:
         """Test backup create command help output."""
         result = runner.invoke(app, ["backup", "create", "--help"])
         assert_help_quality(result, "backup create")
@@ -49,7 +47,7 @@ class TestBackupCommands:
         assert "--dry-run" in combined
 
     @pytest.mark.unit
-    def test_backup_verify_help(self):
+    def test_backup_verify_help(self) -> None:
         """Test backup verify command help output."""
         result = runner.invoke(app, ["backup", "verify", "--help"])
         assert_help_quality(result, "backup verify")
@@ -65,7 +63,9 @@ class TestBackupCommands:
     @patch('src.TimeLocker.cli.get_cli_service_manager')
     @patch('TimeLocker.selection_manager.SelectionManager')
     @patch('TimeLocker.cli_modules.helpers.backup_cli_handler.BackupCLIHandler')
-    def test_backup_create_with_selection(self, mock_handler_class, mock_selection_manager, mock_service_manager):
+    def test_backup_create_with_selection(
+            self, mock_handler_class: Mock, mock_selection_manager: Mock, mock_service_manager: Mock
+    ) -> None:
         """Test backup create command with selection template parameter."""
         # Mock the service manager
         mock_manager = Mock()
@@ -82,9 +82,7 @@ class TestBackupCommands:
         mock_handler.validate_selection_exists.return_value = True
         mock_handler.get_selection_summary.return_value = "Test selection"
         
-        # Mock the async execute method
-        from TimeLocker.interfaces.data_models import BackupStatus
-        async def mock_execute(*args, **kwargs):
+        async def mock_execute(*args: object, **kwargs: object) -> Mock:
             return Mock(
                 status=Mock(value='completed'),
                 snapshot_id='test123',
@@ -120,7 +118,7 @@ class TestBackupCommands:
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli.get_cli_service_manager')
-    def test_backup_create_with_sources(self, mock_service_manager):
+    def test_backup_create_with_sources(self, mock_service_manager: Mock) -> None:
         """Test backup create command with source paths."""
         # Mock the service manager
         mock_manager = Mock()
@@ -139,7 +137,7 @@ class TestBackupCommands:
             assert result.exit_code in [0, 1]
 
     @pytest.mark.unit
-    def test_backup_create_parameter_validation(self):
+    def test_backup_create_parameter_validation(self) -> None:
         """Test backup create parameter validation."""
         # Test with invalid repository format
         result = runner.invoke(app, [
@@ -153,7 +151,7 @@ class TestBackupCommands:
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli.get_cli_service_manager')
-    def test_backup_verify_with_repository(self, mock_service_manager):
+    def test_backup_verify_with_repository(self, mock_service_manager: Mock) -> None:
         """Test backup verify command with repository parameter."""
         # Mock the service manager
         mock_manager = Mock()
@@ -171,7 +169,7 @@ class TestBackupCommands:
 
     @pytest.mark.unit
     @patch('src.TimeLocker.cli.get_cli_service_manager')
-    def test_backup_verify_with_snapshot(self, mock_service_manager):
+    def test_backup_verify_with_snapshot(self, mock_service_manager: Mock) -> None:
         """Test backup verify command with specific snapshot."""
         # Mock the service manager
         mock_manager = Mock()
@@ -188,7 +186,7 @@ class TestBackupCommands:
         assert result.exit_code in [0, 1]
 
     @pytest.mark.unit
-    def test_backup_create_missing_sources_and_selection(self):
+    def test_backup_create_missing_sources_and_selection(self) -> None:
         """Test backup create without sources or selection should error."""
         result = runner.invoke(app, [
                 "backup", "create",
@@ -201,7 +199,7 @@ class TestBackupCommands:
         assert result.exit_code in [0, 1, 2]
 
     @pytest.mark.unit
-    def test_backup_create_with_tags(self):
+    def test_backup_create_with_tags(self) -> None:
         """Test backup create command with tags parameter."""
         with tempfile.TemporaryDirectory() as temp_dir:
             result = runner.invoke(app, [
@@ -217,7 +215,7 @@ class TestBackupCommands:
             assert result.exit_code in [0, 1]
 
     @pytest.mark.unit
-    def test_backup_create_with_exclude_patterns(self):
+    def test_backup_create_with_exclude_patterns(self) -> None:
         """Test backup create command with exclude patterns."""
         with tempfile.TemporaryDirectory() as temp_dir:
             result = runner.invoke(app, [
@@ -233,7 +231,7 @@ class TestBackupCommands:
             assert result.exit_code in [0, 1]
 
     @pytest.mark.unit
-    def test_backup_create_with_include_patterns(self):
+    def test_backup_create_with_include_patterns(self) -> None:
         """Test backup create command with include patterns."""
         with tempfile.TemporaryDirectory() as temp_dir:
             result = runner.invoke(app, [
@@ -249,7 +247,7 @@ class TestBackupCommands:
             assert result.exit_code in [0, 1]
 
     @pytest.mark.unit
-    def test_backup_verify_latest_flag(self):
+    def test_backup_verify_latest_flag(self) -> None:
         """Test backup verify command with latest flag."""
         result = runner.invoke(app, [
                 "backup", "verify",
@@ -261,7 +259,7 @@ class TestBackupCommands:
         assert result.exit_code in [0, 1]
 
     @pytest.mark.unit
-    def test_backup_commands_verbose_flag(self):
+    def test_backup_commands_verbose_flag(self) -> None:
         """Test backup commands with verbose flag."""
         commands = [
                 ["backup", "create", "--dry-run", "--verbose"],

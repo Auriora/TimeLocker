@@ -1783,6 +1783,8 @@ def repos_credentials_set(
     except RepositoryNotFoundError as e:
         show_error_panel("Repository Not Found", str(e))
         raise typer.Exit(1)
+    except typer.Exit:
+        raise
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "Credential storage cancelled by user")
         raise typer.Exit(130)
@@ -1830,6 +1832,13 @@ def repos_credentials_remove(
         credential_manager = _create_credential_manager(config_dir)
         if master_password is not None:
             _ensure_manager_unlocked(credential_manager, master_password, interactive)
+        else:
+            try:
+                _ = credential_manager.ensure_unlocked(allow_prompt=interactive)
+            except Exception:
+                if interactive:
+                    raise
+                logging.getLogger(__name__).debug("Unable to unlock credential manager automatically for remove command.")
 
         removed = False
         if hasattr(credential_manager, "remove_repository_backend_credentials"):
@@ -1847,6 +1856,8 @@ def repos_credentials_remove(
     except RepositoryNotFoundError as e:
         show_error_panel("Repository Not Found", str(e))
         raise typer.Exit(1)
+    except typer.Exit:
+        raise
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "Credential removal cancelled by user")
         raise typer.Exit(130)
@@ -1925,6 +1936,8 @@ def repos_credentials_show(
     except RepositoryNotFoundError as e:
         show_error_panel("Repository Not Found", str(e))
         raise typer.Exit(1)
+    except typer.Exit:
+        raise
     except KeyboardInterrupt:
         show_error_panel("Operation Cancelled", "Credential display cancelled by user")
         raise typer.Exit(130)
@@ -2427,7 +2440,7 @@ def config_import_config(
         policy_count = len(import_policies)
         schedule_count = len(import_schedules)
 
-        console.print(f"Items to import:")
+        console.print("Items to import:")
         console.print(f"  • {repo_count} repositories")
         console.print(f"  • {target_count} backup targets")
         console.print(f"  • {policy_count} policies")

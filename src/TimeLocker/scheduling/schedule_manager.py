@@ -31,6 +31,7 @@ from .scheduling_configuration import SchedulingConfiguration
 from .scheduling_models import (
     ScheduleRequest,
     ScheduleConfig,
+    ExecutionResult,
     ScheduleInfo,
     ScheduleStatus,
     ScheduleUpdates,
@@ -212,7 +213,7 @@ class ScheduleManager:
                 platform_specific_config=request.platform_specific_config,
                 created_at=_utc_now(),
                 updated_at=_utc_now(),
-                created_by=""  # TODO: Get from context
+                created_by=str(request.platform_specific_config.get("created_by", ""))
             )
             
             # Validate schedule configuration
@@ -359,9 +360,12 @@ class ScheduleManager:
             
             # Log audit event
             update_details = {}
-            if updates.name: update_details['name'] = updates.name
-            if updates.enabled is not None: update_details['enabled'] = updates.enabled
-            if updates.schedule_pattern: update_details['schedule_pattern'] = 'updated'
+            if updates.name:
+                update_details['name'] = updates.name
+            if updates.enabled is not None:
+                update_details['enabled'] = updates.enabled
+            if updates.schedule_pattern:
+                update_details['schedule_pattern'] = 'updated'
             
             self.audit_logger.log_schedule_update(schedule_id, update_details)
             
@@ -480,10 +484,8 @@ class ScheduleManager:
             elif not platform_status.is_active:
                 health_status = ScheduleHealthStatus.ERROR
             
-            # TODO: Get execution history from execution tracking system
-            # For now, return empty history
-            execution_history = []
-            last_execution = None
+            execution_history = self._get_execution_history(schedule_id)
+            last_execution = execution_history[0] if execution_history else None
             
             return ScheduleStatus(
                 schedule_id=schedule_id,
@@ -534,10 +536,8 @@ class ScheduleManager:
                     pattern = re.compile(filters.name_pattern, re.IGNORECASE)
                     schedules = [s for s in schedules if pattern.search(s.name)]
                 
-                # TODO: Filter by health_status when we have execution tracking
-            
             # Convert to ScheduleInfo
-            schedule_infos = []
+            schedule_infos: list[ScheduleInfo] = []
             for schedule in schedules:
                 try:
                     # Get next execution time from platform
@@ -551,6 +551,9 @@ class ScheduleManager:
                 health_status = ScheduleHealthStatus.HEALTHY
                 if not schedule.enabled:
                     health_status = ScheduleHealthStatus.UNKNOWN
+
+                if filters and filters.health_status and health_status != filters.health_status:
+                    continue
                 
                 schedule_info = ScheduleInfo(
                     schedule_id=schedule.schedule_id,
@@ -572,6 +575,23 @@ class ScheduleManager:
             error_msg = f"Failed to list scheduled backups: {e}"
             self.logger.error(error_msg)
             raise SchedulingError(error_msg) from e
+
+    def _get_execution_history(self, schedule_id: str, limit: int = 100) -> list[ExecutionResult]:
+        """Return recorded execution history when an execution engine is attached."""
+        execution_engine = getattr(self, "automation_engine", None)
+        get_history = getattr(execution_engine, "get_execution_history", None)
+        if not callable(get_history):
+            return []
+
+        try:
+            history = get_history(schedule_id, limit=limit)
+        except Exception as exc:
+            self.logger.debug("Failed to read execution history for %s: %s", schedule_id, exc)
+            return []
+
+        if not isinstance(history, list):
+            return []
+        return [entry for entry in history if isinstance(entry, ExecutionResult)]
     
     async def validate_schedule_configuration(self, config: ScheduleConfig) -> ValidationResult:
         """
@@ -707,7 +727,7 @@ class ScheduleManager:
             List of upcoming scheduled runs with schedule information
         """
         try:
-            upcoming_runs = []
+            upcoming_runs: list[dict[str, object]] = []
             
             for schedule in self._schedules.values():
                 if not schedule.enabled:
@@ -730,7 +750,11 @@ class ScheduleManager:
                     continue
             
             # Sort by next run time
-            upcoming_runs.sort(key=lambda x: x['next_run_time'])
+            upcoming_runs.sort(
+                key=lambda run: run["next_run_time"]
+                if isinstance(run["next_run_time"], datetime)
+                else datetime.max.replace(tzinfo=timezone.utc)
+            )
             
             return upcoming_runs[:limit]
             
@@ -1293,9 +1317,9 @@ class ScheduleManager:
             if auto_apply:
                 applied_count = 0
                 for resolution in resolutions:
+                    schedule_id = resolution.conflict.schedule_id_1
                     try:
                         # Find the schedule to modify
-                        schedule_id = resolution.conflict.schedule_id_1
                         if schedule_id in self._schedules:
                             schedule = self._schedules[schedule_id]
                             modified_schedule = self.auto_rescheduler.apply_resolution(schedule, resolution)
@@ -1358,8 +1382,8 @@ class ScheduleManager:
             if auto_apply:
                 applied_count = 0
                 for optimization in optimizations:
+                    schedule_id = optimization.schedule_id
                     try:
-                        schedule_id = optimization.schedule_id
                         if schedule_id not in self._schedules:
                             continue
                         
@@ -1756,12 +1780,12 @@ class ScheduleManager:
                     'schedules_found': 0,
                     'schedules_validated': 0,
                     'schedules_disabled': 0,
-                    'errors': []
+                    'errors': [],
                 }
             
             validated_count = 0
             disabled_count = 0
-            errors = []
+            errors: list[str] = []
             
             # Validate policy
             is_valid, policy_errors = self.policy_client.validate_policy_for_scheduling(policy_id)
@@ -1792,12 +1816,12 @@ class ScheduleManager:
                     except Exception as e:
                         errors.append(f"Error validating schedule {schedule.schedule_id}: {str(e)}")
             
-            result = {
+            result: dict[str, object] = {
                 'policy_id': policy_id,
                 'schedules_found': len(affected_schedules),
                 'schedules_validated': validated_count,
                 'schedules_disabled': disabled_count,
-                'errors': errors
+                'errors': errors,
             }
             
             # Log audit event
@@ -1831,7 +1855,7 @@ class ScheduleManager:
                 if s.policy_id == policy_id
             ]
             
-            schedule_infos = []
+            schedule_infos: list[ScheduleInfo] = []
             for schedule in schedules:
                 schedule_info = ScheduleInfo(
                     schedule_id=schedule.schedule_id,
@@ -1888,11 +1912,9 @@ class ScheduleManager:
         try:
             enabled_schedules = [s for s in self._schedules.values() if s.enabled]
             
-            ping_results = {
-                'total_schedules': len(enabled_schedules),
-                'pings_sent': 0,
-                'errors': []
-            }
+            total_schedules = len(enabled_schedules)
+            pings_sent = 0
+            errors: list[str] = []
             
             for schedule in enabled_schedules:
                 try:
@@ -1919,19 +1941,23 @@ class ScheduleManager:
                         }
                     )
                     
-                    ping_results['pings_sent'] += 1
+                    pings_sent += 1
                     
                 except Exception as e:
                     error_msg = f"Failed to send ping for schedule {schedule.schedule_id}: {str(e)}"
-                    ping_results['errors'].append(error_msg)
+                    errors.append(error_msg)
                     self.logger.error(error_msg)
             
             self.logger.info(
-                f"Sent {ping_results['pings_sent']} health check pings "
-                f"({len(ping_results['errors'])} errors)"
+                f"Sent {pings_sent} health check pings "
+                f"({len(errors)} errors)"
             )
             
-            return ping_results
+            return {
+                'total_schedules': total_schedules,
+                'pings_sent': pings_sent,
+                'errors': errors,
+            }
             
         except Exception as e:
             error_msg = f"Failed to send health check pings: {e}"
@@ -2039,47 +2065,53 @@ class ScheduleManager:
         try:
             enabled_schedules = [s for s in self._schedules.values() if s.enabled]
             
-            results = {
-                'total_schedules': len(enabled_schedules),
-                'monitored': 0,
-                'healthy': 0,
-                'warning': 0,
-                'error': 0,
-                'unknown': 0,
-                'errors': []
-            }
+            total_schedules = len(enabled_schedules)
+            monitored = 0
+            healthy = 0
+            warning = 0
+            error = 0
+            unknown = 0
+            errors: list[str] = []
             
             for schedule in enabled_schedules:
                 try:
                     await self.monitor_schedule_health(schedule.schedule_id)
-                    results['monitored'] += 1
+                    monitored += 1
                     
                     # Get status to update counts
                     status = await self.get_schedule_status(schedule.schedule_id)
                     if status.health_status == ScheduleHealthStatus.HEALTHY:
-                        results['healthy'] += 1
+                        healthy += 1
                     elif status.health_status == ScheduleHealthStatus.WARNING:
-                        results['warning'] += 1
+                        warning += 1
                     elif status.health_status == ScheduleHealthStatus.ERROR:
-                        results['error'] += 1
+                        error += 1
                     else:
-                        results['unknown'] += 1
+                        unknown += 1
                         
                 except Exception as e:
                     error_msg = f"Failed to monitor schedule {schedule.schedule_id}: {str(e)}"
-                    results['errors'].append(error_msg)
+                    errors.append(error_msg)
                     self.logger.error(error_msg)
             
             # Report overall metrics
             await self.report_scheduling_metrics()
             
             self.logger.info(
-                f"Monitored {results['monitored']} schedules: "
-                f"{results['healthy']} healthy, {results['warning']} warning, "
-                f"{results['error']} error, {results['unknown']} unknown"
+                f"Monitored {monitored} schedules: "
+                f"{healthy} healthy, {warning} warning, "
+                f"{error} error, {unknown} unknown"
             )
             
-            return results
+            return {
+                'total_schedules': total_schedules,
+                'monitored': monitored,
+                'healthy': healthy,
+                'warning': warning,
+                'error': error,
+                'unknown': unknown,
+                'errors': errors,
+            }
             
         except Exception as e:
             error_msg = f"Failed to monitor all schedules: {e}"

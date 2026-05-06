@@ -25,11 +25,14 @@ import threading
 import socket
 import uuid
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import TYPE_CHECKING, Optional, Dict, Any, List
 from datetime import datetime, timedelta
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+
+if TYPE_CHECKING:
+    from .security_logger import SecurityLogger
 
 
 class CredentialManagerError(Exception):
@@ -131,9 +134,9 @@ class CredentialManager:
         """Initialize audit logging for credential operations"""
         if not self.audit_log_file.exists():
             with open(self.audit_log_file, 'w') as f:
-                f.write(f"# TimeLocker Credential Manager Audit Log\n")
+                f.write("# TimeLocker Credential Manager Audit Log\n")
                 f.write(f"# Initialized: {datetime.now().isoformat()}\n")
-                f.write(f"# Format: timestamp|operation|credential_id|success|details\n")
+                f.write("# Format: timestamp|operation|credential_id|success|details\n")
 
     def _log_audit_event(self, operation: str, credential_id: str = "", success: bool = True, details: str = ""):
         """Log audit event for credential operations"""
@@ -284,7 +287,7 @@ class CredentialManager:
 
             return auto_key
 
-        except Exception as e:
+        except Exception:
             # Log the failure but don't expose details
             self._log_access_event("auto_key_derivation", success=False,
                                    details="Auto-key derivation failed")
@@ -859,8 +862,7 @@ class CredentialManager:
             bool: True if rotation successful
         """
         try:
-            # Get existing credentials for audit trail
-            old_credentials = self.get_repository_backend_credentials(repository_id, backend_type)
+            had_existing_credentials = self.has_repository_backend_credentials(repository_id, backend_type)
             
             # Store new credentials
             self.store_repository_backend_credentials(repository_id, backend_type, new_credentials)
@@ -869,7 +871,10 @@ class CredentialManager:
                 "rotate_repository_backend_credentials",
                 f"{repository_id}:{backend_type}",
                 success=True,
-                details=f"Backend credentials rotated for {backend_type}"
+                details=(
+                    f"Backend credentials rotated for {backend_type}; "
+                    f"existing_credentials={had_existing_credentials}"
+                )
             )
             return True
 
@@ -1055,7 +1060,7 @@ class CredentialManager:
             import gc
             gc.collect()
 
-        except Exception as e:
+        except Exception:
             # Don't fail operations due to memory clearing issues
             pass
 
@@ -1106,7 +1111,16 @@ class CredentialManager:
             The returned password should be used immediately and not stored.
             It will be automatically cleared from memory when possible.
         """
-        return self.secure_credential_operation(self.get_repository_password, repository_id, allow_prompt)
+        password = self.secure_credential_operation(
+            self.get_repository_password,
+            repository_id,
+            allow_prompt
+        )
+        if isinstance(password, bytes):
+            return password.decode("utf-8")
+        if isinstance(password, str) or password is None:
+            return password
+        return str(password)
 
     def cleanup_sensitive_memory(self) -> None:
         """
