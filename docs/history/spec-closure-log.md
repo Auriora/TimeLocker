@@ -20,7 +20,7 @@ final spec commit preserves the complete package.
 - **Spec:** removed; recover from Git
 - **Title:** Repository Safety and Release Readiness
 - **Final spec commit:** `4aff166`
-- **Closure cleanup commit:** pending
+- **Closure cleanup commit:** `c6ed9ee`
 - **Closure action:** removed
 - **Closed by:** Auriora Team
 - **Durable docs updated:** `README.md`, `docs/2-architecture/`,
