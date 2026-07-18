@@ -50,7 +50,7 @@ bounded `v0.9.1` stabilization release.
 
 | Spec content | Durable destination | Promotion status | Notes |
 |--------------|---------------------|------------------|-------|
-| Test profile contract and commands | `docs/4-testing/README.md` | pending | Include MinIO prerequisites and extended profile. |
+| Test profile contract and commands | `docs/4-testing/README.md` | partial | T001-T002 promoted normal and MinIO ownership, prerequisites, and commands; T004 will add the extended-profile disposition. |
 | Verified install matrix and prerequisites | `docs/guides/user/installation.md` | pending | Do not claim untested platforms. |
 | Release procedure and rollback boundary | `docs/processes/version-management.md` | pending | Correct in place and link from `docs/processes/README.md`. |
 | Release contents and limitations | `CHANGELOG.md` | pending | Canonical checked-in source; derive the GitHub release body from the `v0.9.1` section. |

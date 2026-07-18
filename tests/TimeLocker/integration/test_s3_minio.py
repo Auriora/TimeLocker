@@ -156,21 +156,20 @@ def s3_repository(monkeypatch: pytest.MonkeyPatch) -> S3ResticRepository:
 def live_s3_repository(
     test_repo_path: str,
     minio_settings: dict[str, str],
-    monkeypatch: pytest.MonkeyPatch,
 ) -> S3ResticRepository:
     """Create an S3 repository backed by the provisioned MinIO service."""
     location = (
         f"{minio_settings['MINIO_URI_PREFIX']}/"
         f"{minio_settings['MINIO_BUCKET']}/{test_repo_path}"
     )
-    monkeypatch.setenv("AWS_S3_ENDPOINT", minio_settings["MINIO_ENDPOINT_URL"])
-
     repo = S3ResticRepository(
         location=location,
         password="test-password-123",
         aws_access_key_id=minio_settings["MINIO_ACCESS_KEY"],
         aws_secret_access_key=minio_settings["MINIO_SECRET_KEY"],
         aws_default_region=minio_settings["MINIO_REGION"],
+        aws_s3_endpoint=minio_settings["MINIO_ENDPOINT_URL"],
+        insecure_tls=not _verify_ssl(minio_settings),
     )
 
     return repo

@@ -56,7 +56,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
       the focused profile produced nine successful tests, and the full profile
       produced 2,754 successful tests at 52.13% coverage.
 
-- [ ] T002 Add and validate the provisioned MinIO profile.
+- [x] T002 Add and validate the provisioned MinIO profile.
   - Depends on: T001
   - Requirement: Requirement 1
   - Acceptance Criteria: Requirement 1 AC2, AC3, AC6
@@ -67,13 +67,31 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
     `pytest -m minio`, passes its tests, and reports an actionable dependency
     error when unavailable.
   - Validation: Provisioned profile plus a negative preflight test.
-  - Evidence: Pending.
-  - [ ] T002.1 Define ephemeral endpoint and credential inputs.
-  - [ ] T002.2 Provision MinIO and wait for readiness before pytest.
-  - [ ] T002.3 Add clear dependency-preflight failure behavior.
-  - [ ] T002.4 Run and record the explicit profile.
+  - Evidence: The workflow provisions pinned MinIO image
+    `quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z`, waits on its live
+    health endpoint, creates the isolated bucket, and runs the four live nodes.
+    The final local provisioned profile passed all four nodes in 20.39 seconds; the
+    negative fixture contract reports the endpoint and required recovery action.
+  - Status: Complete on 2026-07-18; T003 owns hosted validation.
+  - Evidence mode: implementation
+  - [x] T002.1 Define ephemeral endpoint and credential inputs.
+    - Evidence: `.github/workflows/test-suite.yml` defines the loopback endpoint,
+      disposable `timelocker-ci` credentials, bucket, region, TLS-verification,
+      and log-level values in the `minio-test` job.
+  - [x] T002.2 Provision MinIO and wait for readiness before pytest.
+    - Evidence: The job starts the pinned container, polls
+      `/minio/health/live`, creates the bucket with `boto3`, and always removes
+      the container.
+  - [x] T002.3 Add clear dependency-preflight failure behavior.
+    - Evidence: `test_live_minio_preflight_failure_is_actionable` and
+      `test_workflow_provisions_and_runs_live_minio_profile` passed, proving
+      unavailable MinIO reports its endpoint and recovery action instead of
+      skipping.
+  - [x] T002.4 Run and record the explicit profile.
+    - Evidence: A disposable local container served all four `minio` nodes;
+      pytest reported four passed and 2,812 deselected.
 
-- [ ] T003 Checkpoint - CI profile validation.
+- [~] T003 Checkpoint - CI profile validation.
   - Depends on: T002
   - Requirement: Requirement 1
   - Acceptance Criteria: Requirement 1 AC1, AC2, AC3, AC4, AC5, AC6
@@ -81,7 +99,10 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
     partitioned or intentionally shared, mocked contracts remain normal,
     coverage remains at least 50 percent, and no unrelated test is excluded.
   - Validation: GitHub Actions evidence, pytest collection partition, coverage report.
-  - Evidence: Pending.
+  - Evidence: Local partition, normal-profile, and provisioned-MinIO evidence
+    pass; hosted GitHub Actions evidence remains before checkpoint completion.
+  - Status: Awaiting the hosted workflow run.
+  - Evidence mode: validation
 
 ## Phase 2: Stabilize the Extended Signal
 

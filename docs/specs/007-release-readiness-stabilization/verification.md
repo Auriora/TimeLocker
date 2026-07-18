@@ -22,7 +22,7 @@ separate explicit approval.
 | Acceptance traceability complete | yes | passed | Lifecycle stage readiness reports zero acceptance, property, context, downstream-review, or blocking gaps after reconciliation. |
 | Substantive requirements and design review | yes | passed | Review on 2026-07-18 produced TLR-001 through TLR-006; all six findings were reconciled into the package before implementation. |
 | Task evidence complete | yes | pending | T001 passed; T002-T013 pending. |
-| Normal and dependency-owning test profiles pass | yes | partial | The corrected normal profile passes locally; provisioned MinIO execution remains T002. |
+| Normal and dependency-owning test profiles pass | yes | partial | Both profiles pass locally; T003 still requires hosted GitHub Actions evidence. |
 | Stress implementation and disposition recorded | yes | pending | T004 and GitHub issue #68. |
 | Artifacts and six-combination clean installs validate | yes | pending | T006-T008. |
 | Release interface and rehearsal prove no publication side effect | yes | pending | T009-T010. |
@@ -33,9 +33,9 @@ separate explicit approval.
 
 | Command Or Method | Purpose | Result | Evidence |
 |-------------------|---------|--------|----------|
-| `python -m pytest -m "not performance and not stress and not minio"` | Normal correctness and coverage profile | passed | 2,754 passed, one skipped, 57 deselected; 52.13% coverage. |
-| complete collection compared with normal, `minio`, performance, and stress selections | Prove collection safety and node ownership | passed | 2,812 total nodes partition into 2,755 normal, 53 performance/stress, and four live MinIO nodes. |
-| `python -m pytest -m minio` with provisioned service | Validate live S3 integration and dependency preflight | pending | T002. |
+| `python -m pytest -m "not performance and not stress and not minio"` | Normal correctness and coverage profile | passed | 2,758 passed, one skipped, 57 deselected; 52.13% coverage. |
+| complete collection compared with normal, `minio`, performance, and stress selections | Prove collection safety and node ownership | passed | 2,816 total nodes partition into 2,759 normal, 53 performance/stress, and four live MinIO nodes. |
+| `python -m pytest -m minio` with provisioned service | Validate live S3 integration and dependency preflight | passed locally | Four passed and 2,812 deselected in 20.39 seconds; hosted execution remains T003. |
 | `python -m pytest -m "performance or stress" --no-cov` | Extended performance and stress profile | pending | T004 and issue #68; final evidence must explain the coverage exception for this opt-in profile. |
 | `python scripts/bump_version.py bump patch --no-commit --no-tag` plus pre/post commit, tag, tag-triggered release-workflow run, and release identity | Prepare `0.9.1` without publication side effects | pending | T006. |
 | `python -m build`, version guard, metadata inspection, and SHA-256 generation | Build and prove artifact identity | pending | T006. |
@@ -47,7 +47,7 @@ separate explicit approval.
 
 | Requirement | Acceptance Criteria Covered | Evidence | Residual Risk |
 |-------------|------------------------------|----------|---------------|
-| R1 | AC1-AC6 | T001 passed; T002-T003 pending | Provisioned MinIO and hosted workflow evidence remain. |
+| R1 | AC1-AC6 | T001-T002 passed; T003 in progress | Hosted workflow evidence remains. |
 | R2 | AC1-AC4 | Spec-owned T004-T005 and issue #68 pending | Host variance. |
 | R3 | AC1-AC5 | T006 and T008 pending | Side-effecting defaults must remain disabled. |
 | R4 | AC1-AC5 | T007-T008 and T011 pending | Unavailable runner blocks the associated support claim. |
@@ -57,7 +57,7 @@ separate explicit approval.
 
 | Property | Covered By | Evidence | Residual Risk |
 |----------|------------|----------|---------------|
-| CP-001 | T001-T003, collection partition and workflow runs | partial | Local partition proved; provisioned and hosted runs remain. |
+| CP-001 | T001-T003, collection partition and workflow runs | partial | Local partition and both profiles pass; hosted runs remain. |
 | CP-002 | T006 version guard and negative test | pending | None expected after automated guard. |
 | CP-003 | T007 six-combination artifact matrix | pending | Runner availability is a blocking support gap. |
 | CP-004 | T006, T008-T010, and T013 external-state comparisons | pending | Actual tag behavior remains separately controlled. |
@@ -80,8 +80,8 @@ separate explicit approval.
 | Task ID | Status | Evidence | Notes |
 |---------|--------|----------|-------|
 | T001 | passed | Exact node partition, focused contract tests, and normal-profile run passed | Four live nodes are `minio`; mocked/configuration tests remain normal. |
-| T002 | pending | | Provisioned profile pending. |
-| T003 | pending | | CI checkpoint pending. |
+| T002 | passed | Pinned disposable MinIO, readiness preflight, negative dependency contract, and four live nodes passed | Hosted execution belongs to T003. |
+| T003 | in progress | Local normal and MinIO profiles and exact collection partition pass | Hosted Actions evidence pending. |
 | T004 | pending | GitHub issue #68 created and assigned | Spec owns implementation; issue tracks state and evidence. |
 | T005 | pending | | Prerequisite checkpoint pending. |
 | T006 | pending | Side-effecting helper defaults identified | Safe bump, artifact, and external-state evidence pending. |
@@ -109,6 +109,9 @@ separate explicit approval.
 | 2026-07-18 | T001 focused MinIO profile tests | passed | Nine normal-profile contract/configuration tests passed and four live nodes were deselected without using repository MinIO configuration. |
 | 2026-07-18 | T001 collection partition | passed | All 2,812 nodes accounted for: 2,755 normal, 53 performance/stress, and four live MinIO. |
 | 2026-07-18 | T001 exact normal profile | passed | 2,754 passed, one skipped, 57 deselected, 19 warnings, and 52.13% coverage in 783.96 seconds. |
+| 2026-07-18 | T002 workflow and environment contracts | passed | Action syntax, pinned-service provisioning, actionable preflight failure, URI-scheme preservation, and process-environment precedence passed focused tests. |
+| 2026-07-18 | T002 provisioned MinIO profile | passed | Disposable loopback MinIO served all four live nodes; 2,812 nodes were deselected and cleanup succeeded. |
+| 2026-07-18 | Phase 1 exact normal profile | passed | 2,758 passed, one skipped, 57 deselected, 19 warnings, and 52.13% coverage in 571.62 seconds. |
 
 ## Manual Or External Verification
 
@@ -119,8 +122,7 @@ release artifacts must be linked here before release readiness can be approved.
 
 ## Residual Risks
 
-- The corrected normal profile passes locally, but hosted CI and the provisioned
-  MinIO profile remain unproved until T002-T003.
+- Both profiles pass locally, but hosted CI remains unproved until T003.
 - Future marker drift could change profile ownership; the T001 contract test
   guards the intended four live nodes and mocked-test placement.
 - Stress thresholds can remain host-sensitive until T004 evidence is accepted.
