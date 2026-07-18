@@ -618,7 +618,7 @@ retention = int(prompt_service.prompt_text(
 
 ## Related Documentation
 
-- [Active CLI Consolidation Spec](../specs/001-cli-consolidation-stabilization/requirements.md)
+- [Service Layer Integration Guide](./service-layer-integration.md)
 - [OutputFormatter Implementation](./output-formatter.md)
 - [ProgressService Implementation](./progress-service.md)
 

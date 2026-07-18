@@ -577,4 +577,4 @@ Potential future improvements:
 
 ## Related Documentation
 
-- [Active CLI Consolidation Spec](../specs/001-cli-consolidation-stabilization/requirements.md)
+- [Service Layer Integration Guide](./service-layer-integration.md)

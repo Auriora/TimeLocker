@@ -432,4 +432,4 @@ If you encounter issues during migration:
 
 - [Service Layer Integration Guide](../../3-implementation/service-layer-integration.md)
 - [Service Facade Implementation](../../3-implementation/service-facade.md)
-- [CLI Consolidation Stabilization](../../specs/001-cli-consolidation-stabilization/requirements.md)
+- [Repository Orientation and Change Map](../../reference/repo-orientation-and-change-map.md)

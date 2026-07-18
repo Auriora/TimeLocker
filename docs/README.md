@@ -31,9 +31,12 @@ integration workflows. The CLI is the supported user interface. There is no
 implemented REST API, database-backed application store, desktop GUI, or
 mobile client.
 
-The current delivery focus is CLI consolidation and stabilization. GitHub owns
-assignment and issue status; [Spec 001](./specs/001-cli-consolidation-stabilization/requirements.md)
-owns that product scope and is ready to resume at T005.
+The CLI consolidation and stabilization package is complete. Its accepted
+service and ownership boundaries are documented in the
+[Service Layer Integration Guide](./3-implementation/service-layer-integration.md)
+and [Repository Orientation and Change Map](./reference/repo-orientation-and-change-map.md).
+GitHub owns assignment and issue status; the [active-spec index](./specs/README.md)
+lists any governed delivery work.
 
 ## Documentation Map
 

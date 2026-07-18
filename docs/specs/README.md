@@ -15,14 +15,12 @@ accepted content has been promoted and the package is closed.
 
 ## Current Packages
 
-- [`001-cli-consolidation-stabilization`](./001-cli-consolidation-stabilization/requirements.md) —
-  remaining CLI consolidation work; reconciled and ready to resume at T005.
+None.
 
 ## Active-Package Sequencing
 
-Spec 001 is the sole active package and may resume at T005. Closed package
-identity and recovery commits are recorded in `docs/history/` rather than kept
-in this active documentation path.
+There are no active packages. Closed package identity and recovery commits are
+recorded in `docs/history/` rather than kept in this active documentation path.
 
 ## When a Spec Is Needed
 

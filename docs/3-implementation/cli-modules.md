@@ -2,7 +2,7 @@
 
 **Last Updated**: 2025-11-13
 **Status**: Active Development
-**Related**: [CLI Consolidation Stabilization](../specs/001-cli-consolidation-stabilization/requirements.md), [Command Registry API](command-registry-api.md)
+**Related**: [Service Layer Integration Guide](./service-layer-integration.md), [Command Registry API](command-registry-api.md)
 
 Modular command-line interface for TimeLocker backup operations.
 
@@ -360,7 +360,8 @@ The `testing/` directory provides testing utilities:
 - ✅ **Phase 3**: Command registry and plugin system implemented
 - ✅ **Infrastructure**: Services, validation, and testing frameworks added
 
-See [CLI Consolidation Stabilization](../specs/001-cli-consolidation-stabilization/requirements.md) for remaining governed work.
+Current command/service ownership boundaries are documented in the
+[Service Layer Integration Guide](./service-layer-integration.md).
 
 ## Contributing
 
@@ -374,5 +375,5 @@ When adding new commands or helpers:
 
 ## Resources
 
-- [CLI Consolidation Stabilization](../specs/001-cli-consolidation-stabilization/requirements.md)
+- [Repository Orientation and Change Map](../reference/repo-orientation-and-change-map.md)
 - [Coding Standards](../guides/ai-agent/AGENT-GUIDE-Coding-Standards.md)

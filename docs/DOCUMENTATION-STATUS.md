@@ -30,8 +30,10 @@ approved active spec.
 ## Current Work
 
 - GitHub is authoritative for issue assignment and state.
-- [Spec 001](./specs/001-cli-consolidation-stabilization/requirements.md) is
-  authoritative for CLI consolidation and stabilization and may resume at T005.
+- The CLI consolidation and stabilization package is closed; accepted service
+  and ownership boundaries are in the
+  [Service Layer Integration Guide](./3-implementation/service-layer-integration.md)
+  and [Repository Orientation and Change Map](./reference/repo-orientation-and-change-map.md).
 - [The active-spec index](./specs/README.md) lists all current delivery packages.
 
 ## Documentation Health

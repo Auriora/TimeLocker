@@ -15,6 +15,34 @@ final spec commit preserves the complete package.
 
 ## Entries
 
+### 2026-07-18 - 001-cli-consolidation-stabilization
+
+- **Spec:** removed; recover from Git
+- **Title:** CLI Consolidation Stabilization
+- **Final spec commit:** `a1bb654`
+- **Closure cleanup commit:** pending
+- **Closure action:** removed
+- **Closed by:** Auriora Team
+- **Durable docs updated:** `docs/3-implementation/service-layer-integration.md`,
+  `docs/reference/repo-orientation-and-change-map.md`, current implementation
+  and developer-guide links, `docs/README.md`, `docs/DOCUMENTATION-STATUS.md`,
+  and `docs/specs/README.md`
+- **Verification summary:** T005, T006, and T007 focused validation passed 87,
+  50, and 35 tests respectively. The configured regression run passed 2,801
+  tests with 1 skip and 52.45% coverage after six instrumentation-sensitive
+  timing benchmarks were isolated; all six passed without coverage. One
+  unchanged long-running stress throughput threshold was explicitly waived
+  under heavy unrelated host load. Lifecycle lint, task audit, and evidence
+  quality had zero diagnostics; all 34 evidence records were concrete or
+  explicitly waived; closure risk was low and readiness had zero blockers.
+- **Residual risks:** Hidden external facade consumers, backend-specific
+  repository resolution, optional monitoring integrations, and host-sensitive
+  timing thresholds remain. Public compatibility seams and the monitoring
+  integration bridge were retained to constrain those risks.
+- **Follow-up:** Recalibrate or isolate the long-running selection stress
+  threshold through test-infrastructure intake before treating it as a release
+  gate.
+
 ### 2026-07-18 - 002-repository-safety-release-readiness
 
 - **Spec:** removed; recover from Git
@@ -159,7 +187,7 @@ final spec commit preserves the complete package.
 - **Closure action:** removed
 - **Closed by:** Auriora Team
 - **Durable docs updated:**
-  - `docs/specs/001-cli-consolidation-stabilization/requirements.md`
+  - `docs/3-implementation/service-layer-integration.md`
   - `docs/history/spec-archive-index.md`
 - **Verification summary:** Active tasks and completed evidence were mapped into
   Spec 001; Git preserves the removed source plan.
