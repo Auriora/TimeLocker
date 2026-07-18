@@ -17,7 +17,7 @@ last_reviewed: 2026-07-18
 | Package lifecycle baseline | pass | Lint clean; every readiness gap count is 0. |
 | Skill implementation | pass | Durable skill package and `AGENTS.md` routing exist. |
 | Skill validation and exercise | pass | Validator, assertions, and read-only fingerprint check passed. |
-| Durable promotion and closure | pending | T004. |
+| Durable promotion and closure | pass | Durable targets exist; removal and history metadata prepared. |
 
 ## Validation Plan
 
@@ -52,9 +52,10 @@ last_reviewed: 2026-07-18
 - **Durable skill:** `.agents/skills/review-timelocker/`
 - **Durable routing:** `AGENTS.md`
 - **Cleanup action:** remove
-- **Final active-state commit:** pending
-- **Closure cleanup commit:** pending
-- **Ready for closure:** no
+- **Implementation commit:** `0e10ec0`
+- **Final active-state commit:** recorded in durable history after creation
+- **Closure cleanup commit:** recorded after package removal
+- **Ready for closure:** yes
 
 ## Related Artifacts
 

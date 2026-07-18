@@ -61,23 +61,31 @@ T001 -> T002 -> T003 -> T004
     relevant roles, recorded two out-of-scope lenses, emitted no actionable
     findings, and preserved the Git status fingerprint.
 
-- [~] T004 Promote routing, finalize evidence, and close Spec 006.
+- [x] T004 Promote routing, finalize evidence, and close Spec 006.
   - Depends on: T003
   - Requirements: Requirement 3, Requirement 4, CP-004, SC-004
   - Files: `AGENTS.md`, lifecycle index and history, Spec 006
   - Acceptance: Durable skill routing is discoverable, Spec 001 remains ready,
     final package state is committed, and Spec 006 is removed with closure evidence.
   - Evidence mode: validation
-  - Evidence: Durable routing added to `AGENTS.md`; final validation and closure
-    evidence collection is underway.
+  - Evidence: Commit `0e10ec0` preserves the durable skill, agent routing, all
+    six package artifacts, and validation evidence; lifecycle checks pass,
+    removal metadata is prepared, and Spec 001 remains ready at T005.
   - [x] T004.1 Run final Markdown, link, Git, skill, and lifecycle checks.
     - Evidence mode: validation
     - Evidence: `quick_validate.py`, metadata/reference assertions,
       `python scripts/link_checker.py`, `git diff --check`, Spec 006
       `lint_spec_package`, and Spec 001 `active_spec_preflight` passed; the
       visible-document Markdown check had no structure or link errors.
-  - [ ] T004.2 Commit the complete final active package state.
-  - [ ] T004.3 Remove the package and record lifecycle history.
+  - [x] T004.2 Commit the complete final active package state.
+    - Evidence mode: implementation
+    - Evidence: Commit `0e10ec0` contains the durable skill, routing, active
+      package, and the completed T001-T003 evidence before cleanup.
+  - [x] T004.3 Remove the package and record lifecycle history.
+    - Evidence mode: implementation
+    - Evidence: `promotion_plan` returned `missing_targets=[]`; change impact
+      and verification map removal to `docs/history/spec-closure-log.md` and
+      `docs/history/spec-archive-index.md`; `archive_index` had 0 diagnostics.
 
 ## Execution Rules
 
