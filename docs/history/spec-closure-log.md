@@ -20,7 +20,7 @@ final spec commit preserves the complete package.
 - **Spec:** removed; recover from Git
 - **Title:** Project Charter
 - **Final spec commit:** `ad96064`
-- **Closure cleanup commit:** pending metadata follow-up
+- **Closure cleanup commit:** `efafc2b`
 - **Closure action:** removed
 - **Closed by:** Auriora Team
 - **Durable docs updated:** `CHARTER.md`, `README.md`, `docs/README.md`,
