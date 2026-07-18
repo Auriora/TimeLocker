@@ -20,7 +20,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
 
 ## Phase 1: Restore Trustworthy Validation
 
-- [ ] T001 Classify live MinIO tests and repair normal CI ownership.
+- [x] T001 Classify live MinIO tests and repair normal CI ownership.
   - Depends on: none
   - Requirement: Requirement 1
   - Acceptance Criteria: Requirement 1 AC1, AC4, AC5, AC6
@@ -33,11 +33,28 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
     remain in normal CI; every intended node is accounted for.
   - Validation: Complete and partitioned collection, focused mocked tests,
     `pytest -m "not performance and not stress and not minio"`.
-  - Evidence: Pending.
-  - [ ] T001.1 Capture complete, normal, MinIO, performance, and stress collections and failing-run evidence.
-  - [ ] T001.2 Register `minio` and mark only tests that contact the live service.
-  - [ ] T001.3 Move configuration and network access from import/collection into fixtures or runtime preflight.
-  - [ ] T001.4 Prove mocked MinIO contract tests remain in normal CI and collection nodes are not lost.
+  - Evidence: `.github/workflows/test-suite.yml:69` owns the corrected CI
+    selector. Its local execution produced 2,754 successful tests and 52.13%
+    coverage. Collection found 2,812 nodes: 2,755 in the CI profile, 53 in the
+    performance/stress profile, and four in the live MinIO profile.
+  - Status: Complete on 2026-07-18; provisioned live-service execution remains T002.
+  - Evidence mode: implementation
+  - [x] T001.1 Capture complete, normal, MinIO, performance, and stress collections and failing-run evidence.
+    - Evidence: Full collection found 2,812 nodes; selector counts were 2,755,
+      53, and four respectively. GitHub Actions run 29653160911 recorded the
+      original one failure and four setup errors.
+  - [x] T001.2 Register `minio` and mark only tests that contact the live service.
+    - Evidence: `pyproject.toml` registers `minio`; contract test
+      `test_only_live_service_tests_use_minio_marker` passed for the four named
+      live-service nodes.
+  - [x] T001.3 Move configuration and network access from import/collection into fixtures or runtime preflight.
+    - Evidence: Clean-environment collection reported `4/2812`; runtime fixtures
+      at `tests/TimeLocker/integration/test_s3_minio.py:45` and line 58 load
+      settings and perform reachability checks.
+  - [x] T001.4 Prove mocked MinIO contract tests remain in normal CI and collection nodes are not lost.
+    - Evidence: `test_mocked_minio_contracts_remain_in_normal_profile` passed;
+      the focused profile produced nine successful tests, and the full profile
+      produced 2,754 successful tests at 52.13% coverage.
 
 - [ ] T002 Add and validate the provisioned MinIO profile.
   - Depends on: T001

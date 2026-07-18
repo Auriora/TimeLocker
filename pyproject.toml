@@ -139,6 +139,7 @@ markers = [
     "critical: Critical path tests that must pass",
     "slow: Tests that take a long time to run",
     "network: Tests that require network access",
+    "minio: Tests that contact a live, explicitly provisioned MinIO service",
     "filesystem: Tests that interact with the filesystem",
     "backup: Tests related to backup operations",
     "restore: Tests related to restore operations",

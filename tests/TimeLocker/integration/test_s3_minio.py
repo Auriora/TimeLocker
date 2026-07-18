@@ -15,7 +15,6 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
-import os
 import shutil
 import tempfile
 from pathlib import Path
@@ -27,47 +26,64 @@ from TimeLocker.backup_target import BackupTarget
 from TimeLocker.file_selections import FileSelection, SelectionType
 from TimeLocker.restic.Repositories.s3 import S3ResticRepository
 from TimeLocker.restic.restic_repository import RepositoryError
-from .minio_test_utils import load_minio_settings, ensure_minio_reachable
+from .minio_test_utils import ensure_minio_reachable, load_minio_settings
 
-_MINIO_SETTINGS, _MISSING_KEYS = load_minio_settings(require_credentials=True)
+pytestmark = pytest.mark.integration
 
-if _MISSING_KEYS:
-    missing_list = ", ".join(_MISSING_KEYS)
-    raise RuntimeError(
-            f"MinIO integration tests cannot run: missing configuration for {missing_list}. "
-            f"Set environment variables or update your test-config.json."
-    )
+SYNTHETIC_ENDPOINT_URL = "https://minio.invalid:9000"
+SYNTHETIC_ACCESS_KEY = "test-access"
+SYNTHETIC_SECRET_KEY = "test-secret"
+SYNTHETIC_BUCKET = "timelocker-test"
+SYNTHETIC_REGION = "us-east-1"
 
-MINIO_ENDPOINT_HOST = _MINIO_SETTINGS["MINIO_ENDPOINT_HOST"]
-MINIO_ENDPOINT_URL = _MINIO_SETTINGS["MINIO_ENDPOINT_URL"]
-MINIO_ACCESS_KEY = _MINIO_SETTINGS["MINIO_ACCESS_KEY"]
-MINIO_SECRET_KEY = _MINIO_SETTINGS["MINIO_SECRET_KEY"]
-MINIO_BUCKET = _MINIO_SETTINGS["MINIO_BUCKET"]
-MINIO_REGION = _MINIO_SETTINGS["MINIO_REGION"]
-MINIO_URI_PREFIX = _MINIO_SETTINGS["MINIO_URI_PREFIX"]
-MINIO_VERIFY_SSL_VALUE = str(_MINIO_SETTINGS.get("MINIO_VERIFY_SSL", "true")).lower()
-MINIO_VERIFY_SSL = MINIO_VERIFY_SSL_VALUE not in {"0", "false", "no"}
+
+def _verify_ssl(settings: dict[str, str]) -> bool:
+    value = str(settings.get("MINIO_VERIFY_SSL", "true")).lower()
+    return value not in {"0", "false", "no"}
 
 
 @pytest.fixture(scope="session")
-def minio_available() -> bool:
+def minio_settings() -> dict[str, str]:
+    """Load and validate live MinIO settings when a live test starts."""
+    settings, missing = load_minio_settings(require_credentials=True)
+    if missing:
+        pytest.fail(
+            "MinIO profile dependency error: missing configuration for "
+            + ", ".join(missing)
+            + ". Set environment variables or provide a test configuration."
+        )
+    return settings
+
+
+@pytest.fixture(scope="session")
+def minio_available(minio_settings: dict[str, str]) -> bool:
     """
     Check if MinIO is available for testing.
 
     This is a session-scoped fixture to avoid repeated connection attempts.
-    Returns True if MinIO is available, otherwise skips all tests that depend on it.
+    Returns True if MinIO is available; otherwise fails with a dependency error.
     """
     try:
-        ensure_minio_reachable(MINIO_ENDPOINT_URL, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_REGION, MINIO_VERIFY_SSL)
+        ensure_minio_reachable(
+            minio_settings["MINIO_ENDPOINT_URL"],
+            minio_settings["MINIO_ACCESS_KEY"],
+            minio_settings["MINIO_SECRET_KEY"],
+            minio_settings["MINIO_REGION"],
+            _verify_ssl(minio_settings),
+        )
         return True
     except Exception as e:
-        raise RuntimeError(f"MinIO not available: {e}")
+        pytest.fail(f"MinIO profile dependency error: service is unavailable: {e}")
 
 
 @pytest.fixture
-def test_repo_path() -> Generator[str, None, None]:
+def test_repo_path(
+    minio_settings: dict[str, str],
+    minio_available: bool,
+) -> Generator[str, None, None]:
     """Create a unique test repository path in MinIO bucket."""
     import uuid
+
     test_id = str(uuid.uuid4())[:8]
     repo_path = f"test-repo-{test_id}"
     yield repo_path
@@ -75,25 +91,27 @@ def test_repo_path() -> Generator[str, None, None]:
     # Cleanup: Remove test repository from MinIO
     try:
         import boto3
-        verify = MINIO_VERIFY_SSL
+
         s3_client = boto3.client(
-                's3',
-                endpoint_url=MINIO_ENDPOINT_URL,
-                aws_access_key_id=MINIO_ACCESS_KEY,
-                aws_secret_access_key=MINIO_SECRET_KEY,
-                region_name=MINIO_REGION,
-                verify=verify,
+            "s3",
+            endpoint_url=minio_settings["MINIO_ENDPOINT_URL"],
+            aws_access_key_id=minio_settings["MINIO_ACCESS_KEY"],
+            aws_secret_access_key=minio_settings["MINIO_SECRET_KEY"],
+            region_name=minio_settings["MINIO_REGION"],
+            verify=_verify_ssl(minio_settings),
         )
 
         # List and delete all objects in the test path
-        paginator = s3_client.get_paginator('list_objects_v2')
-        for page in paginator.paginate(Bucket=MINIO_BUCKET, Prefix=repo_path):
-            if 'Contents' in page:
-                objects = [{'Key': obj['Key']} for obj in page['Contents']]
+        paginator = s3_client.get_paginator("list_objects_v2")
+        for page in paginator.paginate(
+            Bucket=minio_settings["MINIO_BUCKET"], Prefix=repo_path
+        ):
+            if "Contents" in page:
+                objects = [{"Key": obj["Key"]} for obj in page["Contents"]]
                 if objects:
                     s3_client.delete_objects(
-                            Bucket=MINIO_BUCKET,
-                            Delete={'Objects': objects}
+                        Bucket=minio_settings["MINIO_BUCKET"],
+                        Delete={"Objects": objects},
                     )
     except Exception as e:
         print(f"Warning: Failed to cleanup test repository: {e}")
@@ -119,21 +137,41 @@ def temp_backup_source() -> Generator[Path, None, None]:
 
 
 @pytest.fixture
-def s3_repository(test_repo_path: str, minio_available: bool) -> S3ResticRepository:
-    """Create an S3 repository instance configured for MinIO."""
-    # MinIO location format
-    location = f"{MINIO_URI_PREFIX}/{MINIO_BUCKET}/{test_repo_path}"
+def s3_repository(monkeypatch: pytest.MonkeyPatch) -> S3ResticRepository:
+    """Create a repository for configuration-only tests without live I/O."""
+    location = f"s3:minio.invalid:9000/{SYNTHETIC_BUCKET}/configuration-test"
+    monkeypatch.setenv("AWS_S3_ENDPOINT", SYNTHETIC_ENDPOINT_URL)
 
     repo = S3ResticRepository(
-            location=location,
-            password="test-password-123",
-            aws_access_key_id=MINIO_ACCESS_KEY,
-            aws_secret_access_key=MINIO_SECRET_KEY,
-            aws_default_region=MINIO_REGION
+        location=location,
+        password="test-password-123",
+        aws_access_key_id=SYNTHETIC_ACCESS_KEY,
+        aws_secret_access_key=SYNTHETIC_SECRET_KEY,
+        aws_default_region=SYNTHETIC_REGION,
     )
+    return repo
 
-    # Set MinIO endpoint in environment for restic
-    os.environ['AWS_S3_ENDPOINT'] = MINIO_ENDPOINT_URL
+
+@pytest.fixture
+def live_s3_repository(
+    test_repo_path: str,
+    minio_settings: dict[str, str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> S3ResticRepository:
+    """Create an S3 repository backed by the provisioned MinIO service."""
+    location = (
+        f"{minio_settings['MINIO_URI_PREFIX']}/"
+        f"{minio_settings['MINIO_BUCKET']}/{test_repo_path}"
+    )
+    monkeypatch.setenv("AWS_S3_ENDPOINT", minio_settings["MINIO_ENDPOINT_URL"])
+
+    repo = S3ResticRepository(
+        location=location,
+        password="test-password-123",
+        aws_access_key_id=minio_settings["MINIO_ACCESS_KEY"],
+        aws_secret_access_key=minio_settings["MINIO_SECRET_KEY"],
+        aws_default_region=minio_settings["MINIO_REGION"],
+    )
 
     return repo
 
@@ -144,62 +182,59 @@ def _make_backup_target(path: Path, *tags: str) -> BackupTarget:
     return BackupTarget(selection=selection, tags=list(tags))
 
 
-@pytest.mark.integration
-@pytest.mark.network
 def test_s3_repository_initialization(s3_repository: S3ResticRepository):
     """Test S3 repository initialization with MinIO."""
     assert s3_repository is not None
-    assert s3_repository.aws_access_key_id == MINIO_ACCESS_KEY
-    assert s3_repository.aws_secret_access_key == MINIO_SECRET_KEY
-    assert s3_repository.aws_default_region == MINIO_REGION
+    assert s3_repository.aws_access_key_id == SYNTHETIC_ACCESS_KEY
+    assert s3_repository.aws_secret_access_key == SYNTHETIC_SECRET_KEY
+    assert s3_repository.aws_default_region == SYNTHETIC_REGION
 
 
-@pytest.mark.integration
-@pytest.mark.network
 def test_s3_backend_env(s3_repository: S3ResticRepository):
     """Test that backend environment variables are correctly set."""
     env = s3_repository.backend_env()
 
     assert "AWS_ACCESS_KEY_ID" in env
-    assert env["AWS_ACCESS_KEY_ID"] == MINIO_ACCESS_KEY
+    assert env["AWS_ACCESS_KEY_ID"] == SYNTHETIC_ACCESS_KEY
     assert "AWS_SECRET_ACCESS_KEY" in env
-    assert env["AWS_SECRET_ACCESS_KEY"] == MINIO_SECRET_KEY
+    assert env["AWS_SECRET_ACCESS_KEY"] == SYNTHETIC_SECRET_KEY
     assert "AWS_DEFAULT_REGION" in env
-    assert env["AWS_DEFAULT_REGION"] == MINIO_REGION
+    assert env["AWS_DEFAULT_REGION"] == SYNTHETIC_REGION
 
 
-@pytest.mark.integration
 @pytest.mark.network
-def test_s3_repository_init_and_check(s3_repository: S3ResticRepository):
+@pytest.mark.minio
+def test_s3_repository_init_and_check(live_s3_repository: S3ResticRepository):
     """Test initializing a repository in MinIO and checking it."""
-    assert s3_repository.initialize() is True
-    assert s3_repository.is_repository_initialized()
-    assert s3_repository.check() is True
+    assert live_s3_repository.initialize() is True
+    assert live_s3_repository.is_repository_initialized()
+    assert live_s3_repository.check() is True
 
 
-@pytest.mark.integration
 @pytest.mark.network
+@pytest.mark.minio
 def test_s3_backup_and_restore(
-        s3_repository: S3ResticRepository,
-        temp_backup_source: Path
+    live_s3_repository: S3ResticRepository, temp_backup_source: Path
 ):
     """Test complete backup and restore workflow with MinIO."""
-    s3_repository.initialize()
+    live_s3_repository.initialize()
     target = _make_backup_target(temp_backup_source, "test", "integration")
-    backup_result = s3_repository.backup_target([target])
+    backup_result = live_s3_repository.backup_target([target])
     assert backup_result is not None
 
-    snapshots = s3_repository.snapshots()
+    snapshots = live_s3_repository.snapshots()
     assert snapshots, "Expected at least one snapshot after backup"
     latest_snapshot = snapshots[0]
 
     restore_dir = Path(tempfile.mkdtemp(prefix="timelocker_restore_"))
     try:
-        s3_repository.restore(latest_snapshot.id, restore_dir)
+        live_s3_repository.restore(latest_snapshot.id, restore_dir)
 
         def _find_file(name: str) -> Path:
             match = next((candidate for candidate in restore_dir.rglob(name)), None)
-            assert match is not None, f"Expected restored file '{name}' not found under {restore_dir}"
+            assert (
+                match is not None
+            ), f"Expected restored file '{name}' not found under {restore_dir}"
             return match
 
         restored_file1 = _find_file("file1.txt")
@@ -214,51 +249,61 @@ def test_s3_backup_and_restore(
         shutil.rmtree(restore_dir, ignore_errors=True)
 
 
-@pytest.mark.integration
 @pytest.mark.network
+@pytest.mark.minio
 def test_s3_multiple_backups(
-        s3_repository: S3ResticRepository,
-        temp_backup_source: Path
+    live_s3_repository: S3ResticRepository, temp_backup_source: Path
 ):
     """Test multiple backups to track incremental changes."""
-    s3_repository.initialize()
-    s3_repository.backup_target([_make_backup_target(temp_backup_source, "backup1")])
+    live_s3_repository.initialize()
+    live_s3_repository.backup_target(
+        [_make_backup_target(temp_backup_source, "backup1")]
+    )
 
     (temp_backup_source / "file1.txt").write_text("Modified content 1")
     (temp_backup_source / "new_file.txt").write_text("New file content")
 
-    s3_repository.backup_target([_make_backup_target(temp_backup_source, "backup2")])
+    live_s3_repository.backup_target(
+        [_make_backup_target(temp_backup_source, "backup2")]
+    )
 
-    snapshots = s3_repository.snapshots()
+    snapshots = live_s3_repository.snapshots()
     assert len(snapshots) >= 2
 
-    tags_found = {tag for snapshot in snapshots for tag in getattr(snapshot, "tags", []) or []}
+    tags_found = {
+        tag for snapshot in snapshots for tag in getattr(snapshot, "tags", []) or []
+    }
     assert {"backup1", "backup2"} & tags_found
 
 
-@pytest.mark.integration
 @pytest.mark.network
-def test_s3_repository_stats(s3_repository: S3ResticRepository, temp_backup_source: Path):
+@pytest.mark.minio
+def test_s3_repository_stats(
+    live_s3_repository: S3ResticRepository, temp_backup_source: Path
+):
     """Test retrieving repository statistics."""
-    s3_repository.initialize()
-    s3_repository.backup_target([_make_backup_target(temp_backup_source)])
-    stats = s3_repository.stats()
+    live_s3_repository.initialize()
+    live_s3_repository.backup_target([_make_backup_target(temp_backup_source)])
+    stats = live_s3_repository.stats()
     assert isinstance(stats, dict) and stats
 
 
-@pytest.mark.integration
-@pytest.mark.network
 def test_s3_missing_credentials_error(monkeypatch):
     """Test that missing credentials raise appropriate errors."""
-    for key in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "MINIO_ACCESS_KEY", "MINIO_SECRET_KEY"):
+    for key in (
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "MINIO_ACCESS_KEY",
+        "MINIO_SECRET_KEY",
+    ):
         monkeypatch.delenv(key, raising=False)
 
-    location = f"{MINIO_URI_PREFIX}/{MINIO_BUCKET}/test"
+    location = f"s3:minio.invalid:9000/{SYNTHETIC_BUCKET}/test"
 
     repo = S3ResticRepository(
-            location=location,
-            password="test-password"
-            # No credentials provided
+        location=location,
+        password="test-password",
+        # No credentials provided
     )
 
     with pytest.raises(RepositoryError) as exc_info:
