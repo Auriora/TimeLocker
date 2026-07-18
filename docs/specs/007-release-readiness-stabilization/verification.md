@@ -11,7 +11,7 @@ last_reviewed: 2026-07-18
 
 ## Scope
 
-This record covers Spec 007 requirements R1-R5 and tasks T001-T010. It records
+This record covers Spec 007 requirements R1-R5 and tasks T001-T013. It records
 release-preparation evidence only; creating a production tag or release requires
 separate explicit approval.
 
@@ -19,114 +19,125 @@ separate explicit approval.
 
 | Gate | Required? | Status | Evidence |
 |------|-----------|--------|----------|
-| Requirements acceptance criteria reviewed | yes | passed | Lifecycle stage readiness reports all 20 acceptance criteria explicitly covered. |
-| Task evidence complete | yes | pending | T001-T010 pending. |
+| Acceptance traceability complete | yes | passed | Lifecycle stage readiness reports zero acceptance, property, context, downstream-review, or blocking gaps after reconciliation. |
+| Substantive requirements and design review | yes | passed | Review on 2026-07-18 produced TLR-001 through TLR-006; all six findings were reconciled into the package before implementation. |
+| Task evidence complete | yes | pending | T001-T013 pending. |
 | Normal and dependency-owning test profiles pass | yes | pending | Current normal run 29653160911 fails on unavailable MinIO. |
-| Stress signal disposition recorded | yes | pending | GitHub issue #68. |
-| Artifacts and clean installs validate | yes | pending | T006-T008. |
-| Release workflow rehearsed without publication | yes | pending | T009. |
-| Durable documentation promoted | yes | pending | Promotion table below. |
-| Lifecycle checks and expert review pass | yes | pending | T010. |
+| Stress implementation and disposition recorded | yes | pending | T004 and GitHub issue #68. |
+| Artifacts and six-combination clean installs validate | yes | pending | T006-T008. |
+| Release interface and rehearsal prove no publication side effect | yes | pending | T009-T010. |
+| Durable documentation and communications promoted | yes | pending | T011-T012 and promotion table below. |
+| Final lifecycle checks and expert review pass | yes | pending | T013; package-creation review does not replace final implementation review. |
 
-## Validation Commands
+## Validation Commands And Methods
 
-| Command | Purpose | Result | Evidence |
-|---------|---------|--------|----------|
-| `python -m pytest -m "not performance and not stress"` | Normal correctness and coverage profile | blocked | GitHub run 29653160911: MinIO unavailable; 1 failed, 1310 passed, 53 deselected, 4 errors before stop. |
-| `python -m pytest --collect-only -q ...` | Compare normal and MinIO-owned collections | pending | T001. |
-| explicit provisioned MinIO pytest command | Validate S3 integration and dependency preflight | pending | T002. |
-| `python -m pytest -m "performance or stress" --no-cov` | Extended performance and stress profile | pending | T004 and issue #68. |
-| `python -m build` | Build sdist and wheel | pending | T006. |
-| version and metadata guard | Prove CP-002 | pending | T006. |
-| wheel and sdist clean-install matrix | Prove CP-003 and platform claims | pending | T007. |
-| non-publishing release rehearsal | Prove CP-004 | pending | T009. |
-| repository link check and `git diff --check` | Validate documentation and patch hygiene | pending | T010. |
+| Command Or Method | Purpose | Result | Evidence |
+|-------------------|---------|--------|----------|
+| `python -m pytest -m "not performance and not stress and not minio"` | Normal correctness and coverage profile | pending | Replaces current failing selector in T001. |
+| complete collection compared with normal, `minio`, performance, and stress selections | Prove collection safety and node ownership | pending | T001-T003. |
+| `python -m pytest -m minio` with provisioned service | Validate live S3 integration and dependency preflight | pending | T002. |
+| `python -m pytest -m "performance or stress" --no-cov` | Extended performance and stress profile | pending | T004 and issue #68; final evidence must explain the coverage exception for this opt-in profile. |
+| `python scripts/bump_version.py bump patch --no-commit --no-tag` plus pre/post commit, tag, tag-triggered release-workflow run, and release identity | Prepare `0.9.1` without publication side effects | pending | T006. |
+| `python -m build`, version guard, metadata inspection, and SHA-256 generation | Build and prove artifact identity | pending | T006. |
+| wheel and sdist smoke installs on Linux, macOS, and Windows for Python 3.12 and 3.13 | Prove CP-003 and all declared support claims | pending | T007 six-combination matrix. |
+| safe pre-tag interface tests and non-publishing rehearsal | Prove CP-004, including failure paths and unchanged external state | pending | T009-T010. |
+| repository Markdown/link checks and `git diff --check` | Validate specification and durable-doc hygiene | pending | Package reconciliation and T011-T013. |
 
 ## Requirement Coverage
 
-| Requirement | Acceptance criteria covered | Evidence | Residual risk |
-|-------------|-----------------------------|----------|---------------|
-| R1 | AC1-AC4 | T001-T003 pending; failing run captured | Profile changes may hide tests unless collection is compared. |
-| R2 | AC1-AC3 | Issue #68 and T004-T005 pending | Host variance. |
-| R3 | AC1-AC4 | T006-T008 pending | Tag-only workflow behavior remains unreleased. |
-| R4 | AC1-AC4 | T007-T008 pending | OS runner availability. |
-| R5 | AC1-AC5 | T009-T010 pending | Human operator error at first actual tag. |
+| Requirement | Acceptance Criteria Covered | Evidence | Residual Risk |
+|-------------|------------------------------|----------|---------------|
+| R1 | AC1-AC6 | T001-T003 pending; failing run captured | Marker or collection drift could hide tests. |
+| R2 | AC1-AC4 | Spec-owned T004-T005 and issue #68 pending | Host variance. |
+| R3 | AC1-AC5 | T006 and T008 pending | Side-effecting defaults must remain disabled. |
+| R4 | AC1-AC5 | T007-T008 and T011 pending | Unavailable runner blocks the associated support claim. |
+| R5 | AC1-AC6 | T009-T013 pending | Human operator error at first actual tag. |
 
 ## Correctness Property Coverage
 
-| Property | Covered by | Evidence | Residual risk |
+| Property | Covered By | Evidence | Residual Risk |
 |----------|------------|----------|---------------|
-| CP-001 | T001-T003, collection and workflow runs | pending | Marker drift. |
+| CP-001 | T001-T003, collection partition and workflow runs | pending | Marker drift. |
 | CP-002 | T006 version guard and negative test | pending | None expected after automated guard. |
-| CP-003 | T007 clean artifact matrix | pending | Platform scope must be explicit. |
-| CP-004 | T009 side-effect review and rehearsal | pending | External publication remains human-controlled. |
-| CP-005 | T009 documentation review | pending | Review quality. |
+| CP-003 | T007 six-combination artifact matrix | pending | Runner availability is a blocking support gap. |
+| CP-004 | T006, T008-T010, and T013 external-state comparisons | pending | Actual tag behavior remains separately controlled. |
+| CP-005 | T012-T013 changelog and derived release-body review | pending | Review quality. |
 
 ## Agent Readiness Evidence
 
-| Field | Evidence | Residual risk |
+| Field | Evidence | Residual Risk |
 |-------|----------|---------------|
 | Scope and out-of-scope files | Requirements goals, non-goals, change impact, and task file lists | Newly discovered release blockers require reconciliation. |
-| Must-read and optional context | Full Spec 007 package, `CHARTER.md`, workflows, metadata, install and process docs, issue #68 | GitHub evidence can change. |
-| Permissions and approval points | Branch work approved; tag, GitHub release, and PyPI publication excluded pending separate approval | Do not infer release authority. |
-| Validation commands and expected signals | Validation table plus task-specific commands | Exact MinIO command is resolved in T002. |
-| Review needs | CI, packaging, security, operations, and documentation review at T010 | Human release decision remains. |
+| Must-read and optional context | Full Spec 007 package, `CHARTER.md`, workflows, metadata, version helper/config, install and process docs, issue #68 | GitHub evidence can change. |
+| Permissions and approval points | Branch work approved; task commits require explicit commit instruction; tag, GitHub release, and PyPI publication require separate release approval | Do not infer publication authority. |
+| Validation commands and expected signals | Validation table plus task-specific commands | Hosted services and runners remain external. |
+| Review needs | CI, packaging, security, operations, and documentation review at T013 | Human release decision remains. |
 | Durable-doc or closure impact | Promotion table and `change-impact.md` | Package cannot close before promotion. |
-| Optional repo-evidence provider caveats | Agent Workbench returned stale deleted-plan paths during intake; direct repository evidence is authoritative | Recheck provider before relying on suggestions. |
+| Optional repo-evidence provider caveats | Agent Workbench routing is advisory and has stale deleted-path candidates; direct repository and lifecycle evidence are authoritative | Recheck provider before relying on suggestions. |
 
 ## Task Evidence
 
 | Task ID | Status | Evidence | Notes |
 |---------|--------|----------|-------|
-| T001 | pending | Failing CI root cause captured | Implementation not started. |
-| T002 | pending | | |
-| T003 | pending | | |
-| T004 | pending | GitHub issue #68 created and assigned | Issue implementation remains pending. |
-| T005 | pending | | |
-| T006 | pending | | |
-| T007 | pending | | |
-| T008 | pending | | |
-| T009 | pending | | |
-| T010 | pending | | |
+| T001 | pending | Failing CI root cause captured | Live-versus-mocked classification and collection safety pending. |
+| T002 | pending | | Provisioned profile pending. |
+| T003 | pending | | CI checkpoint pending. |
+| T004 | pending | GitHub issue #68 created and assigned | Spec owns implementation; issue tracks state and evidence. |
+| T005 | pending | | Prerequisite checkpoint pending. |
+| T006 | pending | Side-effecting helper defaults identified | Safe bump, artifact, and external-state evidence pending. |
+| T007 | pending | Six-combination contract defined | Artifact matrix pending. |
+| T008 | pending | | Artifact checkpoint pending. |
+| T009 | pending | | Safe pre-tag interface pending. |
+| T010 | pending | | Non-publishing rehearsal pending. |
+| T011 | pending | Existing version process selected as promotion target | Durable updates pending. |
+| T012 | pending | `CHANGELOG.md` selected as canonical source | Communications pending. |
+| T013 | pending | | Final review and human decision pending. |
 
 ## Evidence Log
 
 | Date | Evidence | Result | Notes |
 |------|----------|--------|-------|
 | 2026-07-18 | GitHub Actions run 29653160911 | failed | Unprovisioned MinIO caused one failure and four setup errors; normal CI is not release-ready. |
+| 2026-07-18 | Focused local mocked MinIO contract test | passed | Controlled environment passed, supporting separation of mocked contracts from live-service tests. |
 | 2026-07-18 | Open-issue reconciliation | passed | All 27 inherited open issues reviewed; 9 closed, 18 retained with current scope. |
 | 2026-07-18 | GitHub milestone `v0.9.1` | created | PyPI and `1.0.0` explicitly deferred. |
-| 2026-07-18 | GitHub issue #68 | created and assigned | Owns selection stress-threshold stabilization. |
-| 2026-07-18 | Spec Lifecycle Manager package lint | passed | Zero errors, warnings, or informational diagnostics. |
-| 2026-07-18 | Spec Lifecycle Manager stage readiness | passed | Ready for agent and implementation; zero blocking, context, property, or acceptance gaps. |
-| 2026-07-18 | Agent readiness packet for T001 | passed | Requirement, design, verification, durable targets, and traceability resolve without gaps. |
-| 2026-07-18 | Documentation link check and `git diff --check` | passed | No broken links in the changed spec set and no whitespace errors; repository-wide checker reported only pre-existing canonical-style suggestions. |
+| 2026-07-18 | GitHub issue #68 | created and assigned | Tracks selection stress assignment, state, and chronological evidence; Spec 007 owns delivery authority. |
+| 2026-07-18 | Substantive Spec 007 review | findings addressed | TLR-001 through TLR-006 reconciled safe versioning, stress authority, support matrix, MinIO ownership, release-task decomposition, and review evidence. |
+| 2026-07-18 | Downstream task and verification review | passed | Tasks and verification were rechecked after the final requirements and design reconciliation, including the changelog-derived communications model. |
+| 2026-07-18 | Spec Lifecycle Manager package checks | passed | Package lint has zero diagnostics; stage readiness is implementation-ready with zero gaps; sampled T001, T004, T006, T007, T009, and T013 lookups and T001 readiness resolve without gaps. |
+| 2026-07-18 | Documentation and patch checks | passed with advisory warnings | No structural Markdown findings, broken links, or whitespace errors; 135 table-readability warnings and 25 pre-existing canonical-link style suggestions remain non-blocking. |
 
 ## Manual Or External Verification
 
-GitHub issue and milestone state is externally authoritative. GitHub Actions
-runs and eventual release artifacts must be linked here before release
-readiness can be approved.
+GitHub issue and milestone state is externally authoritative for assignment and
+chronology. The active spec remains authoritative for approved scope,
+sequencing, acceptance, and validation. GitHub Actions runs and eventual
+release artifacts must be linked here before release readiness can be approved.
 
 ## Residual Risks
 
 - Normal CI is currently red and blocks every downstream release claim.
-- MinIO profile design can accidentally reduce coverage if test collection is
-  not compared explicitly.
-- Stress thresholds can remain host-sensitive without the evidence in #68.
+- MinIO marker or collection changes can reduce coverage unless the complete
+  node partition and mocked-contract placement are proved.
+- Stress thresholds can remain host-sensitive until T004 evidence is accepted.
+- Version tooling commits and tags by default; every preparation run must use
+  both disabling flags and prove external state is unchanged.
+- All six declared OS/Python combinations are release blockers until validated
+  or their support claims are corrected.
 - The first actual tag exercises external publication behavior that rehearsal
   cannot reproduce fully; it remains a human-controlled release risk.
 
 ## Durable Promotion And Cleanup
 
-| Spec content | Durable destination or deferral | Status | Evidence |
+| Spec Content | Durable Destination Or Deferral | Status | Evidence |
 |--------------|---------------------------------|--------|----------|
-| Test profile contract | `docs/4-testing/README.md` | pending | T002 and T003. |
-| Verified installation matrix | `docs/guides/user/installation.md` | pending | T007. |
-| Release procedure and rollback | new document under `docs/processes/` | pending | T009. |
-| Version and release contents | `CHANGELOG.md`, release notes, `README.md` if needed | pending | T009. |
-| PyPI and `1.0.0` deferral | GitHub issue #22, milestone description, release process | partial | GitHub scope updated; durable process pending. |
-| Follow-up work | GitHub issues outside milestone or an approved successor spec | pending | T010. |
+| Test profile contract | `docs/4-testing/README.md` | pending | T002-T003. |
+| Verified installation matrix | `docs/guides/user/installation.md` | pending | T007 and T011. |
+| Version preparation, release procedure, and rollback | `docs/processes/version-management.md`, linked from `docs/processes/README.md` | pending | T011; no duplicate process document. |
+| Version contents and release communications | `CHANGELOG.md`; GitHub release body derived from its `v0.9.1` section | pending | T012. |
+| Front-door support and version claims | `README.md` if current text requires correction | pending | T011. |
+| PyPI and `1.0.0` deferral | GitHub issue #22, milestone description, version process | partial | GitHub scope updated; durable process pending. |
+| Follow-up work | GitHub issues outside milestone or an approved successor spec | pending | T013. |
 
 ### Spec Cleanup Decision
 
@@ -145,10 +156,10 @@ readiness can be approved.
 - **Risk level:** high
 - **Breaking change:** no
 - **Blast radius checked:** partial
-- **Rollback path:** to be documented in T009
+- **Rollback path:** existing version process to be corrected and validated in T011
 - **Requires human review:** yes
-- **Release notes needed:** yes
-- **Follow-up issue or spec needed:** issue #68 already created
+- **Release notes needed:** yes, in `CHANGELOG.md`
+- **Follow-up issue or spec needed:** issue #68 already tracks stress evidence
 
 ### Risk Rationale
 

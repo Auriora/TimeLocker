@@ -26,7 +26,7 @@ publishes evidence-backed release notes.
 - Build and validate source and wheel artifacts for version `0.9.1`.
 - Prove the supported installation and CLI smoke paths in clean environments.
 - Rehearse the release workflow without creating a production tag.
-- Produce accurate changelog, release-note, and operator documentation.
+- Produce accurate changelog-derived release communications and operator documentation.
 
 ## Non-Goals
 
@@ -40,10 +40,11 @@ publishes evidence-backed release notes.
 
 | Term | Definition |
 |------|------------|
-| Normal CI | The test profile run for pushes and pull requests: tests excluding the `performance` and `stress` markers. |
-| MinIO profile | Integration tests that require an explicitly provisioned S3-compatible MinIO endpoint. |
+| Normal CI | The test profile run for pushes and pull requests: tests excluding the `performance`, `stress`, and `minio` markers. |
+| MinIO profile | Tests marked `minio` that contact an explicitly provisioned S3-compatible MinIO endpoint. Mocked S3/MinIO contract tests remain in normal CI. |
 | Release rehearsal | Non-publishing validation of the release workflow, commands, inputs, artifacts, and permissions. |
 | Release evidence | CI runs, commands, artifact metadata, hashes, install results, and review records supporting a release decision. |
+| Release notes | The eventual GitHub release body derived from the canonical `v0.9.1` section in `CHANGELOG.md`, not a separate durable document. |
 
 ## Durable Source Baseline
 
@@ -54,8 +55,10 @@ publishes evidence-backed release notes.
 | `pyproject.toml` | Package version, Python support, dependencies, console scripts, test markers, and coverage configuration. | high | Authoritative build metadata. |
 | `.github/workflows/test-suite.yml` | Normal and manually dispatched extended test profiles. | high | Normal CI currently lacks MinIO provisioning or isolation. |
 | `.github/workflows/release.yml` | Tag-triggered version check, tests, build, smoke install, artifact upload, and GitHub release. | high | Exists but has not been exercised by a repository release. |
+| `scripts/bump_version.py` and `.bumpversion.cfg` | The version helper commits and tags by default unless both side effects are disabled. | high | Release preparation must use `--no-commit --no-tag`. |
 | `docs/guides/user/installation.md` | Current installation and validation guidance. | high | Promotion target for verified clean-install behavior. |
-| `docs/processes/README.md` | Durable process index. | high | Target for the release operator procedure. |
+| `docs/processes/version-management.md` | Current version-bump and release procedure. | high | Must be corrected in place and linked from the process index. |
+| `docs/processes/README.md` | Durable process index. | high | Must link the corrected version-management procedure. |
 | `CHANGELOG.md` | Durable project change history. | high | Target for the `v0.9.1` entry. |
 | `docs/history/spec-closure-log.md` | Records the waived selection stress threshold from Spec 001. | high | Follow-up is GitHub issue #68. |
 
@@ -96,6 +99,13 @@ signal and integration coverage remains explicit.
    failure or silent skip.
 4. THE SYSTEM SHALL retain the configured coverage threshold and SHALL NOT
    exclude unrelated correctness tests to make CI pass.
+5. THE `minio` marker SHALL identify only tests that contact a live MinIO
+   service; mocked credential, backend, and protocol-contract tests SHALL
+   remain in normal CI.
+6. GIVEN a checkout without MinIO configuration, WHEN pytest collects the
+   suite, THEN collection SHALL complete without a module-import exception or
+   network access and the normal, MinIO, performance, and stress selections
+   SHALL form an auditable ownership map for the intended suite.
 
 ### Requirement 2: Stable performance and stress signal
 
@@ -106,12 +116,15 @@ without producing routine false failures.
 #### Acceptance Criteria
 
 1. GIVEN representative supported hosts, WHEN the selection stress scenario is
-   measured, THEN issue #68 SHALL record timings and the chosen tolerance or
-   baseline strategy.
+   measured under Spec 007, THEN issue #68 SHALL record timings and the chosen
+   tolerance or baseline strategy as chronological evidence.
 2. WHERE correctness and throughput assertions are combined, THE TEST SUITE
    SHALL separate deterministic correctness from environment-sensitive timing.
 3. WHILE stress tests remain opt-in, THE RELEASE EVIDENCE SHALL record their
    result or an explicit, owner-approved residual risk.
+4. THE active spec SHALL own the approved stress-test implementation scope,
+   acceptance criteria, sequencing, and validation; issue #68 SHALL track
+   assignment, state, and linked evidence without overriding this contract.
 
 ### Requirement 3: Reproducible release artifacts
 
@@ -128,6 +141,12 @@ from the tagged source.
 3. THE artifacts SHALL contain the declared package data, both `timelocker` and
    `tl` entry points, valid metadata, and recorded SHA-256 hashes.
 4. IF artifact validation fails, THEN no release tag SHALL be created.
+5. GIVEN the repository's side-effecting version helper, WHEN version sources
+   are prepared for `0.9.1`, THEN the operator SHALL use
+   `python scripts/bump_version.py bump patch --no-commit --no-tag` (or an
+   equivalently proven non-publishing operation) and SHALL record unchanged
+   pre/post commit, tag, tag-triggered release-workflow run, and GitHub-release
+   state.
 
 ### Requirement 4: Clean installation validation
 
@@ -137,15 +156,20 @@ undeclared dependencies.
 
 #### Acceptance Criteria
 
-1. GIVEN each supported Python version in project metadata, WHEN the wheel and
-   sdist are installed into fresh environments, THEN installation SHALL
-   complete without undeclared Python dependencies.
-2. GIVEN each claimed CI operating system, WHEN the supported smoke path runs,
-   THEN `timelocker`, `tl`, version output, and root help SHALL work.
+1. GIVEN Python 3.12 and 3.13, WHEN the wheel and sdist are installed into fresh
+   environments, THEN installation SHALL complete without undeclared Python
+   dependencies.
+2. GIVEN each of Linux, macOS, and Windows on Python 3.12 and 3.13, WHEN the
+   supported smoke path runs, THEN `timelocker`, `tl`, version output, and root
+   help SHALL work in all six combinations.
 3. WHERE a platform requires Restic or another system prerequisite, THE
    INSTALLATION GUIDE SHALL state the verified prerequisite and limitation.
 4. IF a declared support claim cannot be validated, THEN the claim SHALL be
-   corrected or the release SHALL retain an explicit blocking risk.
+   corrected before release or the release SHALL remain blocked.
+5. THE package metadata SHALL express the bounded Python support range
+   `>=3.12,<3.14`, and its Python and operating-system classifiers SHALL agree
+   with the six-combination validation contract without retaining the broader
+   `Operating System :: OS Independent` classifier.
 
 ### Requirement 5: Safe release rehearsal and communications
 
@@ -165,6 +189,9 @@ from failures.
 4. BEFORE release approval, THE VERIFICATION RECORD SHALL link required CI,
    artifact, clean-install, stress, documentation, and review evidence.
 5. PyPI publication and `1.0.0` SHALL remain explicitly deferred.
+6. `CHANGELOG.md` SHALL be the checked-in canonical source for `v0.9.1`
+   release communications; the eventual GitHub release body SHALL be derived
+   from that version section rather than a second durable release-note file.
 
 ## Correctness Properties
 
@@ -176,17 +203,17 @@ from failures.
 - **CP-003:** Installing either release artifact in a clean supported
   environment yields the same version and console entry-point behavior.
 - **CP-004:** Rehearsal cannot create a production tag, GitHub release, or PyPI
-  publication as a side effect.
+  publication, commit, or tag as a side effect.
 - **CP-005:** Each public release claim maps to a recorded validation result or
   an explicit known limitation.
 
 ## Technical Context
 
-- **Language/Version:** Python 3.12 and 3.13 as declared in `pyproject.toml`.
+- **Language/Version:** Python 3.12 and 3.13 only, expressed as
+  `requires-python = ">=3.12,<3.14"` and matching classifiers.
 - **Primary Dependencies:** pytest, coverage, build, GitHub Actions, Restic,
   MinIO for S3 integration tests.
-- **Target Platform:** Linux normal CI plus every operating system explicitly
-  claimed by current project metadata or installation documentation.
+- **Target Platform:** Linux, macOS, and Windows, each on Python 3.12 and 3.13.
 - **Constraints:** No secrets in logs or artifacts; no production tag during
   rehearsal; coverage threshold remains 50 percent; PyPI is deferred.
 - **Performance Goals:** Stress thresholds must distinguish regression from
