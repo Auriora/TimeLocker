@@ -62,6 +62,15 @@ docs/
 ├── plans/                              # Implementation plans
 │   ├── _template.md
 │   └── README.md
+├── specs/                              # Active implementation packages
+│   ├── README.md
+│   └── 000-feature-slug/
+│       ├── requirements.md
+│       ├── design.md
+│       └── tasks.md
+├── history/                            # Specification lifecycle history
+│   ├── spec-closure-log.md
+│   └── spec-archive-index.md
 ├── processes/                          # Process documentation
 │   ├── _template.md
 │   ├── version-management.md
@@ -89,7 +98,10 @@ docs/
 ```
 
 - Do NOT add documentation files outside `docs/`.
-- Do NOT create ad-hoc directories like `docs/progress/`, `docs/architecture/`, `docs/tasks/`, or any other non-standard folders - use the established structure.
+- Do NOT create ad-hoc directories like `docs/progress/`, `docs/architecture/`,
+  or `docs/tasks/` - use the established structure.
+- `docs/specs/` is temporary delivery state, not durable product documentation.
+  Promote accepted content before closure.
 
 ### 2.2. MUST: Write "What Was Implemented" Docs in `docs/updates`
 
@@ -113,7 +125,9 @@ These updates complement the CHANGELOG and should not duplicate full release not
 - Developer/contributor guides → `docs/guides/developer/`
 - AI agent instructions → `docs/guides/ai-agent/`
 - Reference documentation (APIs, specs) → `docs/reference/`
-- Implementation plans → `docs/plans/`
+- Active implementation specifications → `docs/specs/[###-slug]/`
+- Legacy completed or superseded plans → `docs/plans/`
+- Specification closure evidence → `docs/history/`
 - Process documentation → `docs/processes/`
 - Design proposals → `docs/proposals/`
 - Status reports and analysis → `docs/reports/`
@@ -147,10 +161,12 @@ These updates complement the CHANGELOG and should not duplicate full release not
 -   [ ] If implementation details changed, updated `docs/3-implementation/`
 -   [ ] If testing approach changed, updated `docs/4-testing/`
 -   [ ] If work was task-scoped, added an entry in `docs/updates/` with timestamp and updated `docs/updates/index.md`
+-   [ ] If work is spec-governed, updated task evidence, verification, durable promotion targets, and closure readiness
 -   [ ] If creating a status report, added to `docs/reports/` with timestamp
 -   [ ] If tracking tasks, updated `docs/0-project-management/` (NOT `docs/tasks/`)
 -   [ ] Updated `docs/README.md` if navigation/structure changed
 -   [ ] Removed duplication and updated cross-links; added "Last updated" where applicable
+-   [ ] Did not leave accepted current behavior only in an active spec package
 
 ### 2.8. Formatting & Style
 
@@ -187,6 +203,8 @@ Status reports, progress summaries, and analysis documents MUST be placed in `do
 **Key Distinction**:
 - **Updates**: What was implemented, how it was done, technical details
 - **Reports**: Status snapshots, metrics, analysis, findings
+- **Specs**: Temporary intended change, execution tasks, and validation evidence
+- **Durable docs**: Accepted current behavior after promotion
 
 ## 3. Examples
 
@@ -220,4 +238,6 @@ relates to all other documentation within the `docs/` directory.
 - `docs/updates/README.md`
 - `docs/updates/index.md`
 - `docs/reports/README.md`
+- `docs/specs/README.md`
+- `docs/history/spec-closure-log.md`
 - `CHANGELOG.md`

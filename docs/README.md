@@ -18,6 +18,7 @@ contributors and operators can navigate the knowledge base quickly.
 - **[Testing Quick Start](./4-testing/quickstart-testing.md)** – Fast path for verifying environments, running MinIO integration tests, and interpreting
   results.
 - **[Tasks-to-Issues Map](./0-project-management/tasks-to-issues-map.md)** – Canonical mapping between documentation sources and tracked GitHub issues.
+- **[Active Specifications](./specs/README.md)** – Implementation contracts, task evidence, validation, promotion, and closure workflow.
 - **[Updates Index](./updates/index.md)** – Chronological log of implementation notes and rule applications.
 
 ### Supporting Collections
@@ -31,6 +32,8 @@ contributors and operators can navigate the knowledge base quickly.
 - **Reference** – [./reference/README.md](./reference/README.md) and supporting specs such
   as [timelocker-cli-command-hierarchy.md](./reference/timelocker-cli-command-hierarchy.md) and [repository-uri-guide.md](./reference/repository-uri-guide.md).
 - **Reports & Updates** – Generated analyses and change logs under [./reports/](./reports/README.md) and [./updates/](./updates/index.md).
+- **Lifecycle History** – [./history/spec-closure-log.md](./history/spec-closure-log.md) and
+  [./history/spec-archive-index.md](./history/spec-archive-index.md) for closed specification evidence.
 - **Archive** – [./archive/README.md](./archive/README.md) – Historical documentation preserved for reference.
 
 ## 🚀 Quick Start
@@ -45,18 +48,19 @@ contributors and operators can navigate the knowledge base quickly.
 
 ### Contributing & Maintenance
 
-1. Review current initiatives in [Tasks-to-Issues Map](./0-project-management/tasks-to-issues-map.md) and the latest [updates entry](./updates/index.md).
-2. Consult the [active plans inventory](./plans/README.md#active-plans) for current refactors or feature work.
+1. Review current assignments in [Tasks-to-Issues Map](./0-project-management/tasks-to-issues-map.md) and implementation intent in
+   [Active Specifications](./specs/README.md).
+2. Use the active spec package for scope, sequencing, acceptance, and evidence; use the [updates index](./updates/index.md) for chronological history.
 3. Follow house style from [guides/ai-agent/](./guides/ai-agent/README.md) when authoring new documentation or automation.
 4. Capture changes in `docs/updates/` using the [update template](./updates/_template.md).
 
 ## 📊 Project Status Summary
 
-- **Current posture**: Beta CLI application with broad feature coverage and one active CLI consolidation plan.
+- **Current posture**: Beta CLI application with broad feature coverage and one active CLI consolidation specification.
 - **Status reference**: [Documentation Status Report](./DOCUMENTATION-STATUS.md) is the current high-level assessment; prefer it over older milestone reports.
 - **Implementation history**: See the [updates index](./updates/index.md) for the latest implementation and consolidation notes.
 - **Open work queue**: [Tasks-to-Issues Map](./0-project-management/tasks-to-issues-map.md) is the authoritative crosswalk between docs and GitHub issues.
-- **Active plans**: The [plans directory](./plans/README.md#active-plans) separates active, completed, and superseded work.
+- **Active specifications**: The [specs directory](./specs/README.md) contains current delivery contracts; [plans](./plans/README.md) are historical.
 
 ## 🎯 Current Focus
 
@@ -66,7 +70,8 @@ The current highest-value work is stabilization and consolidation rather than ne
 - continue reducing command-layer duplication between `src/TimeLocker/cli.py` and `src/TimeLocker/cli_modules/`
 - prefer targeted testing and focused cleanup over broad maturity claims
 
-Use the newest entries in [docs/updates](./updates/index.md) and the active items in [plans/](./plans/README.md) to confirm the latest execution target.
+Use [Spec 001](./specs/001-cli-consolidation-stabilization/requirements.md) for the current execution contract and the newest entries in
+[docs/updates](./updates/index.md) for implementation history.
 
 ## 🏗️ Architecture Overview
 
@@ -103,14 +108,16 @@ Use the newest entries in [docs/updates](./updates/index.md) and the active item
 | Implementation conventions      | `./3-implementation/` |
 | Testing strategy                | `./4-testing/`        |
 | Operational processes           | `./processes/`        |
+| Active delivery specifications  | `./specs/`            |
+| Specification lifecycle history | `./history/`          |
 | Formal reports                  | `./reports/`          |
 | Updates & changelog supplements | `./updates/`          |
 | Historical documentation        | `./archive/`          |
 
 ## 🔮 Roadmap
 
-- Planned refactors and feature work are curated in [plans/](./plans/README.md) and synchronized with the GitHub issue backlog
-  via [tasks-to-issues-map.md](./0-project-management/tasks-to-issues-map.md).
+- Planned refactors and feature work are governed by [active specifications](./specs/README.md) and linked to the GitHub issue backlog
+  via [tasks-to-issues-map.md](./0-project-management/tasks-to-issues-map.md). The `docs/plans/` directory is retained for historical plans.
 - Historical context and completed milestones live in archived updates and reports; review the updates index before starting new initiatives.
 
 ## 📞 Support
@@ -127,5 +134,6 @@ Use the newest entries in [docs/updates](./updates/index.md) and the active item
 2. When relocating documentation, update cross-links and references (see `AGENT-RULE-Documentation-Conventions`).
 3. Ensure new documents include metadata consistent with their directory’s README and templates (e.g., `docs/_template/`).
 4. Align ongoing work with the authoritative mappings in [tasks-to-issues-map.md](./0-project-management/tasks-to-issues-map.md) to preserve traceability.
+5. For spec-governed work, promote accepted current-state content into durable docs before recording closure under `docs/history/`.
 
 *Last Updated: 2026-07-18*

@@ -19,56 +19,109 @@ apply_when:   "task_type == \"complex_change\""
 
 ## 1. Purpose
 
-This protocol defines a structured planning process for the AI agent when undertaking complex, multi-file changes or feature work. The purpose is to ensure a
-clear, measurable, and risk-aware approach to task execution, requiring explicit user approval before proceeding to implementation.
+This protocol combines the repository's explicit approval gate with the Spec
+Lifecycle Manager. It distinguishes direct low-risk work from changes that need
+requirements, design, evidence-bearing tasks, durable promotion, and closure.
 
 ## 2. Rule/Guideline Details
 
-The agent must follow the phases below exactly, using “mode=PLAN” first and only entering “mode=EXECUTE” after user approval. The agent must use brief
-rationales, fixed schemas, and verbosity limits. Steps must not be changed unless explicitly instructed by the user. If any instruction seems ambiguous, or
-domain assumptions are detected, the agent must stop and ask for clarification.
+At task start, load the durable repository rules and scan `docs/specs/` through
+the Spec Lifecycle Manager. Prefer its MCP tools for discovery, readiness, task
+context, validation planning, promotion, and closure. Use repository-local or
+plugin scripts only when the MCP capability is unavailable or for CI validation.
 
-### 2.1. Desired Outcome
+### 2.1. Triage
+
+Classify the request before writing a plan:
+
+- **Direct change**: narrow, low-risk work with clear acceptance and validation.
+  It may proceed without a spec, subject to all other repository rules.
+- **Spec-needed change**: multi-file feature, migration, architectural or
+  cross-cutting refactor, governance change, or work with ambiguous acceptance,
+  dependencies, promotion, or closure. Create or reconcile an active package
+  under `docs/specs/[###-slug]/`.
+- **Existing spec work**: resume the active package only after reconciling its
+  requirements, design, tasks, implementation, durable docs, and evidence.
+
+GitHub issues track assignment and issue state. Active specs govern delivery
+scope, sequencing, acceptance criteria, and evidence. Durable docs describe
+accepted current behavior. Updates provide chronological implementation history.
+
+### 2.2. Desired Outcome
 
 - Define the desired state with measurable success criteria (both functional and non-functional).
 - For each criterion: state how it can be **measured or tested**.
 - Limit: max **5 bullets**, max **100 words**.
 
-### 2.2. Scope & Assumptions
+### 2.3. Scope & Assumptions
 
 - Restate the problem; define all key terms.
 - Enumerate explicit & implied assumptions.
 - Ask clarifying questions if any success criterion, constraint, or dependency is missing.
 - Limit: ≤ **5 bullets**, ≤ **100 words**.
 
-### 2.3. Gap & Plan
+### 2.4. Spec Artifacts and Gap Plan
 
-- Identify gaps between Current State (if provided) and Desired Outcome.
+- Identify gaps between durable current state and the desired outcome.
+- For spec-needed work, create or reconcile `requirements.md`, then `design.md`,
+  then `tasks.md`. Add change impact, verification, traceability, research, or
+  open decisions only when they reduce ambiguity.
+- Tasks must use dependency-aware checkboxes and include acceptance and evidence.
 - Propose a high-level plan (modules or steps) to bridge the gaps.
 - Present in human-readable form: bullets or table. If a small reference block labeled "Structured reference" is included at the end, it must be clearly
   separated.
 - Limit: ≤ 5 gaps, ≤ 5 plan steps, ≤ 150 words.
 
-### 2.4. Risks
+### 2.5. Risks
 
 - List top risks in a table with columns: **Risk**, **If-then detector**, **Mitigation**.
 - Limit to ≤ **5 risks**.
 - Brief rationale: for each risk, 1-2 bullets explaining the likelihood & impact.
 
-### 2.5. Tests
+### 2.6. Tests and Verification
 
-- Provide a test checklist for unit, integration, acceptance tests. Each item: description + pass/fail criterion.
+- Provide a checklist for applicable unit, integration, acceptance,
+  documentation, and lifecycle checks. Each item needs a pass/fail criterion.
+- Map spec validation to requirements, task IDs, risks, and evidence locations.
 - Limit: ≤ **7 items** total.
 - If tests depend on risk or assumptions, explicitly link.
 
-### 2.6. Deliverables
+### 2.7. Approval Gate
+
+- Present the plan before implementation and stop with
+  `<<AWAIT_CONFIRM: ...?>>`.
+- Enter EXECUTE only after explicit user approval.
+- Approval covers the described scope only. Re-plan and ask again before a
+  material scope expansion or a newly discovered risky/destructive action.
+
+### 2.8. Execute and Record Evidence
+
+- Before implementation, load the selected task's full package context and mark
+  it `[~]`.
+- Execute in dependency order and complete a task only when its acceptance
+  criteria and evidence are recorded.
+- Reconcile drift whenever work resumes or implementation changes the design.
+- Add or update `docs/updates/` for substantial completed work.
+
+### 2.9. Promote and Close
+
+- Promote accepted behavior, contracts, decisions, operations, and validation
+  guidance into durable docs before closure.
+- Run lifecycle lint, readiness, evidence, promotion, and closure checks.
+- Commit the complete final spec state before removing or archiving a package.
+- Record closure in `docs/history/spec-closure-log.md` and
+  `docs/history/spec-archive-index.md`, then update active indexes.
+- Do not close a package with unresolved accepted content that exists only in
+  the spec; route deferred work to an issue or follow-up spec.
+
+### 2.10. Deliverables
 
 - Deliver the final plan and executive summary (mapping back to Desired Outcome).
 - Restate any questions or assumptions in a structured reference block for confirmation.
 - Limit: max **200 words** in summary.
 - Reminder: upon completion, add/update a `docs/updates` entry (see `docs/updates/README.md`) when applicable.
 
-### 2.7. Failure Handling
+### 2.11. Failure Handling
 
 If at any step something deviates (missing info, failed assumption, test failure, etc.), then:
 
@@ -77,14 +130,16 @@ If at any step something deviates (missing info, failed assumption, test failure
 3. Propose the single best next action.
 4. Pause with `<<AWAIT_CONFIRM: Choose alternative or revisit?>>`.
 
-### 2.8. Additional Global Rules
+### 2.12. Additional Global Rules
 
 - Use fixed schemas for Assumptions, Plans, Risks, Tests, Deliverables.
 - Brevity rules: no more than **5 bullets** per section; word limits as above.
 - Brief rationales only: ≤3 bullets each.
 - Stop tokens: `<<AWAIT_CONFIRM: ...?>>`; the model should not continue past unless confirmation is given.
 - No free-form chain-of-thought beyond rationale bullets.
-- On completion of EXECUTE, add/update a `docs/updates` entry summarizing what was implemented and link it from `docs/updates/index.md`.
+- On completion of EXECUTE, add/update a `docs/updates` entry summarizing what
+  was implemented and link it from `docs/updates/index.md`.
+- Do not use a standalone file under `docs/plans/` for new implementation work.
 
 ## 3. Examples
 
@@ -105,5 +160,8 @@ This planning protocol is cross-referenced with `preferences.md` for general pro
 # References
 
 - [General Preferences](./AGENT-GUIDE-General-Preferences.md)
+- `docs/specs/README.md` (active specification lifecycle and authority boundaries)
+- `docs/history/spec-closure-log.md` (closure evidence)
+- `docs/history/spec-archive-index.md` (closed specification discovery)
 - `docs/updates/README.md` (for updating implementation notes)
 - `docs/updates/index.md` (for linking implementation notes)

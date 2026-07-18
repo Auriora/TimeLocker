@@ -34,6 +34,7 @@ that explains the *why* and *what* of a change.
 
 - Automated reports (see `../reports/`).
 - Formal architectural decisions (see `../2-architecture/`).
+- Active implementation scope, acceptance criteria, or task state (see `../specs/`).
 
 ## 4. Usage Notes
 
@@ -57,6 +58,9 @@ that explains the *why* and *what* of a change.
 An update may describe incomplete implementation while still being `approved`; approval means the record is accurate, not that every follow-up is complete.
 Investigations must link to later fixes or explicitly say the finding remains open. Review draft entries before release and do not leave completed work in draft
 indefinitely.
+
+For spec-governed work, link the relevant package and summarize recorded task
+evidence; do not duplicate its requirements, design, or full task checklist.
 
 ## 5. Available Templates
 

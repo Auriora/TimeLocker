@@ -2,7 +2,7 @@
 title: "RFC: CLI Consolidation Stabilization Plan"
 id: "rfc-2026-04-23-173102-cli-consolidation-stabilization-plan"
 type: [ plan ]
-status: [ active ]
+status: [ superseded ]
 owner: "Codex"
 last_reviewed: "18-07-2026"
 tags: [plan, cli, consolidation, service-layer, configuration, monitoring]
@@ -13,12 +13,17 @@ links:
 # RFC: CLI Consolidation Stabilization Plan
 
 - **Owner**: Codex
-- **Status**: Active
+- **Status**: Superseded by [`Spec 001`](../specs/001-cli-consolidation-stabilization/requirements.md)
 - **Last Updated**: 18-07-2026
 - **Created Date**: 23-04-2026
 - **Audience**: Engineering Teams, Reviewers
 
 ## 1. Purpose
+
+> Historical migration note: this plan was migrated on 2026-07-18. Use
+> [`docs/specs/001-cli-consolidation-stabilization/`](../specs/001-cli-consolidation-stabilization/requirements.md)
+> for current requirements, design, tasks, and verification. The content below
+> is retained to preserve its original planning history and inbound links.
 
 Stabilize the TimeLocker CLI composition layer by reducing duplicate registration paths, narrowing compatibility seams, and defining an execution order for
 config, repository resolution, and monitoring cleanup.

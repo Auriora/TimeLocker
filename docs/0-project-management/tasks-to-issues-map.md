@@ -2,8 +2,10 @@
 
 Last verified: 2026-07-18
 
-GitHub issue state is authoritative. This file is a dated navigation snapshot for repository readers; refresh it from live GitHub before using it for planning or
-release decisions.
+GitHub issue state is authoritative for assignment and issue status. Active spec
+packages are authoritative for implementation scope, sequencing, acceptance,
+and evidence. This file is a dated navigation snapshot; refresh it from live
+GitHub before planning or release decisions.
 
 Repository: [Auriora/TimeLocker](https://github.com/Auriora/TimeLocker)
 
@@ -13,7 +15,7 @@ Snapshot: 23 open and 7 closed issues in the original #5-#34 project queue.
 
 ### CLI and Snapshots
 
-- [#5](https://github.com/Auriora/TimeLocker/issues/5) — Implement missing functionality for stub commands. Context: [CLI consolidation plan](../plans/2026-04-23-173102-cli-consolidation-stabilization-plan.md).
+- [#5](https://github.com/Auriora/TimeLocker/issues/5) — Implement missing functionality for stub commands. Context: [CLI consolidation Spec 001](../specs/001-cli-consolidation-stabilization/requirements.md).
 - [#7](https://github.com/Auriora/TimeLocker/issues/7) — Improve error messages for invalid commands and parameters. Context: [CLI command hierarchy](../reference/timelocker-cli-command-hierarchy.md).
 - [#8](https://github.com/Auriora/TimeLocker/issues/8) — Create comprehensive tests for the CLI command structure. Context: [Testing documentation](../4-testing/README.md).
 - [#9](https://github.com/Auriora/TimeLocker/issues/9) — Implement command aliases through separate command definitions. Context: [CLI command hierarchy](../reference/timelocker-cli-command-hierarchy.md).
@@ -63,3 +65,5 @@ Snapshot: 23 open and 7 closed issues in the original #5-#34 project queue.
 3. When an issue closes, retain it in the closed section for one release cycle, then move older issue history to an archived status report if needed.
 4. Add newly created issues when they become part of the current project queue; issue numbers above #34 are intentionally outside this historical queue unless
    explicitly added during a future review.
+5. Link complex active work to its spec package; do not use GitHub issue text or
+   this snapshot as a substitute for the package's acceptance and evidence contract.

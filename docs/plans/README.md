@@ -19,18 +19,19 @@ links:
 
 ## 1. Purpose
 
-**When to use this template**: This folder contains documents that outline a set of intended actions, usually with a specific goal and timeline. Plans are more
-concrete than proposals and are created after a proposal has been accepted.
+This folder preserves standalone implementation plans created before TimeLocker
+adopted the Spec Lifecycle Manager. New active implementation work belongs in
+[`docs/specs/`](../specs/README.md); do not create new plans here.
 **Location**: `docs/plans/`
 
 ## 2. What Belongs Here?
 
-- Project plans, sprint plans, release plans.
-- Detailed action plans for specific initiatives.
-- Roadmaps (if not in `0-project-management`).
+- Completed, superseded, or rejected legacy plans retained for link stability.
+- Templates retained only to interpret historical documents.
 
 ## 3. What Does NOT Belong Here?
 
+- New active implementation plans (use `../specs/`).
 - Initial ideas or suggestions (see `../proposals/`).
 - Architectural decisions (see `../2-architecture/`).
 - Daily updates or change logs (see `../updates/`).
@@ -44,7 +45,7 @@ concrete than proposals and are created after a proposal has been accepted.
 
 - **Naming Convention**: N/A for this file.
 
-### Plan Lifecycle
+### Legacy Plan Lifecycle
 
 Plans use one of these states:
 
@@ -56,8 +57,10 @@ Plans use one of these states:
 - `superseded`: replaced by a newer plan, issue queue, or implementation direction
 - `rejected`: reviewed and intentionally not pursued
 
-Moving a plan to `completed` requires a linked update or equivalent validation evidence. Superseded and completed plans remain in place when other documents
-link to them; they are historical context, not active work. Review `active` plans monthly and before release.
+No standalone plan should remain `active`. A legacy active plan must be migrated
+into one current-format spec package or explicitly closed. Superseded and
+completed plans remain in place when other documents link to them; they are
+historical context, not active work.
 
 ## 5. Available Templates
 
@@ -66,7 +69,7 @@ link to them; they are historical context, not active work. Review `active` plan
 
 ## Active Plans
 
-- [`2026-04-23-173102-cli-consolidation-stabilization-plan.md`](./2026-04-23-173102-cli-consolidation-stabilization-plan.md) — active phased cleanup for repository resolution, service-manager fan-out, monitoring seams, and documentation tracing.
+- None. Current delivery work is indexed in [`docs/specs/`](../specs/README.md).
 
 ## Completed Plans
 
@@ -78,6 +81,8 @@ link to them; they are historical context, not active work. Review `active` plan
 
 ## Superseded Plans
 
+- [`2026-04-23-173102-cli-consolidation-stabilization-plan.md`](./2026-04-23-173102-cli-consolidation-stabilization-plan.md) — migrated to
+  [`Spec 001`](../specs/001-cli-consolidation-stabilization/requirements.md).
 - [`complete-implementation-plan.md`](./complete-implementation-plan.md) — replaced by the live GitHub issue queue and the active plan inventory above.
 
 # References

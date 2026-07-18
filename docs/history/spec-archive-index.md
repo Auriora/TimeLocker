@@ -1,0 +1,30 @@
+---
+title: Spec archive index
+doc_type: history
+status: active
+owner: Auriora Team
+last_reviewed: 2026-07-18
+---
+
+# Spec Archive Index
+
+This index makes removed, archived, superseded, and explicitly retained
+lifecycle packages discoverable without treating them as active implementation
+contracts.
+
+## Entries
+
+| Spec ID | Title | Package path | Status | Final spec commit | Cleanup commit | Closure action | Durable destinations | Verification |
+|---------|-------|--------------|--------|-------------------|----------------|----------------|----------------------|--------------|
+| legacy-cli-consolidation-stabilization-plan | RFC: CLI Consolidation Stabilization Plan | `docs/plans/2026-04-23-173102-cli-consolidation-stabilization-plan.md` | superseded | `ad5add3` | pending | retained-as-history | `docs/specs/001-cli-consolidation-stabilization/requirements.md`; `docs/plans/README.md` | `docs/specs/001-cli-consolidation-stabilization/traceability.md` |
+
+## Legacy Gaps
+
+| Spec ID | Gap | Disposition |
+|---------|-----|-------------|
+
+## Maintenance
+
+- Update this index and `spec-closure-log.md` together.
+- Use a real commit hash for the final spec and closure cleanup commits.
+- Active packages remain indexed only in `docs/specs/README.md`.

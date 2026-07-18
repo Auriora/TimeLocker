@@ -1,5 +1,6 @@
 # Update Index
 
+- [2026-07-18-120000-spec-lifecycle-manager-adoption](./2026-07-18-120000-spec-lifecycle-manager-adoption.md)
 - [2026-07-18-091457-process-documentation-debt-cleanup](./2026-07-18-091457-process-documentation-debt-cleanup.md)
 - [2026-05-06-214605-scheduling-credential-static-analysis-smoke](./2026-05-06-214605-scheduling-credential-static-analysis-smoke.md)
 - [2026-05-06-212010-services-integration-validation](./2026-05-06-212010-services-integration-validation.md)
