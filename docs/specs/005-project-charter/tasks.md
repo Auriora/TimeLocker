@@ -55,7 +55,7 @@ T001 -> T002 -> T003 -> T004
 
 ## Phase 3: Validation And Closure
 
-- [~] T004 Validate, promote, and close Spec 005.
+- [x] T004 Validate, promote, and close Spec 005.
   - Depends on: T003
   - Requirements: Requirement 1-4, CP-001-CP-003, SC-001-SC-004
   - Files: all changed documents, lifecycle history and indexes
@@ -63,16 +63,20 @@ T001 -> T002 -> T003 -> T004
     durable, the final package state is committed, and Spec 005 is removed with
     a valid closure record.
   - Evidence mode: validation
-  - Evidence: Running documentation, duplication, lifecycle, promotion, closure, and Git validation before the final active-state commit.
+  - Evidence: `CHARTER.md` contains all accepted governance; front-door Markdown checks found 0 issues; link and Git checks exited 0; Specs 001 and 005 lint/readiness passed; all closure preparation subtasks have concrete evidence.
   - [x] T004.1 Run Markdown, link, duplication, and Git checks.
   - Evidence: `python scripts/link_checker.py` and `git diff --check` exited 0; Agent Workbench reported 0 findings for `CHARTER.md` and 0 findings across the five changed front-door/authority documents; `rg` found detailed charter authority headings only in `CHARTER.md`.
   - Evidence mode: validation
   - [x] T004.2 Run Spec 005 and Spec 001 lifecycle checks.
   - Evidence: Spec 005 `lint_spec_package` returned error=0, warn=0, info=0 and readiness gap counts=0; Spec 001 returned the same clean lint/readiness signals with T005 unchanged and ready.
   - Evidence mode: validation
-  - [ ] T004.3 Commit the final active package state.
-  - [ ] T004.4 Remove the package and record closure metadata.
+  - [x] T004.3 Commit the final active package state.
+  - Evidence: Commit `2aa7645` preserves the durable charter implementation, all six Spec 005 artifacts, authority links, and validation evidence before package cleanup.
+  - Evidence mode: implementation
+  - [x] T004.4 Prepare package removal and durable closure metadata.
 
+  - Evidence: `docs/specs/README.md` now lists Spec 001 as the sole continuing package; `verification.md` records removal and both durable history destinations; `archive_index` returned error=0, warn=0, info=0 before the new entry.
+  - Evidence mode: implementation
 ## Execution Rules
 
 - Do not change TimeLocker runtime code, tests, configuration, or packaging.

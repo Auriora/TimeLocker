@@ -19,7 +19,7 @@ last_reviewed: 2026-07-18
 | Documentation validation | pass | Link checker and `git diff --check` passed; charter authority phrases occur only in `CHARTER.md`. |
 | Lifecycle validation | pass | Specs 001 and 005 lint clean with zero readiness gaps. |
 | Durable promotion complete | pass | Promotion plan identifies existing charter, front-door, Spec 001, and history destinations. |
-| Final package commit and removal | pending | T004.3-T004.4. |
+| Final package commit and removal | closure-ready | Implementation commit `2aa7645`; final active-state and cleanup commits follow. |
 
 ## Validation Plan
 
@@ -45,6 +45,7 @@ last_reviewed: 2026-07-18
 | 2026-07-18 | Charter authority-phrase `rg` scan. | only `CHARTER.md` owns detailed charter headings |
 | 2026-07-18 | `lint_spec_package` and `stage_readiness` for `docs/specs/005-project-charter`. | error=0, warn=0, info=0; all gap counts=0 |
 | 2026-07-18 | `lint_spec_package` and `stage_readiness` for Spec 001 after baseline review. | error=0, warn=0, info=0; T005 remains ready |
+| 2026-07-18 | Final T001-T004 task evidence reviewed against `traceability.md`. | all mapped tasks complete |
 
 ## Residual Risks
 
@@ -58,9 +59,10 @@ last_reviewed: 2026-07-18
 - **Authority links:** `README.md`, `docs/README.md`, `AGENTS.md`,
   `docs/specs/README.md`, Spec 001
 - **Cleanup action:** remove
-- **Final spec commit:** pending
+- **Final implementation commit:** `2aa7645`
+- **Final active-state commit:** recorded in durable history after creation
 - **Closure cleanup commit:** pending
-- **Ready for closure:** after final active-package task evidence and commit
+- **Ready for closure:** yes after final task-state and closure checks
 
 ## Related Artifacts
 
