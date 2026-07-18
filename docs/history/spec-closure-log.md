@@ -15,18 +15,34 @@ final spec commit preserves the complete package.
 
 ## Entries
 
+### 2026-07-18 - 000-adopt-spec-lifecycle-manager
+
+- **Spec:** removed; recover from Git
+- **Title:** Adopt Spec Lifecycle Manager
+- **Final spec commit:** `c84dc3a`
+- **Closure cleanup commit:** pending
+- **Closure action:** removed
+- **Closed by:** Auriora Team
+- **Durable docs updated:** `docs/specs/README.md`, `docs/guides/ai-agent/`, and
+  `docs/history/`
+- **Verification summary:** Final package lint, readiness, evidence, and closure
+  checks passed before removal.
+- **Residual risks:** None.
+- **Follow-up:** Use the lifecycle for Spec 001 and future governed work.
+
 ### 2026-07-18 - legacy-cli-consolidation-stabilization-plan
 
-- **Spec:** `docs/plans/2026-04-23-173102-cli-consolidation-stabilization-plan.md`
+- **Spec:** removed; recover from Git
 - **Title:** RFC: CLI Consolidation Stabilization Plan
 - **Final spec commit:** `ce23d07`
-- **Closure cleanup commit:** `ce23d07`
-- **Closure action:** retained-as-history
+- **Closure cleanup commit:** pending
+- **Closure action:** removed
 - **Closed by:** Auriora Team
 - **Durable docs updated:**
   - `docs/specs/001-cli-consolidation-stabilization/requirements.md`
-  - `docs/plans/README.md`
-- **Verification summary:** Active tasks and completed evidence were mapped into Spec 001; the source plan remains available for inbound links.
+  - `docs/history/spec-archive-index.md`
+- **Verification summary:** Active tasks and completed evidence were mapped into
+  Spec 001; Git preserves the removed source plan.
 - **Residual risks:** None for the legacy-plan migration; remaining CLI work is governed by Spec 001.
 - **Follow-up:** Complete Spec 001 tasks T005-T010.
 

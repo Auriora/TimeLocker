@@ -577,7 +577,4 @@ Potential future improvements:
 
 ## Related Documentation
 
-- [CLI Refactoring Design](../../.kiro/specs/cli-refactoring/design.md)
-- [CLI Refactoring Requirements](../../.kiro/specs/cli-refactoring/requirements.md)
-- [ConfigService Implementation](./config-service.md)
-- [RepositoryResolver Implementation](./repository-resolver.md)
+- [Active CLI Consolidation Spec](../specs/001-cli-consolidation-stabilization/requirements.md)

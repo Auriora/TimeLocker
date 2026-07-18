@@ -44,8 +44,8 @@ applying other rule files. It ensures that all agent actions align with core pro
       default.
     - If equal specificity and conflict remains, pause and ask the user for resolution.
 4. **Apply and Document**:
-    - For every non-trivial change, list which rules were consulted and which were applied in the implementation notes (e.g., `docs/updates/` entry or PR
-      description).
+    - For every non-trivial change, list which rules were consulted and applied
+      in the active spec or pull request description.
     - If a rule was intentionally not applied (e.g., to avoid regressions), state the reason.
 
 ### 2.3. Recommended Metadata for Rule Files
@@ -63,8 +63,9 @@ To make rules easy to evaluate programmatically, include a short frontmatter blo
 
 ### 2.4. Enforcement & Transparency
 
-- Agents should add a single-line note to the PR description or `docs/updates/` entry summarizing: "Rules consulted: [list] — Rules applied: [list] —
-  Overrides: [list with rationale]".
+- Agents should add a single-line note to the active spec or PR description
+  summarizing: "Rules consulted: [list] — Rules applied: [list] — Overrides:
+  [list with rationale]".
 - When a numeric `priority` field is present, include it in the summary to aid reviewers.
 
 ### 2.5. Minimal Checklist for Rule Authors
@@ -77,7 +78,8 @@ When creating or editing a rule file, include:
 
 ### 2.6. Quality and Safety Notes
 
-- Do not modify other rule files without documenting the reason in `docs/updates/` and a clear test or review step.
+- Do not modify other rule files without documenting the reason in the active
+  spec or pull request and recording a clear test or review step.
 - Prefer conservative change: if unsure whether a rule applies, prefer asking the user rather than making silent overrides.
 
 ## 3. Examples
@@ -99,7 +101,7 @@ When creating or editing a rule file, include:
 ### Examples of Coordinated Application
 
 - When implementing new features that change public APIs, Augment MUST consult `documentation.md` for docs placement and `git.md` for commit message format.
-  Document this in the `docs/updates/` entry.
+  Document this in the active spec or pull request.
 - When writing tests, consult `testing.md` for naming/placement and `preferences.md` for logging of applied rules.
 - For planning-driven work, follow `planning.md`'s stop/confirm tokens (`<<AWAIT_CONFIRM: ...?>>`) unless the user explicitly requests executing immediately.
 
@@ -119,4 +121,3 @@ approach to project governance.
 - [Git Commit & Branching Conventions](./AGENT-RULE-Git-Conventions.md)
 - [Planning Protocol](./AGENT-GUIDE-Planning-Protocol.md)
 - [Testing Conventions](./AGENT-RULE-Testing-Conventions.md)
-- `docs/updates/README.md`

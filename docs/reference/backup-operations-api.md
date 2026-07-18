@@ -2,7 +2,6 @@
 
 **Status**: Active  
 **Last Updated**: 2025-11-09  
-**Related Specs**: [Backup Operations](.kiro/specs/backup-operations/)
 
 ## Overview
 
@@ -814,7 +813,5 @@ print(f"CPU utilization: {metrics.avg_cpu_percent:.1f}%")
 
 ## See Also
 
-- [Backup Operations Design](.kiro/specs/backup-operations/design.md)
-- [Backup Operations Requirements](.kiro/specs/backup-operations/requirements.md)
 - [Plugin Wrapper Development Guide](../guides/developer/plugin-wrapper-development.md)
 - [Backup Operations Troubleshooting](../guides/user/backup-operations-troubleshooting.md)

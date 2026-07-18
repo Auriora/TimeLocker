@@ -653,7 +653,7 @@ def test_complete_workflow():
 - [PromptService Implementation](../../3-implementation/prompt-service.md)
 - [OutputFormatter Implementation](../../3-implementation/output-formatter.md)
 - [ProgressService Implementation](../../3-implementation/progress-service.md)
-- [CLI Refactoring Design](../../../.kiro/specs/cli-refactoring/design.md)
+- [CLI Consolidation Stabilization](../../specs/001-cli-consolidation-stabilization/requirements.md)
 
 ## Conclusion
 

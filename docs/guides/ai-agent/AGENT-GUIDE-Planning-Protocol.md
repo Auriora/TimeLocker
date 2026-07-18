@@ -45,7 +45,8 @@ Classify the request before writing a plan:
 
 GitHub issues track assignment and issue state. Active specs govern delivery
 scope, sequencing, acceptance criteria, and evidence. Durable docs describe
-accepted current behavior. Updates provide chronological implementation history.
+accepted current behavior. Commits, pull requests, CI artifacts, and issue
+history provide chronological implementation evidence.
 
 ### 2.2. Desired Outcome
 
@@ -101,7 +102,8 @@ accepted current behavior. Updates provide chronological implementation history.
 - Execute in dependency order and complete a task only when its acceptance
   criteria and evidence are recorded.
 - Reconcile drift whenever work resumes or implementation changes the design.
-- Add or update `docs/updates/` for substantial completed work.
+- Record substantial completed work in the active spec and its commits, pull
+  request, CI artifacts, or linked issue as appropriate.
 
 ### 2.9. Promote and Close
 
@@ -119,7 +121,8 @@ accepted current behavior. Updates provide chronological implementation history.
 - Deliver the final plan and executive summary (mapping back to Desired Outcome).
 - Restate any questions or assumptions in a structured reference block for confirmation.
 - Limit: max **200 words** in summary.
-- Reminder: upon completion, add/update a `docs/updates` entry (see `docs/updates/README.md`) when applicable.
+- Reminder: upon completion, ensure the active spec and delivery records contain
+  enough evidence to reproduce the acceptance decision.
 
 ### 2.11. Failure Handling
 
@@ -137,9 +140,10 @@ If at any step something deviates (missing info, failed assumption, test failure
 - Brief rationales only: ≤3 bullets each.
 - Stop tokens: `<<AWAIT_CONFIRM: ...?>>`; the model should not continue past unless confirmation is given.
 - No free-form chain-of-thought beyond rationale bullets.
-- On completion of EXECUTE, add/update a `docs/updates` entry summarizing what
-  was implemented and link it from `docs/updates/index.md`.
-- Do not use a standalone file under `docs/plans/` for new implementation work.
+- On completion of EXECUTE, record evidence in the active spec and the relevant
+  commit, pull request, CI run, or issue.
+- Do not create standalone implementation plans or dated update diaries under
+  `docs/`; use an active spec when structured delivery is needed.
 
 ## 3. Examples
 
@@ -163,5 +167,3 @@ This planning protocol is cross-referenced with `preferences.md` for general pro
 - `docs/specs/README.md` (active specification lifecycle and authority boundaries)
 - `docs/history/spec-closure-log.md` (closure evidence)
 - `docs/history/spec-archive-index.md` (closed specification discovery)
-- `docs/updates/README.md` (for updating implementation notes)
-- `docs/updates/index.md` (for linking implementation notes)

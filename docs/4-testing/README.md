@@ -26,7 +26,7 @@ links:
 
 - Test strategy documents and matrices.
 - Manual/automated QA procedures.
-- Coverage reports and quality gates (summaries, detailed reports go in `../reports/`).
+- Stable test strategy and quality-gate guidance.
 
 ## 3. What Does NOT Belong Here?
 
@@ -44,15 +44,6 @@ links:
 - **[checklist-minio-testing.md](./checklist-minio-testing.md)** - MinIO testing checklist
 - **[summary-minio-setup.md](./summary-minio-setup.md)** - MinIO setup summary
 
-### Repository CLI Testing
-- **[repository-cli-commands-test.md](./repository-cli-commands-test.md)** - Repository command testing
-- **[repository-cli-working-summary.md](./repository-cli-working-summary.md)** - Working summary of repository CLI
-
-### Test Planning
-- **[test-plan.md](./test-plan.md)** - Comprehensive test plan
-- **[testing-overview.md](./testing-overview.md)** - Testing approach overview
-- **[test-results.md](./test-results.md)** - Test execution results
-
 ## 5. Available Templates
 
 - `_template.md`: Generic template for test strategy documents
@@ -61,5 +52,4 @@ links:
 ## 6. References
 
 - [Testing Quick Start](./quickstart-testing.md) - Start here for testing
-- [Reports](../reports/README.md) - Test coverage and quality reports
-- [Updates](../updates/index.md) - Implementation notes with testing details
+- CI artifacts and Git history preserve point-in-time test results.

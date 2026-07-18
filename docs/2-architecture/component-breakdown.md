@@ -75,7 +75,6 @@ compliance tracking across user interfaces, core services, infrastructure utilit
     - Status monitoring.
     - Configuration management endpoints.
 - **Requirements**: FR-INT-002.
-- **Documentation**: [API Reference](api-reference.md) (design specification)
 
 ### 2.2 Core Services Layer
 

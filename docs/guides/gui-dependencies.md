@@ -168,6 +168,4 @@ python -c "from TimeLocker.monitoring.system_tray_integration import SystemTrayI
 
 ## See Also
 
-- [System Tray Integration](../2-architecture/monitoring-system.md#system-tray-integration)
-- [Notification Service](../2-architecture/monitoring-system.md#notification-service)
-- [CLI Usage](../guides/cli-usage.md)
+- [CLI Modules](../3-implementation/cli-modules.md)

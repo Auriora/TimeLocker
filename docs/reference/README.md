@@ -45,7 +45,7 @@ licensing. These documents are typically stable and serve as authoritative sourc
 
 - Step-by-step guides (see `../guides/`).
 - Architectural decisions (see `../2-architecture/`).
-- Chronological updates (see `../updates/`).
+- Chronological implementation history; use Git commits and pull requests.
 
 ## 4. Usage Notes
 

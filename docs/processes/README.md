@@ -31,9 +31,9 @@ consistency, reduces errors, and helps new team members get up to speed quickly.
 
 ## 3. What Does NOT Belong Here?
 
-- High-level project plans (see `../0-project-management/`).
+- Project delivery plans; use active specs or the issue tracker.
 - Technical implementation details (see `../3-implementation/`).
-- Specific reports or metrics (see `../reports/`).
+- Point-in-time reports or metrics; retain them in CI or issue/PR artifacts.
 
 ## 4. Usage Notes
 

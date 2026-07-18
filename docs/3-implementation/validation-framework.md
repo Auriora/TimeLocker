@@ -516,4 +516,4 @@ Common error codes used by validators:
 
 - [ErrorContext Documentation](error-context-usage.md)
 - [CommandRegistry Documentation](command-registry-api.md)
-- [Testing Guidelines](../4-testing/testing-overview.md)
+- [Testing Quick Start](../4-testing/quickstart-testing.md)

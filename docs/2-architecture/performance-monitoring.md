@@ -587,6 +587,4 @@ Performance events logged for troubleshooting:
 
 ## References
 
-- [Performance Optimization](performance-optimization.md)
-- [Monitoring & Reporting](monitoring-reporting.md)
 - [CLI Development Tools](../3-implementation/cli-modules.md)

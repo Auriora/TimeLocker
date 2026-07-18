@@ -534,6 +534,6 @@ wait
 
 - [Recovery Operations API Reference](../../reference/recovery-operations-api.md)
 - [Recovery Operations Models Reference](../../reference/recovery-operations-models-reference.md)
-- [Backup Operations User Guide](backup-operations-guide.md)
+- [Backup Operations Troubleshooting](./backup-operations-troubleshooting.md)
 - [Repository Management Guide](repository-management-guide.md)
 - [Recovery Operations Troubleshooting](recovery-operations-troubleshooting.md)

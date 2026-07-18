@@ -618,8 +618,7 @@ retention = int(prompt_service.prompt_text(
 
 ## Related Documentation
 
-- [CLI Refactoring Design](../../.kiro/specs/cli-refactoring/design.md)
-- [CLI Refactoring Requirements](../../.kiro/specs/cli-refactoring/requirements.md)
+- [Active CLI Consolidation Spec](../specs/001-cli-consolidation-stabilization/requirements.md)
 - [OutputFormatter Implementation](./output-formatter.md)
 - [ProgressService Implementation](./progress-service.md)
 

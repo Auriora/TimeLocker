@@ -31,9 +31,9 @@ to detailed technical plans. Use these documents to build consensus and get buy-
 
 ## 3. What Does NOT Belong Here?
 
-- Approved plans with detailed timelines (see `../plans/`).
+- Approved implementation plans; use an active spec.
 - Formal architectural decisions (see `../2-architecture/`).
-- Daily updates or change logs (see `../updates/`).
+- Daily updates or change logs; use Git commits and pull requests.
 
 ## 4. Usage Notes
 

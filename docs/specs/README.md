@@ -15,10 +15,10 @@ accepted content has been promoted and the package is closed.
 
 ## Current Packages
 
-- [`000-adopt-spec-lifecycle-manager`](./000-adopt-spec-lifecycle-manager/requirements.md) —
-  conversion of TimeLocker's planning and documentation workflow.
 - [`001-cli-consolidation-stabilization`](./001-cli-consolidation-stabilization/requirements.md) —
   remaining CLI consolidation work migrated from the legacy active plan.
+- [`002-prune-historical-documentation`](./002-prune-historical-documentation/requirements.md) —
+  remove historical delivery artifacts and establish a current-state-only docs policy.
 
 ## When a Spec Is Needed
 
@@ -67,9 +67,10 @@ complete and verified. A completed task must include evidence.
 - GitHub issues remain authoritative for assignment and issue state.
 - Active specs are authoritative for implementation scope, sequencing,
   acceptance criteria, and evidence.
-- `docs/updates/` remains the chronological implementation diary.
-- `docs/plans/` is retained for historical plans and must not receive new
-  implementation plans.
+- Commits, pull requests, CI artifacts, and linked issues preserve chronological
+  implementation evidence.
+- Git history is the archive for removed plans, reports, update diaries, and
+  closed spec packages; `docs/history/` contains only compact lifecycle indexes.
 - Durable requirements, architecture, implementation, testing, process, and
   reference documents remain authoritative after a spec closes.
 

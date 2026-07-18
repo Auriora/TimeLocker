@@ -81,17 +81,15 @@ contributions.
 
 ## 5. Related Information
 
-- **Project Directory Structure & Frameworks**: The project uses a specific structure and frameworks (Flask, SQLAlchemy, Pytest) detailed in
-  `IMPL-Code-Structure.md`.
-- **Core Layer and Data Access Guidelines**: Specific architectural patterns for the `core/` module are outlined in `IMPL-Code-Structure.md`.
-- **Migration and Shell Guidelines**: Best practices for database migrations (Alembic) and shell command usage (preferring Bash) are detailed in
-  `IMPL-Migration-Implementation-Summary.md`.
+- **Project Structure**: Follow the current package layout and architecture
+  documentation; do not infer frameworks or database layers that are absent
+  from the implementation.
+- **Shell Guidelines**: Prefer repository-owned commands and non-interactive
+  invocations suitable for repeatable validation.
 
 # References
 
 - [General Preferences](./AGENT-GUIDE-General-Preferences.md)
 - [Coding Standards for AI-Generated Code](./AGENT-GUIDE-Coding-Standards.md)
-- [IMPL: Code Structure Overview](../../3-implementation/IMPL-Code-Structure.md)
-- [IMPL: Database Migration Implementation Summary](../../3-implementation/IMPL-Migration-Implementation-Summary.md)
 - `docs/1-requirements/` (for SRS documentation)
 - `docs/2-architecture/` (for design documentation)

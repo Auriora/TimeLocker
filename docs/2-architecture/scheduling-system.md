@@ -350,7 +350,5 @@ timelocker schedule test <schedule-id> --dry-run
 
 ## References
 
-- [Scheduling & Automation Design](.kiro/specs/scheduling-automation/design.md)
 - [CLI Schedule Commands](../3-implementation/cli-modules.md)
-- [Policy Management](policy-management.md)
-- [Monitoring & Reporting](monitoring-reporting.md)
+- [Policy Management](../3-implementation/policy-management.md)

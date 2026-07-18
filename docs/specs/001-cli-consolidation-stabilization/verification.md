@@ -32,8 +32,8 @@ last_reviewed: 2026-07-18
 
 ## Evidence Log
 
-- T001-T003: `docs/updates/2026-04-23-173102-cli-consolidation-first-slice.md`.
-- T004: `docs/updates/2026-05-06-181418-cli-configservice-command-standardization.md`.
+- T001-T003: commit `d8600cc5ee9b06774e1d73f69a392179015e4bff`.
+- T004: commit `519dc81cbc77147fa64b12041c608b1ae7cd978e`.
 - T005-T008: pending.
 
 ## Evidence Recording Rules
@@ -49,7 +49,7 @@ search result alone does not prove runtime behavior; pair it with focused tests.
 | Resolver/service/monitoring boundaries | `docs/3-implementation/service-layer-integration.md` | pending | T009 |
 | Code navigation and ownership | `docs/reference/repo-orientation-and-change-map.md` | pending | T009 |
 | Public command hierarchy | unchanged unless drift is discovered | pending review | CLI contract tests |
-| Implementation history | `docs/updates/` | pending | Per-slice entries |
+| Implementation history | Git commits, pull requests, and CI evidence | complete | Existing completed slices cite their commits; future slices record equivalent evidence |
 
 ### Spec Cleanup Decision
 

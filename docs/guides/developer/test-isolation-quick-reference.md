@@ -236,9 +236,8 @@ def test_custom_xdg_path(tmp_path, monkeypatch):
 
 ## Related Documentation
 
-- [Test Isolation Strategy](../2-architecture/test-isolation-strategy.md) - Full implementation details
-- [File Locations Review](../2-architecture/file-locations-review.md) - Path analysis
-- [Update Log](../updates/2025-11-09-test-isolation-and-xdg-compliance.md) - What changed
+- [Test Isolation Strategy](../../2-architecture/test-isolation-strategy.md) - Full implementation details
+- [File Locations Review](../../2-architecture/file-locations-review.md) - Path analysis
 
 ---
 

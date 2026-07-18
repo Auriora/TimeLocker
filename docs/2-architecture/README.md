@@ -33,7 +33,7 @@ source for diagrams, Architecture Decision Records (ADRs), and infrastructure la
 
 - Low-level implementation details (see `../3-implementation/`).
 - Test strategies (see `../4-testing/`).
-- Day-to-day change logs (see `../updates/`).
+- Day-to-day change logs; use Git commits and pull requests.
 
 ## 4. Usage Notes
 
@@ -60,4 +60,4 @@ See [README.design.md](./README.design.md) for a complete index of architecture 
 
 - [Design Index](./README.design.md) - Complete architecture document index
 - [Implementation](../3-implementation/README.md) - Implementation details
-- [Updates](../updates/index.md) - Architecture change notes
+- [Spec Packages](../specs/README.md) - Active governed changes

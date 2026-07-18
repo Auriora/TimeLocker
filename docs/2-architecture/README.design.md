@@ -33,7 +33,6 @@ complements the main `README.md` by providing quick navigation for design-centri
 - [Technical Architecture](./technical-architecture.md)
 - [System Architecture](./system-architecture.md)
 - [Component Breakdown](./component-breakdown.md)
-- [Data Model](./data-model.md) - Current filesystem implementation + future database design
 - [Data Flow](./data-flow.md)
 - [Design Patterns](./design-patterns.md)
 
@@ -50,19 +49,10 @@ complements the main `README.md` by providing quick navigation for design-centri
 - [Scalability & Performance](./scalability-performance.md)
 - [Test Isolation Strategy](./test-isolation-strategy.md)
 
-#### Planning & Review
+#### Review
 
-- [Future Enhancements](./future-enhancements.md)
 - [File Locations Review](./file-locations-review.md)
 - [Path Review Summary](./path-review-summary.md)
-
-### 2.2 API Assets (Future Implementation)
-
-> **Note**: These are design specifications for future REST API implementation. Current implementation is CLI-only.
-
-- [API Reference](./api-reference.md) - Design specification for future REST API
-- `TimeLocker-API-Specification.yaml` - OpenAPI specification (design)
-- `TimeLocker-API-Components.yaml` - Shared API components (design)
 
 ## 3. Consequences
 

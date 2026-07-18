@@ -32,23 +32,14 @@ The design documentation is organized into cohesive sections so that each discip
     - [System Architecture](./system-architecture.md) – layered system view with user interfaces, core services, infrastructure, and storage backends.
     - [Component Breakdown](./component-breakdown.md) – responsibilities and requirement mapping for each subsystem.
     - [Data Flow](./data-flow.md) – execution pipeline from user request to storage backend.
-    - [Data Model](./data-model.md) – ERD and data dictionary covering repositories, snapshots, policies, and logs.
     - [Design Patterns](./design-patterns.md) – patterns and principles used across services.
     - [Security Considerations](./security-considerations.md) – security architecture assumptions and controls.
     - [Scalability & Performance](./scalability-performance.md) – guidance for throughput, resource usage, and growth planning.
-    - [Future Enhancements](./future-enhancements.md) – backlog of architectural improvements.
-
-- **API Architecture**
-    - [API Reference](./api-reference.md) – REST API overview plus links to OpenAPI specifications (`TimeLocker-API-Specification.yaml`,
-      `TimeLocker-API-Components.yaml`).
-
-- **Supporting Artifacts**
-    - YAML specifications stored alongside the docs provide machine-readable definitions consumed by tooling and documentation pipelines.
 
 Navigation guidance:
 
-- Developers should start with `technical-architecture.md`, then drill into `component-breakdown.md` and `data-model.md`.
-- API consumers can jump directly to `api-reference.md`.
+- Developers should start with `technical-architecture.md`, then drill into
+  `component-breakdown.md` and `data-flow.md`.
 - Security and compliance reviewers focus on `security-considerations.md`.
 
 ## 3. Consequences

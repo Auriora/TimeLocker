@@ -428,7 +428,4 @@ except ValueError as e:
 
 ## See Also
 
-- [Recovery Operations Design](../2-architecture/recovery-operations-design.md)
-- [Recovery Operations Requirements](../1-requirements/recovery-operations-requirements.md)
 - [Recovery Models Demo](../../examples/recovery_models_demo.py)
-- [Recovery Operations Specification](.kiro/specs/recovery-operations/)

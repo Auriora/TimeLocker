@@ -23,7 +23,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010
   - Files: `src/TimeLocker/cli.py`
   - Acceptance: Hybrid command groups use one merge helper.
   - Evidence mode: implementation
-  - Evidence: `docs/updates/2026-04-23-173102-cli-consolidation-first-slice.md`.
+  - Evidence: commit `d8600cc5ee9b06774e1d73f69a392179015e4bff`.
 
 - [x] T002 Remove duplicate security command-group mounting.
   - Depends on: T001
@@ -31,7 +31,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010
   - Files: `src/TimeLocker/cli.py`
   - Acceptance: `security` is mounted once and modular commands merge into the existing app.
   - Evidence mode: implementation
-  - Evidence: `docs/updates/2026-04-23-173102-cli-consolidation-first-slice.md`.
+  - Evidence: commit `d8600cc5ee9b06774e1d73f69a392179015e4bff`.
 
 - [x] T003 Add a unique top-level command registration regression test.
   - Depends on: T002
@@ -39,7 +39,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010
   - Files: `tests/TimeLocker/cli/`
   - Acceptance: Tests fail if duplicate root command registrations reappear.
   - Evidence mode: validation
-  - Evidence: `docs/updates/2026-04-23-173102-cli-consolidation-first-slice.md`.
+  - Evidence: commit `d8600cc5ee9b06774e1d73f69a392179015e4bff`.
 
 - [x] T004 Standardize CLI command configuration access on `ConfigService`.
   - Depends on: T003
@@ -47,7 +47,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010
   - Files: `src/TimeLocker/cli_modules/commands/`, `src/TimeLocker/cli_modules/services/config_service.py`
   - Acceptance: Command code no longer constructs `ConfigurationModule` outside explicit compatibility helpers.
   - Evidence mode: implementation
-  - Evidence: `docs/updates/2026-05-06-181418-cli-configservice-command-standardization.md`.
+  - Evidence: commit `519dc81cbc77147fa64b12041c608b1ae7cd978e`.
 
 ## Phase 2: Remaining Consolidation
 

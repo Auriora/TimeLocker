@@ -1,243 +1,105 @@
 ---
-type:        "agent_requested"
-name:        "Documentation conventions"
-priority:    20
-scope:       "docs/**"
-description: "This rule provides a standardized documentation format and policy for all projects."
-cross_reference: ["preferences.md"]
-apply_when:   "task_changes_documentation == true"
+type: "agent_requested"
+name: "Documentation conventions"
+priority: 20
+scope: "docs/**"
+description: "Keep documentation current-state oriented and use Git for history."
+cross_reference: ["AGENT-GUIDE-General-Preferences.md", "AGENT-GUIDE-Planning-Protocol.md"]
+apply_when: "task_changes_documentation == true"
 ---
 
-# AI Agent Rule/Guide: Documentation Conventions
+# AI Agent Rule: Documentation Conventions
 
-- **Type**: agent_requested
-- **Priority**: 20
-- **Scope**: docs/**
-- **Description**: This rule provides a standardized documentation format and policy for all projects.
-- **Cross-Reference**: preferences.md
-- **Apply When**: task_changes_documentation == true
+## Purpose
 
-## 1. Purpose
+Keep `docs/` small, current, and authoritative. Git history preserves completed
+delivery artifacts; the visible tree must not become an archive of plans,
+requirements/design drafts, implementation diaries, reports, or issue snapshots.
 
-This rule establishes standardized documentation conventions and policies for all projects. It guides the AI agent on where documentation should reside, how it
-should be structured, and best practices for maintaining its quality and consistency.
+## Current Structure
 
-## 2. Rule/Guideline Details
-
-### 2.1. MUST: Use the Repo's Documentation Structure
-
-All documentation MUST live under `docs/` and follow the established structure:
-
-```
+```text
 docs/
-├── README.md                           # Documentation hub landing page
-├── _template/                          # Templates for all doc types
-│   ├── _template.md
-│   ├── _template.README.md
-│   └── README.md
-├── 0-project-management/               # Project tracking and management
-│   ├── tasks-to-issues-map.md
-│   └── README.md
-├── 1-requirements/                     # Requirements and specifications
-│   ├── _template.md
-│   └── README.md
-├── 2-architecture/                     # Architecture and design docs
-│   ├── _template.md
-│   ├── overview.md
-│   ├── system-architecture.md
-│   └── README.md
-├── 3-implementation/                   # Implementation details
-│   ├── _template.md
-│   ├── command-builder.md
-│   └── README.md
-├── 4-testing/                          # Testing documentation
-│   ├── _template.md
-│   ├── test-plan.md
-│   └── README.md
-├── guides/                             # User and developer guides
-│   ├── user/                           # End-user documentation
-│   ├── developer/                      # Developer/contributor docs
-│   ├── ai-agent/                       # AI agent instructions
-│   └── README.md
-├── plans/                              # Implementation plans
-│   ├── _template.md
-│   └── README.md
-├── specs/                              # Active implementation packages
-│   ├── README.md
-│   └── 000-feature-slug/
-│       ├── requirements.md
-│       ├── design.md
-│       └── tasks.md
-├── history/                            # Specification lifecycle history
-│   ├── spec-closure-log.md
-│   └── spec-archive-index.md
-├── processes/                          # Process documentation
-│   ├── _template.md
-│   ├── version-management.md
-│   └── README.md
-├── proposals/                          # Design proposals
-│   ├── _template.md
-│   └── README.md
-├── reference/                          # Reference documentation
-│   ├── _template.md
-│   └── README.md
-├── reports/                            # Status and analysis reports
-│   ├── _template.md
-│   ├── _template.code-quality.md
-│   ├── _template.coverage.md
-│   └── README.md
-├── updates/                            # Implementation update logs
-│   ├── _template.md
-│   ├── index.md
-│   └── README.md
-├── traceability/                       # Traceability matrices
-│   ├── _template.md
-│   └── README.md
-└── archive/                            # Historical documentation
-    └── README.md
+├── README.md
+├── 1-requirements/       # accepted durable product requirements
+├── 2-architecture/       # implemented system structure and ADRs
+├── 3-implementation/     # current code/integration guidance
+├── 4-testing/            # current test commands and environment guidance
+├── guides/               # user, developer, and agent guidance
+├── processes/            # durable operational/release processes
+├── proposals/            # short-lived proposals awaiting routing
+├── reference/            # stable command, API, and configuration facts
+├── specs/                # temporary active delivery packages
+└── history/              # compact spec closure breadcrumbs only
 ```
 
-- Do NOT add documentation files outside `docs/`.
-- Do NOT create ad-hoc directories like `docs/progress/`, `docs/architecture/`,
-  or `docs/tasks/` - use the established structure.
-- `docs/specs/` is temporary delivery state, not durable product documentation.
-  Promote accepted content before closure.
+Do not recreate `updates/`, `plans/`, `reports/`, `archive/`, `issues/`,
+`traceability/`, or local project-task directories as permanent documentation
+collections.
 
-### 2.2. MUST: Write "What Was Implemented" Docs in `docs/updates`
+## Placement Rules
 
-Task-scoped implementation notes (often written by agents) MUST be placed in `docs/updates/`:
+- Accepted requirements and invariants → `1-requirements/`.
+- Implemented architecture and durable decisions → `2-architecture/`.
+- Current code structure and integration guidance → `3-implementation/`.
+- Current testing procedures → `4-testing/`.
+- User/developer/agent procedures → `guides/`.
+- Operational and release processes → `processes/`.
+- Stable factual mappings and contracts → `reference/`.
+- Non-trivial active implementation work → `specs/[###-slug]/`.
+- Spec closure identity and commit evidence → `history/`.
+- Assignment, issue state, backlog, and unapproved future work → GitHub.
 
-- File naming: `YYYY-MM-DD-descriptive-slug.md`.
-- Use the template: `docs/updates/_TEMPLATE.md`.
-- Add to the index: `docs/updates/index.md` (newest first).
-- Optionally add a short entry to `CHANGELOG.md` linking to the update.
-- See guidance: `docs/updates/README.md`.
+## Lifecycle Rules
 
-These updates complement the CHANGELOG and should not duplicate full release notes.
+1. Durable docs describe accepted current state by default.
+2. Active specs describe approved intended changes and are temporary.
+3. Promote lasting requirements, design, contracts, operations, and validation
+   guidance before closing a spec.
+4. Commit a spec's complete final state, record compact closure evidence, and
+   remove the package. Do not retain completed specs as visible history.
+5. Store implementation evidence in the active spec, commit, pull request, CI,
+   or issue. Do not create a permanent update diary.
+6. Use `git log -- <path>` and `git show <commit>:<path>` for historical recovery.
 
-### 2.3. SHOULD: Update the Right Page for the Right Change
+## Content Rules
 
-- Requirements and specifications → `docs/1-requirements/`
-- Architecture/service design changes → `docs/2-architecture/` (NOT `docs/architecture/`)
-- Implementation details and code structure → `docs/3-implementation/`
-- Testing documentation → `docs/4-testing/`
-- User guides and tutorials → `docs/guides/user/`
-- Developer/contributor guides → `docs/guides/developer/`
-- AI agent instructions → `docs/guides/ai-agent/`
-- Reference documentation (APIs, specs) → `docs/reference/`
-- Active implementation specifications → `docs/specs/[###-slug]/`
-- Legacy completed or superseded plans → `docs/plans/`
-- Specification closure evidence → `docs/history/`
-- Process documentation → `docs/processes/`
-- Design proposals → `docs/proposals/`
-- Status reports and analysis → `docs/reports/`
-- Implementation update logs → `docs/updates/`
-- Task and project tracking → `docs/0-project-management/` (NOT `docs/tasks/`)
-- Traceability matrices → `docs/traceability/`
-- Historical documentation → `docs/archive/`
+- One home per concept; reference instead of copying.
+- Current docs must not link to legacy `.kiro/specs/`, deleted plans, dated
+  updates, completion reports, or local issue/task snapshots.
+- Do not mix proposed REST API, GUI, database, roadmap, or other future behavior
+  into current architecture/reference docs. Route it to GitHub or an active spec.
+- Replace orphaned requirement IDs with a current durable requirement, active
+  spec acceptance criterion, code-derived contract, or no reference.
+- Label experimental or deprecated behavior explicitly when it still exists.
+- Prefer relative links and validate them after moves or deletions.
 
-### 2.4. MUST NOT: Duplicate Content
+## Required Evidence
 
-- One home per concept. Reference, don’t repeat.
-- Do not copy parameter tables across multiple docs. The canonical source is `docs/reference/tools.md`.
-- Do not place status/update narratives in concept/reference docs—use `docs/updates/`.
+For documentation changes, record:
 
-### 2.5. SHOULD: Maintain Cross-Links and Freshness
+- documents changed or removed;
+- current source used to validate claims;
+- internal-link and Markdown results;
+- lifecycle checks when specs are involved;
+- residual uncertainty where behavior was not executed.
 
-- When moving/renaming docs, update internal links in affected files.
-- Add a "Last updated: <YYYY-MM-DD>" header to substantive docs.
-- Prefer relative links within `docs/` (e.g., `../reference/tools.md`).
+Evidence belongs in the active spec, commit message/body, pull request, CI, or
+issue—not a new permanent documentation log.
 
-### 2.6. MAY: Archive Historical Documents
+## Review Checklist
 
-- Obsolete status/update or migration notes belong in `docs/archive/`.
-- Do not add new content directly to `archive/`; move there only after consolidation.
-
-### 2.7. PR Checklist (enforced by reviewers/agents)
-
--   [ ] If code behavior or APIs changed, updated relevant reference docs in `docs/reference/`
--   [ ] If requirements changed, updated `docs/1-requirements/`
--   [ ] If architecture changed, updated `docs/2-architecture/` (NOT `docs/architecture/`)
--   [ ] If implementation details changed, updated `docs/3-implementation/`
--   [ ] If testing approach changed, updated `docs/4-testing/`
--   [ ] If work was task-scoped, added an entry in `docs/updates/` with timestamp and updated `docs/updates/index.md`
--   [ ] If work is spec-governed, updated task evidence, verification, durable promotion targets, and closure readiness
--   [ ] If creating a status report, added to `docs/reports/` with timestamp
--   [ ] If tracking tasks, updated `docs/0-project-management/` (NOT `docs/tasks/`)
--   [ ] Updated `docs/README.md` if navigation/structure changed
--   [ ] Removed duplication and updated cross-links; added "Last updated" where applicable
--   [ ] Did not leave accepted current behavior only in an active spec package
-
-### 2.8. Formatting & Style
-
-- Markdown only. Prefer bullets and short paragraphs.
-- Include examples and exact parameter names/types where helpful.
-- Use code fences with languages for commands and snippets.
-- Use PlantUML in Markdown for diagrams when appropriate.
-- Provide docstrings for public APIs in code (PEP 257 style) with type hints.
-
-### 2.9. Implementation Notes and Reports
-
-**Updates (Implementation Logs)**
-
-Task-scoped implementation notes (often written by agents) MUST be placed in `docs/updates/`:
-
-- File naming: `YYYY-MM-DD-HHMMSS-descriptive-slug.md` (include timestamp for uniqueness).
-- Use the template: `docs/updates/_template.md`.
-- Add to the index: `docs/updates/index.md` (newest first).
-- Optionally add a short entry to `CHANGELOG.md` linking to the update.
-- See guidance: `docs/updates/README.md`.
-
-**Reports (Status and Analysis)**
-
-Status reports, progress summaries, and analysis documents MUST be placed in `docs/reports/`:
-
-- File naming: `YYYY-MM-DD-HHMMSS-descriptive-slug.md` (include timestamp for uniqueness).
-- Use the appropriate template from `docs/reports/`:
-  - `_template.md` - Generic report template
-  - `_template.code-quality.md` - Code quality reports
-  - `_template.coverage.md` - Test coverage reports
-  - `_template.security-review.md` - Security reviews
-- See guidance: `docs/reports/README.md`.
-
-**Key Distinction**:
-- **Updates**: What was implemented, how it was done, technical details
-- **Reports**: Status snapshots, metrics, analysis, findings
-- **Specs**: Temporary intended change, execution tasks, and validation evidence
-- **Durable docs**: Accepted current behavior after promotion
-
-## 3. Examples
-
-```markdown
----
-# name: "Example Document"
-# type: "agent_requested"
-# description: "A brief description of the document."
-# priority: 10
-# scope: "docs/concepts/**"
-# cross_reference: ["another-rule.md"]
-# apply_when: "task_adds_new_concept == true"
----
-```
-
-## 4. Rationale / Justification
-
-Adhering to a standardized documentation structure and policy is critical for maintaining a well-organized, discoverable, and consistent knowledge base. This
-rule ensures that all project documentation is easily accessible, up-to-date, and contributes effectively to the project's overall understanding and
-maintainability.
-
-## 5. Related Information
-
-This rule is cross-referenced with `preferences.md` for general project preferences and guidance on coordinating and applying other rules. It also implicitly
-relates to all other documentation within the `docs/` directory.
+- [ ] Content describes implemented current state or is explicitly active-spec intent.
+- [ ] No concept is duplicated across durable documents.
+- [ ] No historical plan/report/update/local issue artifact was added.
+- [ ] No legacy `.kiro/specs/` or deleted-document reference remains.
+- [ ] Future-only behavior is routed out of current-state docs.
+- [ ] Active-spec promotion and closure state is accurate.
+- [ ] Links and Markdown structure were checked.
 
 # References
 
-- [General Preferences](./AGENT-GUIDE-General-Preferences.md)
-- [Documentation Conventions Steering](../../../.kiro/steering/documentation-conventions.md)
-- `docs/updates/README.md`
-- `docs/updates/index.md`
-- `docs/reports/README.md`
-- `docs/specs/README.md`
-- `docs/history/spec-closure-log.md`
-- `CHANGELOG.md`
+- [Documentation hub](../../README.md)
+- [Planning protocol](./AGENT-GUIDE-Planning-Protocol.md)
+- [Active specifications](../../specs/README.md)
+- [Spec closure log](../../history/spec-closure-log.md)

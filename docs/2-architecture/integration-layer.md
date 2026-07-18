@@ -494,7 +494,6 @@ CLI commands access services through:
 
 ## References
 
-- [Integration Architecture Design](.kiro/specs/integration-architecture/design.md)
 - [Service Facade Implementation](../3-implementation/service-facade.md)
 - [CLI Service Helpers](../3-implementation/cli-modules.md)
 - [Error Handling](../3-implementation/error-context-usage.md)

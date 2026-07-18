@@ -45,7 +45,7 @@ for the remaining consolidation work.
 | Final service boundaries | `docs/3-implementation/service-layer-integration.md` | pending | Promote with T009 |
 | Final code ownership/navigation | `docs/reference/repo-orientation-and-change-map.md` | pending | Promote with T009 |
 | User-visible CLI changes | `docs/reference/timelocker-cli-command-hierarchy.md` | not expected | Update only if validation discovers contract drift |
-| Per-slice implementation evidence | `docs/updates/` | pending | Add one entry per landed slice or a bounded combined entry |
+| Per-slice implementation evidence | Git commits, pull requests, and CI artifacts | pending | Record evidence for each landed slice in this package |
 
 ## Unchanged Durable Areas
 

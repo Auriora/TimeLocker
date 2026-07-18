@@ -1,139 +1,84 @@
-# TimeLocker Documentation
-
-Last updated: 2026-07-18
-
-## Overview
-
-TimeLocker is a high-level interface over Restic that centralizes repository management, snapshot operations, and credential handling for reliable backups
-across local, S3, and B2 backends. This documentation hub groups user guides, architecture notes, implementation details, and project status artifacts so
-contributors and operators can navigate the knowledge base quickly.
-
-## 📋 Documentation Structure
-
-### Primary Documents (Start Here)
-
-- **[Installation Guide](./guides/user/installation.md)** – End-to-end setup for TimeLocker and its dependencies.
-- **[Repository Management Guide](./guides/user/repository-management-guide.md)** – Working with named repositories, defaults, and CLI usage patterns.
-- **[S3-Compatible Services](./guides/user/s3-compatible-services.md)** – How to configure MinIO, Wasabi, Backblaze B2 (S3 API), and other compatible endpoints.
-- **[Testing Quick Start](./4-testing/quickstart-testing.md)** – Fast path for verifying environments, running MinIO integration tests, and interpreting
-  results.
-- **[Tasks-to-Issues Map](./0-project-management/tasks-to-issues-map.md)** – Canonical mapping between documentation sources and tracked GitHub issues.
-- **[Active Specifications](./specs/README.md)** – Implementation contracts, task evidence, validation, promotion, and closure workflow.
-- **[Updates Index](./updates/index.md)** – Chronological log of implementation notes and rule applications.
-
-### Supporting Collections
-
-- **Requirements** – [./1-requirements/README.md](./1-requirements/README.md)
-- **Architecture** – [./2-architecture/README.md](./2-architecture/README.md)
-- **Implementation** – [./3-implementation/README.md](./3-implementation/README.md) and [command-builder.md](./3-implementation/command-builder.md)
-- **Testing** – [./4-testing/README.md](./4-testing/README.md) plus MinIO guides under the same directory.
-- **Developer Guides** – [./guides/developer/README.md](./guides/developer/README.md), including automation and scheduling playbooks.
-- **Processes** – [./processes/README.md](./processes/README.md) and [version-management.md](./processes/version-management.md) for release governance.
-- **Reference** – [./reference/README.md](./reference/README.md) and supporting specs such
-  as [timelocker-cli-command-hierarchy.md](./reference/timelocker-cli-command-hierarchy.md) and [repository-uri-guide.md](./reference/repository-uri-guide.md).
-- **Reports & Updates** – Generated analyses and change logs under [./reports/](./reports/README.md) and [./updates/](./updates/index.md).
-- **Lifecycle History** – [./history/spec-closure-log.md](./history/spec-closure-log.md) and
-  [./history/spec-archive-index.md](./history/spec-archive-index.md) for closed specification evidence.
-- **Archive** – [./archive/README.md](./archive/README.md) – Historical documentation preserved for reference.
-
-## 🚀 Quick Start
-
-### Operating TimeLocker
-
-1. Follow the [Installation Guide](./guides/user/installation.md) to prepare the runtime environment.
-2. Create and manage repositories with the [Repository Management Guide](./guides/user/repository-management-guide.md).
-3. Configure S3-compatible endpoints using [S3-Compatible Services](./guides/user/s3-compatible-services.md);
-   use [guide-minio-testing.md](./4-testing/guide-minio-testing.md) for MinIO specifics.
-4. Validate the setup via [Testing Quick Start](./4-testing/quickstart-testing.md) and the MinIO checklist (`checklist-minio-testing.md`).
-
-### Contributing & Maintenance
-
-1. Review current assignments in [Tasks-to-Issues Map](./0-project-management/tasks-to-issues-map.md) and implementation intent in
-   [Active Specifications](./specs/README.md).
-2. Use the active spec package for scope, sequencing, acceptance, and evidence; use the [updates index](./updates/index.md) for chronological history.
-3. Follow house style from [guides/ai-agent/](./guides/ai-agent/README.md) when authoring new documentation or automation.
-4. Capture changes in `docs/updates/` using the [update template](./updates/_template.md).
-
-## 📊 Project Status Summary
-
-- **Current posture**: Beta CLI application with broad feature coverage and one active CLI consolidation specification.
-- **Status reference**: [Documentation Status Report](./DOCUMENTATION-STATUS.md) is the current high-level assessment; prefer it over older milestone reports.
-- **Implementation history**: See the [updates index](./updates/index.md) for the latest implementation and consolidation notes.
-- **Open work queue**: [Tasks-to-Issues Map](./0-project-management/tasks-to-issues-map.md) is the authoritative crosswalk between docs and GitHub issues.
-- **Active specifications**: The [specs directory](./specs/README.md) contains current delivery contracts; [plans](./plans/README.md) are historical.
-
-## 🎯 Current Focus
-
-The current highest-value work is stabilization and consolidation rather than net-new top-level features. In particular:
-
-- keep top-level docs aligned with the observable CLI and package layout
-- continue reducing command-layer duplication between `src/TimeLocker/cli.py` and `src/TimeLocker/cli_modules/`
-- prefer targeted testing and focused cleanup over broad maturity claims
-
-Use [Spec 001](./specs/001-cli-consolidation-stabilization/requirements.md) for the current execution contract and the newest entries in
-[docs/updates](./updates/index.md) for implementation history.
-
-## 🏗️ Architecture Overview
-
-- High-level architecture and deployment topology: [./2-architecture/README.md](./2-architecture/README.md)
-- Detailed module breakdowns and code tours: [./3-implementation/README.md](./3-implementation/README.md)
-- CLI command structure and hierarchy: [timelocker-cli-command-hierarchy.md](./reference/timelocker-cli-command-hierarchy.md)
-- Practical repo navigation for contributors: [repo-orientation-and-change-map.md](./reference/repo-orientation-and-change-map.md)
-- Credential and repository flow summaries: see user guides in `./guides/user/` and testing artifacts in `./4-testing/`.
-
-## 🧪 Testing
-
-- **Quick Start**: [quickstart-testing.md](./4-testing/quickstart-testing.md)
-- **MinIO Environment**: [guide-minio-testing.md](./4-testing/guide-minio-testing.md), [summary-minio-setup.md](./4-testing/summary-minio-setup.md),
-  and [checklist-minio-testing.md](./4-testing/checklist-minio-testing.md)
-- **Coverage Improvements**: [report-test-case-coverage-improvements-pr66.md](./reports/report-test-case-coverage-improvements-pr66.md)
-- Execute pytest suites as documented in the testing quick start to validate environments and changes.
-
-## 🔧 Development Setup
-
-- System prerequisites, installation, and command verification: [installation.md](./guides/user/installation.md)
-- Automation patterns and scheduling examples: [automation-examples.md](./guides/developer/automation-examples.md)
-  and [scheduling-guide.md](./guides/developer/scheduling-guide.md)
-- Version bumping workflow: [version-management.md](./processes/version-management.md)
-- Reference the root `README.md` for repository layout, dependencies, and standard project setup.
-
-## 📚 Key Reference Areas
-
-| Topic                           | Location              |
-|---------------------------------|-----------------------|
-| User workflows & FAQs           | `./guides/user/`      |
-| Developer operations            | `./guides/developer/` |
-| Requirements & personas         | `./1-requirements/`   |
-| Architecture decisions          | `./2-architecture/`   |
-| Implementation conventions      | `./3-implementation/` |
-| Testing strategy                | `./4-testing/`        |
-| Operational processes           | `./processes/`        |
-| Active delivery specifications  | `./specs/`            |
-| Specification lifecycle history | `./history/`          |
-| Formal reports                  | `./reports/`          |
-| Updates & changelog supplements | `./updates/`          |
-| Historical documentation        | `./archive/`          |
-
-## 🔮 Roadmap
-
-- Planned refactors and feature work are governed by [active specifications](./specs/README.md) and linked to the GitHub issue backlog
-  via [tasks-to-issues-map.md](./0-project-management/tasks-to-issues-map.md). The `docs/plans/` directory is retained for historical plans.
-- Historical context and completed milestones live in archived updates and reports; review the updates index before starting new initiatives.
-
-## 📞 Support
-
-- **Documentation Gaps**: File new entries in [updates](./updates/index.md) and cross-link to `docs/updates/_template.md`.
-- **Agent & Automation Guidance**: Follow the protocols in [guides/ai-agent/](./guides/ai-agent/README.md).
-- **Technical Questions**: Use the appropriate guide (user vs developer) and reference materials under `./reference/`.
-
+---
+title: TimeLocker documentation
+doc_type: reference
+status: active
+owner: Auriora Team
+last_reviewed: 2026-07-18
 ---
 
-## 📋 Documentation Maintenance
+# TimeLocker Documentation
 
-1. Keep [updates/index.md](./updates/index.md) current; every substantial change needs a companion entry from the [update template](./updates/_template.md).
-2. When relocating documentation, update cross-links and references (see `AGENT-RULE-Documentation-Conventions`).
-3. Ensure new documents include metadata consistent with their directory’s README and templates (e.g., `docs/_template/`).
-4. Align ongoing work with the authoritative mappings in [tasks-to-issues-map.md](./0-project-management/tasks-to-issues-map.md) to preserve traceability.
-5. For spec-governed work, promote accepted current-state content into durable docs before recording closure under `docs/history/`.
+This tree documents accepted current behavior and active delivery work. Git
+history—not a visible archive of old plans, reports, requirements, designs, or
+status snapshots—preserves superseded context.
 
-*Last Updated: 2026-07-18*
+## Start Here
+
+- [Installation](./guides/user/installation.md)
+- [Repository management](./guides/user/repository-management-guide.md)
+- [S3-compatible services](./guides/user/s3-compatible-services.md)
+- [Testing quick start](./4-testing/quickstart-testing.md)
+- [CLI command hierarchy](./reference/timelocker-cli-command-hierarchy.md)
+- [Repository orientation and change map](./reference/repo-orientation-and-change-map.md)
+- [Active specifications](./specs/README.md)
+
+## Current Product State
+
+TimeLocker is a Beta CLI application that wraps Restic for repository,
+snapshot, backup, restore, credential, policy, scheduling, monitoring, and
+integration workflows. The CLI is the supported user interface. There is no
+implemented REST API, database-backed application store, desktop GUI, or
+mobile client.
+
+The current delivery focus is CLI consolidation and stabilization. GitHub owns
+assignment and issue status; [Spec 001](./specs/001-cli-consolidation-stabilization/requirements.md)
+owns implementation scope, sequencing, acceptance, and evidence for that work.
+
+## Documentation Map
+
+| Need | Current source |
+|------|----------------|
+| Product and command behavior | `guides/user/`, `reference/` |
+| System structure and decisions | `2-architecture/` |
+| Code structure and integration | `3-implementation/` |
+| Testing commands and environments | `4-testing/` |
+| Contributor guidance | `guides/developer/` |
+| Agent rules | `guides/ai-agent/` |
+| Release/version process | `processes/` |
+| Active delivery contracts | `specs/` |
+| Compact lifecycle evidence | `history/` |
+
+`1-requirements/` currently contains the durable-document contract and template
+only; do not treat removed Kiro requirements or historical specs as current
+product requirements. When accepted product requirements need durable coverage,
+add a current-state document there or promote them from an active spec.
+
+## Authority Boundaries
+
+- Code, tests, configuration, and generated contracts override stale prose.
+- Durable docs describe implemented and accepted current behavior.
+- Active specs describe approved intended changes until promotion and closure.
+- GitHub issues own assignment and issue state.
+- Git history preserves completed plans, implementation diaries, reviews, and
+  superseded requirements/designs.
+- `history/` contains only compact spec closure breadcrumbs; it is not a visible
+  document archive.
+
+## Documentation Rules
+
+1. Keep one current source per concept and link to it rather than duplicating it.
+2. Do not add permanent implementation diaries, completion reports, local issue
+   snapshots, or standalone plans.
+3. Put non-trivial active work under `specs/[###-slug]/`; promote lasting
+   behavior before closure and then remove the package.
+4. Put unapproved future work in GitHub or a new active spec, not current-state
+   architecture or reference docs.
+5. Record validation in the owning spec, commit, pull request, or CI result.
+6. Run internal-link and Markdown checks after moving or deleting docs.
+
+## Historical Recovery
+
+Use `git log -- <path>` and `git show <commit>:<path>` to recover deleted
+historical material. For closed spec identity and durable destinations, consult
+[the closure log](./history/spec-closure-log.md) and
+[archive index](./history/spec-archive-index.md).

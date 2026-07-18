@@ -2,7 +2,7 @@
 
 **Last Updated**: 2025-11-13
 **Status**: Active Development
-**Related**: [CLI Refactoring Plan](../archive/cli-refactoring/cli-refactoring-plan.md), [Command Registry API](command-registry-api.md)
+**Related**: [CLI Consolidation Stabilization](../specs/001-cli-consolidation-stabilization/requirements.md), [Command Registry API](command-registry-api.md)
 
 Modular command-line interface for TimeLocker backup operations.
 
@@ -360,7 +360,7 @@ The `testing/` directory provides testing utilities:
 - ✅ **Phase 3**: Command registry and plugin system implemented
 - ✅ **Infrastructure**: Services, validation, and testing frameworks added
 
-See [CLI Refactoring Plan](../archive/cli-refactoring/cli-refactoring-plan.md) for historical details.
+See [CLI Consolidation Stabilization](../specs/001-cli-consolidation-stabilization/requirements.md) for remaining governed work.
 
 ## Contributing
 
@@ -374,6 +374,5 @@ When adding new commands or helpers:
 
 ## Resources
 
-- [CLI Refactoring Plan](../archive/cli-refactoring/cli-refactoring-plan.md)
-- [Phase 1 Implementation](../updates/2025-11-07-093135-cli-refactoring-phase1.md)
-- [Coding Standards](../../.kiro/steering/coding-standards.md)
+- [CLI Consolidation Stabilization](../specs/001-cli-consolidation-stabilization/requirements.md)
+- [Coding Standards](../guides/ai-agent/AGENT-GUIDE-Coding-Standards.md)

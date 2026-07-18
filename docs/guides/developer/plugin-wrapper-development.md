@@ -970,5 +970,4 @@ ConfigurationError: Parallel processing not supported by this tool
 ## See Also
 
 - [Backup Operations API Reference](../../reference/backup-operations-api.md)
-- [Backup Operations Design](.kiro/specs/backup-operations/design.md)
 - [Backup Operations Troubleshooting](../user/backup-operations-troubleshooting.md)

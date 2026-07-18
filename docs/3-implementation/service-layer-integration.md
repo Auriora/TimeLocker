@@ -3,7 +3,7 @@
 **Document Type**: Implementation Guide  
 **Status**: Active  
 **Last Updated**: 2025-11-12  
-**Related Specs**: `.kiro/specs/cli-refactoring/`
+**Related Spec**: [CLI Consolidation Stabilization](../specs/001-cli-consolidation-stabilization/requirements.md)
 
 ## Overview
 
@@ -515,6 +515,4 @@ logger.setLevel(logging.DEBUG)
 ## See Also
 
 - [Service Facade Implementation](./service-facade.md)
-- [CLI Refactoring Design](.kiro/specs/cli-refactoring/design.md)
-- [CLI Refactoring Requirements](.kiro/specs/cli-refactoring/requirements.md)
-- [Configuration Management](../2-architecture/data-model.md)
+- [CLI Consolidation Stabilization](../specs/001-cli-consolidation-stabilization/requirements.md)

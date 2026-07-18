@@ -469,7 +469,5 @@ timelocker privacy delete-all --confirm
 
 ## References
 
-- [Security Services Design](.kiro/specs/security-services/design.md)
 - [CLI Security Commands](../3-implementation/cli-modules.md)
-- [Repository Management](repository-management.md)
-- [Monitoring & Reporting](monitoring-reporting.md)
+- [Repository Management](../guides/user/repository-management-guide.md)

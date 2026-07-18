@@ -29,7 +29,7 @@ links:
 
 ## 3. What Does NOT Belong Here?
 
-- Completed documents (these should be placed in their respective content folders, e.g., `docs/plans/`, `docs/reports/`).
+- Historical delivery records; use Git history rather than keeping snapshots in `docs/`.
 - General guides on documentation practices (see `../guides/`).
 
 ## 4. Usage Notes

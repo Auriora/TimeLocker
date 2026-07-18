@@ -169,6 +169,5 @@ systemctl --user reset-failed
 
 ## See Also
 
-- [Configuration Guide](../2-architecture/configuration-management.md)
-- [Installation Guide](../guides/installation.md)
-- [Testing Guide](../4-testing/testing-strategy.md)
+- [Installation Guide](./user/installation.md)
+- [Testing Quick Start](../4-testing/quickstart-testing.md)

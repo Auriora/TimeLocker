@@ -432,4 +432,4 @@ If you encounter issues during migration:
 
 - [Service Layer Integration Guide](../../3-implementation/service-layer-integration.md)
 - [Service Facade Implementation](../../3-implementation/service-facade.md)
-- [CLI Refactoring Design](../../../.kiro/specs/cli-refactoring/design.md)
+- [CLI Consolidation Stabilization](../../specs/001-cli-consolidation-stabilization/requirements.md)

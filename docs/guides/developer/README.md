@@ -32,9 +32,9 @@ aimed at developers working on the project.
 
 ## 3. What Does NOT Belong Here?
 
-- Planning artifacts (see `../../0-project-management/`).
+- Planning artifacts; use active specs or the issue tracker.
 - Architecture decisions (see `../../2-architecture/`).
-- Task updates (see `../../updates/`).
+- Task updates; record them in the active spec or issue tracker.
 
 ## 4. Usage Notes
 

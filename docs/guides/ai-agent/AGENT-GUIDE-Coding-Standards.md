@@ -105,6 +105,5 @@ code seamlessly integrates with existing project standards.
 # References
 
 - [General Preferences](./AGENT-GUIDE-General-Preferences.md)
-- [HLD: Observability Design](../../2-architecture/ARCH-002-Observability.md) (for logging best practices)
 - `docs/1-requirements/` (for SRS documentation)
 - `docs/2-architecture/` (for design documentation)

@@ -2,7 +2,6 @@
 
 **Status**: Active  
 **Last Updated**: 2025-11-10  
-**Related Specs**: [Recovery Operations](.kiro/specs/recovery-operations/)
 
 ## Overview
 
@@ -1075,8 +1074,6 @@ logger.setLevel(logging.DEBUG)
 ## See Also
 
 - [Recovery Operations Models Reference](recovery-operations-models-reference.md)
-- [Recovery Operations Design](.kiro/specs/recovery-operations/design.md)
-- [Recovery Operations Requirements](.kiro/specs/recovery-operations/requirements.md)
 - [Full Recovery Workflow Demo](../../examples/full_recovery_workflow_demo.py)
 - [Selective Recovery Demo](../../examples/selective_recovery_demo.py)
 - [Recovery Verification and Monitoring Demo](../../examples/recovery_verification_monitoring_demo.py)

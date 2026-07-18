@@ -16,7 +16,8 @@ contracts.
 
 | Spec ID | Title | Package path | Status | Final spec commit | Cleanup commit | Closure action | Durable destinations | Verification |
 |---------|-------|--------------|--------|-------------------|----------------|----------------|----------------------|--------------|
-| legacy-cli-consolidation-stabilization-plan | RFC: CLI Consolidation Stabilization Plan | `docs/plans/2026-04-23-173102-cli-consolidation-stabilization-plan.md` | superseded | `ce23d07` | `ce23d07` | retained-as-history | `docs/specs/001-cli-consolidation-stabilization/requirements.md`; `docs/plans/README.md` | `docs/specs/001-cli-consolidation-stabilization/traceability.md` |
+| 000-adopt-spec-lifecycle-manager | Adopt Spec Lifecycle Manager | removed; recover from Git | removed | `c84dc3a` | pending | removed | `docs/specs/README.md`; `docs/guides/ai-agent/`; `docs/history/` | `docs/history/spec-closure-log.md` |
+| legacy-cli-consolidation-stabilization-plan | RFC: CLI Consolidation Stabilization Plan | removed; recover from Git | superseded | `ce23d07` | pending | removed | `docs/specs/001-cli-consolidation-stabilization/requirements.md`; `docs/history/spec-archive-index.md` | `docs/specs/001-cli-consolidation-stabilization/traceability.md` |
 
 ## Legacy Gaps
 

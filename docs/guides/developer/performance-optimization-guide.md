@@ -278,4 +278,3 @@ if __name__ == "__main__":
 
 - [Repository Management Guide](../user/repository-management-guide.md)
 - [Performance Monitoring Demo](../../../examples/performance_monitoring_demo.py)
-- [API Reference](../../2-architecture/api-reference.md)

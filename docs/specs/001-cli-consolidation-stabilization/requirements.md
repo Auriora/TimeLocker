@@ -45,8 +45,8 @@ observable command hierarchy.
 | `docs/reference/timelocker-cli-command-hierarchy.md` | Current public CLI organization. | high | Must remain stable. |
 | `docs/3-implementation/service-layer-integration.md` | Current service-layer boundaries and compatibility seams. | medium | Promote changes after each accepted slice. |
 | `docs/reference/repo-orientation-and-change-map.md` | Navigation and ownership map for CLI modules. | high | Refresh if files move or responsibilities change. |
-| `docs/updates/2026-04-23-173102-cli-consolidation-first-slice.md` | Registration consolidation evidence. | high | Migrated as completed work. |
-| `docs/updates/2026-05-06-181418-cli-configservice-command-standardization.md` | ConfigService migration evidence. | high | Migrated as completed work. |
+| Commit `d8600cc5ee9b06774e1d73f69a392179015e4bff` | Registration consolidation evidence. | high | Migrated as completed work. |
+| Commit `519dc81cbc77147fa64b12041c608b1ae7cd978e` | ConfigService migration evidence. | high | Migrated as completed work. |
 
 ## Durable Impact
 

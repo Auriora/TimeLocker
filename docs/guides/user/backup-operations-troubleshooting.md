@@ -719,4 +719,3 @@ When reporting issues, collect:
 - [Backup Operations API Reference](../../reference/backup-operations-api.md)
 - [Plugin Wrapper Development Guide](../developer/plugin-wrapper-development.md)
 - [Repository Management Guide](repository-management-guide.md)
-- [Data Selection Guide](../../2-architecture/data-model.md)

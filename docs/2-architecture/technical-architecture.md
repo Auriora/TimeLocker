@@ -31,17 +31,14 @@ The system architecture is organized into the following artifacts:
    `system-architecture.md`).
 2. **Component Breakdown** – Responsibilities, requirements mapping, and ownership for each subsystem (`component-breakdown.md`).
 3. **Design Patterns** – Architectural patterns and guiding principles applied across the platform (`design-patterns.md`).
-4. **Data Model** – Entity relationships, data dictionary, and schema notes powering repositories, snapshots, jobs, and logs (`data-model.md`).
-5. **Data Flow** – Step-by-step interaction from user request through execution and feedback (`data-flow.md`).
-6. **Security Considerations** – Threat model alignment, encryption, audit logging, and credential security posture (`security-considerations.md`).
-7. **Scalability & Performance** – Resource planning, throughput expectations, and optimization levers (`scalability-performance.md`).
-8. **Future Enhancements** – Architectural backlog capturing proposed improvements and experiments (`future-enhancements.md`).
+4. **Data Flow** – Step-by-step interaction from user request through execution and feedback (`data-flow.md`).
+5. **Security Considerations** – Threat model alignment, encryption, audit logging, and credential security posture (`security-considerations.md`).
+6. **Scalability & Performance** – Resource planning, throughput expectations, and optimization levers (`scalability-performance.md`).
 
 Related references:
 
 - [Overview](./overview.md) – navigation aid for design documentation.
-- [API Reference](./api-reference.md) – REST interface specification backed by OpenAPI files.
-- SRS & Traceability: see `docs/1-requirements/` and `docs/traceability/`.
+- Requirements baseline: see `docs/1-requirements/`.
 
 ## 3. Consequences
 
@@ -63,4 +60,3 @@ Related references:
 # References
 
 - Software Requirements Specification (SRS): `docs/1-requirements/`
-- Requirements Traceability Matrix: `docs/traceability/`
