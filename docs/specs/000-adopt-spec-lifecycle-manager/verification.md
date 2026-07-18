@@ -16,10 +16,12 @@ last_reviewed: 2026-07-18
 | Package discovery | Spec Lifecycle Manager `scan_specs` | Specs 000 and 001 discovered; no package errors | passed |
 | Package lint | `lint_spec_package` for Specs 000 and 001 | No unwaived errors | passed |
 | Readiness | `stage_readiness` and `active_spec_preflight` | Next work and blockers are explicit | passed; Spec 001 selects T005 |
-| Evidence | `task_state_audit` for both packages | Completed work has acceptable evidence | passed; informational broad-task advice retained |
-| History | `archive_index` | No unwaived structural errors | passed with expected pending-cleanup-commit warning |
-| Links | repository-relative Markdown link check | All changed internal links resolve | passed; 25 files checked |
+| Task state | `task_state_audit` for both packages | Task markers and dependency state are coherent | passed; T006 complete with evidence |
+| Evidence quality | `evidence_quality_check` for Spec 000 | Completed tasks cite concrete proof signals | passed; `error=0`, `warn=0` |
+| History | `archive_index` | No unwaived structural errors | passed; `error=0`, `warn=0` |
+| Links | repository-relative Markdown link check | All changed internal links resolve | passed; Agent Workbench found 0 broken links in 9 changed files |
 | Formatting | `git diff --check` | No whitespace errors | passed |
+| Markdown quality | Agent Workbench `check_markdown_set` | Structural findings pass; readability findings resolved or justified | passed with 53 machine-readable table-readability advisories explicitly waived |
 
 ## Quality Gates
 
@@ -31,21 +33,40 @@ last_reviewed: 2026-07-18
 
 ## Evidence Log
 
-- 2026-07-18: Repository classified as `documented_no_specs`; no pre-existing
-  spec packages or archive history were found.
-- 2026-07-18: User explicitly approved the migration plan before edits.
-- 2026-07-18: Lifecycle scan discovered two current-format active packages and
-  no package errors. Both package linters passed without warnings after the
+- 2026-07-18: `scan_specs` classified the repository as `documented_no_specs`;
+  it found `0` pre-existing spec packages and `0` archive-history entries.
+- 2026-07-18: T001 evidence in `tasks.md` records user approval before edits.
+- 2026-07-18: `scan_specs` discovered `2` current-format active packages with
+  `active_error=0`; both `lint_spec_package` runs returned `error=0` after the
   verification sections were completed.
-- 2026-07-18: Spec 001 readiness selected T005 and reported no blocking gaps.
-- 2026-07-18: Archive-index validation reported no errors and one expected
-  warning: a cleanup commit cannot be recorded before this migration is committed.
-- 2026-07-18: A read-only link check resolved links across 25 changed
-  documentation files; `git diff --check` passed.
+- 2026-07-18: `active_spec_preflight` selected Spec 001 `T005` with `blocking=0`.
+- 2026-07-18: `archive_index` returned `error=0`, `warn=1`, with expected code
+  `ARCHIVE_INDEX_CLEANUP_COMMIT_PENDING` before commit `ce23d07` existed.
+- 2026-07-18: The scoped link checker resolved `25/25` changed documentation
+  files, and `git diff --check` returned exit code `0`.
 - 2026-07-18: `prompts_validate` reported `PROMPTS_DIR_MISSING` at the
   repository-local fallback path. This repository intentionally uses the
   externally installed MCP plugin and does not vendor its prompt assets, so the
   repository-local prompt check is not applicable to this conversion.
+- 2026-07-18: Commit `ce23d07` records the adoption implementation, including
+  the superseded retained state of the legacy CLI plan and the complete initial
+  Spec 000 package.
+- 2026-07-18: Review task `T006` recorded `5` findings: incorrect legacy
+  commit history, stale post-commit lifecycle wording, weak evidence, implicit
+  acceptance/success-criterion mapping, and missing durable tooling fallback.
+- 2026-07-18: `evidence_quality_check` reported `error=0`, `warn=11`: ten
+  `EVIDENCE_WEAK` findings and one `EVIDENCE_VAGUE` finding. T006 replaces the
+  affected task evidence with commit, command, path, and result signals.
+- 2026-07-18: Agent Workbench `check_markdown_set` examined six Spec 000
+  artifacts and reported 48 `markdown.table.readability` advisories. The wide
+  rows are retained where the lifecycle parser requires single-row matrices;
+  this is an explicit readability waiver, not structural or link validation.
+- 2026-07-18: T006 final validation returned `lint error=0 warn=0`, evidence
+  `error=0 warn=0`, archive `error=0 warn=0`, and `0` readiness or context gaps;
+  Agent Workbench checked `9` changed documents with `0` broken links and `53`
+  explicitly waived `markdown.table.readability` advisories.
+- 2026-07-18: `closure_check` returned `ready=true` with `0` blockers; closure
+  execution remains deferred until the remediation has a final-spec commit ID.
 
 ## Durable Promotion And Cleanup
 
@@ -60,14 +81,17 @@ last_reviewed: 2026-07-18
 ### Spec Cleanup Decision
 
 - **Cleanup action:** keep active
-- **Reason:** The final spec state must be committed before closure or removal.
+- **Reason:** Commit `ce23d07` records the adoption baseline, but the T006 review
+  remediation changes the final package and must be validated and committed
+  before closure or removal.
+- **Adoption implementation commit:** `ce23d07`
 - **Final spec commit:** pending
 - **Closure log path:** `docs/history/spec-closure-log.md`
 - **Closure log entry updated:** no
 - **Closure cleanup commit:** pending
 - **Active indexes updated:** no
 - **Durable docs linked back to evidence where useful:** yes
-- **Residual spec-only content:** final validation evidence and commit identity
+- **Residual spec-only content:** the remediated final-spec commit identity
 
 ## Ship Or Closure Risk
 
@@ -82,17 +106,22 @@ last_reviewed: 2026-07-18
 ### Risk Rationale
 
 The change affects governance and documentation only. The principal residual
-risk is ambiguity if Spec 000 is left active after its final state is committed.
+risk is closing Spec 000 before the remediated final package is committed.
 
 ## Residual Risks
 
-- The archive index cleanup commit remains pending until this migration is committed.
-- Spec 000 remains active until its final state can be referenced by a commit.
+- Spec 000 remains active until its remediated final state can be referenced by
+  a new final-spec commit.
 - Repository-local prompt validation is unavailable because the lifecycle
   plugin and its prompts are externally installed; package MCP operations work.
+- Agent Workbench reports table-readability advisories for machine-readable
+  lifecycle matrices. These are explicitly waived where shortening or splitting
+  rows would weaken deterministic traceability; parser, frontmatter, and link
+  checks remain required.
 
 ## Readiness Decision
 
 - **Ready for promotion:** yes
 - **Ready for release:** not applicable
-- **Ready for closure:** no — validation and a final spec commit are pending
+- **Ready for closure:** structurally yes (`closure_check` returned `ready=true`);
+  closure execution is deferred until the remediated final-spec commit exists

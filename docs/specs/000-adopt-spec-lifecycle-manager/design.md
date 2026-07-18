@@ -24,12 +24,20 @@ stores only project-specific lifecycle state.
 | Requirement 2 | AC1-AC3 | Active-plan migration and legacy plans index | Inventory and evidence review |
 | Requirement 3 | AC1-AC2 | Closure log, archive index, and verification contract | Archive-index and closure checks |
 
+## Success Criterion Coverage
+
+| Success Criterion | Design Coverage | Validation Approach |
+|-------------------|-----------------|---------------------|
+| SC-001 | Current-format package structure and MCP lifecycle interface | `scan_specs` and package lint summaries |
+| SC-002 | Legacy plan lifecycle and Spec 001 migration | Active-plan search and archive-index validation |
+| SC-003 | Explicit authority boundaries and durable navigation | Link check plus documentation review |
+
 ## Correctness Property Coverage
 
 | Property | Design Behavior | Validation Direction | Notes |
 |----------|-----------------|----------------------|-------|
 | CP-001 | Legacy plan is superseded by exactly one new package. | Search active plans and specs. | GitHub issues remain trackers, not duplicate specs. |
-| CP-002 | Verification requires durable promotion status before closure. | Lifecycle closure check. | Spec 000 remains active until committed and closed. |
+| CP-002 | Verification requires durable promotion status before closure. | Lifecycle closure check. | Spec 000 remains active until its remediated final state is committed and closed. |
 | CP-003 | Completed CLI tasks carry `[x]` plus dated update evidence. | Task-state and evidence audit. | No completed plan is migrated. |
 
 ## High-Level Design

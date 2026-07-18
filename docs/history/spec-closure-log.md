@@ -19,15 +19,15 @@ final spec commit preserves the complete package.
 
 - **Spec:** `docs/plans/2026-04-23-173102-cli-consolidation-stabilization-plan.md`
 - **Title:** RFC: CLI Consolidation Stabilization Plan
-- **Final spec commit:** `ad5add3`
-- **Closure cleanup commit:** pending
+- **Final spec commit:** `ce23d07`
+- **Closure cleanup commit:** `ce23d07`
 - **Closure action:** retained-as-history
 - **Closed by:** Auriora Team
 - **Durable docs updated:**
   - `docs/specs/001-cli-consolidation-stabilization/requirements.md`
   - `docs/plans/README.md`
 - **Verification summary:** Active tasks and completed evidence were mapped into Spec 001; the source plan remains available for inbound links.
-- **Residual risks:** Cleanup commit remains pending until the migration is committed.
+- **Residual risks:** None for the legacy-plan migration; remaining CLI work is governed by Spec 001.
 - **Follow-up:** Complete Spec 001 tasks T005-T010.
 
 ## Closure Rules

@@ -15,9 +15,9 @@ accepted content has been promoted and the package is closed.
 
 ## Current Packages
 
-- [`000-adopt-spec-lifecycle-manager/`](./000-adopt-spec-lifecycle-manager/) —
+- [`000-adopt-spec-lifecycle-manager`](./000-adopt-spec-lifecycle-manager/requirements.md) —
   conversion of TimeLocker's planning and documentation workflow.
-- [`001-cli-consolidation-stabilization/`](./001-cli-consolidation-stabilization/) —
+- [`001-cli-consolidation-stabilization`](./001-cli-consolidation-stabilization/requirements.md) —
   remaining CLI consolidation work migrated from the legacy active plan.
 
 ## When a Spec Is Needed
@@ -73,6 +73,27 @@ complete and verified. A completed task must include evidence.
 - Durable requirements, architecture, implementation, testing, process, and
   reference documents remain authoritative after a spec closes.
 
-Use the Spec Lifecycle Manager MCP tools for package discovery, readiness,
-task context, validation planning, promotion, and closure checks. Do not copy
-the plugin's scripts or fallback templates into this repository.
+## Tooling Prerequisite And Fallback
+
+The preferred executable interface is an externally installed Spec Lifecycle
+Manager skill/plugin with its MCP tools available to the agent. Plugin
+installation is environment-owned; this repository intentionally does not copy
+the plugin's runtime, prompts, or fallback templates.
+
+When the MCP tools are available, use them for package discovery, readiness,
+task context, evidence quality, validation planning, promotion, and closure.
+When they are unavailable:
+
+1. record the unavailable capability in the active package's verification
+   evidence;
+2. manually read the package's requirements, design, tasks, change impact,
+   verification, traceability, and durable sources;
+3. enforce dependencies, acceptance criteria, evidence, promotion, final-spec
+   commit, and history updates from this lifecycle contract;
+4. run repository checks such as internal-link validation and
+   `git diff --check`; and
+5. do not claim MCP-backed readiness, evidence quality, or closure results.
+
+The manual path preserves the governance contract but is lower-confidence.
+Restore the externally installed plugin before closure when deterministic MCP
+checks are required by the active package.

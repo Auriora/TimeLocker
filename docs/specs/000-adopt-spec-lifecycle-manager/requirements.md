@@ -62,12 +62,12 @@ from durable current-state documentation.
 
 ## Staged Readiness
 
-- **Current stage:** implementation
-- **Next stage:** verification and promotion
+- **Current stage:** verification
+- **Next stage:** final-spec commit and closure cleanup
 - **Ready to design when:** satisfied by the approved migration plan.
 - **Design-first exception:** no
 - **Optional artifacts recommended:** `change-impact.md`, `verification.md`, `traceability.md`
-- **Downstream review needed:** verification
+- **Downstream review needed:** closure after remediation validation
 
 ## Requirements
 

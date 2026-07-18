@@ -16,7 +16,7 @@ contracts.
 
 | Spec ID | Title | Package path | Status | Final spec commit | Cleanup commit | Closure action | Durable destinations | Verification |
 |---------|-------|--------------|--------|-------------------|----------------|----------------|----------------------|--------------|
-| legacy-cli-consolidation-stabilization-plan | RFC: CLI Consolidation Stabilization Plan | `docs/plans/2026-04-23-173102-cli-consolidation-stabilization-plan.md` | superseded | `ad5add3` | pending | retained-as-history | `docs/specs/001-cli-consolidation-stabilization/requirements.md`; `docs/plans/README.md` | `docs/specs/001-cli-consolidation-stabilization/traceability.md` |
+| legacy-cli-consolidation-stabilization-plan | RFC: CLI Consolidation Stabilization Plan | `docs/plans/2026-04-23-173102-cli-consolidation-stabilization-plan.md` | superseded | `ce23d07` | `ce23d07` | retained-as-history | `docs/specs/001-cli-consolidation-stabilization/requirements.md`; `docs/plans/README.md` | `docs/specs/001-cli-consolidation-stabilization/traceability.md` |
 
 ## Legacy Gaps
 

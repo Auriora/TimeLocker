@@ -44,6 +44,10 @@ tracking, and historical implementation records.
   added.
 - Lifecycle, link, and formatting validation is recorded in Spec 000's
   `verification.md`.
+- Whole-package review remediation corrected the legacy closure commit to
+  `ce23d07`, reconciled Spec 000's post-commit state, strengthened evidence and
+  acceptance/success-criterion traceability, and documented the external
+  lifecycle-plugin prerequisite and manual fallback boundary.
 
 ## 4. Documentation & Links
 
@@ -56,8 +60,8 @@ tracking, and historical implementation records.
 ## 5. Review Outcome
 
 - **Review state**: Approved
-- **Evidence reviewed**: Package scan/lint/readiness, task-state audit, archive-index validation, internal-link check, and `git diff --check`
-- **Open follow-up**: Commit and close Spec 000 when requested; implement Spec 001 T005-T010 separately
+- **Evidence reviewed**: Package scan/lint/readiness, task-context and task-state audits, evidence-quality and archive-index validation, closure check, Agent Workbench Markdown checks, and `git diff --check`
+- **Open follow-up**: Commit the remediated final Spec 000 state before executing closure; implement Spec 001 T005-T010 separately
 
 # References
 
