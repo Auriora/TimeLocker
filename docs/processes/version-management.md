@@ -1,4 +1,12 @@
-# Version Management Guide
+---
+title: Version management and GitHub releases
+doc_type: process
+status: active
+owner: Auriora Team
+last_reviewed: 2026-07-18
+---
+
+# Version Management And GitHub Releases
 
 This document describes how to manage versions in the TimeLocker project using the automated version bumping system.
 
@@ -126,10 +134,18 @@ replace = __version__ = "{new_version}"
 
 ### After Version Bump
 
-1. **Push changes**: `git push && git push --tags`
-2. **Create release**: Use GitHub releases or similar
-3. **Update documentation**: If needed for new features
-4. **Notify users**: For major changes
+1. **Push the version commit and tag**: `git push && git push --tags`
+2. **Observe the release workflow**: The tag-triggered workflow verifies the
+   tag against both Python version sources, runs the configured test suite,
+   builds the source and wheel distributions, installs and smokes the wheel,
+   uploads artifacts, and creates the GitHub release.
+3. **Verify release artifacts**: Download the wheel/source distribution from
+   the GitHub release and confirm its version and checksums before announcing it.
+4. **Update documentation**: If needed for new features.
+5. **Notify users**: For major changes.
+
+The workflow does not publish to PyPI. Adding a package-registry publishing
+step requires separate approval, credentials, and release-process updates.
 
 ## Troubleshooting
 
@@ -168,28 +184,11 @@ Ensure you have write permissions to:
 - Project files (`pyproject.toml`, `src/TimeLocker/__init__.py`)
 - Git repository (for commits and tags)
 
-## Integration with CI/CD
+## Integration With CI/CD
 
-The version management system integrates well with CI/CD pipelines:
-
-```yaml
-# Example GitHub Actions workflow
-- name: Setup Python environment
-  run: |
-    python -m venv .venv
-    source .venv/bin/activate
-    pip install bump2version
-
-- name: Bump version
-  run: |
-    source .venv/bin/activate
-    python scripts/bump_version.py bump patch
-
-- name: Push changes
-  run: |
-    git push
-    git push --tags
-```
+`.github/workflows/release.yml` is the durable executable release contract. It
+runs only for semantic version tags matching `v*.*.*` and uses the repository's
+Python metadata and test configuration. It does not move tags or mutate source.
 
 ## Manual Version Management
 

@@ -26,11 +26,11 @@ import pytest
 from typing import List
 from unittest.mock import Mock
 
-from src.TimeLocker.integration.service_manager import ServiceManager
-from src.TimeLocker.integration.dependency_injector import DependencyInjector
-from src.TimeLocker.interfaces.service_interface import ServiceInterface
-from src.TimeLocker.interfaces.integration_data_models import ServiceContext
-from src.TimeLocker.interfaces.integration_exceptions import ServiceRegistrationError
+from TimeLocker.integration.service_manager import ServiceManager
+from TimeLocker.integration.dependency_injector import DependencyInjector
+from TimeLocker.interfaces.service_interface import ServiceInterface
+from TimeLocker.interfaces.integration_data_models import ServiceContext
+from TimeLocker.interfaces.integration_exceptions import ServiceRegistrationError
 
 
 # Test service implementations

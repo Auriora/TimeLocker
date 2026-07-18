@@ -19,7 +19,7 @@ import re
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import (
         get_cli_runner,
         combined_output,
@@ -162,7 +162,7 @@ class TestCLIErrorHandling:
             assert result.exit_code in (1, 2), f"Restricted path should yield handled or usage error: {path} (got {result.exit_code})"
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     def test_service_manager_exceptions(self, mock_service_manager):
         mock_manager = Mock()
         mock_service_manager.return_value = mock_manager
@@ -183,7 +183,7 @@ class TestCLIErrorHandling:
             mock_manager.reset_mock()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
     def test_keyboard_interrupt_handling(self, mock_get_service_manager):
         """KeyboardInterrupt should map to exit code 130 for backup commands."""
         mock_manager = Mock()
@@ -281,7 +281,7 @@ class TestCLIErrorHandling:
 
     @pytest.mark.unit
     def test_graceful_degradation(self):
-        with patch('src.TimeLocker.cli.get_cli_service_manager') as mock_service_manager:
+        with patch('TimeLocker.cli.get_cli_service_manager') as mock_service_manager:
             mock_service_manager.side_effect = Exception("Service manager unavailable")
             result = runner.invoke(app, ["--help"])
             assert_success(result, "Help should work even if service manager fails")

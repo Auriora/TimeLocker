@@ -6,7 +6,7 @@ Tests credentials command parsing, parameter validation, help output, and error 
 Notes:
 - The legacy 'credentials set' command has been renamed to 'credentials store'; tests updated accordingly.
 - Exit code assertions are now strict (exact expected codes) except where explicitly documented as environment-dependent.
-- Patch targets use 'src.TimeLocker.security.credential_manager.CredentialManager' because the CLI
+- Patch targets use 'TimeLocker.security.credential_manager.CredentialManager' because the CLI
   imports CredentialManager inside each command function rather than at module scope.
 """
 
@@ -14,7 +14,7 @@ import pytest
 from unittest.mock import Mock, patch
 from typer.testing import CliRunner
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 from .test_utils import (
     combined_output,
     assert_success,
@@ -67,7 +67,7 @@ class TestCredentialsCommands:
         assert "password" in combined.lower()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.security.credential_manager.CredentialManager')
+    @patch('TimeLocker.security.credential_manager.CredentialManager')
     def test_credentials_unlock_command_success(self, mock_cm_cls):
         mock_cm = Mock()
         mock_cm.unlock.return_value = True
@@ -77,7 +77,7 @@ class TestCredentialsCommands:
         mock_cm.unlock.assert_called_once_with("master")
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.security.credential_manager.CredentialManager')
+    @patch('TimeLocker.security.credential_manager.CredentialManager')
     def test_credentials_unlock_command_failure(self, mock_cm_cls):
         mock_cm = Mock()
         mock_cm.unlock.return_value = False
@@ -86,7 +86,7 @@ class TestCredentialsCommands:
         assert_handled_error(result)
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.security.credential_manager.CredentialManager')
+    @patch('TimeLocker.security.credential_manager.CredentialManager')
     def test_credentials_store_command_success(self, mock_cm_cls):
         mock_cm = Mock()
         mock_cm.is_locked.return_value = False
@@ -96,7 +96,7 @@ class TestCredentialsCommands:
         mock_cm.store_repository_password.assert_called_once_with("repo1", "pw")
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.security.credential_manager.CredentialManager')
+    @patch('TimeLocker.security.credential_manager.CredentialManager')
     def test_credentials_store_command_locked_unlocks(self, mock_cm_cls):
         mock_cm = Mock()
         mock_cm.is_locked.return_value = True
@@ -108,7 +108,7 @@ class TestCredentialsCommands:
         mock_cm.store_repository_password.assert_called_once_with("repo2", "pw2")
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.security.credential_manager.CredentialManager')
+    @patch('TimeLocker.security.credential_manager.CredentialManager')
     def test_credentials_store_command_unlock_failure(self, mock_cm_cls):
         mock_cm = Mock()
         mock_cm.is_locked.return_value = True
@@ -119,7 +119,7 @@ class TestCredentialsCommands:
         mock_cm.store_repository_password.assert_not_called()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.security.credential_manager.CredentialManager')
+    @patch('TimeLocker.security.credential_manager.CredentialManager')
     def test_credentials_store_failure(self, mock_cm_cls):
         mock_cm = Mock()
         mock_cm.is_locked.return_value = False
@@ -129,7 +129,7 @@ class TestCredentialsCommands:
         assert_handled_error(result)
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.security.credential_manager.CredentialManager')
+    @patch('TimeLocker.security.credential_manager.CredentialManager')
     def test_credentials_list_success_empty(self, mock_cm_cls):
         mock_cm = Mock()
         mock_cm.is_locked.return_value = False
@@ -139,7 +139,7 @@ class TestCredentialsCommands:
         assert_success(result)  # Empty list is still success
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.security.credential_manager.CredentialManager')
+    @patch('TimeLocker.security.credential_manager.CredentialManager')
     def test_credentials_list_unlock_failure(self, mock_cm_cls):
         mock_cm = Mock()
         mock_cm.is_locked.return_value = True
@@ -149,7 +149,7 @@ class TestCredentialsCommands:
         assert_handled_error(result)
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.security.credential_manager.CredentialManager')
+    @patch('TimeLocker.security.credential_manager.CredentialManager')
     def test_credentials_remove_success(self, mock_cm_cls):
         mock_cm = Mock()
         mock_cm.is_locked.return_value = False
@@ -160,7 +160,7 @@ class TestCredentialsCommands:
         mock_cm.remove_repository.assert_called_once_with("repo1")
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.security.credential_manager.CredentialManager')
+    @patch('TimeLocker.security.credential_manager.CredentialManager')
     def test_credentials_remove_no_password_found(self, mock_cm_cls):
         mock_cm = Mock()
         mock_cm.is_locked.return_value = False
@@ -170,7 +170,7 @@ class TestCredentialsCommands:
         assert_success(result)  # Warning only
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.security.credential_manager.CredentialManager')
+    @patch('TimeLocker.security.credential_manager.CredentialManager')
     def test_credentials_remove_unlock_failure(self, mock_cm_cls):
         mock_cm = Mock()
         mock_cm.is_locked.return_value = True
@@ -190,7 +190,7 @@ class TestCredentialsCommands:
         assert_exit_code(result, 2, "Missing repository name should be a usage error")
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.security.credential_manager.CredentialManager')
+    @patch('TimeLocker.security.credential_manager.CredentialManager')
     def test_credentials_remove_failure(self, mock_cm_cls):
         mock_cm = Mock()
         mock_cm.is_locked.return_value = False

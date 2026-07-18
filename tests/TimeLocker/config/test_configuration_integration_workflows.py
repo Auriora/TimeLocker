@@ -13,13 +13,13 @@ from pathlib import Path
 from datetime import datetime, timedelta
 import pytest
 
-from src.TimeLocker.config.configuration_module import ConfigurationModule
-from src.TimeLocker.config.configuration_lock_manager import ConfigurationLockManager
-from src.TimeLocker.config.configuration_backup_manager import ConfigurationBackupManager, BackupReason
-from src.TimeLocker.config.configuration_watcher import ConfigurationWatcher
-from src.TimeLocker.config.configuration_validator import ConfigurationValidator
-from src.TimeLocker.config.configuration_migrator import ConfigurationMigrator
-from src.TimeLocker.interfaces.exceptions import (
+from TimeLocker.config.configuration_module import ConfigurationModule
+from TimeLocker.config.configuration_lock_manager import ConfigurationLockManager
+from TimeLocker.config.configuration_backup_manager import ConfigurationBackupManager, BackupReason
+from TimeLocker.config.configuration_watcher import ConfigurationWatcher
+from TimeLocker.config.configuration_validator import ConfigurationValidator
+from TimeLocker.config.configuration_migrator import ConfigurationMigrator
+from TimeLocker.interfaces.exceptions import (
     ConfigurationError,
     ConfigurationLockError,
     ConfigurationBackupError

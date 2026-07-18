@@ -17,7 +17,7 @@ import pytest
 from click.testing import Result
 from typer.testing import CliRunner
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 
 runner = CliRunner(env={'COLUMNS': '200'})
 

@@ -19,11 +19,9 @@ import os
 import json
 import base64
 import time
-import hashlib
 import secrets
+import stat
 import threading
-import socket
-import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional, Dict, Any, List
 from datetime import datetime, timedelta
@@ -231,67 +229,50 @@ class CredentialManager:
         )
         return base64.urlsafe_b64encode(kdf.derive(password.encode()))
 
-    def _get_auto_master_key(self) -> Optional[str]:
-        """
-        Derive master key from system fingerprint for auto-unlock
+    def _read_master_password_file(self, password_file: str) -> str:
+        """Read an operator-provided master-password file after safety checks."""
+        path = Path(password_file).expanduser()
 
-        This creates a deterministic key based on stable system identifiers,
-        allowing non-interactive unlock while maintaining security.
-
-        Returns:
-            str: Auto-derived master key, or None if derivation fails
-        """
         try:
-            # Collect stable system identifiers
-            identifiers = []
+            file_stat = path.lstat()
+        except OSError as exc:
+            raise CredentialSecurityError(
+                "Master password file is unavailable"
+            ) from exc
 
-            # Machine ID (Linux/systemd)
-            machine_id_file = Path("/etc/machine-id")
-            if machine_id_file.exists():
-                identifiers.append(machine_id_file.read_text().strip())
-            else:
-                # Fallback: try /var/lib/dbus/machine-id
-                dbus_machine_id = Path("/var/lib/dbus/machine-id")
-                if dbus_machine_id.exists():
-                    identifiers.append(dbus_machine_id.read_text().strip())
-                else:
-                    # Generate a stable UUID based on hostname and user
-                    hostname = socket.gethostname()
-                    username = os.getenv('USER', os.getenv('USERNAME', 'unknown'))
-                    stable_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{hostname}.{username}"))
-                    identifiers.append(stable_id)
+        if stat.S_ISLNK(file_stat.st_mode) or not stat.S_ISREG(file_stat.st_mode):
+            raise CredentialSecurityError(
+                "Master password file must be a regular, non-symbolic file"
+            )
 
-            # User ID
-            try:
-                identifiers.append(str(os.getuid()))
-            except AttributeError:
-                # Windows doesn't have getuid
-                identifiers.append(os.getenv('USERNAME', 'unknown'))
+        if os.name == "posix" and stat.S_IMODE(file_stat.st_mode) & 0o077:
+            raise CredentialSecurityError(
+                "Master password file permissions must deny group and other access"
+            )
 
-            # Hostname
-            identifiers.append(socket.gethostname())
+        try:
+            password = path.read_text(encoding="utf-8").rstrip("\r\n")
+        except OSError as exc:
+            raise CredentialSecurityError(
+                "Master password file could not be read"
+            ) from exc
 
-            # TimeLocker-specific salt for namespace separation
-            identifiers.append("timelocker-auto-unlock-v1")
+        if not password:
+            raise CredentialSecurityError("Master password file is empty")
 
-            # Create deterministic but secure fingerprint
-            fingerprint = ":".join(identifiers)
+        return password
 
-            # Use PBKDF2 to create a strong key from the fingerprint
-            auto_key = hashlib.pbkdf2_hmac(
-                    'sha256',
-                    fingerprint.encode('utf-8'),
-                    b'timelocker_auto_salt_v1',
-                    100000  # Same iteration count as manual keys
-            ).hex()
+    def _get_noninteractive_master_password(self) -> Optional[str]:
+        """Resolve an explicit operator-supplied secret for automation."""
+        password = os.getenv("TIMELOCKER_MASTER_PASSWORD")
+        if password:
+            return password
 
-            return auto_key
+        password_file = os.getenv("TIMELOCKER_MASTER_PASSWORD_FILE")
+        if password_file:
+            return self._read_master_password_file(password_file)
 
-        except Exception:
-            # Log the failure but don't expose details
-            self._log_access_event("auto_key_derivation", success=False,
-                                   details="Auto-key derivation failed")
-            return None
+        return None
 
     def _get_or_create_salt(self) -> bytes:
         """Get existing salt or create new one"""
@@ -305,23 +286,28 @@ class CredentialManager:
 
     def auto_unlock(self) -> bool:
         """
-        Attempt to unlock credential store using auto-derived key
+        Attempt a non-interactive unlock using an explicit operator secret.
 
-        This enables non-interactive operation by deriving the master key
-        from stable system identifiers.
+        The secret must come from ``TIMELOCKER_MASTER_PASSWORD`` or a protected
+        file named by ``TIMELOCKER_MASTER_PASSWORD_FILE``. Host identifiers are
+        never used as encryption material.
 
         Returns:
             bool: True if auto-unlock successful, False otherwise
         """
         try:
-            auto_key = self._get_auto_master_key()
-            if not auto_key:
+            master_password = self._get_noninteractive_master_password()
+            if not master_password:
                 return False
 
-            return self.unlock(auto_key, is_auto_unlock=True)
+            return self.unlock(master_password, is_auto_unlock=True)
 
-        except Exception as e:
-            self._log_access_event("auto_unlock", success=False, details=str(e))
+        except Exception:
+            self._log_access_event(
+                "auto_unlock",
+                success=False,
+                details="Explicit non-interactive secret was unavailable or invalid",
+            )
             return False
 
     def unlock(self, master_password: str, is_auto_unlock: bool = False) -> bool:
@@ -381,9 +367,8 @@ class CredentialManager:
 
         This method implements the credential resolution chain:
         1. Check if already unlocked
-        2. Try auto-unlock (non-interactive)
-        3. Try environment variable (TIMELOCKER_MASTER_PASSWORD)
-        4. Prompt user (if allowed)
+        2. Try an explicit non-interactive secret source
+        3. Prompt user (if allowed)
 
         Args:
             allow_prompt: Whether to prompt user if other methods fail
@@ -395,18 +380,9 @@ class CredentialManager:
         if not self.is_locked():
             return True
 
-        # Try auto-unlock first (non-interactive)
+        # Try explicit environment/password-file input first (non-interactive)
         if self.auto_unlock():
             return True
-
-        # Try environment variable
-        env_master_password = os.getenv('TIMELOCKER_MASTER_PASSWORD')
-        if env_master_password:
-            try:
-                if self.unlock(env_master_password):
-                    return True
-            except Exception:
-                pass  # Continue to next method
 
         # Last resort: prompt user (if allowed)
         if allow_prompt:

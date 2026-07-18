@@ -41,6 +41,35 @@ class ConcreteResticRepository(ResticRepository):
 
 
 @pytest.mark.unit
+@pytest.mark.parametrize("overwrite", ["never", "always"])
+def test_restore_passes_explicit_overwrite_policy(overwrite):
+    repo = ConcreteResticRepository("test_location")
+    command = MagicMock()
+    command.param.return_value = command
+    repo._command = MagicMock()
+    repo._command.command.return_value = command
+    command.run.return_value = "restore complete"
+
+    result = repo.restore("snapshot-1", overwrite=overwrite)
+
+    assert result == "restore complete"
+    command.param.assert_any_call("target", None)
+    command.param.assert_any_call("overwrite", overwrite)
+    command.run.assert_called_once_with(
+        repo.to_env(),
+        synopsis_values={"snapshotID": "snapshot-1"},
+    )
+
+
+@pytest.mark.unit
+def test_restore_rejects_unknown_overwrite_policy():
+    repo = ConcreteResticRepository("test_location")
+
+    with pytest.raises(ValueError, match="overwrite must be"):
+        repo.restore("snapshot-1", overwrite="if-newer")
+
+
+@pytest.mark.unit
 def test___init___1():
     location = "/path/to/backup"
     tags = ["test", "backup"]

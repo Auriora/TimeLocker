@@ -10,10 +10,10 @@ import time
 from datetime import datetime, timedelta
 from unittest.mock import Mock
 
-from src.TimeLocker.policy.manager import PolicyManager
-from src.TimeLocker.policy.engine import PolicyEngine
-from src.TimeLocker.policy.models import RetentionRule
-from src.TimeLocker.policy.types import (
+from TimeLocker.policy.manager import PolicyManager
+from TimeLocker.policy.engine import PolicyEngine
+from TimeLocker.policy.models import RetentionRule
+from TimeLocker.policy.types import (
     PolicyType,
     TargetType,
     RetentionType,

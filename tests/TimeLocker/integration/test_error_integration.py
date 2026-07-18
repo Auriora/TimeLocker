@@ -26,7 +26,7 @@ import pytest
 import time
 from unittest.mock import Mock, patch
 
-from src.TimeLocker.integration.error_integration import (
+from TimeLocker.integration.error_integration import (
     ServiceErrorHandler,
     ServiceInterfaceErrorMixin,
     with_service_error_handling,
@@ -36,13 +36,13 @@ from src.TimeLocker.integration.error_integration import (
     handle_network_error,
     handle_authentication_error
 )
-from src.TimeLocker.integration.error_propagation import (
+from TimeLocker.integration.error_propagation import (
     ErrorPropagationSystem,
     ErrorSeverity,
     ErrorCategory
 )
-from src.TimeLocker.interfaces.service_interface import ServiceInterface
-from src.TimeLocker.interfaces.integration_data_models import ServiceContext
+from TimeLocker.interfaces.service_interface import ServiceInterface
+from TimeLocker.interfaces.integration_data_models import ServiceContext
 
 
 class TestServiceErrorHandler:

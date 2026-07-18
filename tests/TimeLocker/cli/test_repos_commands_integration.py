@@ -15,7 +15,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 from types import SimpleNamespace
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import (
     get_cli_runner,
     combined_output,
@@ -38,7 +38,7 @@ def temp_repo_dir(tmp_path):
 def mock_service_manager():
     """Mock service manager for integration tests."""
     from tests.TimeLocker.cli.test_utils import create_mock_cli_service_manager
-    with patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command') as mock:
+    with patch('TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command') as mock:
         manager = create_mock_cli_service_manager()
         mock.return_value = manager
         yield manager
@@ -101,7 +101,7 @@ def mock_config_module(mock_service_manager):
 
     config.save_config.side_effect = _save_config
 
-    with patch('src.TimeLocker.cli_modules.commands.repositories.ConfigurationManager') as mock_cls:
+    with patch('TimeLocker.cli_modules.commands.repositories.ConfigurationManager') as mock_cls:
         mock_cls.return_value = config
         yield config
 
@@ -708,7 +708,7 @@ class TestRepositoryCredentialIntegration:
         mock_service_manager.add_repository.return_value = Mock(success=True)
         
         # Mock credential manager
-        with patch('src.TimeLocker.cli_modules.commands.repositories._create_credential_manager') as mock_cm:
+        with patch('TimeLocker.cli_modules.commands.repositories._create_credential_manager') as mock_cm:
             cm_instance = Mock()
             mock_cm.return_value = cm_instance
             cm_instance.is_locked.return_value = False

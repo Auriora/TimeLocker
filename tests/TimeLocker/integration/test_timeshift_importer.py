@@ -8,7 +8,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from src.TimeLocker.importers.timeshift_importer import (
+from TimeLocker.importers.timeshift_importer import (
     TimeshiftConfigParser,
     TimeshiftToTimeLockerMapper,
     TimeshiftImportResult

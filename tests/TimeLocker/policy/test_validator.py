@@ -6,8 +6,8 @@ import pytest
 from datetime import timedelta
 from pathlib import Path
 
-from src.TimeLocker.policy.validator import PolicyValidator, ValidationResult, CompatibilityResult
-from src.TimeLocker.policy.models import (
+from TimeLocker.policy.validator import PolicyValidator, ValidationResult, CompatibilityResult
+from TimeLocker.policy.models import (
     BackupPolicy,
     RetentionPolicy,
     RetentionRule,
@@ -15,18 +15,18 @@ from src.TimeLocker.policy.models import (
     ScheduleConfig,
     ComplianceRule,
 )
-from src.TimeLocker.policy.types import (
+from TimeLocker.policy.types import (
     PolicyType,
     TargetType,
     RetentionType,
     PolicyStatus,
 )
-from src.TimeLocker.policy.exceptions import (
+from TimeLocker.policy.exceptions import (
     PolicyValidationError,
     PolicyCompatibilityError,
 )
-from src.TimeLocker.selection_template_manager import SelectionTemplateManager
-from src.TimeLocker.selection_models import SelectionTemplate, SelectionConfig
+from TimeLocker.selection_template_manager import SelectionTemplateManager
+from TimeLocker.selection_models import SelectionTemplate, SelectionConfig
 
 
 class TestPolicyValidator:

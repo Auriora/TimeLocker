@@ -21,7 +21,7 @@ import uuid
 from pathlib import Path
 from datetime import datetime
 
-from src.TimeLocker.selection_template_manager import (
+from TimeLocker.selection_template_manager import (
     SelectionTemplateManager,
     TemplateNotFoundError,
     TemplateAlreadyExistsError,
@@ -29,7 +29,7 @@ from src.TimeLocker.selection_template_manager import (
     TemplateImportError,
     TemplateExportError
 )
-from src.TimeLocker.selection_models import (
+from TimeLocker.selection_models import (
     SelectionTemplate,
     SelectionConfig,
     PatternRule,

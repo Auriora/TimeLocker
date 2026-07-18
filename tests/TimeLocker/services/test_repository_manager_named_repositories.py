@@ -12,12 +12,12 @@ import pytest
 from datetime import datetime
 from unittest.mock import Mock, AsyncMock
 
-from src.TimeLocker.interfaces.repository_management_models import (
+from TimeLocker.interfaces.repository_management_models import (
     Repository, RepositoryConfig, RepositoryStatus, BackupEngine, RepositoryType,
     RepositoryNotFoundError
 )
-from src.TimeLocker.services.repository_manager import RepositoryManager
-from src.TimeLocker.interfaces.integration_data_models import ServiceContext
+from TimeLocker.services.repository_manager import RepositoryManager
+from TimeLocker.interfaces.integration_data_models import ServiceContext
 
 
 class TestRepositoryAliasSystem:

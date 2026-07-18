@@ -9,7 +9,7 @@ import pytest
 import tempfile
 from pathlib import Path
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import (
     get_cli_runner,
     combined_output,

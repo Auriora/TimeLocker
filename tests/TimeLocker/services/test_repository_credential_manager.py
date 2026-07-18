@@ -13,9 +13,9 @@ from pathlib import Path
 from datetime import datetime
 from unittest.mock import Mock, AsyncMock, patch
 
-from src.TimeLocker.services.repository_credential_manager import RepositoryCredentialManager
-from src.TimeLocker.security import SecurityService, CredentialManager, SecurityEvent, SecurityLevel
-from src.TimeLocker.interfaces.exceptions import CredentialError
+from TimeLocker.services.repository_credential_manager import RepositoryCredentialManager
+from TimeLocker.security import SecurityService, CredentialManager, SecurityEvent, SecurityLevel
+from TimeLocker.interfaces.exceptions import CredentialError
 
 
 class TestRepositoryCredentialManager:

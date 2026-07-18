@@ -25,10 +25,10 @@ from datetime import datetime
 from pathlib import Path
 from unittest.mock import Mock
 
-from src.TimeLocker.integration.service_manager import ServiceManager
-from src.TimeLocker.integration.event_bus import EventBus
-from src.TimeLocker.interfaces.integration_data_models import ServiceContext, Event
-from src.TimeLocker.interfaces.service_interface import ServiceInterface
+from TimeLocker.integration.service_manager import ServiceManager
+from TimeLocker.integration.event_bus import EventBus
+from TimeLocker.interfaces.integration_data_models import ServiceContext, Event
+from TimeLocker.interfaces.service_interface import ServiceInterface
 
 
 class TestServiceManagerEventBusIntegration:

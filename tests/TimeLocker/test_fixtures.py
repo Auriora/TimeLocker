@@ -357,7 +357,7 @@ def timeout_context(seconds: int = 30):
 @pytest.fixture
 def selection():
     """File selection fixture with automatic cleanup"""
-    from src.TimeLocker.file_selections import FileSelection
+    from TimeLocker.file_selections import FileSelection
     return FileSelection()
 
 

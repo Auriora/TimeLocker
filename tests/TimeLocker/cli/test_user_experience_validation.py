@@ -13,7 +13,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 from typer.testing import CliRunner
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 
 
 class TestUserExperienceValidation:

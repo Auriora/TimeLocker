@@ -24,8 +24,9 @@ project mandate, operating principles, scope boundaries, governance, and
 measures of success. Read it when deciding whether proposed work belongs in
 TimeLocker; use active specs for approved delivery details.
 
-> **Note**: TimeLocker is a **CLI-based application**. There is currently no desktop GUI or REST API - these are design specifications for future consideration.
-> The application includes optional system tray integration for desktop notifications.
+> **Note**: TimeLocker is a **CLI-based application**. It does not provide a
+> desktop GUI or REST API. Optional desktop integration is limited to system
+> tray notifications.
 
 ## Table of Contents
 
@@ -115,28 +116,24 @@ This project is intended for:
 
 ### Installation
 
-#### From PyPI (Recommended)
+#### From Source (Current Supported Path)
 
-```bash
-# Basic installation
-pip install timelocker
-
-# With optional desktop integration
-pip install timelocker[gui]
-
-# Development and test tooling (from a source checkout)
-pip install -e '.[dev]'
-```
-
-#### From Source
+TimeLocker is not currently published to PyPI. Install it from a source
+checkout:
 
 ```bash
 # Clone the repository
 git clone https://github.com/Auriora/TimeLocker.git
 cd TimeLocker
 
-# Install in development mode with all dependencies
-pip install -e .[dev]
+# Create and activate a virtual environment, then install
+python -m venv .venv
+source .venv/bin/activate  # Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install .
+
+# Contributors: install the editable package and test tools instead
+python -m pip install -e '.[dev]'
 ```
 
 For detailed installation instructions, including platform-specific guidance, configuration, and troubleshooting, please refer to
@@ -161,8 +158,10 @@ tl snapshots list --repository myrepo
 tl snapshots restore abc123 /restore/path --repository myrepo
 ```
 
-Note: Credentials are resolved via the Credential Service (system keyring preferred), then the TIMELOCKER_PASSWORD environment variable (fallback), then
-RESTIC_PASSWORD. The --password flag is available but discouraged; prefer secure storage via the Credential Service or environment variables.
+Note: Repository credentials can be stored in TimeLocker's encrypted credential
+store. Unattended access to that store requires an explicit
+`TIMELOCKER_MASTER_PASSWORD` or protected `TIMELOCKER_MASTER_PASSWORD_FILE`;
+backend-specific environment variables remain available as fallbacks.
 
 #### Selection Templates & Service Manager
 

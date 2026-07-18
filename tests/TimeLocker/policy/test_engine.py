@@ -6,21 +6,21 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import Mock, MagicMock, patch
 
-from src.TimeLocker.policy.engine import PolicyEngine, RetentionDecision, PruneResult
-from src.TimeLocker.policy.models import (
+from TimeLocker.policy.engine import PolicyEngine, RetentionDecision, PruneResult
+from TimeLocker.policy.models import (
     RetentionPolicy,
     RetentionRule,
     EnforcementRecord,
     ComplianceStatus,
 )
-from src.TimeLocker.policy.types import (
+from TimeLocker.policy.types import (
     RetentionType,
     EnforcementType,
 )
-from src.TimeLocker.policy.exceptions import (
+from TimeLocker.policy.exceptions import (
     PolicyEnforcementError,
 )
-from src.TimeLocker.backup_snapshot import BackupSnapshot
+from TimeLocker.backup_snapshot import BackupSnapshot
 
 
 class TestPolicyEngine:

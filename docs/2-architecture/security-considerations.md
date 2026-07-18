@@ -4,7 +4,7 @@ id: "arch-security"
 type: [ architecture ]
 status: [ approved ]
 owner: "Security Team"
-last_reviewed: "01-11-2025"
+last_reviewed: "18-07-2026"
 tags: [architecture, security]
 links:
     tooling: []
@@ -27,12 +27,16 @@ e.g., GDPR). This document summarises the baseline controls incorporated into th
 
 Security measures integrated into TimeLocker include:
 
-- **Data Encryption** – TLS for transport and Restic encryption at rest.
-- **Credential Security** – OS key-ring integration and per-repository secret storage.
-- **Access Control** – Role-based permissions for operational and administrative functions.
-- **GDPR Compliance** – Data portability, right-to-erasure workflows, privacy-by-design defaults.
-- **Audit Trail** – Tamper-evident, hash-chained logging with verification utilities.
-- **Vault Locking** – Prevents conflicting writes, ensuring repository consistency.
+- **Repository Encryption** – Restic encrypts repository data; transport
+  protection is supplied by the selected backend protocol.
+- **Credential Security** – Per-repository secrets are encrypted in a dedicated
+  credential store protected by an operator-supplied master password.
+- **Configuration Protection** – Configuration access, locking, audit, and
+  transaction helpers reduce concurrent-write and integrity risk.
+- **Privacy Utilities** – Data export, deletion, sanitization, and privacy-event
+  helpers support operator-led privacy workflows.
+- **Audit Events** – Credential, configuration, scheduling, and security
+  components record relevant operations without logging secret values.
 
 These controls complement operational guidance detailed in `docs/3-implementation/` and testing procedures under `docs/4-testing/`.
 
@@ -41,7 +45,8 @@ These controls complement operational guidance detailed in `docs/3-implementatio
 - ✅ Protects backup data throughout its lifecycle and aids regulatory compliance.
 - ✅ Provides auditing hooks for incident response and forensic analysis.
 - ⚠️ Key management and credential storage require platform-specific testing.
-- ⚠️ Additional features (e.g., multi-factor auth) may be needed for enterprise deployments; tracked in future enhancements.
+- ⚠️ Platform-specific credential files, scheduler environments, and backend
+  transport settings require platform-specific validation.
 
 ## 4. Alternatives Considered
 
@@ -55,4 +60,4 @@ These controls complement operational guidance detailed in `docs/3-implementatio
 
 # References
 
-- [Component Breakdown – Security Services](./component-breakdown.md#security-services)
+- [Component Breakdown – Credentials And Security](./component-breakdown.md#credentials-and-security)

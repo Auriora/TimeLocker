@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import patch_restore_commands
 
 # Set wider terminal width to prevent help text truncation in CI

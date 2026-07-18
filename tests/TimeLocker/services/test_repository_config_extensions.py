@@ -9,7 +9,7 @@ import pytest
 from datetime import datetime
 from pathlib import Path
 
-from src.TimeLocker.interfaces.repository_management_models import (
+from TimeLocker.interfaces.repository_management_models import (
     RepositoryConfig, BackupEngine, RepositoryType, RepositoryStatus,
     ResticEngineConfig, RsyncEngineConfig, RcloneEngineConfig,
     S3Config, ENGINE_CONFIGURATIONS, S3_COMPATIBLE_SERVICES

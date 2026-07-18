@@ -7,7 +7,7 @@ Tests policy command parsing, parameter validation, help output, and error handl
 import pytest
 from unittest.mock import Mock, patch
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import (
     get_cli_runner, combined_output, assert_success, assert_exit_code, assert_help_quality
 )
@@ -63,7 +63,7 @@ class TestPolicyCommands:
         assert_help_quality(result, "policy status")
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.policy._get_policy_manager')
+    @patch('TimeLocker.cli_modules.commands.policy._get_policy_manager')
     def test_policy_backup_list_command(self, mock_get_manager):
         """Test policy backup list command execution."""
         mock_manager = Mock()
@@ -75,7 +75,7 @@ class TestPolicyCommands:
         assert_success(result)
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.policy.PolicyManager')
+    @patch('TimeLocker.cli_modules.commands.policy.PolicyManager')
     def test_policy_backup_create_with_parameters(self, mock_policy_manager):
         """Test policy backup create command with parameters."""
         mock_manager = Mock()
@@ -89,7 +89,7 @@ class TestPolicyCommands:
         assert result.exit_code in [0, 1, 2]
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.policy.PolicyManager')
+    @patch('TimeLocker.cli_modules.commands.policy.PolicyManager')
     def test_policy_retention_list_command(self, mock_policy_manager):
         """Test policy retention list command execution."""
         mock_manager = Mock()
@@ -100,7 +100,7 @@ class TestPolicyCommands:
         assert_success(result)
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.policy.PolicyManager')
+    @patch('TimeLocker.cli_modules.commands.policy.PolicyManager')
     def test_policy_retention_create_with_parameters(self, mock_policy_manager):
         """Test policy retention create command with parameters."""
         mock_manager = Mock()
@@ -114,7 +114,7 @@ class TestPolicyCommands:
         assert result.exit_code in [0, 1, 2]
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.policy.PolicyManager')
+    @patch('TimeLocker.cli_modules.commands.policy.PolicyManager')
     def test_policy_simulate_command(self, mock_policy_manager):
         """Test policy simulate command execution."""
         mock_manager = Mock()
@@ -132,7 +132,7 @@ class TestPolicyCommands:
         assert result.exit_code in [0, 1, 2]
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.policy._get_policy_manager')
+    @patch('TimeLocker.cli_modules.commands.policy._get_policy_manager')
     def test_policy_status_command(self, mock_get_manager):
         """Test policy status command execution."""
         mock_manager = Mock()

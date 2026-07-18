@@ -200,6 +200,7 @@ def test_restore_default_target_path():
     result = snapshot.restore()
 
     assert result == "Mock restore completed successfully"
+    assert repo.last_restore_overwrite == "never"
 
 @pytest.mark.backup
 @pytest.mark.filesystem
@@ -266,6 +267,7 @@ def test_restore_with_nonexistent_target_path():
 
     # Assert that the result is what we expect from our mock
     assert result == "Mock restore completed successfully"
+    assert repo.last_restore_overwrite == "never"
 
 @pytest.mark.backup
 @pytest.mark.filesystem

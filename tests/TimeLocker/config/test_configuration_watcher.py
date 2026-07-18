@@ -14,9 +14,9 @@ from datetime import datetime
 from unittest.mock import Mock, patch, MagicMock
 import pytest
 
-from src.TimeLocker.config.configuration_watcher import ConfigurationWatcher, WatchSubscription
-from src.TimeLocker.interfaces.configuration_watcher import ConfigurationChangeEvent
-from src.TimeLocker.interfaces.exceptions import ConfigurationWatchError, ConfigurationWatchStartupError
+from TimeLocker.config.configuration_watcher import ConfigurationWatcher, WatchSubscription
+from TimeLocker.interfaces.configuration_watcher import ConfigurationChangeEvent
+from TimeLocker.interfaces.exceptions import ConfigurationWatchError, ConfigurationWatchStartupError
 
 
 class TestConfigurationWatcher:
@@ -524,7 +524,7 @@ class TestConfigurationWatcher:
 
     @pytest.mark.config
     @pytest.mark.unit
-    @patch('src.TimeLocker.config.configuration_watcher.HAS_WATCHDOG', False)
+    @patch('TimeLocker.config.configuration_watcher.HAS_WATCHDOG', False)
     def test_polling_fallback(self):
         """Test fallback to polling when watchdog is not available"""
         watcher = ConfigurationWatcher(self.config_file, polling_interval=0.1)
@@ -545,7 +545,7 @@ class TestConfigurationWatcher:
     @pytest.mark.unit
     def test_watchdog_fallback_on_error(self):
         """Test fallback to polling when watchdog fails"""
-        with patch('src.TimeLocker.config.configuration_watcher.Observer') as mock_observer:
+        with patch('TimeLocker.config.configuration_watcher.Observer') as mock_observer:
             # Make Observer initialization fail
             mock_observer.side_effect = Exception("Watchdog failed")
             

@@ -310,6 +310,7 @@ def restore_full(
             if not Confirm.ask(f"[yellow]Target {target} exists. Overwrite?[/yellow]"):
                 console.print("[yellow]Operation cancelled[/yellow]")
                 raise typer.Exit(0)
+            overwrite = True
         
         repo = _get_repository(repository, config_dir)
         orchestrator = RecoveryOrchestrator(repo)

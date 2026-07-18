@@ -20,7 +20,7 @@ import tempfile
 from pathlib import Path
 from typer.testing import CliRunner
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import combined_output
 
 

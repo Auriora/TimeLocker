@@ -104,7 +104,13 @@ class MockRecoveryRepository(BackupRepository):
         # Not needed for recovery testing
         return {"snapshot_id": "new-snapshot", "summary": "Mock backup"}
 
-    def restore(self, snapshot_id: str, target_path: Optional[Path] = None) -> str:
+    def restore(
+            self,
+            snapshot_id: str,
+            target_path: Optional[Path] = None,
+            *,
+            overwrite: str = "never",
+    ) -> str:
         """Mock restore operation"""
         if self._should_fail_restore:
             raise Exception("Mock restore failure")
@@ -116,6 +122,7 @@ class MockRecoveryRepository(BackupRepository):
         result = f"Mock restore of snapshot {snapshot_id} to {target_path} completed successfully"
         self._restore_results[snapshot_id] = {
                 "target_path": str(target_path) if target_path else None,
+                "overwrite": overwrite,
                 "timestamp":   datetime.now(),
                 "success":     True
         }

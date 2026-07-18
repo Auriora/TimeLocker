@@ -4,7 +4,7 @@ id: "arch-performance-monitoring"
 type: [ architecture ]
 status: [ approved ]
 owner: "Performance Team"
-last_reviewed: "13-11-2025"
+last_reviewed: "18-07-2026"
 tags: [architecture, performance, metrics, profiling, benchmarks]
 links:
     tooling: []
@@ -559,25 +559,7 @@ Performance events logged for troubleshooting:
 - **Developer Friendly**: Easy to instrument new code
 - **Production Ready**: Safe for production deployments
 
-## 14. Future Enhancements
-
-### Advanced Features
-
-1. **Distributed Tracing**: End-to-end request tracing
-2. **Real-Time Dashboard**: Live performance visualization
-3. **Machine Learning**: Predictive performance analysis
-4. **Automated Optimization**: Self-tuning parameters
-5. **Cloud Integration**: Export to cloud monitoring services
-
-### Enterprise Features
-
-1. **Centralized Monitoring**: Aggregate metrics from multiple systems
-2. **Custom Dashboards**: User-configurable visualizations
-3. **Advanced Alerting**: Complex alert rules
-4. **Performance SLAs**: Track and report on SLAs
-5. **Capacity Planning**: Predictive capacity analysis
-
-## 15. Key Implementation Files
+## 14. Key Implementation Files
 
 | File            | Purpose                            |
 |-----------------|------------------------------------|

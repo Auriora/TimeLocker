@@ -9,12 +9,12 @@ import pytest
 from unittest.mock import Mock, AsyncMock
 from datetime import datetime
 
-from src.TimeLocker.services.s3_service_manager import S3ServiceManager
-from src.TimeLocker.services.repository_credential_manager import RepositoryCredentialManager
-from src.TimeLocker.interfaces.s3_config_models import (
+from TimeLocker.services.s3_service_manager import S3ServiceManager
+from TimeLocker.services.repository_credential_manager import RepositoryCredentialManager
+from TimeLocker.interfaces.s3_config_models import (
     S3Config, S3ServiceType, S3_SERVICE_TEMPLATES
 )
-from src.TimeLocker.interfaces.exceptions import CredentialError
+from TimeLocker.interfaces.exceptions import CredentialError
 
 
 class TestS3ServiceManager:

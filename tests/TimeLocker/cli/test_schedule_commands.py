@@ -7,7 +7,7 @@ Tests schedule command parsing, parameter validation, help output, and error han
 import pytest
 from unittest.mock import Mock, patch
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import (
     get_cli_runner, combined_output, assert_success, assert_exit_code, assert_help_quality
 )

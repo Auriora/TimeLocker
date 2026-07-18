@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, MagicMock
 
-from src.TimeLocker.policy.models import (
+from TimeLocker.policy.models import (
     BackupPolicy,
     RetentionPolicy,
     RetentionRule,
@@ -15,17 +15,17 @@ from src.TimeLocker.policy.models import (
     ScheduleConfig,
     ComplianceRule,
 )
-from src.TimeLocker.policy.types import (
+from TimeLocker.policy.types import (
     PolicyType,
     TargetType,
     RetentionType,
     PolicyStatus,
     ConflictResolution,
 )
-from src.TimeLocker.backup_snapshot import BackupSnapshot
-from src.TimeLocker.backup_repository import BackupRepository
-from src.TimeLocker.selection_template_manager import SelectionTemplateManager
-from src.TimeLocker.selection_models import SelectionTemplate, SelectionConfig
+from TimeLocker.backup_snapshot import BackupSnapshot
+from TimeLocker.backup_repository import BackupRepository
+from TimeLocker.selection_template_manager import SelectionTemplateManager
+from TimeLocker.selection_models import SelectionTemplate, SelectionConfig
 
 
 @pytest.fixture
@@ -175,11 +175,11 @@ def policy_selection_templates(tmp_path, monkeypatch):
     manager.create_template(template)
 
     monkeypatch.setattr(
-        "src.TimeLocker.policy.manager.SelectionTemplateManager",
+        "TimeLocker.policy.manager.SelectionTemplateManager",
         lambda *args, **kwargs: manager
     )
     monkeypatch.setattr(
-        "src.TimeLocker.policy.validator.SelectionTemplateManager",
+        "TimeLocker.policy.validator.SelectionTemplateManager",
         lambda *args, **kwargs: manager
     )
 

@@ -4,192 +4,133 @@ id: "arch-component-breakdown"
 type: [ architecture ]
 status: [ approved ]
 owner: "Architecture Team"
-last_reviewed: "01-11-2025"
-tags: [architecture, components, requirements]
+last_reviewed: "18-07-2026"
+tags: [architecture, components]
 links:
     tooling: []
 ---
 
 # Architecture Document: Component Breakdown
 
-- **Owner**: Architecture Team
-- **Status**: Approved
-- **Created Date**: 19-12-2024
-- **Last Updated**: 01-11-2025
-- **Audience**: Engineering Teams, QA, Product Management
+## Purpose
 
-## 1. Context
+Map implemented TimeLocker components to their current responsibilities and
+source locations. Code and tests remain authoritative for low-level behavior.
 
-This document maps TimeLocker subsystems to their purposes, responsibilities, and linked requirements. It supports planning, ownership assignment, and
-compliance tracking across user interfaces, core services, infrastructure utilities, and storage backends.
+## Public Interface
 
-## 2. Decision
+### CLI
 
-### 2.1 User Interfaces
+- **Location:** `src/TimeLocker/cli.py`, `src/TimeLocker/cli_modules/`
+- **Responsibilities:** command registration, argument validation, interactive
+  prompts, progress/output formatting, and delegation to services.
+- **Contract:** both `timelocker` and `tl` invoke the same `TimeLocker` package
+  and command tree.
 
-> **⚠️ IMPLEMENTATION STATUS**: Currently, TimeLocker implements the **CLI only**. The Desktop GUI and REST API are design specifications for future
-> implementation.
+### Optional System-Tray Notifications
 
-#### CLI (Implemented)
+- **Location:** `src/TimeLocker/monitoring/system_tray_integration.py`
+- **Responsibilities:** desktop status and notification integration where the
+  platform dependency is installed.
+- **Boundary:** this is an optional notification surface, not a second control
+  plane.
 
-- **Purpose**: Primary interface for scriptable automation and interactive operations.
-- **Responsibilities**:
-    - Repository configuration and management.
-    - Backup and restore execution.
-    - Policy configuration and management.
-    - Data selection patterns and templates.
-        - Monitoring, reporting, and notifications.
-    - Scheduling and automation.
-    - Security and credential management.
-    - Interactive wizards and batch workflows.
-- **Requirements**: FR-INT-001, FR-MON-007, FR-RM-003, FR-MON-002, FR-MON-004.
-- **Implementation**: `/src/TimeLocker/cli.py`, `/src/TimeLocker/cli_modules/`
-- **Documentation**: [CLI Modules](../3-implementation/cli-modules.md), [Command Registry API](../3-implementation/command-registry-api.md)
+## Application And Domain Components
 
-#### System Tray Integration (Optional)
+### Repository Management
 
-- **Purpose**: Background monitoring and notifications.
-- **Responsibilities**:
-    - System tray presence for status monitoring.
-    - Desktop notifications for backup events.
-    - Quick access to monitoring information.
-- **Implementation**: `/src/TimeLocker/monitoring/system_tray_integration.py`
+- **Location:** `src/TimeLocker/services/repository_*.py`,
+  `src/TimeLocker/backup_repository.py`
+- **Responsibilities:** resolve named repositories and URIs, validate
+  configuration, construct adapters, manage credentials, and expose lifecycle
+  operations.
 
-#### Desktop GUI (Future Enhancement)
+### Backup And Snapshot Operations
 
-- **Purpose**: Rich, user-friendly orchestration client.
-- **Status**: Design specification - not yet implemented.
-- **Planned Responsibilities**:
-    - Graphical interface for all CLI operations.
-    - Visual backup and restore workflows.
-    - Interactive policy configuration.
-    - Dashboard for monitoring and reporting.
-- **Requirements**: FR-RM-003, FR-MON-002, FR-MON-004.
+- **Location:** `backup_manager.py`, `snapshot_manager.py`,
+  `services/backup_orchestrator.py`, `services/snapshot_service.py`
+- **Responsibilities:** resolve selections, invoke repository backup actions,
+  enumerate snapshots, apply retention, and report results.
 
-#### REST API (Future Enhancement)
+### Recovery Operations
 
-- **Purpose**: Integration interface for external tooling.
-- **Status**: Design specification - not yet implemented.
-- **Planned Responsibilities**:
-    - Remote orchestration.
-    - Status monitoring.
-    - Configuration management endpoints.
-- **Requirements**: FR-INT-002.
+- **Location:** `recovery_orchestrator.py`, `restore_manager.py`,
+  `recovery_*.py`
+- **Responsibilities:** validate recovery inputs, track operation state, invoke
+  snapshot restore, verify results, and report failures. Conflict policy is
+  carried to the repository adapter as an explicit overwrite mode.
 
-### 2.2 Core Services Layer
+### Selection And Policy
 
-#### Repository Management
+- **Location:** `selection_*.py`, `file_selections.py`, `pattern_engine.py`,
+  `policy/`
+- **Responsibilities:** reusable path selection, include/exclude evaluation,
+  policy persistence, validation, simulation, and retention decisions.
 
-- **Purpose**: Manage repositories across storage backends.
-- **Responsibilities**: Creation, configuration, validation, credential management, plugin registration, GDPR compliance.
-- **Requirements**: FR-RM-001 … FR-RM-005.
+### Scheduling
 
-#### Backup Operations
+- **Location:** `scheduling/`
+- **Responsibilities:** schedule models, validation, persistence, audit, script
+  generation, credential readiness, and platform-specific scheduler adapters.
 
-- **Purpose**: Execute full and incremental backups.
-- **Responsibilities**: Scheduling, integrity validation, parallel execution, policy alignment.
-- **Requirements**: FR-BK-001 … FR-BK-005.
+### Monitoring And Reporting
 
-#### Recovery Operations
+- **Location:** `monitoring/`, `cli_modules/monitoring_integration.py`
+- **Responsibilities:** activity/history recording, integrity and storage
+  checks, progress, notifications, telemetry, status, and troubleshooting data.
 
-- **Purpose**: Restore data from snapshots.
-- **Responsibilities**: Full/partial restoration, verification, disaster recovery workflows.
-- **Requirements**: FR-RC-001 … FR-RC-004.
+## Infrastructure Components
 
-#### Policy Management
+### Configuration
 
-- **Purpose**: Configure retention and backup cadence.
-- **Responsibilities**: Retention policies, frequency, tag-based rules, lifecycle management.
-- **Requirements**: FR-PM-001 … FR-PM-004.
+- **Location:** `config/`
+- **Responsibilities:** path resolution, schema/defaults, filesystem storage,
+  validation, migration, locking, transactions, backup/restore, and audit.
 
-#### Monitoring & Reporting
+### Credentials And Security
 
-- **Purpose**: Operational visibility and audits.
-- **Responsibilities**: Logging, notifications, audit reports, storage utilisation monitoring, integrity breach detection.
-- **Requirements**: FR-MON-001 … FR-MON-007.
+- **Location:** `security/`, `services/repository_credential_manager.py`
+- **Responsibilities:** encrypted credential storage, explicit unlock,
+  repository/backend credential resolution, access logging, and protection
+  utilities. Non-interactive unlock accepts only operator-supplied secrets.
 
-#### Security Services
+### Restic Integration
 
-- **Purpose**: Safeguard data and credentials.
-- **Responsibilities**: Encryption, credential storage, vault locking, RBAC, GDPR compliance features.
-- **Requirements**: FR-SEC-001 … FR-SEC-008.
+- **Location:** `restic/`, `command_builder/`
+- **Responsibilities:** define Restic commands and parameters, construct process
+  calls, supply repository environments, parse results, and expose local/S3/B2
+  repository adapters.
 
-### 2.3 Infrastructure Layer
+### Plugin Services
 
-#### Restic Engine
+- **Location:** `services/plugin_*.py`, `services/plugins/`
+- **Responsibilities:** register and select backup-engine wrappers behind
+  service interfaces. Plugin presence does not by itself make an additional
+  storage family part of the supported product surface.
 
-- **Purpose**: Core backup engine integration.
-- **Responsibilities**: Execute backup/restore, snapshot management, encryption operations.
-- **Requirements**: FR-BK-001, FR-BK-002, FR-BK-004, FR-RC-001, FR-RC-002.
+### Error And Integration Services
 
-#### Plugin System
+- **Location:** `integration/`, `utils/error_handling.py`, domain-specific
+  `*_error*.py` modules
+- **Responsibilities:** dependency wiring, event propagation, health checks,
+  error translation, diagnostics, and service coordination.
 
-- **Purpose**: Extensibility for backends.
-- **Responsibilities**: Dynamic repository implementation registration and lifecycle management.
-- **Requirements**: FR-RM-002.
+## Supported Repository Adapters
 
-#### Error Handling
+| Adapter | Location | Current role |
+|---------|----------|--------------|
+| Local | `restic/Repositories/local.py` | Restic repository on a local filesystem path. |
+| S3 | `restic/Repositories/s3.py` | AWS S3 or S3-compatible Restic repository. |
+| B2 | `restic/Repositories/b2.py` | Backblaze B2 Restic repository. |
 
-- **Purpose**: Resilience and consistency.
-- **Responsibilities**: Retry strategies, consistency maintenance, error reporting.
-- **Requirements**: FR-ERR-001, FR-ERR-002.
+## Change Rules
 
-#### Resource Management
+Update this map when component ownership or supported adapters change. Link
+accepted requirements from their durable requirements document; do not copy
+legacy or unverified requirement identifiers into this architecture map.
 
-- **Purpose**: Operational efficiency.
-- **Responsibilities**: Bandwidth throttling, backup windows, pruning and cleanup automation.
-- **Requirements**: FR-RES-001, FR-RES-002.
+## References
 
-#### Audit Logging
-
-- **Purpose**: Tamper-proof activity trail.
-- **Responsibilities**: Hash-chained logs, tamper detection, verification workflows.
-- **Requirements**: FR-MON-006, FR-MON-007.
-
-#### Cross-Platform Support
-
-- **Purpose**: Consistent multi-OS behaviour.
-- **Responsibilities**: Platform abstraction layers and environment parity.
-- **Requirements**: FR-INT-003.
-
-### 2.4 Storage Backends
-
-#### Local Files
-
-- **Purpose**: Local filesystem storage.
-- **Responsibilities**: Path management, local IO.
-- **Requirements**: FR-RM-001.
-
-#### Cloud Storage
-
-- **Purpose**: S3/B2 and similar endpoints.
-- **Responsibilities**: Protocol support, region validation, authentication.
-- **Requirements**: FR-RM-001, FR-RM-004, FR-RM-005.
-
-#### Network Storage
-
-- **Purpose**: Network protocols (SFTP, SMB, NFS).
-- **Responsibilities**: Network authentication and secure connectivity.
-- **Requirements**: FR-RM-001.
-
-## 3. Consequences
-
-- ✅ Explicit requirement mapping aids traceability and testing focus.
-- ✅ Responsibility delineation supports team assignment and modular development.
-- ⚠️ Requirement identifiers must stay in sync with the SRS; stale mappings reduce audit value.
-- ⚠️ Over-segmentation may introduce coordination overhead if teams are small.
-
-## 4. Alternatives Considered
-
-1. **Ad-hoc documentation embedded in code**
-    - Pros: Close to implementation.
-    - Cons: Hard for stakeholders to consume; lacks requirement traceability. Rejected.
-
-2. **High-level summary without requirement links**
-    - Pros: Faster to maintain.
-    - Cons: Insufficient for compliance and planning. Rejected in favor of explicit mappings.
-
-# References
-
-- Requirements catalogue: `docs/1-requirements/`
-- Monitoring strategy: `docs/4-testing/`
+- [System Architecture](./system-architecture.md)
+- [Data Flow](./data-flow.md)
+- [Repository Orientation And Change Map](../reference/repo-orientation-and-change-map.md)

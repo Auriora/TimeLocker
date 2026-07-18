@@ -21,18 +21,18 @@ from pathlib import Path
 from datetime import datetime
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 
-from src.TimeLocker.services.repository_manager import RepositoryManager
-from src.TimeLocker.services.repository_state_manager import RepositoryStateManager
-from src.TimeLocker.services.existing_repository_handler import ExistingRepositoryHandler
-from src.TimeLocker.services.repository_factory import RepositoryFactory
-from src.TimeLocker.services.validation_service import ValidationService
-from src.TimeLocker.interfaces.repository_management_models import (
+from TimeLocker.services.repository_manager import RepositoryManager
+from TimeLocker.services.repository_state_manager import RepositoryStateManager
+from TimeLocker.services.existing_repository_handler import ExistingRepositoryHandler
+from TimeLocker.services.repository_factory import RepositoryFactory
+from TimeLocker.services.validation_service import ValidationService
+from TimeLocker.interfaces.repository_management_models import (
     Repository, RepositoryConfig, RepositoryStatus, BackupEngine, RepositoryType,
     ValidationResult, ExistingRepositoryInfo, RepositoryCreationOptions,
     ConnectivityStatus, IntegrityStatus, RepositoryError, RepositoryNotFoundError,
     RepositoryAlreadyExistsError, DataLossConfirmationError
 )
-from src.TimeLocker.interfaces.integration_data_models import ServiceContext
+from TimeLocker.interfaces.integration_data_models import ServiceContext
 
 
 class TestRepositoryLifecycleIntegration:
@@ -313,7 +313,7 @@ class TestRepositoryLifecycleIntegration:
         assert history[1].to_state == RepositoryStatus.ACTIVE
         
         # Test invalid state transition
-        from src.TimeLocker.interfaces.repository_management_models import RepositoryStateError
+        from TimeLocker.interfaces.repository_management_models import RepositoryStateError
         
         # Reset to INACTIVE
         repository.status = RepositoryStatus.INACTIVE

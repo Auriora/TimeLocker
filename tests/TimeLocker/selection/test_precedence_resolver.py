@@ -18,11 +18,11 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from pathlib import Path
 
-from src.TimeLocker.precedence_resolver import (
+from TimeLocker.precedence_resolver import (
     PrecedenceResolver,
     PrecedenceConflictError
 )
-from src.TimeLocker.selection_models import (
+from TimeLocker.selection_models import (
     PrecedenceConfig,
     PrecedenceStrategy,
     ConflictResolution,

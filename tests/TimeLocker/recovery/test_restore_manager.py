@@ -180,6 +180,21 @@ class TestRestoreManager:
 
         assert result.success is True
         assert options.conflict_resolution == ConflictResolution.OVERWRITE
+        assert self.repository._restore_results["abc123"]["overwrite"] == "always"
+
+    @pytest.mark.restore
+    @pytest.mark.unit
+    def test_restore_defaults_to_never_overwrite(self):
+        """The execution layer must override Restic's destructive default."""
+        target_path = self.temp_dir / "restore_target"
+
+        result = self.restore_manager.restore_snapshot(
+            "abc123",
+            RestoreOptions().with_target_path(target_path),
+        )
+
+        assert result.success is True
+        assert self.repository._restore_results["abc123"]["overwrite"] == "never"
 
     @pytest.mark.restore
     @pytest.mark.unit

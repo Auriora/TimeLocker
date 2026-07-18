@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import (
         get_cli_runner,
         combined_output,
@@ -85,7 +85,7 @@ def patched_snapshot_service(snapshot_id: str, source_dir: str):
     manager = MagicMock()
     manager.snapshot_service = service
 
-    with patch("src.TimeLocker.cli_modules.commands.snapshots._get_service_manager_for_command",
+    with patch("TimeLocker.cli_modules.commands.snapshots._get_service_manager_for_command",
                return_value=manager):
         yield service
 

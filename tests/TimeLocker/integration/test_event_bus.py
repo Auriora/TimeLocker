@@ -27,11 +27,11 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from src.TimeLocker.integration.event_bus import (
+from TimeLocker.integration.event_bus import (
     EventBus, EventFilter, EventSubscription, EventPersistence, DeadLetterQueue
 )
-from src.TimeLocker.interfaces.integration_data_models import Event
-from src.TimeLocker.interfaces.integration_exceptions import (
+from TimeLocker.interfaces.integration_data_models import Event
+from TimeLocker.interfaces.integration_exceptions import (
     EventBusError, EventPublishError, EventSubscriptionError, EventPersistenceError
 )
 

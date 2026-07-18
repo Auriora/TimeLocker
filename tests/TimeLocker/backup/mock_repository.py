@@ -48,6 +48,7 @@ class MockBackupRepository(BackupRepository):
         self._initialized = False
         self._snapshots: Dict[str, BackupSnapshot] = {}
         self._location = self._uri
+        self.last_restore_overwrite: Optional[str] = None
 
     @classmethod
     def from_uri(cls, uri: str, password: Optional[str] = None) -> "MockBackupRepository":
@@ -97,7 +98,14 @@ class MockBackupRepository(BackupRepository):
         self._snapshots[snapshot_id] = snapshot
         return {"snapshot_id": snapshot_id, "summary": "Mock backup completed"}
 
-    def restore(self, snapshot_id: str, target_path: Optional[Path] = None) -> str:
+    def restore(
+            self,
+            snapshot_id: str,
+            target_path: Optional[Path] = None,
+            *,
+            overwrite: str = "never",
+    ) -> str:
+        self.last_restore_overwrite = overwrite
         if snapshot_id not in self._snapshots:
             return "Snapshot not found"
         destination = target_path or "original location"

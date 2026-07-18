@@ -18,7 +18,7 @@ from unittest.mock import Mock, patch
 from click.testing import Result
 from typer.testing import CliRunner
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import (
     combined_output,
     assert_success,
@@ -39,21 +39,21 @@ class RepoS3Mocks(TypedDict):
 # Fixture: patch ConfigurationModule
 @pytest.fixture
 def mock_config_module() -> Generator[Mock, None, None]:
-    with patch('src.TimeLocker.config.configuration_module.ConfigurationModule') as m:
+    with patch('TimeLocker.config.configuration_module.ConfigurationModule') as m:
         yield m
 
 
 # Fixture: patch CredentialManager
 @pytest.fixture
 def mock_cm() -> Generator[Mock, None, None]:
-    with patch('src.TimeLocker.security.credential_manager.CredentialManager') as m:
+    with patch('TimeLocker.security.credential_manager.CredentialManager') as m:
         yield m
 
 
 # Fixture: patch PromptService class globally for tests needing dynamic side effects
 @pytest.fixture
 def mock_prompt_service() -> Generator[Mock, None, None]:
-    with patch('src.TimeLocker.utils.PromptService') as p:
+    with patch('TimeLocker.utils.PromptService') as p:
         yield p
 
 
@@ -87,9 +87,9 @@ def test_repos_credentials_group_help() -> None:
 @pytest.mark.unit
 def test_repos_credentials_set_s3_success(repo_s3_mocks: RepoS3Mocks) -> None:
     # Patch PromptService methods
-    with patch('src.TimeLocker.utils.PromptService.prompt_text', side_effect=["AKIA123", "us-east-1"]), \
-            patch('src.TimeLocker.utils.PromptService.prompt_password', return_value="SECRET456"), \
-            patch('src.TimeLocker.utils.PromptService.prompt_confirm', return_value=False):
+    with patch('TimeLocker.utils.PromptService.prompt_text', side_effect=["AKIA123", "us-east-1"]), \
+            patch('TimeLocker.utils.PromptService.prompt_password', return_value="SECRET456"), \
+            patch('TimeLocker.utils.PromptService.prompt_confirm', return_value=False):
         result: Result = runner.invoke(app, ["repos", "credentials", "set", "myrepo"])  # type: ignore[arg-type]
     combined = (result.stdout or "").lower()
     # Mocked prompts and credential manager should succeed
@@ -105,9 +105,9 @@ def test_repos_credentials_set_s3_success(repo_s3_mocks: RepoS3Mocks) -> None:
 @pytest.mark.unit
 def test_repos_credentials_set_s3_insecure_tls(repo_s3_mocks: RepoS3Mocks) -> None:
     # Patch PromptService methods
-    with patch('src.TimeLocker.utils.PromptService.prompt_text', side_effect=["AKIAKEY", ""]), \
-            patch('src.TimeLocker.utils.PromptService.prompt_password', return_value="SECRETKEY"), \
-            patch('src.TimeLocker.utils.PromptService.prompt_confirm', return_value=True):
+    with patch('TimeLocker.utils.PromptService.prompt_text', side_effect=["AKIAKEY", ""]), \
+            patch('TimeLocker.utils.PromptService.prompt_password', return_value="SECRETKEY"), \
+            patch('TimeLocker.utils.PromptService.prompt_confirm', return_value=True):
         result: Result = runner.invoke(app, ["repos", "credentials", "set", "myrepo"])  # type: ignore[arg-type]
     repo_s3_mocks['cm_instance'].store_repository_backend_credentials.assert_called_once_with('myrepo', 's3', {
             'access_key_id':     'AKIAKEY',
@@ -133,7 +133,7 @@ def test_repos_credentials_set_unsupported_type(mock_config_module: Mock, mock_c
 @pytest.mark.unit
 def test_repos_credentials_remove_found(repo_s3_mocks: RepoS3Mocks) -> None:
     repo_s3_mocks['cm_instance'].remove_repository_backend_credentials.return_value = True
-    with patch('src.TimeLocker.utils.PromptService.prompt_confirm', return_value=True):
+    with patch('TimeLocker.utils.PromptService.prompt_confirm', return_value=True):
         result: Result = runner.invoke(app, ["repos", "credentials", "remove", "myrepo", "--yes"])  # type: ignore[arg-type]
     # Mocked credential manager returns True (found and removed), should succeed
     assert_success(result)
@@ -206,9 +206,9 @@ def test_repos_credentials_set_locked_manager_then_fail_to_unlock(mock_config_mo
     mock_cm.return_value = cm_instance
 
     # Patch PromptService methods directly
-    with patch('src.TimeLocker.utils.PromptService.prompt_text', side_effect=["AKIA1", "us-east-1"]), \
-            patch('src.TimeLocker.utils.PromptService.prompt_password', return_value="SECRET2"), \
-            patch('src.TimeLocker.utils.PromptService.prompt_confirm', return_value=False):
+    with patch('TimeLocker.utils.PromptService.prompt_text', side_effect=["AKIA1", "us-east-1"]), \
+            patch('TimeLocker.utils.PromptService.prompt_password', return_value="SECRET2"), \
+            patch('TimeLocker.utils.PromptService.prompt_confirm', return_value=False):
         result: Result = runner.invoke(app, ["repos", "credentials", "set", "myrepo"])  # type: ignore[arg-type]
     assert result.exit_code != 0
     cm_instance.store_repository_backend_credentials.assert_not_called()
@@ -225,9 +225,9 @@ def test_repos_credentials_set_locked_manager_then_unlock(mock_config_module: Mo
     mock_cm.return_value = cm_instance
 
     # Patch PromptService methods directly
-    with patch('src.TimeLocker.utils.PromptService.prompt_text', side_effect=["AKIAZ", "us-west-2"]), \
-            patch('src.TimeLocker.utils.PromptService.prompt_password', return_value="SECRETZ"), \
-            patch('src.TimeLocker.utils.PromptService.prompt_confirm', return_value=False):
+    with patch('TimeLocker.utils.PromptService.prompt_text', side_effect=["AKIAZ", "us-west-2"]), \
+            patch('TimeLocker.utils.PromptService.prompt_password', return_value="SECRETZ"), \
+            patch('TimeLocker.utils.PromptService.prompt_confirm', return_value=False):
         result: Result = runner.invoke(app, ["repos", "credentials", "set", "myrepo"])  # type: ignore[arg-type]
     # Mocked credential manager successfully unlocks and stores credentials, should succeed
     assert_success(result)

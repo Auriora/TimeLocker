@@ -608,11 +608,11 @@ def patch_restore_commands(mode: str = "success"):
         repository_mock = Mock(name="repository")
         patched_objects["repository"] = repository_mock
         stack.enter_context(
-                patch("src.TimeLocker.cli_modules.commands.restore._get_repository", return_value=repository_mock)
+                patch("TimeLocker.cli_modules.commands.restore._get_repository", return_value=repository_mock)
         )
 
         browser_cls = stack.enter_context(
-                patch("src.TimeLocker.cli_modules.commands.restore.SnapshotBrowser")
+                patch("TimeLocker.cli_modules.commands.restore.SnapshotBrowser")
         )
         browser_instance = browser_cls.return_value
         patched_objects["snapshot_browser"] = browser_instance
@@ -641,7 +641,7 @@ def patch_restore_commands(mode: str = "success"):
         )
 
         snapshot_manager_cls = stack.enter_context(
-                patch("src.TimeLocker.cli_modules.commands.restore.SnapshotManager")
+                patch("TimeLocker.cli_modules.commands.restore.SnapshotManager")
         )
         snapshot_manager_instance = snapshot_manager_cls.return_value
         snapshot_manager_instance.list_snapshots.return_value = [
@@ -650,7 +650,7 @@ def patch_restore_commands(mode: str = "success"):
         patched_objects["snapshot_manager"] = snapshot_manager_instance
 
         orchestrator_cls = stack.enter_context(
-                patch("src.TimeLocker.cli_modules.commands.restore.RecoveryOrchestrator")
+                patch("TimeLocker.cli_modules.commands.restore.RecoveryOrchestrator")
         )
         orchestrator_instance = orchestrator_cls.return_value
         orchestrator_instance.initiate_full_recovery.return_value = _create_completed_operation("full-op")
@@ -659,20 +659,20 @@ def patch_restore_commands(mode: str = "success"):
         patched_objects["recovery_orchestrator"] = orchestrator_instance
 
         restore_manager_cls = stack.enter_context(
-                patch("src.TimeLocker.cli_modules.commands.restore.RestoreManager")
+                patch("TimeLocker.cli_modules.commands.restore.RestoreManager")
         )
         restore_manager_instance = restore_manager_cls.return_value
         restore_manager_instance.mount_snapshot.return_value = None
         patched_objects["restore_manager"] = restore_manager_instance
 
         stack.enter_context(
-                patch("src.TimeLocker.cli_modules.commands.restore.get_progress_service", return_value=_DummyProgressService())
+                patch("TimeLocker.cli_modules.commands.restore.get_progress_service", return_value=_DummyProgressService())
         )
         stack.enter_context(
-                patch("src.TimeLocker.cli_modules.commands.restore.Progress", _DummyProgress)
+                patch("TimeLocker.cli_modules.commands.restore.Progress", _DummyProgress)
         )
         validator_cls = stack.enter_context(
-                patch("src.TimeLocker.cli_modules.commands.restore.RecoveryValidator")
+                patch("TimeLocker.cli_modules.commands.restore.RecoveryValidator")
         )
         validator_instance = validator_cls.return_value
         validator_instance.validate_pre_recovery.return_value = SimpleNamespace(

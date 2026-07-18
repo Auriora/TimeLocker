@@ -10,8 +10,8 @@ import asyncio
 from datetime import datetime
 from pathlib import Path
 
-from src.TimeLocker.services.validation_service import ValidationService
-from src.TimeLocker.interfaces.repository_management_models import (
+from TimeLocker.services.validation_service import ValidationService
+from TimeLocker.interfaces.repository_management_models import (
     RepositoryConfig, Repository, BackupEngine, RepositoryType, RepositoryStatus,
     ConnectivityStatus, IntegrityStatus
 )

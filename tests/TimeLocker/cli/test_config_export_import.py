@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 from typer.testing import CliRunner
 
-from src.TimeLocker.cli import app, config_export_app, config_import_app, migrate_app
+from TimeLocker.cli import app, config_export_app, config_import_app, migrate_app
 
 # Set wider terminal width to prevent help text truncation in CI
 runner = CliRunner(env={'COLUMNS': '200'})
@@ -50,7 +50,7 @@ class TestConfigExportCommands:
         assert "--selections" in combined or "selections" in combined.lower()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli._create_configuration_module')
+    @patch('TimeLocker.cli._create_configuration_module')
     def test_config_export_basic(self, mock_config_module):
         """Test basic config export command execution."""
         # Create a temporary file for export
@@ -102,7 +102,7 @@ class TestConfigExportCommands:
                 export_file.unlink()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli._create_configuration_module')
+    @patch('TimeLocker.cli._create_configuration_module')
     def test_config_export_file_exists_no_overwrite(self, mock_config_module):
         """Test config export fails when file exists without overwrite flag."""
         # Create a temporary file
@@ -156,7 +156,7 @@ class TestConfigImportCommands:
         assert "not found" in combined.lower() or "does not exist" in combined.lower()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli._create_configuration_module')
+    @patch('TimeLocker.cli._create_configuration_module')
     def test_config_import_dry_run(self, mock_config_module):
         """Test config import dry-run mode."""
         # Create a temporary config file
@@ -254,7 +254,7 @@ class TestMigrateCommands:
                 config_file.unlink()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli._create_configuration_module')
+    @patch('TimeLocker.cli._create_configuration_module')
     def test_migrate_validate_valid_config(self, mock_config_module):
         """Test migrate validate with valid configuration."""
         # Create a valid config file

@@ -21,13 +21,13 @@ import json
 from pathlib import Path
 from datetime import datetime
 
-from src.TimeLocker.config.security_configuration_manager import SecurityConfigurationManager
-from src.TimeLocker.config.security_configuration_migrator import SecurityConfigurationMigrator
-from src.TimeLocker.config.security_configuration_ui import SecurityConfigurationUI
-from src.TimeLocker.config.configuration_audit_logger import ConfigurationAuditLogger, ConfigurationOperation
-from src.TimeLocker.config.configuration_access_control import ConfigurationAccessControl
-from src.TimeLocker.security.security_service import SecurityService
-from src.TimeLocker.security.credential_manager import CredentialManager
+from TimeLocker.config.security_configuration_manager import SecurityConfigurationManager
+from TimeLocker.config.security_configuration_migrator import SecurityConfigurationMigrator
+from TimeLocker.config.security_configuration_ui import SecurityConfigurationUI
+from TimeLocker.config.configuration_audit_logger import ConfigurationAuditLogger, ConfigurationOperation
+from TimeLocker.config.configuration_access_control import ConfigurationAccessControl
+from TimeLocker.security.security_service import SecurityService
+from TimeLocker.security.credential_manager import CredentialManager
 
 
 class TestSecurityConfigurationIntegration:

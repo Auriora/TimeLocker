@@ -43,6 +43,83 @@ class TestCredentialManager:
 
     @pytest.mark.security
     @pytest.mark.unit
+    def test_auto_unlock_requires_an_explicit_secret(self, monkeypatch):
+        """Host identity alone must never unlock or initialize the store."""
+        monkeypatch.delenv("TIMELOCKER_MASTER_PASSWORD", raising=False)
+        monkeypatch.delenv("TIMELOCKER_MASTER_PASSWORD_FILE", raising=False)
+
+        assert self.credential_manager.auto_unlock() is False
+        assert self.credential_manager.is_locked()
+        assert not (self.temp_dir / "salt").exists()
+
+    @pytest.mark.security
+    @pytest.mark.unit
+    def test_auto_unlock_uses_environment_secret(self, monkeypatch):
+        monkeypatch.setenv("TIMELOCKER_MASTER_PASSWORD", self.master_password)
+        monkeypatch.delenv("TIMELOCKER_MASTER_PASSWORD_FILE", raising=False)
+
+        assert self.credential_manager.auto_unlock() is True
+        assert not self.credential_manager.is_locked()
+
+    @pytest.mark.security
+    @pytest.mark.unit
+    def test_auto_unlock_uses_protected_password_file(self, monkeypatch):
+        password_file = self.temp_dir / "master-password"
+        password_file.write_text(self.master_password, encoding="utf-8")
+        password_file.chmod(0o600)
+        monkeypatch.delenv("TIMELOCKER_MASTER_PASSWORD", raising=False)
+        monkeypatch.setenv("TIMELOCKER_MASTER_PASSWORD_FILE", str(password_file))
+
+        assert self.credential_manager.auto_unlock() is True
+        assert not self.credential_manager.is_locked()
+
+    @pytest.mark.security
+    @pytest.mark.unit
+    def test_auto_unlock_rejects_exposed_password_file(self, monkeypatch):
+        password_file = self.temp_dir / "master-password"
+        password_file.write_text(self.master_password, encoding="utf-8")
+        password_file.chmod(0o644)
+        monkeypatch.delenv("TIMELOCKER_MASTER_PASSWORD", raising=False)
+        monkeypatch.setenv("TIMELOCKER_MASTER_PASSWORD_FILE", str(password_file))
+
+        assert self.credential_manager.auto_unlock() is False
+        assert self.credential_manager.is_locked()
+        assert not (self.temp_dir / "salt").exists()
+
+    @pytest.mark.security
+    @pytest.mark.unit
+    def test_auto_unlock_rejects_password_file_symlink(self, monkeypatch):
+        password_file = self.temp_dir / "master-password"
+        password_file.write_text(self.master_password, encoding="utf-8")
+        password_file.chmod(0o600)
+        password_link = self.temp_dir / "master-password-link"
+        password_link.symlink_to(password_file)
+        monkeypatch.delenv("TIMELOCKER_MASTER_PASSWORD", raising=False)
+        monkeypatch.setenv("TIMELOCKER_MASTER_PASSWORD_FILE", str(password_link))
+
+        assert self.credential_manager.auto_unlock() is False
+        assert self.credential_manager.is_locked()
+
+    @pytest.mark.security
+    @pytest.mark.unit
+    @pytest.mark.parametrize("unsafe_kind", ["missing", "empty", "directory"])
+    def test_auto_unlock_rejects_unusable_password_files(self, monkeypatch, unsafe_kind):
+        password_file = self.temp_dir / "unusable-master-password"
+        if unsafe_kind == "empty":
+            password_file.write_text("", encoding="utf-8")
+            password_file.chmod(0o600)
+        elif unsafe_kind == "directory":
+            password_file.mkdir()
+
+        monkeypatch.delenv("TIMELOCKER_MASTER_PASSWORD", raising=False)
+        monkeypatch.setenv("TIMELOCKER_MASTER_PASSWORD_FILE", str(password_file))
+
+        assert self.credential_manager.auto_unlock() is False
+        assert self.credential_manager.is_locked()
+        assert not (self.temp_dir / "salt").exists()
+
+    @pytest.mark.security
+    @pytest.mark.unit
     def test_unlock_with_wrong_password(self):
         """Test unlocking with wrong password after setting one"""
         # First, set up credentials with correct password

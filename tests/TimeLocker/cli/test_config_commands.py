@@ -11,7 +11,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 from typer.testing import CliRunner
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 
 # Set wider terminal width to prevent help text truncation in CI
 runner = CliRunner(env={'COLUMNS': '200'})
@@ -82,7 +82,7 @@ class TestConfigCommands:
         assert "import" in combined.lower()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.ConfigurationModule')
+    @patch('TimeLocker.cli.ConfigurationModule')
     def test_config_show_command(self, mock_config_module):
         """Test config show command execution."""
         # Mock the configuration module
@@ -98,7 +98,7 @@ class TestConfigCommands:
         assert result.exit_code in [0, 1]
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.ConfigurationModule')
+    @patch('TimeLocker.cli.ConfigurationModule')
     def test_config_show_with_config_dir(self, mock_config_module):
         """Test config show command with custom config directory."""
         # Mock the configuration module
@@ -128,7 +128,7 @@ class TestConfigCommands:
         assert result.exit_code == 2
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.sys.stdin')
+    @patch('TimeLocker.cli.sys.stdin')
     def test_config_setup_interactive_simulation(self, mock_stdin):
         """Test config setup command interactive simulation."""
         # Mock stdin to simulate non-tty
@@ -140,7 +140,7 @@ class TestConfigCommands:
         assert result.exit_code == 2
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('TimeLocker.cli.get_cli_service_manager')
     def test_config_import_restic_command(self, mock_service_manager):
         """Test config import restic command execution."""
         # Mock the service manager
@@ -154,7 +154,7 @@ class TestConfigCommands:
         assert result.exit_code in [0, 1]
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('TimeLocker.cli.get_cli_service_manager')
     def test_config_import_restic_with_options(self, mock_service_manager):
         """Test config import restic command with options."""
         # Mock the service manager
@@ -196,8 +196,8 @@ class TestConfigCommands:
         assert result.exit_code == 2
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.config._create_config_service')
-    @patch('src.TimeLocker.cli_modules.commands.config.ConfigurationValidator')
+    @patch('TimeLocker.cli_modules.commands.config._create_config_service')
+    @patch('TimeLocker.cli_modules.commands.config.ConfigurationValidator')
     def test_config_show_with_validation(self, mock_validator, mock_config_service_factory):
         """Test config show command with validation."""
         # Mock the configuration service and validator
@@ -221,7 +221,7 @@ class TestConfigCommands:
         assert result.exit_code in [0, 1]
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.config._create_config_service')
+    @patch('TimeLocker.cli_modules.commands.config._create_config_service')
     def test_config_show_configuration_error(self, mock_config_service_factory):
         """Test config show command with configuration error."""
         # Mock configuration module to raise error
@@ -243,7 +243,7 @@ class TestConfigCommands:
         assert "import" in combined.lower()
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('TimeLocker.cli.get_cli_service_manager')
     def test_config_import_timeshift_command(self, mock_service_manager):
         """Test config import timeshift command execution."""
         # Mock the service manager
@@ -257,7 +257,7 @@ class TestConfigCommands:
         assert result.exit_code in [0, 1]
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('TimeLocker.cli.get_cli_service_manager')
     def test_config_import_timeshift_with_config_file(self, mock_service_manager):
         """Test config import timeshift command with config file."""
         # Mock the service manager
@@ -275,7 +275,7 @@ class TestConfigCommands:
             assert result.exit_code in [0, 1]
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('TimeLocker.cli.get_cli_service_manager')
     def test_config_import_timeshift_dry_run(self, mock_service_manager):
         """Test config import timeshift command with dry run."""
         # Mock the service manager

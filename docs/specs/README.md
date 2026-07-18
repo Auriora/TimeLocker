@@ -15,8 +15,20 @@ accepted content has been promoted and the package is closed.
 
 ## Current Packages
 
+- [`002-repository-safety-release-readiness`](./002-repository-safety-release-readiness/requirements.md) —
+  urgent remediation of accepted repository-review findings TLR-001 through
+  TLR-005; implementation, durable promotion, and validation are complete, and
+  the package awaits its separately authorized final commit and closure.
 - [`001-cli-consolidation-stabilization`](./001-cli-consolidation-stabilization/requirements.md) —
-  remaining CLI consolidation work; reconciled and ready to begin at T005.
+  remaining CLI consolidation work; reconciled and ready to resume at T005.
+
+## Active-Package Sequencing
+
+Spec 002 preempted Spec 001 because it addressed critical restore-data safety,
+credential confidentiality, and release-readiness defects. Its implementation,
+durable-doc promotion, and required validation are complete, so Spec 001 may
+resume at T005. Spec 002 remains active only until its separately authorized
+final commit and closure; no unresolved Spec 002 risk blocks Spec 001.
 
 ## When a Spec Is Needed
 

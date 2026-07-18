@@ -10,15 +10,15 @@ import asyncio
 from datetime import datetime
 from unittest.mock import Mock, AsyncMock, patch
 
-from src.TimeLocker.interfaces.repository_management_models import (
+from TimeLocker.interfaces.repository_management_models import (
     Repository, RepositoryConfig, RepositoryStatus, BackupEngine, RepositoryType,
     ValidationResult, ExistingRepositoryInfo, RepositoryCreationOptions,
     ConnectivityStatus, IntegrityStatus
 )
-from src.TimeLocker.services.repository_manager import RepositoryManager
-from src.TimeLocker.services.repository_state_manager import RepositoryStateManager
-from src.TimeLocker.services.existing_repository_handler import ExistingRepositoryHandler
-from src.TimeLocker.interfaces.integration_data_models import ServiceContext
+from TimeLocker.services.repository_manager import RepositoryManager
+from TimeLocker.services.repository_state_manager import RepositoryStateManager
+from TimeLocker.services.existing_repository_handler import ExistingRepositoryHandler
+from TimeLocker.interfaces.integration_data_models import ServiceContext
 
 
 class TestRepositoryManagerCore:
@@ -265,7 +265,7 @@ class TestRepositoryStateManager:
     @pytest.mark.asyncio
     async def test_invalid_state_transition(self, state_manager, test_repository):
         """Test invalid state transition"""
-        from src.TimeLocker.interfaces.repository_management_models import RepositoryStateError
+        from TimeLocker.interfaces.repository_management_models import RepositoryStateError
         
         # Try invalid transition (INACTIVE -> ACTIVE without validation)
         with pytest.raises(RepositoryStateError):
@@ -425,7 +425,7 @@ class TestRepositoryManagerExistingRepositoryHandling:
         self, repository_manager, repository_config, existing_repo_info, mock_service_context
     ):
         """Test that reinitialize without confirmation raises error"""
-        from src.TimeLocker.interfaces.repository_management_models import DataLossConfirmationError
+        from TimeLocker.interfaces.repository_management_models import DataLossConfirmationError
         
         # Initialize manager
         repository_manager.initialize(mock_service_context)
@@ -737,7 +737,7 @@ class TestRepositoryManagerAuditLogging:
     def test_get_state_history(self, repository_manager):
         """Test retrieving state history"""
         # Mock state history
-        from src.TimeLocker.interfaces.repository_management_models import RepositoryStateTransition
+        from TimeLocker.interfaces.repository_management_models import RepositoryStateTransition
         
         transitions = [
             RepositoryStateTransition(
@@ -762,7 +762,7 @@ class TestRepositoryManagerAuditLogging:
     def test_get_state_history_with_limit(self, repository_manager):
         """Test retrieving state history with limit"""
         # Mock state history with multiple transitions
-        from src.TimeLocker.interfaces.repository_management_models import RepositoryStateTransition
+        from TimeLocker.interfaces.repository_management_models import RepositoryStateTransition
         
         transitions = [
             RepositoryStateTransition(

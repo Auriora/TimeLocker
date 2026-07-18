@@ -10,11 +10,11 @@ from unittest.mock import Mock, MagicMock
 from pathlib import Path
 import tempfile
 
-from src.TimeLocker.interfaces.integration_data_models import ServiceContext
-from src.TimeLocker.services.repository_service import RepositoryService
-from src.TimeLocker.services.snapshot_service import SnapshotService
-from src.TimeLocker.security.security_service import SecurityService
-from src.TimeLocker.monitoring.notification_service import NotificationService
+from TimeLocker.interfaces.integration_data_models import ServiceContext
+from TimeLocker.services.repository_service import RepositoryService
+from TimeLocker.services.snapshot_service import SnapshotService
+from TimeLocker.security.security_service import SecurityService
+from TimeLocker.monitoring.notification_service import NotificationService
 
 
 class TestServiceInterfaceIntegration:

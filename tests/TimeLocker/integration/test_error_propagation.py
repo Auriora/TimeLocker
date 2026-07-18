@@ -27,7 +27,7 @@ import time
 from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
 
-from src.TimeLocker.integration.error_propagation import (
+from TimeLocker.integration.error_propagation import (
     ErrorPropagationSystem,
     ErrorSeverity,
     ErrorCategory,
@@ -37,8 +37,8 @@ from src.TimeLocker.integration.error_propagation import (
     ErrorCorrelator,
     ErrorRecoveryManager
 )
-from src.TimeLocker.integration.event_bus import EventBus
-from src.TimeLocker.interfaces.integration_data_models import Event
+from TimeLocker.integration.event_bus import EventBus
+from TimeLocker.interfaces.integration_data_models import Event
 
 
 class TestErrorContext:

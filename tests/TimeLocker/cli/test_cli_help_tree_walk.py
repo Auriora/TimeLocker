@@ -17,7 +17,7 @@ import click
 import pytest
 from typer.main import get_command
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 CLI_BOOTSTRAP = "from TimeLocker.cli import main; main()"

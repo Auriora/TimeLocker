@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 import pytest
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 from TimeLocker.interfaces.data_models import BackupResult, BackupStatus
 from TimeLocker.selection_manager import SelectionManager
 from TimeLocker.selection_template_manager import SelectionTemplateManager
@@ -115,7 +115,7 @@ def stubbed_backup_services() -> Iterator[StubBackupOrchestrator]:
     """
     orchestrator = StubBackupOrchestrator()
     stub_manager = StubServiceManager(orchestrator)
-    with patch("src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command",
+    with patch("TimeLocker.cli_modules.commands.backup._get_service_manager_for_command",
                return_value=stub_manager):
         yield orchestrator
 

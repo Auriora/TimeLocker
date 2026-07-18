@@ -24,12 +24,12 @@ import os
 from pathlib import Path
 from typing import AsyncIterator, List
 
-from src.TimeLocker.selection_manager import SelectionManager
-from src.TimeLocker.selection_template_manager import SelectionTemplateManager
-from src.TimeLocker.pattern_engine import PatternEngine
-from src.TimeLocker.selection_validation_service import SelectionValidationService
-from src.TimeLocker.selection_performance_optimizer import SelectionPerformanceOptimizer
-from src.TimeLocker.selection_models import (
+from TimeLocker.selection_manager import SelectionManager
+from TimeLocker.selection_template_manager import SelectionTemplateManager
+from TimeLocker.pattern_engine import PatternEngine
+from TimeLocker.selection_validation_service import SelectionValidationService
+from TimeLocker.selection_performance_optimizer import SelectionPerformanceOptimizer
+from TimeLocker.selection_models import (
     SelectionConfig,
     PatternRule,
     PatternSyntax,

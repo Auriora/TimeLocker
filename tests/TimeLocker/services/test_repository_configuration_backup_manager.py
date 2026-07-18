@@ -10,11 +10,11 @@ import tempfile
 from pathlib import Path
 from datetime import datetime
 
-from src.TimeLocker.services.repository_configuration_backup_manager import (
+from TimeLocker.services.repository_configuration_backup_manager import (
     RepositoryConfigurationBackupManager, RepositoryBackupMetadata
 )
-from src.TimeLocker.config.configuration_backup_manager import BackupReason
-from src.TimeLocker.interfaces.repository_management_models import (
+from TimeLocker.config.configuration_backup_manager import BackupReason
+from TimeLocker.interfaces.repository_management_models import (
     RepositoryConfig, BackupEngine, RepositoryType
 )
 

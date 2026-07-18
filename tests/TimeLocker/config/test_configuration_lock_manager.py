@@ -15,8 +15,8 @@ from datetime import datetime, timedelta
 from unittest.mock import patch, MagicMock
 import pytest
 
-from src.TimeLocker.config.configuration_lock_manager import ConfigurationLockManager, LockFileData
-from src.TimeLocker.interfaces.exceptions import (
+from TimeLocker.config.configuration_lock_manager import ConfigurationLockManager, LockFileData
+from TimeLocker.interfaces.exceptions import (
     ConfigurationLockError,
     ConfigurationLockTimeoutError,
     ConfigurationLockNotHeldError,
@@ -350,7 +350,7 @@ class TestConfigurationLockManager:
 
     @pytest.mark.config
     @pytest.mark.unit
-    @patch('src.TimeLocker.config.configuration_lock_manager.psutil')
+    @patch('TimeLocker.config.configuration_lock_manager.psutil')
     def test_fallback_process_check(self, mock_psutil):
         """Test fallback process checking when psutil is not available"""
         # Make psutil.pid_exists raise an exception

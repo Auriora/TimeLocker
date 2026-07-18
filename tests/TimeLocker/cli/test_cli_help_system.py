@@ -9,7 +9,7 @@ import re
 from typer.testing import CliRunner
 from typer.main import get_command
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 
 # Set wider terminal width to prevent help text truncation in CI
 runner = CliRunner(env={'COLUMNS': '200'})

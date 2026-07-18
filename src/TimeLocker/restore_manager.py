@@ -341,8 +341,18 @@ class RestoreManager:
         try:
             logger.info(f"Starting restore of snapshot {snapshot.id} to {options.target_path}")
 
-            # Call repository restore method
-            restore_output = snapshot.restore(options.target_path)
+            # Restic overwrites by default, so every restore must carry an
+            # explicit backend policy. Only the explicit OVERWRITE option may
+            # select destructive behavior; prompt/skip/rename all remain safe.
+            overwrite = (
+                "always"
+                if options.conflict_resolution == ConflictResolution.OVERWRITE
+                else "never"
+            )
+            restore_output = snapshot.restore(
+                options.target_path,
+                overwrite=overwrite,
+            )
 
             # Parse restore output for statistics (implementation depends on repository type)
             self._parse_restore_output(restore_output, result)

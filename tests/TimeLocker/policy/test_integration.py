@@ -9,11 +9,11 @@ import pytest
 from datetime import datetime, timedelta
 from unittest.mock import Mock, MagicMock, patch
 
-from src.TimeLocker.policy.manager import PolicyManager
-from src.TimeLocker.policy.validator import PolicyValidator
-from src.TimeLocker.policy.engine import PolicyEngine
-from src.TimeLocker.policy.models import RetentionRule
-from src.TimeLocker.policy.types import (
+from TimeLocker.policy.manager import PolicyManager
+from TimeLocker.policy.validator import PolicyValidator
+from TimeLocker.policy.engine import PolicyEngine
+from TimeLocker.policy.models import RetentionRule
+from TimeLocker.policy.types import (
     PolicyType,
     TargetType,
     RetentionType,
@@ -225,7 +225,7 @@ class TestPolicyErrorHandling:
         )
         
         # Create policy with non-existent repository
-        from src.TimeLocker.policy.exceptions import PolicyValidationError
+        from TimeLocker.policy.exceptions import PolicyValidationError
         
         with pytest.raises(PolicyValidationError):
             manager.create_backup_policy(
@@ -242,7 +242,7 @@ class TestPolicyErrorHandling:
         manager = PolicyManager(policy_store=mock_policy_store)
         
         # Create assignment without policy
-        from src.TimeLocker.policy.exceptions import PolicyNotFoundError
+        from TimeLocker.policy.exceptions import PolicyNotFoundError
         
         with pytest.raises(PolicyNotFoundError):
             manager.assign_policy(

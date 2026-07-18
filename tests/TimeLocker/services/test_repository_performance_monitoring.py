@@ -15,24 +15,24 @@ import time
 from datetime import datetime, timedelta
 from unittest.mock import Mock, AsyncMock, patch
 
-from src.TimeLocker.services.repository_performance_monitor import (
+from TimeLocker.services.repository_performance_monitor import (
     RepositoryPerformanceMonitor,
     PerformanceThresholds,
     PerformanceMetric,
     PerformanceWarning
 )
-from src.TimeLocker.services.repository_concurrency_manager import (
+from TimeLocker.services.repository_concurrency_manager import (
     RepositoryConcurrencyManager,
     LockInfo,
     ConcurrencyStats
 )
-from src.TimeLocker.services.repository_cache_manager import (
+from TimeLocker.services.repository_cache_manager import (
     RepositoryCacheManager,
     LazyRepositoryLoader,
     CacheEntry,
     CacheStatistics
 )
-from src.TimeLocker.interfaces.repository_management_models import (
+from TimeLocker.interfaces.repository_management_models import (
     Repository,
     RepositoryConfig,
     RepositoryType,

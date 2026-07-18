@@ -10,7 +10,7 @@ import tempfile
 from pathlib import Path
 from unittest.mock import Mock, patch
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import (
         get_cli_runner,
         combined_output,
@@ -48,8 +48,8 @@ class TestCLIIntegrationWorkflows:
             yield Path(temp_dir)
 
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
+    @patch('TimeLocker.cli.get_cli_service_manager')
     def test_repository_management_workflow(self, mock_get_service_manager, mock_get_for_command, temp_repo_dir):
         """Test complete repository management workflow."""
         # Mock the service manager with proper structure
@@ -113,10 +113,10 @@ class TestCLIIntegrationWorkflows:
         assert_success(result, "Repository remove should succeed with mocked service manager")
 
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    @patch('src.TimeLocker.cli_modules.commands.snapshots._get_service_manager_for_command')
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
-    @patch('src.TimeLocker.cli._get_service_manager_for_command')
+    @patch('TimeLocker.cli.get_cli_service_manager')
+    @patch('TimeLocker.cli_modules.commands.snapshots._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    @patch('TimeLocker.cli._get_service_manager_for_command')
     def test_backup_creation_workflow(
             self,
             mock_get_for_command,
@@ -167,8 +167,8 @@ class TestCLIIntegrationWorkflows:
         assert_success(result, "Snapshots list should succeed with mocked service manager")
 
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
-    @patch('src.TimeLocker.cli_modules.commands.snapshots._get_service_manager_for_command')
+    @patch('TimeLocker.cli.get_cli_service_manager')
+    @patch('TimeLocker.cli_modules.commands.snapshots._get_service_manager_for_command')
     def test_snapshot_management_workflow(self, mock_snapshot_get_service_manager, mock_service_manager, temp_repo_dir):
         """Test complete snapshot management workflow."""
         # Mock the service manager
@@ -219,7 +219,7 @@ class TestCLIIntegrationWorkflows:
             assert_success(result, "Restore find should succeed with mocked dependencies")
 
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('TimeLocker.cli.get_cli_service_manager')
     def test_restore_workflow(self, mock_service_manager, temp_repo_dir):
         """Test complete restore workflow."""
         # Mock the service manager
@@ -262,7 +262,7 @@ class TestCLIIntegrationWorkflows:
                 assert "not implemented" in combined.lower()
 
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('TimeLocker.cli.get_cli_service_manager')
     def test_credential_management_workflow(self, mock_service_manager):
         """Test complete credential management workflow."""
         # Mock the service manager
@@ -294,7 +294,7 @@ class TestCLIIntegrationWorkflows:
         assert_success(result, "Credentials remove should succeed with mocked service manager")
 
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli.ConfigurationModule')
+    @patch('TimeLocker.cli.ConfigurationModule')
     def test_configuration_workflow(self, mock_config_module, temp_config_dir):
         """Test complete configuration workflow."""
         # Mock the configuration module
@@ -320,10 +320,10 @@ class TestCLIIntegrationWorkflows:
         assert_success(result, "Config show should succeed with mocked configuration")
 
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
-    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
-    @patch('src.TimeLocker.cli_modules.commands.snapshots._get_service_manager_for_command')
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.snapshots._get_service_manager_for_command')
+    @patch('TimeLocker.cli.get_cli_service_manager')
     def test_first_time_user_workflow(
             self,
             mock_cli_service_manager,
@@ -423,8 +423,8 @@ class TestCLIIntegrationWorkflows:
         assert_success(result, "Snapshots list should succeed with mocked service manager")
 
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
-    @patch('src.TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     def test_error_recovery_workflow(self, mock_get_for_command, mock_service_manager):
         """Test error recovery and graceful failure handling."""
         # Mock the service manager with some failures

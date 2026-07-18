@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from src.TimeLocker.scheduling.integration_clients import DataSelectionClient
-from src.TimeLocker.selection_template_manager import SelectionTemplateManager
-from src.TimeLocker.selection_models import SelectionTemplate, SelectionConfig
-from src.TimeLocker.selection_manager import SelectionManager
+from TimeLocker.scheduling.integration_clients import DataSelectionClient
+from TimeLocker.selection_template_manager import SelectionTemplateManager
+from TimeLocker.selection_models import SelectionTemplate, SelectionConfig
+from TimeLocker.selection_manager import SelectionManager
 
 
 @pytest.fixture

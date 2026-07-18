@@ -27,14 +27,14 @@ from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
 
-from src.TimeLocker.services.repository_configuration_backup_manager import (
+from TimeLocker.services.repository_configuration_backup_manager import (
     RepositoryConfigurationBackupManager
 )
-from src.TimeLocker.config.configuration_backup_manager import (
+from TimeLocker.config.configuration_backup_manager import (
     ConfigurationBackupManager, BackupReason
 )
-from src.TimeLocker.config.configuration_manager import ConfigurationManager
-from src.TimeLocker.interfaces.repository_management_models import (
+from TimeLocker.config.configuration_manager import ConfigurationManager
+from TimeLocker.interfaces.repository_management_models import (
     RepositoryConfig, BackupEngine, RepositoryType
 )
 

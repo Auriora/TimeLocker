@@ -4,7 +4,7 @@ id: "arch-security-system"
 type: [ architecture ]
 status: [ approved ]
 owner: "Security Team"
-last_reviewed: "13-11-2025"
+last_reviewed: "18-07-2026"
 tags: [architecture, security, credentials, encryption, access-control]
 links:
     tooling: []
@@ -443,29 +443,6 @@ timelocker privacy delete-all --confirm
 - **Defense in Depth**: Multiple security layers
 - **Privacy Aware**: GDPR compliance and data minimization
 - **Audit Ready**: Comprehensive security event logging
-
-## 12. Future Enhancements
-
-### Advanced Authentication
-
-- Multi-factor authentication (TOTP)
-- Hardware token support (YubiKey)
-- Biometric authentication
-- Smart card integration
-
-### Enhanced Monitoring
-
-- Security dashboard with trends
-- Anomaly detection
-- Integration with SIEM systems
-- Advanced threat detection
-
-### Enterprise Features
-
-- Centralized policy management
-- Role-based access control (RBAC)
-- Remote credential management
-- Compliance reporting tools
 
 ## References
 

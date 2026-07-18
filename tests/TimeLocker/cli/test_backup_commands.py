@@ -8,7 +8,7 @@ import pytest
 import tempfile
 from unittest.mock import Mock, patch
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import (
     get_cli_runner, combined_output, assert_help_quality, assert_output_contains
 )
@@ -60,7 +60,7 @@ class TestBackupCommands:
         assert "--snapshot" in combined or "-s" in combined
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('TimeLocker.cli.get_cli_service_manager')
     @patch('TimeLocker.selection_manager.SelectionManager')
     @patch('TimeLocker.cli_modules.helpers.backup_cli_handler.BackupCLIHandler')
     def test_backup_create_with_selection(
@@ -117,7 +117,7 @@ class TestBackupCommands:
             assert result.exit_code in [0, 1]
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('TimeLocker.cli.get_cli_service_manager')
     def test_backup_create_with_sources(self, mock_service_manager: Mock) -> None:
         """Test backup create command with source paths."""
         # Mock the service manager
@@ -150,7 +150,7 @@ class TestBackupCommands:
         assert result.exit_code != 0
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('TimeLocker.cli.get_cli_service_manager')
     def test_backup_verify_with_repository(self, mock_service_manager: Mock) -> None:
         """Test backup verify command with repository parameter."""
         # Mock the service manager
@@ -168,7 +168,7 @@ class TestBackupCommands:
         assert result.exit_code in [0, 1]
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('TimeLocker.cli.get_cli_service_manager')
     def test_backup_verify_with_snapshot(self, mock_service_manager: Mock) -> None:
         """Test backup verify command with specific snapshot."""
         # Mock the service manager

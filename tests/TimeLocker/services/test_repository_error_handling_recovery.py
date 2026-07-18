@@ -16,17 +16,17 @@ from pathlib import Path
 from datetime import datetime
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 
-from src.TimeLocker.interfaces.repository_management_models import (
+from TimeLocker.interfaces.repository_management_models import (
     Repository, RepositoryConfig, RepositoryStatus, BackupEngine, RepositoryType,
     ValidationResult, ConnectivityStatus, IntegrityStatus, RepositoryCreationOptions
 )
-from src.TimeLocker.services.repository_manager import RepositoryManager
-from src.TimeLocker.services.validation_service import ValidationService
-from src.TimeLocker.services.repository_credential_manager import RepositoryCredentialManager
-from src.TimeLocker.interfaces.repository_management_models import (
+from TimeLocker.services.repository_manager import RepositoryManager
+from TimeLocker.services.validation_service import ValidationService
+from TimeLocker.services.repository_credential_manager import RepositoryCredentialManager
+from TimeLocker.interfaces.repository_management_models import (
     RepositoryError, RepositoryValidationError, BackendError
 )
-from src.TimeLocker.interfaces.exceptions import CredentialError
+from TimeLocker.interfaces.exceptions import CredentialError
 
 
 class TestNetworkFailureScenarios:
@@ -119,9 +119,10 @@ class TestCredentialErrorRecovery:
     @pytest.fixture
     def credential_manager(self, temp_dir):
         """Create credential manager for testing"""
-        from src.TimeLocker.security import SecurityService, CredentialManager
+        from TimeLocker.security import SecurityService, CredentialManager
         
         cred_mgr = CredentialManager(config_dir=temp_dir)
+        assert cred_mgr.unlock("test-master-password") is True
         security_service = Mock(spec=SecurityService)
         security_service.credential_manager = cred_mgr
         security_service.log_security_event = Mock()
@@ -167,7 +168,7 @@ class TestRepositoryManagerErrorRecovery:
     @pytest.fixture
     def repository_manager(self, temp_dir):
         """Create repository manager with temp config directory"""
-        from src.TimeLocker.config.configuration_manager import ConfigurationManager
+        from TimeLocker.config.configuration_manager import ConfigurationManager
         
         config_manager = ConfigurationManager(config_dir=temp_dir)
         manager = RepositoryManager(config_manager=config_manager)
@@ -290,7 +291,7 @@ class TestConfigurationPersistence:
     @pytest.fixture
     def repository_manager(self, temp_dir):
         """Create repository manager with temp config directory"""
-        from src.TimeLocker.config.configuration_manager import ConfigurationManager
+        from TimeLocker.config.configuration_manager import ConfigurationManager
         
         config_manager = ConfigurationManager(config_dir=temp_dir)
         manager = RepositoryManager(config_manager=config_manager)
@@ -314,7 +315,7 @@ class TestConfigurationPersistence:
         repository_manager._save_repositories()
         
         # Create new manager instance (simulating restart)
-        from src.TimeLocker.config.configuration_manager import ConfigurationManager
+        from TimeLocker.config.configuration_manager import ConfigurationManager
         new_config_manager = ConfigurationManager(config_dir=temp_dir)
         new_manager = RepositoryManager(config_manager=new_config_manager)
         new_manager._load_repositories()

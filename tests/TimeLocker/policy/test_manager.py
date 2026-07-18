@@ -8,26 +8,26 @@ from unittest.mock import Mock, MagicMock, patch
 
 from pathlib import Path
 
-from src.TimeLocker.policy.manager import PolicyManager
-from src.TimeLocker.policy.models import (
+from TimeLocker.policy.manager import PolicyManager
+from TimeLocker.policy.models import (
     BackupPolicy,
     RetentionPolicy,
     RetentionRule,
     PolicyAssignment,
 )
-from src.TimeLocker.policy.types import (
+from TimeLocker.policy.types import (
     PolicyType,
     TargetType,
     RetentionType,
     PolicyStatus,
 )
-from src.TimeLocker.policy.exceptions import (
+from TimeLocker.policy.exceptions import (
     PolicyNotFoundError,
     PolicyError,
     PolicyValidationError,
 )
-from src.TimeLocker.selection_template_manager import SelectionTemplateManager
-from src.TimeLocker.selection_models import SelectionTemplate, SelectionConfig
+from TimeLocker.selection_template_manager import SelectionTemplateManager
+from TimeLocker.selection_models import SelectionTemplate, SelectionConfig
 
 
 class TestPolicyManager:

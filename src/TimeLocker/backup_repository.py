@@ -110,7 +110,13 @@ class BackupRepository(ABC):
         ...
 
     @abstractmethod
-    def restore(self, snapshot_id: str, target_path: Optional[Path] = None) -> str:
+    def restore(
+            self,
+            snapshot_id: str,
+            target_path: Optional[Path] = None,
+            *,
+            overwrite: str = "never",
+    ) -> str:
         """
         Restores a specific snapshot to the given target path.
 
@@ -122,6 +128,8 @@ class BackupRepository(ABC):
             restore.
         :param target_path: The file system path where the snapshot
             should be restored to.
+        :param overwrite: Backend overwrite policy. Supported values are
+            ``never`` (the safe default) and ``always``.
         :return: A string message indicating the result of the
             restore operation.
         """

@@ -19,7 +19,7 @@ Tests for store_backend_credentials helper:
 import pytest
 from unittest.mock import MagicMock
 
-from src.TimeLocker.cli_helpers import store_backend_credentials
+from TimeLocker.cli_helpers import store_backend_credentials
 
 
 @pytest.mark.unit

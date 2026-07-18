@@ -9,7 +9,7 @@ from pathlib import Path
 from unittest.mock import patch, MagicMock
 from typer.testing import CliRunner
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 
 
 class TestTimeshiftCLIIntegration:
@@ -134,7 +134,7 @@ class TestTimeshiftCLIIntegration:
         finally:
             config_file.unlink()
 
-    @patch('src.TimeLocker.importers.timeshift_importer.subprocess.run')
+    @patch('TimeLocker.importers.timeshift_importer.subprocess.run')
     @pytest.mark.config
     @pytest.mark.integration
     def test_timeshift_import_uuid_resolution(self, mock_subprocess):

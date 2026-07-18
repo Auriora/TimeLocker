@@ -7,7 +7,7 @@ Tests monitor, logs, and reports command parsing, parameter validation, help out
 import pytest
 from unittest.mock import patch
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import (
     get_cli_runner,
     combined_output,
@@ -43,7 +43,7 @@ class TestMonitorCommands:
         assert_help_quality(result, "monitor stats")
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
     def test_monitor_health_command(self, mock_get_service_manager):
         """Test monitor health command execution."""
         mock_manager = create_mock_cli_service_manager()
@@ -53,7 +53,7 @@ class TestMonitorCommands:
         assert_success(result)
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
     def test_monitor_stats_command(self, mock_get_service_manager):
         """Test monitor stats command execution."""
         mock_manager = create_mock_cli_service_manager()
@@ -121,7 +121,7 @@ class TestReportsCommands:
         assert_help_quality(result, "reports generate")
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
     def test_reports_generate_backup_history(self, mock_get_service_manager):
         """Test reports generate command for backup history."""
         mock_manager = create_mock_cli_service_manager()
@@ -131,7 +131,7 @@ class TestReportsCommands:
         assert result.exit_code in [0, 1, 2]
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
     def test_reports_generate_storage_usage(self, mock_get_service_manager):
         """Test reports generate command for storage usage."""
         mock_manager = create_mock_cli_service_manager()
@@ -141,7 +141,7 @@ class TestReportsCommands:
         assert result.exit_code in [0, 1, 2]
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.monitoring._get_service_manager_for_command')
     def test_reports_generate_performance(self, mock_get_service_manager):
         """Test reports generate command for performance."""
         mock_manager = create_mock_cli_service_manager()

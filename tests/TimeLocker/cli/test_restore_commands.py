@@ -6,7 +6,7 @@ Tests restore command parsing, parameter validation, help output, and error hand
 
 import pytest
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 from .test_utils import runner, combined_output, assert_success, assert_exit_code, patch_restore_commands
 
 

@@ -4,7 +4,7 @@ id: "user-guide-per-repo-credentials"
 type: [ guide ]
 status: [ approved ]
 owner: "Documentation Team"
-last_reviewed: "01-11-2025"
+last_reviewed: "18-07-2026"
 tags: [guide, user, credentials]
 links:
   tooling: []
@@ -15,7 +15,7 @@ links:
 - **Owner**: Documentation Team
 - **Status**: Approved
 - **Created Date**: 19-12-2024
-- **Last Updated**: 01-11-2025
+- **Last Updated**: 18-07-2026
 - **Audience**: End Users
 
 ## 1. Purpose
@@ -30,7 +30,7 @@ authentication data.
 ## 3. Prerequisites
 
 - TimeLocker CLI installed.
-- Credential Manager initialised (auto-unlock or master password available).
+- Credential Manager initialised with an operator-chosen master password.
 - Repositories already defined or planned (URIs for S3, MinIO, B2, etc.).
 
 ## 4. Step-by-Step Instructions
@@ -55,6 +55,23 @@ tl backup -r my-minio /data
 ```
 
 No additional prompts required.
+
+For unattended operation, provide the credential-store master password through
+one explicit secret source:
+
+```bash
+# Process environment (suitable when a service manager injects secrets)
+export TIMELOCKER_MASTER_PASSWORD='use-your-secret-provider-here'
+
+# Or a protected file
+install -m 600 /dev/null "$HOME/.config/timelocker/master-password"
+export TIMELOCKER_MASTER_PASSWORD_FILE="$HOME/.config/timelocker/master-password"
+```
+
+Write the password into the protected file using your normal secret-management
+tool. On POSIX systems TimeLocker rejects password files accessible to group or
+other users. It also rejects missing, empty, non-regular, and symbolic files.
+Do not place the password itself in shell history or version control.
 
 ### 4.3 Update Stored Credentials
 
@@ -102,14 +119,23 @@ Each repository retains its own credentials, enabling seamless switching.
 ## 5. Troubleshooting
 
 - **Credential manager locked**: Unlock when prompted or run `tl credentials unlock` before repository commands.
+- **Unattended unlock fails**: Set `TIMELOCKER_MASTER_PASSWORD`, or set
+  `TIMELOCKER_MASTER_PASSWORD_FILE` to a regular file restricted to its owner.
+- **Store was created by an older auto-unlock build**: Host-derived keys are no
+  longer supported because they were predictable. Treat repository credentials
+  in that store as exposed, re-enter them into a store protected by an
+  operator-chosen password, and rotate the repository-side secrets.
 - **Missing credentials**: Re-run `tl repos credentials-set <name>` or export environment variables temporarily.
 - **Audit trail review**: Check `~/.timelocker/credentials/credential_audit.log` for credential operations.
 
 ## 6. Frequently Asked Questions (FAQ)
 
-- **Where are credentials stored?** Encrypted in `~/.TimeLocker/credentials/credentials.enc` via the credential manager.
+- **Where are credentials stored?** Encrypted in the active TimeLocker
+  configuration directory's `credentials/credentials.enc` file.
 - **Do credentials sync to configuration files?** No, `config.json` never stores secrets; the credential store or environment variables provide them.
-- **What if I disable auto-unlock?** TimeLocker will prompt for the master password or fall back to environment variables.
+- **How does non-interactive unlock work?** TimeLocker uses only an explicit
+  `TIMELOCKER_MASTER_PASSWORD` value or protected
+  `TIMELOCKER_MASTER_PASSWORD_FILE`; it never derives the password from the host.
 
 # References
 

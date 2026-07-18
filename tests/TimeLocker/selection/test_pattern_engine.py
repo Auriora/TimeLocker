@@ -18,14 +18,14 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 import pytest
 from pathlib import Path
 
-from src.TimeLocker.pattern_engine import (
+from TimeLocker.pattern_engine import (
     PatternEngine,
     PatternSyntaxError,
     CompiledPattern,
     CompiledPatternSet,
     BatchPatternMatcher
 )
-from src.TimeLocker.selection_models import (
+from TimeLocker.selection_models import (
     PatternRule,
     PatternSyntax,
     PathComponent

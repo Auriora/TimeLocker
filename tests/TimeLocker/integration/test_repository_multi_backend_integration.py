@@ -19,15 +19,15 @@ from pathlib import Path
 from datetime import datetime
 from unittest.mock import Mock, AsyncMock, patch, MagicMock
 
-from src.TimeLocker.services.repository_manager import RepositoryManager
-from src.TimeLocker.services.repository_factory import RepositoryFactory
-from src.TimeLocker.services.plugin_registry import PluginRegistry
-from src.TimeLocker.services.repository_credential_manager import RepositoryCredentialManager
-from src.TimeLocker.interfaces.repository_management_models import (
+from TimeLocker.services.repository_manager import RepositoryManager
+from TimeLocker.services.repository_factory import RepositoryFactory
+from TimeLocker.services.plugin_registry import PluginRegistry
+from TimeLocker.services.repository_credential_manager import RepositoryCredentialManager
+from TimeLocker.interfaces.repository_management_models import (
     Repository, RepositoryConfig, RepositoryStatus, BackupEngine, RepositoryType,
     ValidationResult, ConnectivityStatus, IntegrityStatus, S3Config
 )
-from src.TimeLocker.interfaces.integration_data_models import ServiceContext
+from TimeLocker.interfaces.integration_data_models import ServiceContext
 
 
 class TestMultiBackendRepositoryManagement:
@@ -112,7 +112,7 @@ class TestMultiBackendRepositoryManagement:
         repository_manager._save_repositories = Mock()
         
         # Create repository
-        from src.TimeLocker.interfaces.repository_management_models import RepositoryCreationOptions
+        from TimeLocker.interfaces.repository_management_models import RepositoryCreationOptions
         repository = await repository_manager.create_repository(config, RepositoryCreationOptions())
         
         assert repository is not None
@@ -178,7 +178,7 @@ class TestMultiBackendRepositoryManagement:
         repository_manager._save_repositories = Mock()
         
         # Create repository
-        from src.TimeLocker.interfaces.repository_management_models import RepositoryCreationOptions
+        from TimeLocker.interfaces.repository_management_models import RepositoryCreationOptions
         repository = await repository_manager.create_repository(config, RepositoryCreationOptions())
         
         assert repository is not None
@@ -236,7 +236,7 @@ class TestMultiBackendRepositoryManagement:
         repository_manager._save_repositories = Mock()
         
         # Create repository
-        from src.TimeLocker.interfaces.repository_management_models import RepositoryCreationOptions
+        from TimeLocker.interfaces.repository_management_models import RepositoryCreationOptions
         repository = await repository_manager.create_repository(config, RepositoryCreationOptions())
         
         assert repository is not None
@@ -277,7 +277,7 @@ class TestMultiBackendRepositoryManagement:
         repository_manager._save_repositories = Mock()
         
         # Create all repositories
-        from src.TimeLocker.interfaces.repository_management_models import RepositoryCreationOptions
+        from TimeLocker.interfaces.repository_management_models import RepositoryCreationOptions
         for i, (name, uri, repo_type) in enumerate(repos_config):
             config = RepositoryConfig(
                 name=name,

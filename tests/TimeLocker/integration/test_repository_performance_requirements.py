@@ -20,14 +20,14 @@ from pathlib import Path
 from datetime import datetime
 from unittest.mock import Mock, AsyncMock, patch
 
-from src.TimeLocker.services.repository_manager import RepositoryManager
-from src.TimeLocker.services.repository_performance_monitor import RepositoryPerformanceMonitor
-from src.TimeLocker.services.repository_concurrency_manager import RepositoryConcurrencyManager
-from src.TimeLocker.interfaces.repository_management_models import (
+from TimeLocker.services.repository_manager import RepositoryManager
+from TimeLocker.services.repository_performance_monitor import RepositoryPerformanceMonitor
+from TimeLocker.services.repository_concurrency_manager import RepositoryConcurrencyManager
+from TimeLocker.interfaces.repository_management_models import (
     Repository, RepositoryConfig, RepositoryStatus, BackupEngine, RepositoryType,
     ValidationResult, ConnectivityStatus, IntegrityStatus
 )
-from src.TimeLocker.interfaces.integration_data_models import ServiceContext
+from TimeLocker.interfaces.integration_data_models import ServiceContext
 
 
 class TestDesktopScalability:
@@ -88,7 +88,7 @@ class TestDesktopScalability:
         repository_manager._save_repositories = Mock()
         
         # Create repositories
-        from src.TimeLocker.interfaces.repository_management_models import RepositoryCreationOptions
+        from TimeLocker.interfaces.repository_management_models import RepositoryCreationOptions
         start_time = time.time()
         
         for i in range(num_repos):

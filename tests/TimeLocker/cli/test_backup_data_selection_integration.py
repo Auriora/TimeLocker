@@ -18,7 +18,7 @@ import pytest
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from src.TimeLocker.cli import app
+from TimeLocker.cli import app
 from tests.TimeLocker.cli.test_utils import (
     get_cli_runner,
     combined_output,
@@ -40,9 +40,9 @@ class TestBackupCreateWithSelectionTemplate:
     """Test backup create command with selection templates (Requirement 10.1)"""
     
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
-    @patch('src.TimeLocker.cli_modules.commands.base._create_config_service')
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
+    @patch('TimeLocker.cli_modules.commands.base._create_config_service')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
     def test_backup_create_with_valid_selection_template(
         self,
         mock_get_manager,
@@ -82,9 +82,9 @@ class TestBackupCreateWithSelectionTemplate:
         service_manager.run_selection_backup.assert_called_once()
     
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
-    @patch('src.TimeLocker.cli_modules.commands.base._create_config_service')
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
+    @patch('TimeLocker.cli_modules.commands.base._create_config_service')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
     def test_backup_create_with_selection_and_tags(
         self,
         mock_get_manager,
@@ -130,9 +130,9 @@ class TestBackupCreateWithSelectionTemplate:
         assert "daily" in tags_received or "important" in tags_received
     
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
-    @patch('src.TimeLocker.cli_modules.commands.base._create_config_service')
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
+    @patch('TimeLocker.cli_modules.commands.base._create_config_service')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
     def test_backup_create_with_selection_dry_run(
         self,
         mock_get_manager,
@@ -177,9 +177,9 @@ class TestBackupCreateWithSelectionTemplate:
         assert True in dry_run_received
 
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
-    @patch('src.TimeLocker.cli_modules.commands.base._create_config_service')
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
+    @patch('TimeLocker.cli_modules.commands.base._create_config_service')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
     def test_backup_create_passes_cli_options(
         self,
         mock_get_manager,
@@ -218,9 +218,9 @@ class TestBackupSelectionErrors:
     """Test error handling paths for selection-driven backups."""
     
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
-    @patch('src.TimeLocker.cli_modules.commands.base._create_config_service')
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
+    @patch('TimeLocker.cli_modules.commands.base._create_config_service')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
     def test_backup_create_with_nonexistent_template(
         self,
         mock_get_manager,
@@ -247,9 +247,9 @@ class TestBackupSelectionErrors:
         service_manager.selection_template_exists.assert_called_once_with("missing")
     
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
-    @patch('src.TimeLocker.cli_modules.commands.base._create_config_service')
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
+    @patch('TimeLocker.cli_modules.commands.base._create_config_service')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
     def test_backup_create_handles_invalid_selection_config(
         self,
         mock_get_manager,
@@ -276,9 +276,9 @@ class TestBackupSelectionErrors:
         assert "invalid selection configuration" in output.lower()
     
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
-    @patch('src.TimeLocker.cli_modules.commands.base._create_config_service')
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
+    @patch('TimeLocker.cli_modules.commands.base._create_config_service')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
     def test_backup_create_handles_handler_errors(
         self,
         mock_get_manager,
@@ -398,9 +398,9 @@ class TestBackupExecutionWithSelection:
     """Test complete backup execution workflow with selection templates"""
     
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
-    @patch('src.TimeLocker.cli_modules.commands.base._create_config_service')
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
+    @patch('TimeLocker.cli_modules.commands.base._create_config_service')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
     def test_successful_backup_shows_snapshot_id(
         self,
         mock_get_manager,
@@ -435,9 +435,9 @@ class TestBackupExecutionWithSelection:
         assert "snapshot" in output.lower()
     
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
-    @patch('src.TimeLocker.cli_modules.commands.base._create_config_service')
-    @patch('src.TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_method', return_value=None)
+    @patch('TimeLocker.cli_modules.commands.base._create_config_service')
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
     def test_backup_with_warnings_displays_warnings(
         self,
         mock_get_manager,

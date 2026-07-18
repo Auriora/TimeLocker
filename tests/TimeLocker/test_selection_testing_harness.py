@@ -11,22 +11,22 @@ Tests the functionality of the testing harness including:
 import pytest
 from pathlib import Path
 
-from src.TimeLocker.pattern_engine import PatternEngine
-from src.TimeLocker.precedence_resolver import PrecedenceResolver
-from src.TimeLocker.selection_models import (
+from TimeLocker.pattern_engine import PatternEngine
+from TimeLocker.precedence_resolver import PrecedenceResolver
+from TimeLocker.selection_models import (
     PatternRule,
     PatternSyntax,
     PathComponent,
     PrecedenceConfig,
     SelectionConfig
 )
-from src.TimeLocker.selection_testing_harness import (
+from TimeLocker.selection_testing_harness import (
     PerformanceTestSuite,
     SelectionTestingHarness,
     TestScenario,
     ValidationTestSuite
 )
-from src.TimeLocker.selection_validation_service import SelectionValidationService
+from TimeLocker.selection_validation_service import SelectionValidationService
 
 
 @pytest.fixture

@@ -4,7 +4,7 @@ id: "user-guide-installation"
 type: [ guide ]
 status: [ approved ]
 owner: "Documentation Team"
-last_reviewed: "01-11-2025"
+last_reviewed: "18-07-2026"
 tags: [guide, user, installation]
 links:
   tooling: []
@@ -15,7 +15,7 @@ links:
 - **Owner**: Documentation Team
 - **Status**: Approved
 - **Created Date**: 19-12-2024
-- **Last Updated**: 01-11-2025
+- **Last Updated**: 18-07-2026
 - **Audience**: End Users, Administrators
 
 ## 1. Purpose
@@ -37,8 +37,10 @@ After completing this guide you will have TimeLocker installed, dependencies con
 
 ### 4.1 Review Release Status
 
-- **Current status**: *TimeLocker MVP v1.0.0 – 95% Complete and Production Ready*.
-- Test metrics: 367 tests passing, coverage 83.3%, all core features implemented.
+- **Current status**: Beta, version 0.9.0.
+- **Distribution**: Source checkout only; TimeLocker is not currently published
+  to PyPI.
+- **Quality gate**: The configured test suite enforces at least 50% coverage.
 
 ### 4.2 Understand TimeLocker
 
@@ -91,22 +93,18 @@ brew install restic
 
 ### 4.5 Install TimeLocker
 
-#### From PyPI (Recommended)
-
-```bash
-pip install timelocker                 # Base install
-pip install timelocker[dev]            # With development extras
-pip install timelocker[aws]            # AWS S3 support
-pip install timelocker[b2]             # Backblaze B2 support
-pip install timelocker[aws,b2,dev]     # All extras
-```
-
-#### From Source (Development)
+#### From Source (Current Supported Path)
 
 ```bash
 git clone https://github.com/Auriora/TimeLocker.git
 cd TimeLocker
-pip install -e .[dev]                  # Editable install with dev deps
+python -m venv .venv
+source .venv/bin/activate              # Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install .                # User installation
+
+# Contributors use an editable install with development dependencies
+python -m pip install -e '.[dev]'
 ```
 
 ### 4.6 Verify Installation
@@ -115,16 +113,17 @@ pip install -e .[dev]                  # Editable install with dev deps
 timelocker --help
 tl --help
 python -c "from TimeLocker.backup_manager import BackupManager; print('TimeLocker installed successfully')"
-pytest --tb=short
-pytest --cov=TimeLocker --cov-report=term-missing
+python -m pytest -m "not performance and not stress"
 ```
 
-Expected results: all tests pass and coverage ≥ 80%.
+Expected results: both CLI commands display help. For contributor installs, the
+configured suite passes and enforces coverage of at least 50%.
 
 ### 4.7 Understand Modern Packaging Features
 
 - `pyproject.toml` for modern builds (PEP 517/518).
-- Optional dependency groups (`dev`, `aws`, `b2`, `diagrams`).
+- Optional dependency groups (`dev`, `gui`). S3 and B2 runtime dependencies are
+  included in the base installation.
 - Entry points install both `timelocker` and `tl` commands.
 
 ### 4.8 Configure Environment
@@ -149,8 +148,10 @@ export B2_ACCOUNT_KEY=your_account_key
 ## 5. Troubleshooting
 
 - **CLI command not found**: Ensure the Python scripts directory is on `PATH` or reinstall with pip.
-- **Tests failing**: Verify Restic is on `PATH` and dependencies installed with `pip install timelocker[dev]`.
-- **Missing extras**: Re-run installation with appropriate extras flag (e.g., `pip install timelocker[aws]`).
+- **Tests failing**: Verify Restic 0.18.0 or later is on `PATH` and install
+  contributor dependencies with `python -m pip install -e '.[dev]'`.
+- **`pip install timelocker` fails**: No PyPI distribution is currently
+  supported; install from a source checkout as shown above.
 
 ## 6. Frequently Asked Questions (FAQ)
 

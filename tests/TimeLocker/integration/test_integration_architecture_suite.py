@@ -37,12 +37,12 @@ from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
 
-from src.TimeLocker.integration import (
+from TimeLocker.integration import (
     ServiceManager,
     DependencyInjector,
     EventBus
 )
-from src.TimeLocker.interfaces import (
+from TimeLocker.interfaces import (
     ServiceInterface,
     ServiceContext,
     ServiceInitializationError
@@ -687,7 +687,7 @@ class TestEndToEndServiceInteraction:
         )
         
         # Simulate backup operation that publishes events
-        from src.TimeLocker.interfaces.integration_data_models import Event
+        from TimeLocker.interfaces.integration_data_models import Event
         
         backup = manager.get_service(MockBackupService)
         

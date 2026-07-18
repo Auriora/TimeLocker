@@ -15,13 +15,13 @@ from datetime import datetime, timedelta
 from unittest.mock import Mock, patch
 import pytest
 
-from src.TimeLocker.config.configuration_backup_manager import (
+from TimeLocker.config.configuration_backup_manager import (
     ConfigurationBackupManager,
     ConfigurationBackupMetadata,
     BackupReason
 )
-from src.TimeLocker.config.configuration_validator import ConfigurationValidator, ValidationResult
-from src.TimeLocker.interfaces.exceptions import ConfigurationBackupError
+from TimeLocker.config.configuration_validator import ConfigurationValidator, ValidationResult
+from TimeLocker.interfaces.exceptions import ConfigurationBackupError
 
 
 class TestConfigurationBackupManager:

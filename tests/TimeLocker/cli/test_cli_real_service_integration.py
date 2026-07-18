@@ -12,14 +12,14 @@ import json
 from pathlib import Path
 from unittest.mock import patch, Mock
 
-from src.TimeLocker.cli import app
-from src.TimeLocker.cli_services import CLIServiceManager
-from src.TimeLocker.services.configuration_service import ConfigurationService
-from src.TimeLocker.services.repository_service import RepositoryService
-from src.TimeLocker.services.snapshot_service import SnapshotService
-from src.TimeLocker.services.validation_service import ValidationService
-from src.TimeLocker.utils.performance_utils import PerformanceModule
-from src.TimeLocker.config.configuration_module import ConfigurationModule
+from TimeLocker.cli import app
+from TimeLocker.cli_services import CLIServiceManager
+from TimeLocker.services.configuration_service import ConfigurationService
+from TimeLocker.services.repository_service import RepositoryService
+from TimeLocker.services.snapshot_service import SnapshotService
+from TimeLocker.services.validation_service import ValidationService
+from TimeLocker.utils.performance_utils import PerformanceModule
+from TimeLocker.config.configuration_module import ConfigurationModule
 from tests.TimeLocker.cli.test_utils import get_cli_runner, assert_success
 
 runner = get_cli_runner()
@@ -141,7 +141,7 @@ class TestCLIRealServiceIntegration:
         assert config is not None
         
         # Test adding repository
-        from src.TimeLocker.config.configuration_schema import RepositoryConfig
+        from TimeLocker.config.configuration_schema import RepositoryConfig
         repo_config = RepositoryConfig(
             name="test-repo",
             location="file:///tmp/test-repo",
@@ -193,7 +193,7 @@ class TestCLIRealServiceIntegration:
         assert config is not None
         
         # Test adding repository through manager
-        from src.TimeLocker.config.configuration_schema import RepositoryConfig
+        from TimeLocker.config.configuration_schema import RepositoryConfig
         repo_config = RepositoryConfig(
             name="integration-test-repo",
             location="file:///tmp/integration-test",
@@ -206,7 +206,7 @@ class TestCLIRealServiceIntegration:
         assert any(r.get("name") == "integration-test-repo" for r in repos)
 
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('TimeLocker.cli.get_cli_service_manager')
     def test_cli_repos_commands_with_real_config(self, mock_get_manager, temp_config_dir):
         """Test repos commands with real configuration file"""
         # Create real service manager
@@ -223,12 +223,12 @@ class TestCLIRealServiceIntegration:
         assert result.exit_code == 0, f"Repos list should succeed. Output: {result.stdout}"
 
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('TimeLocker.cli.get_cli_service_manager')
     def test_cli_repos_list_with_real_config(self, mock_get_manager, temp_config_dir):
         """Test repos list command with real configuration"""
         # Create real service manager and add a repository
         real_manager = CLIServiceManager(config_dir=temp_config_dir)
-        from src.TimeLocker.config.configuration_schema import RepositoryConfig
+        from TimeLocker.config.configuration_schema import RepositoryConfig
         repo_config = RepositoryConfig(
             name="test-repo",
             location="file:///tmp/test-repo",
@@ -253,7 +253,7 @@ class TestCLIRealServiceIntegration:
         """CLIServiceManager should reflect repositories added after initialization."""
         manager = CLIServiceManager(config_dir=temp_config_dir)
 
-        from src.TimeLocker.config.configuration_schema import RepositoryConfig
+        from TimeLocker.config.configuration_schema import RepositoryConfig
         repo_config = RepositoryConfig(
             name="refresh-repo",
             location="file:///tmp/refresh-repo",
@@ -266,7 +266,7 @@ class TestCLIRealServiceIntegration:
         assert any(repo.get("name") == "refresh-repo" for repo in repositories)
 
     @pytest.mark.integration
-    @patch('src.TimeLocker.cli.get_cli_service_manager')
+    @patch('TimeLocker.cli.get_cli_service_manager')
     def test_cli_repos_add_with_real_config(self, mock_get_manager, temp_config_dir):
         """Test repos add command with real configuration persistence"""
         # Create real service manager
@@ -295,7 +295,7 @@ class TestCLIRealServiceIntegration:
         manager = CLIServiceManager(config_dir=temp_config_dir)
         
         # Step 1: Add repository
-        from src.TimeLocker.config.configuration_schema import RepositoryConfig
+        from TimeLocker.config.configuration_schema import RepositoryConfig
         repo_config = RepositoryConfig(
             name="workflow-repo",
             location="file:///tmp/workflow-repo",
@@ -338,7 +338,7 @@ class TestCLIRealServiceIntegration:
         manager = CLIServiceManager(config_dir=temp_config_dir)
         
         # Step 1: Add backup target
-        from src.TimeLocker.config.configuration_schema import BackupTargetConfig
+        from TimeLocker.config.configuration_schema import BackupTargetConfig
         target_config = BackupTargetConfig(
             name="workflow-target",
             paths=["/tmp/test-data"],
@@ -430,7 +430,7 @@ class TestCLIRealServiceIntegration:
         manager = CLIServiceManager(config_dir=temp_config_dir)
         
         # Step 1: Add multiple repositories
-        from src.TimeLocker.config.configuration_schema import RepositoryConfig
+        from TimeLocker.config.configuration_schema import RepositoryConfig
         for i in range(3):
             repo_config = RepositoryConfig(
                 name=f"repo-{i}",
@@ -440,7 +440,7 @@ class TestCLIRealServiceIntegration:
             manager.config_module.add_repository(repo_config)
         
         # Step 2: Add multiple backup targets
-        from src.TimeLocker.config.configuration_schema import BackupTargetConfig
+        from TimeLocker.config.configuration_schema import BackupTargetConfig
         for i in range(2):
             target_config = BackupTargetConfig(
                 name=f"target-{i}",

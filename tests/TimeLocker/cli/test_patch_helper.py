@@ -6,10 +6,10 @@ tests correctly mock the CLI service layer regardless of refactoring.
 """
 
 # Correct patch paths for CLI service integration
-SERVICE_MANAGER_PATCH_PATH = 'src.TimeLocker.cli_modules.helpers.service_helpers._get_service_manager_for_command'
-CREDENTIAL_MANAGER_PATCH_PATH = 'src.TimeLocker.security.credential_manager.CredentialManager'
-CONFIGURATION_MODULE_PATCH_PATH = 'src.TimeLocker.config.configuration_module.ConfigurationModule'
-BACKUP_MANAGER_PATCH_PATH = 'src.TimeLocker.backup_manager.BackupManager'
+SERVICE_MANAGER_PATCH_PATH = 'TimeLocker.cli_modules.helpers.service_helpers._get_service_manager_for_command'
+CREDENTIAL_MANAGER_PATCH_PATH = 'TimeLocker.security.credential_manager.CredentialManager'
+CONFIGURATION_MODULE_PATCH_PATH = 'TimeLocker.config.configuration_module.ConfigurationModule'
+BACKUP_MANAGER_PATCH_PATH = 'TimeLocker.backup_manager.BackupManager'
 
 
 def get_service_manager_patch_path() -> str:

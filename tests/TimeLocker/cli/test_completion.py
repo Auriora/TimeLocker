@@ -8,7 +8,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from src.TimeLocker.completion import (
+from TimeLocker.completion import (
     complete_repositories,
     complete_selection_names,
     complete_repository_names,
@@ -125,7 +125,7 @@ class TestCompletion:
         assert len(result) == len(set(result))
 
     @pytest.mark.unit
-    @patch('src.TimeLocker.completion.list_available_repositories')
+    @patch('TimeLocker.completion.list_available_repositories')
     def test_complete_repositories_handles_errors_gracefully(self, mock_list_repos):
         """Test that complete_repositories handles errors gracefully."""
         # Simulate an error
@@ -139,7 +139,7 @@ class TestCompletion:
     @pytest.mark.unit
     def test_complete_selection_names_handles_missing_directory(self):
         """Test that complete_selection_names handles missing template directory."""
-        with patch('src.TimeLocker.completion.Path') as mock_path:
+        with patch('TimeLocker.completion.Path') as mock_path:
             # Simulate missing directory
             mock_path_instance = MagicMock()
             mock_path_instance.exists.return_value = False

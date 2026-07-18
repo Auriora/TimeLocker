@@ -627,8 +627,21 @@ class ResticRepository(BackupRepository):
 
         return snapshots
 
-    def restore(self, snapshot_id: str, target_path: Optional[Path] = None) -> str:
-        restore_command = self._command.command("restore").param("target", target_path)
+    def restore(
+            self,
+            snapshot_id: str,
+            target_path: Optional[Path] = None,
+            *,
+            overwrite: str = "never",
+    ) -> str:
+        if overwrite not in {"never", "always"}:
+            raise ValueError("overwrite must be 'never' or 'always'")
+
+        restore_command = (
+            self._command.command("restore")
+            .param("target", target_path)
+            .param("overwrite", overwrite)
+        )
         return restore_command.run(self.to_env(), synopsis_values={"snapshotID": snapshot_id})
 
     def stats(self) -> dict:

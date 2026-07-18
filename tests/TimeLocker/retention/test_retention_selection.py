@@ -1,7 +1,7 @@
 import pytest
 from datetime import datetime, timedelta
 
-from src.TimeLocker.retention import select_snapshots_to_remove
+from TimeLocker.retention import select_snapshots_to_remove
 
 
 class Snap:

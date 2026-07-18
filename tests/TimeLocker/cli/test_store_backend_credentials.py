@@ -10,7 +10,7 @@ import pytest
 from unittest.mock import MagicMock
 import io
 
-from src.TimeLocker.cli_helpers import store_backend_credentials
+from TimeLocker.cli_helpers import store_backend_credentials
 from rich.console import Console
 
 
