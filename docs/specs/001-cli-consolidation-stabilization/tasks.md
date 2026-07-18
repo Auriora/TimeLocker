@@ -88,7 +88,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010
       passed. Agent Workbench static diagnostics were unavailable for Python
       files and returned no actionable findings.
 
-- [ ] T006 Reduce `CLIServiceManager` domain fan-out.
+- [~] T006 Reduce `CLIServiceManager` domain fan-out.
   - Depends on: T005
   - Requirement: Requirement 3
   - Acceptance Criteria: Requirement 3 AC1, Requirement 3 AC2
@@ -96,10 +96,22 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010
   - Files: `src/TimeLocker/cli_services.py`, command/service callers, focused tests
   - Acceptance: Selected callers use narrow services while `get_cli_service_manager()` remains a tested compatibility facade.
   - Validation: Focused service/facade tests, CLI contract tests, and dependency search.
-  - Evidence: Pending.
-  - [ ] T006.1 Inventory manager methods, callers, fallbacks, and external compatibility risk.
-  - [ ] T006.2 Select a bounded caller group and add regression coverage.
-  - [ ] T006.3 Move domain logic to focused services and retain thin delegates as needed.
+  - Evidence: Inventory identified selection-template orchestration in
+    `CLIServiceManager` and four backup-command callers as a bounded migration
+    group. D001 requires all public facade methods to remain compatible.
+  - [x] T006.1 Inventory manager methods, callers, fallbacks, and external compatibility risk.
+    - Evidence: `rg` inventory on 2026-07-18 mapped manager methods, command
+      callers, focused services, and tests; selection backup is isolated behind
+      `BackupCLIHandler`, while monitoring is reserved for T007.
+  - [x] T006.2 Select a bounded caller group and add regression coverage.
+    - Evidence: Selected selection-template backup orchestration; added tests
+      for the focused handler, public facade property, and legacy facade
+      compatibility. The first focused run passed 31 tests.
+  - [~] T006.3 Move domain logic to focused services and retain thin delegates as needed.
+    - Evidence: `CLIServiceManager.selection_handler` now exposes the focused
+      service. Missing-template guidance uses it for real managers and retains
+      the legacy facade adapter for compatible test/external doubles. The
+      remaining selection callers still require migration.
   - [ ] T006.4 Run focused validation and record commands/results.
 
 - [ ] T007 Consolidate monitoring command and integration paths.

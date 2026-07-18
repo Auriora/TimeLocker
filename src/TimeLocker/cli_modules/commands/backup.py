@@ -31,6 +31,7 @@ from TimeLocker.completion import (
 from TimeLocker.config.configuration_manager import RepositoryNotFoundError
 from TimeLocker.interfaces.exceptions import ConfigurationError
 from TimeLocker.cli_modules.helpers.backup_cli_handler import (
+    BackupCLIHandler,
     BackupCLIHandlerError,
     InvalidSelectionConfigError,
     SelectionTemplateNotFoundError,
@@ -52,6 +53,14 @@ backup_app = typer.Typer(
 backup_app.info.options_metavar = "⟨OPTIONS⟩"
 
 BackupDisplayValue: TypeAlias = str | int | float | bool | list[object] | dict[str, object] | tuple[object, ...]
+
+
+def _get_selection_handler_for_command(service_manager: object) -> object:
+    """Return the focused handler, retaining legacy facade compatibility."""
+    handler = getattr(service_manager, "selection_handler", None)
+    if isinstance(handler, BackupCLIHandler):
+        return handler
+    return service_manager
 
 
 def _safe_backup_attr(
@@ -128,6 +137,7 @@ def backup_create(
             
             config_service = _create_config_service(config_dir)
             service_manager = _get_service_manager_for_command(config_dir)
+            selection_handler = _get_selection_handler_for_command(service_manager)
             
             try:
                 template_exists = service_manager.selection_template_exists(selection)
@@ -155,7 +165,10 @@ def backup_create(
                 raise typer.Exit(1)
             
             if not template_exists:
-                error_msg = service_manager.suggest_selection_creation(selection)
+                if isinstance(selection_handler, BackupCLIHandler):
+                    error_msg = selection_handler.suggest_template_creation(selection)
+                else:
+                    error_msg = service_manager.suggest_selection_creation(selection)
                 show_error_panel("Selection Template Not Found", error_msg)
                 raise typer.Exit(1)
             

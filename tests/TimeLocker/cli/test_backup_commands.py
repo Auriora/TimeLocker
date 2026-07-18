@@ -9,6 +9,9 @@ import tempfile
 from unittest.mock import Mock, patch
 
 from TimeLocker.cli import app
+from TimeLocker.cli_services import CLIServiceManager
+from TimeLocker.cli_modules.commands.backup import _get_selection_handler_for_command
+from TimeLocker.cli_modules.helpers.backup_cli_handler import BackupCLIHandler
 from tests.TimeLocker.cli.test_utils import (
     get_cli_runner, combined_output, assert_help_quality, assert_output_contains
 )
@@ -19,6 +22,38 @@ runner = get_cli_runner()
 
 class TestBackupCommands:
     """Test suite for backup command group."""
+
+    @pytest.mark.unit
+    def test_selection_handler_prefers_focused_service(self) -> None:
+        """Real managers expose the narrow handler instead of facade internals."""
+        handler = BackupCLIHandler(
+            selection_manager=Mock(),
+            backup_orchestrator=Mock(),
+        )
+        manager = Mock()
+        manager.selection_handler = handler
+
+        assert _get_selection_handler_for_command(manager) is handler
+
+    @pytest.mark.unit
+    def test_cli_service_manager_exposes_focused_selection_handler(self) -> None:
+        """The public facade exposes its cached narrow selection service."""
+        handler = BackupCLIHandler(
+            selection_manager=Mock(),
+            backup_orchestrator=Mock(),
+        )
+        manager = CLIServiceManager.__new__(CLIServiceManager)
+        manager._backup_orchestrator = handler.backup_orchestrator
+        manager._selection_handler = handler
+
+        assert manager.selection_handler is handler
+
+    @pytest.mark.unit
+    def test_selection_handler_retains_legacy_facade_compatibility(self) -> None:
+        """Legacy manager doubles without a real handler remain supported."""
+        manager = Mock()
+
+        assert _get_selection_handler_for_command(manager) is manager
 
     @pytest.mark.unit
     def test_backup_help_output(self) -> None:

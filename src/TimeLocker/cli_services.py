@@ -413,6 +413,11 @@ class CLIServiceManager:
             )
         return self._selection_handler
 
+    @property
+    def selection_handler(self) -> "BackupCLIHandler":
+        """Expose the focused selection-backup service to command callers."""
+        return self._get_selection_handler()
+
     @staticmethod
     def _run_selection_coroutine(coroutine):
         """
