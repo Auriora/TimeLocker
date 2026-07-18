@@ -272,6 +272,6 @@ When adding new testing utilities:
 
 ## See Also
 
-- [CLI Refactoring Design](../../../../.kiro/specs/cli-refactoring/design.md)
-- [CLI Refactoring Tasks](../../../../.kiro/specs/cli-refactoring/tasks.md)
-- [Existing Test Utils](../../../../tests/TimeLocker/cli/test_utils.py)
+- [CLI consolidation requirements](../../../../docs/specs/001-cli-consolidation-stabilization/requirements.md)
+- [CLI consolidation tasks](../../../../docs/specs/001-cli-consolidation-stabilization/tasks.md)
+- Existing CLI utility tests: `tests/TimeLocker/cli/test_utils.py`

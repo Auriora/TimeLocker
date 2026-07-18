@@ -465,8 +465,8 @@ def main():
     print("3. Security Services provide auditing and access control")
     print("4. All services integrate seamlessly for comprehensive recovery")
     print("\nFor more information, see:")
-    print("  - .kiro/specs/recovery-operations/design.md")
-    print("  - .kiro/specs/recovery-operations/requirements.md")
+    print("  - docs/guides/user/recovery-operations-guide.md")
+    print("  - docs/reference/recovery-operations-api.md")
     print()
 
 

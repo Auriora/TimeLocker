@@ -416,6 +416,6 @@ Potential future enhancements to the CommandRegistry:
 
 ## See Also
 
-- [CLI Refactoring Design](../../.kiro/specs/cli-refactoring/design.md)
-- [CLI Refactoring Tasks](../../.kiro/specs/cli-refactoring/tasks.md)
-- [CLI Refactoring Requirements](../../.kiro/specs/cli-refactoring/requirements.md)
+- [CLI consolidation requirements](../../../docs/specs/001-cli-consolidation-stabilization/requirements.md)
+- [CLI consolidation tasks](../../../docs/specs/001-cli-consolidation-stabilization/tasks.md)
+- [CLI command hierarchy](../../../docs/reference/timelocker-cli-command-hierarchy.md)
