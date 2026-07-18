@@ -32,9 +32,6 @@ approved active spec.
 - GitHub is authoritative for issue assignment and state.
 - [Spec 001](./specs/001-cli-consolidation-stabilization/requirements.md) is
   authoritative for CLI consolidation and stabilization and may resume at T005.
-- [Spec 002](./specs/002-repository-safety-release-readiness/requirements.md) is
-  implementation- and validation-complete for accepted safety and
-  release-readiness remediation; it awaits commit-backed closure.
 - [The active-spec index](./specs/README.md) lists all current delivery packages.
 
 ## Documentation Health

@@ -15,6 +15,31 @@ final spec commit preserves the complete package.
 
 ## Entries
 
+### 2026-07-18 - 002-repository-safety-release-readiness
+
+- **Spec:** removed; recover from Git
+- **Title:** Repository Safety and Release Readiness
+- **Final spec commit:** `4aff166`
+- **Closure cleanup commit:** pending
+- **Closure action:** removed
+- **Closed by:** Auriora Team
+- **Durable docs updated:** `README.md`, `docs/2-architecture/`,
+  `docs/guides/user/installation.md`,
+  `docs/guides/user/per-repo-credentials.md`,
+  `docs/processes/version-management.md`, `docs/DOCUMENTATION-STATUS.md`, and
+  `docs/specs/README.md`
+- **Verification summary:** The configured suite passed 2,743 tests at 51.89%
+  coverage; focused restore/security and package-identity checks, source/wheel
+  builds, isolated wheel smoke, YAML, compile, links, and Git checks passed.
+  Lifecycle lint and task audit returned zero findings, all 17 evidence records
+  were concrete, and closure risk was low with zero findings.
+- **Residual risks:** Credential stores created by the removed deterministic
+  host-key path must be treated as exposed; operators must re-enter and rotate
+  affected repository credentials. GitHub release mutation remains executable
+  only from an authorized version tag and was not run during local validation.
+- **Follow-up:** Resume Spec 001 at T005. Exercise the tag-triggered release
+  mutation during the next authorized release.
+
 ### 2026-07-18 - 006-repository-review-skill
 
 - **Spec:** removed; recover from Git
