@@ -20,7 +20,7 @@ final spec commit preserves the complete package.
 - **Spec:** removed; recover from Git
 - **Title:** CLI Consolidation Stabilization
 - **Final spec commit:** `a1bb654`
-- **Closure cleanup commit:** pending
+- **Closure cleanup commit:** `b8df9e9`
 - **Closure action:** removed
 - **Closed by:** Auriora Team
 - **Durable docs updated:** `docs/3-implementation/service-layer-integration.md`,
