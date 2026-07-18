@@ -20,7 +20,7 @@ final spec commit preserves the complete package.
 - **Spec:** removed; recover from Git
 - **Title:** Prune Historical Documentation
 - **Final spec commit:** `0d10228`
-- **Closure cleanup commit:** pending
+- **Closure cleanup commit:** `c25a11e`
 - **Closure action:** removed
 - **Closed by:** Auriora Team
 - **Durable docs updated:** `docs/README.md`, `docs/DOCUMENTATION-STATUS.md`,
