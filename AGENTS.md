@@ -1,9 +1,15 @@
 # AGENTS
 
-This repository uses centralized agent instructions located in `docs/guides/ai-agent/`.
+This repository uses two complementary authorities:
 
-- The rule files in `docs/guides/ai-agent/` are the single source of truth and take precedence over any guidance elsewhere in the repo.
-- To avoid duplication or conflicts, this file intentionally does not restate operational commands, workflows, or protocols.
+- `CHARTER.md` is the source of truth for the project mandate, boundaries,
+  governance, and measures of success.
+- The rule files in `docs/guides/ai-agent/` are the source of truth for agent
+  behavior, operational commands, workflows, and protocols. They take
+  precedence when agent instructions conflict.
+
+This file is intentionally a minimal router and does not duplicate either
+authority.
 
 For general project context and developer documentation, refer to:
 
@@ -14,6 +20,9 @@ For general project context and developer documentation, refer to:
 
 If you are implementing or running agents/tools:
 
+- Read `CHARTER.md` at task start and confirm that the requested work fits the
+  current mandate and boundaries. Route out-of-scope proposals for an explicit
+  project-scope decision before implementation.
 - Load `docs/guides/ai-agent/` at task start and follow the highest-priority instructions found there.
 - Scan [`docs/specs/`](docs/specs/README.md) at task start. For complex,
   cross-cutting, migration, or governance-sensitive work, use the Spec
@@ -26,5 +35,6 @@ If you are implementing or running agents/tools:
   request, CI run, or linked issue. Do not create standalone update diaries
   under `docs/`.
 
-This document is intentionally minimal to prevent divergence from `docs/guides/ai-agent/`. Consult those rule files first, and prefer updating them over this
-file when behavior or priorities change.
+When guidance changes, update the owning authority: `CHARTER.md` for project
+direction, `docs/guides/ai-agent/` for agent behavior, and this file only for
+routing.
