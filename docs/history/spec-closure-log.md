@@ -20,7 +20,7 @@ final spec commit preserves the complete package.
 - **Spec:** removed; recover from Git
 - **Title:** Adopt Spec Lifecycle Manager
 - **Final spec commit:** `c84dc3a`
-- **Closure cleanup commit:** pending
+- **Closure cleanup commit:** `3855e68`
 - **Closure action:** removed
 - **Closed by:** Auriora Team
 - **Durable docs updated:** `docs/specs/README.md`, `docs/guides/ai-agent/`, and
@@ -35,7 +35,7 @@ final spec commit preserves the complete package.
 - **Spec:** removed; recover from Git
 - **Title:** RFC: CLI Consolidation Stabilization Plan
 - **Final spec commit:** `ce23d07`
-- **Closure cleanup commit:** pending
+- **Closure cleanup commit:** `3855e68`
 - **Closure action:** removed
 - **Closed by:** Auriora Team
 - **Durable docs updated:**

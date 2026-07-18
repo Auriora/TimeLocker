@@ -65,7 +65,7 @@ T001 -> T002 -> T003 -> T004 -> T005
 
 ## Phase 5: Promotion And Closure
 
-- [~] T005 Record durable policy, final evidence, final-spec commit, compact closure breadcrumbs, and remove this temporary package.
+- [x] T005 Record durable policy, final evidence, final-spec commit, compact closure breadcrumbs, and remove this temporary package.
   - Depends on: T004
   - Requirement: Requirement 2
   - Acceptance Criteria: Requirement 2 AC1-AC3
@@ -73,7 +73,7 @@ T001 -> T002 -> T003 -> T004 -> T005
   - Files: `docs/guides/ai-agent/`, `docs/specs/README.md`, `docs/history/`, Git history
   - Acceptance: Durable policy is promoted, Spec 002 final package is committed, closed packages are removed, and history indexes are consistent.
   - Evidence mode: validation
-  - Evidence: Durable policy and navigation are promoted; compact history rows are prepared. Final-spec commit, cleanup hashes, package removal, and post-removal archive validation remain in the closure sequence.
+  - Evidence: Commit 3855e68 contains all approved deletions and durable policy promotion. History records contain the Spec 000 and legacy-plan cleanup hash; this package records a remove cleanup action after its final-state commit.
 
 ## Execution Rules
 

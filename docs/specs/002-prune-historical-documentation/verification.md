@@ -19,11 +19,11 @@ consolidation, promotion, and lifecycle closure.
 | Gate | Required? | Status | Evidence |
 |------|-----------|--------|----------|
 | Requirements acceptance criteria reviewed | yes | passed | User approved the enumerated cleanup; T001 records scope. |
-| Task evidence complete | yes | partial | T001-T004 complete; T005 is the commit/removal sequence. |
+| Task evidence complete | yes | passed | T001-T005 contain concrete evidence. |
 | Automated tests pass or alternate verification recorded | yes | passed | Documentation-only change; link, scan, Markdown, and formatting checks executed. |
 | Durable documentation updates identified | yes | passed | `change-impact.md`. |
 | Durable documentation promoted or explicitly deferred | yes | passed | Docs hub/status, agent rules, spec index, and lifecycle history updated. |
-| Spec cleanup decision recorded | yes | pending | Removal after final-spec commit. |
+| Spec cleanup decision recorded | yes | passed | Removal after final-spec commit. |
 | Governance or policy conflicts resolved | yes | passed | Git-backed history policy supersedes dated in-tree diaries and plans. |
 
 ## Validation Commands
@@ -40,7 +40,7 @@ consolidation, promotion, and lifecycle closure.
 | Requirement | Acceptance criteria covered | Evidence | Residual risk |
 |-------------|-----------------------------|----------|---------------|
 | Requirement 1 | AC1-AC3 | T002-T004 | none |
-| Requirement 2 | AC1-AC3 | T001, T002, T005 | closure commits remain |
+| Requirement 2 | AC1-AC3 | T001, T002, T005 | none |
 | Requirement 3 | AC1-AC3 | T003-T004 | none |
 
 ## Correctness Property Coverage
@@ -49,7 +49,7 @@ consolidation, promotion, and lifecycle closure.
 |----------|------------|----------|---------------|
 | CP-001 | T003-T004 | scoped scan and link checker passed | none |
 | CP-002 | T002-T004 | Spec 001 retained; historical packages removed | none |
-| CP-003 | T001, T005 | Spec 000 final commit `c84dc3a`; Spec 002 final commit pending | |
+| CP-003 | T001, T005 | Spec 000 final commit `c84dc3a`; cleanup implementation commit `3855e68` | none |
 
 ## Agent Readiness Evidence
 
@@ -71,7 +71,7 @@ consolidation, promotion, and lifecycle closure.
 | T002 | complete | Approved categories removed; Git preserves tracked sources | |
 | T003 | complete | Retained references reconciled; scoped scan clean | |
 | T004 | complete | Link, lifecycle, Markdown, and formatting evidence above | |
-| T005 | in progress | Durable promotion complete | Final commit/removal sequence remains |
+| T005 | complete | Durable promotion and cleanup implementation commit `3855e68`; removal decision recorded | Package removal follows the final-spec commit |
 
 ## Evidence Log
 
@@ -80,8 +80,8 @@ consolidation, promotion, and lifecycle closure.
 | 2026-07-18 | `git show c84dc3a` and Spec 000 `closure_check` | passed | Complete reviewed package preserved before removal. |
 | 2026-07-18 | Read-only documentation inventory | passed | `339` files; historical and legacy categories enumerated. |
 | 2026-07-18 | `python scripts/link_checker.py` | passed | `111` files and `215` links scanned; zero broken links. |
-| 2026-07-18 | Agent Workbench Markdown set check | advisory | Checked the 100-file tool cap; readability warnings remain non-blocking; the single legacy link finding was fixed. |
-| 2026-07-18 | Lifecycle lint/readiness/evidence/audit/archive | passed | Zero errors; two expected cleanup-hash warnings remain until the commit sequence. |
+| 2026-07-18 | Agent Workbench Markdown set check | advisory | `100` documents checked; `90` advisory findings, chiefly table readability; the one `markdown.link.broken_relative` finding in `docs/3-implementation/cli-modules.md` is fixed in commit `3855e68`. |
+| 2026-07-18 | Lifecycle lint/evidence/audit/closure/archive | passed | Lint `0/0/0`; audit `0/0/0`; `closure_check.ready=true`; archive diagnostics `0`; evidence warnings addressed in this revision. |
 
 ## Residual Risks
 
@@ -103,11 +103,11 @@ consolidation, promotion, and lifecycle closure.
 - **Reason:** Temporary delivery scaffolding; all lasting policy and navigation changes will be promoted.
 - **Final spec commit:** pending
 - **Closure log path:** `docs/history/spec-closure-log.md`
-- **Closure log entry updated:** no
+- **Closure log entry updated:** yes
 - **Closure cleanup commit:** pending
-- **Active indexes updated:** no
-- **Durable docs linked back to evidence where useful:** no
-- **Residual spec-only content:** validation and final commit evidence until closure
+- **Active indexes updated:** yes
+- **Durable docs linked back to evidence where useful:** yes
+- **Residual spec-only content:** none after this final state is committed
 
 ## Ship Or Closure Risk
 
@@ -128,7 +128,7 @@ incoming links, retained surfaces, and Git recovery commits are validated.
 
 - **Ready for promotion:** yes
 - **Ready for release:** not applicable
-- **Ready for closure:** no
+- **Ready for closure:** yes
 
 ## Related Artifacts
 
