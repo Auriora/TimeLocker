@@ -15,6 +15,24 @@ final spec commit preserves the complete package.
 
 ## Entries
 
+### 2026-07-18 - 005-project-charter
+
+- **Spec:** removed; recover from Git
+- **Title:** Project Charter
+- **Final spec commit:** `ad96064`
+- **Closure cleanup commit:** pending metadata follow-up
+- **Closure action:** removed
+- **Closed by:** Auriora Team
+- **Durable docs updated:** `CHARTER.md`, `README.md`, `docs/README.md`,
+  `AGENTS.md`, `docs/specs/README.md`, and Spec 001's durable baseline
+- **Verification summary:** All 17 evidence records were concrete; package lint,
+  task audit, evidence quality, closure risk, and closure checks had zero
+  findings or blockers. Agent Workbench found zero issues in the charter and
+  five changed front-door documents; the link and Git checks passed.
+- **Residual risks:** Governance prose cannot mechanically prevent scope drift;
+  explicit review and charter authority links remain the continuing controls.
+- **Follow-up:** Resume Spec 001 at T005 under the charter's project boundaries.
+
 ### 2026-07-18 - 004-repository-hygiene
 
 - **Spec:** removed; recover from Git
