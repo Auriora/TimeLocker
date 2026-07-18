@@ -20,7 +20,7 @@ final spec commit preserves the complete package.
 - **Spec:** removed; recover from Git
 - **Title:** Repository Review Skill
 - **Final spec commit:** `62dac67`
-- **Closure cleanup commit:** pending
+- **Closure cleanup commit:** `82f0247`
 - **Closure action:** removed
 - **Closed by:** Auriora Team
 - **Durable docs updated:** `.agents/skills/review-timelocker/` and `AGENTS.md`
