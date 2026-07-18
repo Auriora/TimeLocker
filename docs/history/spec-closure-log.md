@@ -15,6 +15,25 @@ final spec commit preserves the complete package.
 
 ## Entries
 
+### 2026-07-18 - 004-repository-hygiene
+
+- **Spec:** removed; recover from Git
+- **Title:** Repository Hygiene
+- **Final spec commit:** `52e5a59`
+- **Closure cleanup commit:** pending metadata follow-up
+- **Closure action:** removed
+- **Closed by:** Auriora Team
+- **Durable docs updated:** `AGENTS.md`, `README.md`, `CHANGELOG.md`,
+  `docs/guides/ai-agent/`, `docs/resources/`, `docs/templates/`, and Spec 001
+- **Verification summary:** Evidence quality classified all 29 records as
+  concrete; package lint and task audit returned zero findings; readiness had
+  zero gaps; closure reported ready with zero blockers. The functional suite
+  passed 2,730 tests at 51.83% coverage, and all timing checks passed after
+  isolating host-load-sensitive startup thresholds.
+- **Residual risks:** Startup timing thresholds are sensitive to host
+  contention; all isolated checks passed and no runtime code changed.
+- **Follow-up:** Resume Spec 001 at T005.
+
 ### 2026-07-18 - 003-migrate-legacy-kiro-specs
 
 - **Spec:** removed; recover from Git
