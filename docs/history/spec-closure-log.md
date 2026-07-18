@@ -20,7 +20,7 @@ final spec commit preserves the complete package.
 - **Spec:** removed; recover from Git
 - **Title:** Migrate Legacy Kiro Specifications
 - **Final spec commit:** `7fb10e5`
-- **Closure cleanup commit:** pending
+- **Closure cleanup commit:** `8e28714`
 - **Closure action:** removed
 - **Closed by:** Auriora Team
 - **Durable docs updated:** current CLI and recovery references,
