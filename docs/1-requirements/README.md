@@ -1,10 +1,11 @@
 ---
 title: "Requirements Documentation"
+doc_type: reference
 id: "RM-003"
 type: [ readme ]
-status: [ approved ]
+status: active
 owner: "Auriora Team"
-last_reviewed: "27-10-2023"
+last_reviewed: 2026-07-18
 tags: [readme, requirements]
 links:
   tooling: []
@@ -46,7 +47,9 @@ links:
 
 ## 5. Available Templates
 
-- `_template.md`: A generic template for a high-level requirements document.
+- Use the central [durable-document template](../templates/durable-document.md)
+  for accepted current-state requirements. Use an active spec for proposed
+  implementation work.
 
 # References
 

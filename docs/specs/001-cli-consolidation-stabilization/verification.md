@@ -13,7 +13,7 @@ last_reviewed: 2026-07-18
 
 | Gate | Covers | Pass criterion | Evidence |
 |------|--------|----------------|----------|
-| Package lint/readiness | Spec integrity | No unwaived errors; next task is T005 | pending migration validation |
+| Package lint/readiness | Spec integrity | No unwaived errors or readiness gaps; next task is T005 after Spec 004 closes | reconciliation validation |
 | CLI contract tests | Requirement 1, CP-001 | Help/discovery and unique-registration tests pass | record per slice |
 | Resolver validation | Requirement 2, CP-002 | Focused tests pass and direct imports are eliminated or justified | T005 |
 | Service-manager validation | Requirement 3, CP-003 | Focused tests pass and selected fan-out is removed | T006 |
@@ -24,6 +24,7 @@ last_reviewed: 2026-07-18
 
 ## Quality Gates
 
+- Close and remove governance prerequisite Spec 004 before T005 starts.
 - Run CLI contract tests after every remaining implementation slice.
 - Pair static dependency/import searches with focused behavioral tests.
 - Do not remove compatibility behavior without caller inventory and impact review.
@@ -34,6 +35,9 @@ last_reviewed: 2026-07-18
 
 - T001-T003: commit `d8600cc5ee9b06774e1d73f69a392179015e4bff`.
 - T004: commit `519dc81cbc77147fa64b12041c608b1ae7cd978e`.
+- 2026-07-18 reconciliation: all eight acceptance criteria are explicitly
+  mapped; D001 retains the public service-manager facade; D002 selects
+  `commands.monitoring`; Spec 004 is sequenced as a governance prerequisite.
 - T005-T008: pending.
 
 ## Evidence Recording Rules
@@ -81,9 +85,12 @@ paths remain possible until inventory and full validation complete.
 
 ## Residual Risks
 
-- External consumers of `CLIServiceManager` may not be visible in repository searches.
+- External consumers of `CLIServiceManager` may not be visible in repository
+  searches; D001 therefore retains the tested public facade.
 - Repository-resolution behavior may vary across local, S3, and B2 backends.
-- Optional monitoring integrations may need validation outside the focused unit suite.
+- Optional monitoring integrations may need validation outside the focused
+  unit suite; D002 fixes command ownership while retaining the integration
+  bridge.
 
 ## Readiness Decision
 

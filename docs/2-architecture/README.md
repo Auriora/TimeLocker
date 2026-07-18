@@ -1,10 +1,11 @@
 ---
 title: "Architecture Documentation"
+doc_type: reference
 id: "RM-004"
 type: [ readme ]
-status: [ approved ]
+status: active
 owner: "Auriora Team"
-last_reviewed: "27-10-2023"
+last_reviewed: 2026-07-18
 tags: [ readme, architecture ]
 links:
     tooling: [ ]
@@ -54,7 +55,9 @@ See [README.design.md](./README.design.md) for a complete index of architecture 
 
 ## 5. Available Templates
 
-- `_template.md`: A generic template for architecture-related documents.
+- Use the central [durable-document template](../templates/durable-document.md)
+  for architecture and the [decision-record template](../templates/decision-record.md)
+  for accepted architectural choices.
 
 ## 6. References
 

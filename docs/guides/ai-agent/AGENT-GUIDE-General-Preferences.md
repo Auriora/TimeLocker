@@ -1,11 +1,16 @@
 ---
+title: General preferences for AI agents
+doc_type: guide
 type:        "always_apply"
 name:        "General preferences"
 priority:    50
 scope:       ".*"
 description: "General project preferences and guidance for coordinating and applying other rules"
-cross_reference: ["documentation.md","git.md","planning.md","testing.md"]
+cross_reference: ["AGENT-RULE-Documentation-Conventions.md", "AGENT-RULE-Git-Conventions.md", "AGENT-GUIDE-Planning-Protocol.md", "AGENT-RULE-Testing-Conventions.md"]
 apply_when:   "always"
+owner: Auriora Team
+status: active
+last_reviewed: 2026-07-18
 ---
 
 # AI Agent Rule/Guide: General Preferences
@@ -14,27 +19,28 @@ apply_when:   "always"
 - **Priority**: 50
 - **Scope**: .*
 - **Description**: General project preferences and guidance for coordinating and applying other rules.
-- **Cross-Reference**: documentation.md, git.md, planning.md, testing.md
+- **Cross-Reference**: the linked rule files in this directory
 - **Apply When**: always
 
 ## 1. Purpose
 
-This document outlines the general project preferences and provides explicit guidance for the AI agent (Augment) on discovering, prioritizing, and consistently
-applying other rule files. It ensures that all agent actions align with core project principles and maintain high code quality and transparency.
+This document explains how agents discover, prioritize, and apply TimeLocker's
+central repository rules.
 
 ## 2. Rule/Guideline Details
 
 ### 2.1. Core Principles
 
 - Code must follow SOLID and DRY principles.
-- Code reviews must be thorough with refactoring suggestions to improve code quality.
-- Prefer direct implementation to extensive planning and analysis phases where appropriate.
+- Keep reviews evidence-based and proportional to the requested scope.
+- Use direct implementation for narrow low-risk work and the planning protocol
+  for complex or governance-sensitive work.
 - Always double-check during testing or implementation if any changes have been lost or overwritten (e.g., after merges/sanitization), and verify via git
   diff/log before proceeding.
 
-### 2.2. How Augment Should Apply Other Rules
+### 2.2. How Agents Should Apply Other Rules
 
-1. **Discover**: Always load the set of rule documents from `/.augment/rules/` (now `docs/guides/ai-agent/`) at the start of a task.
+1. **Discover**: Load the rule documents from `docs/guides/ai-agent/` at the start of a task.
 2. **Classify Applicability**:
     - Filter rules by `type` and `scope` (if present). Treat `always_apply` rules as globally applicable unless a more specific rule overrides them.
     - Consider `agent_requested` rules when the task involves agent behavior, planning, or output formatting.
@@ -42,7 +48,7 @@ applying other rule files. It ensures that all agent actions align with core pro
     - Prefer higher-specificity rules (a rule that names a file/path or task scope wins over a global preference).
     - When rules conflict, prefer (in order): explicit task instruction > rule with higher `priority` (numeric) > more specific `scope` > `always_apply`
       default.
-    - If equal specificity and conflict remains, pause and ask the user for resolution.
+    - If equal specificity and conflict remains, ask the user for resolution.
 4. **Apply and Document**:
     - For every non-trivial change, list which rules were consulted and applied
       in the active spec or pull request description.
@@ -80,7 +86,8 @@ When creating or editing a rule file, include:
 
 - Do not modify other rule files without documenting the reason in the active
   spec or pull request and recording a clear test or review step.
-- Prefer conservative change: if unsure whether a rule applies, prefer asking the user rather than making silent overrides.
+- Prefer repository discovery before asking; ask when an unresolved choice would
+  materially change scope, risk, or outcome.
 
 ## 3. Examples
 
@@ -93,17 +100,17 @@ When creating or editing a rule file, include:
 # description: "Testing file locations and naming"
 # priority: 10
 # scope: "tests/**"
-# cross_reference: ["preferences.md", "documentation.md"]
+# cross_reference: ["AGENT-GUIDE-General-Preferences.md", "AGENT-RULE-Documentation-Conventions.md"]
 # apply_when: "task_involves_tests == true"
 ---
 ```
 
 ### Examples of Coordinated Application
 
-- When implementing new features that change public APIs, Augment MUST consult `documentation.md` for docs placement and `git.md` for commit message format.
+- When implementing new features that change public APIs, consult the documentation-conventions rule for docs placement and the Git rule for commit format.
   Document this in the active spec or pull request.
-- When writing tests, consult `testing.md` for naming/placement and `preferences.md` for logging of applied rules.
-- For planning-driven work, follow `planning.md`'s stop/confirm tokens (`<<AWAIT_CONFIRM: ...?>>`) unless the user explicitly requests executing immediately.
+- When writing tests, consult `AGENT-RULE-Testing-Conventions.md` for naming and placement.
+- For planning-driven work, follow `AGENT-GUIDE-Planning-Protocol.md` unless the user explicitly requests executing immediately.
 
 ## 4. Rationale / Justification
 

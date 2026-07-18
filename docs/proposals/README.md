@@ -1,10 +1,11 @@
 ---
 title: "Proposals Documentation"
+doc_type: reference
 id: "RM-012"
 type: [ readme ]
-status: [ approved ]
+status: active
 owner: "Auriora Team"
-last_reviewed: "27-10-2023"
+last_reviewed: 2026-07-18
 tags: [readme, proposals]
 links:
   tooling: []
@@ -46,7 +47,9 @@ to detailed technical plans. Use these documents to build consensus and get buy-
 
 ## 5. Available Templates
 
-- `_template.md`: A generic template for any proposal.
+- Use an active [specification package](../specs/README.md) for implementation
+  proposals. Use the central [decision-record template](../templates/decision-record.md)
+  only after a choice becomes durable.
 
 # References
 

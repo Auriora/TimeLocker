@@ -1,10 +1,11 @@
 ---
 title: "Testing Documentation"
+doc_type: reference
 id: "RM-006"
 type: [ readme ]
-status: [ approved ]
+status: active
 owner: "Auriora Team"
-last_reviewed: "27-10-2023"
+last_reviewed: 2026-07-18
 tags: [ readme, testing ]
 links:
     tooling: [ ]
@@ -46,8 +47,8 @@ links:
 
 ## 5. Available Templates
 
-- `_template.md`: Generic template for test strategy documents
-- `_template.plan.md`: Template for test plan documents
+- Use the central [test-plan template](../templates/test-plan.md) for durable
+  test strategy, environments, gates, and residual risks.
 
 ## 6. References
 

@@ -1,10 +1,11 @@
 ---
 title: "Processes Documentation"
+doc_type: reference
 id: "RM-011"
 type: [ readme ]
-status: [ approved ]
+status: active
 owner: "Auriora Team"
-last_reviewed: "27-10-2023"
+last_reviewed: 2026-07-18
 tags: [readme, processes]
 links:
   tooling: []
@@ -46,7 +47,8 @@ consistency, reduces errors, and helps new team members get up to speed quickly.
 
 ## 5. Available Templates
 
-- `_template.md`: A generic template for defining a formal process with roles, steps, and metrics.
+- Use the central [durable-document template](../templates/durable-document.md)
+  and tailor its current-behavior section into roles, procedure, and metrics.
 
 # References
 

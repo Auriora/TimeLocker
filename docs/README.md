@@ -32,7 +32,8 @@ mobile client.
 
 The current delivery focus is CLI consolidation and stabilization. GitHub owns
 assignment and issue status; [Spec 001](./specs/001-cli-consolidation-stabilization/requirements.md)
-owns implementation scope, sequencing, acceptance, and evidence for that work.
+owns that product scope. The temporary [Spec 004](./specs/004-repository-hygiene/requirements.md)
+governance prerequisite must close before Spec 001 implementation resumes.
 
 ## Documentation Map
 
@@ -45,6 +46,8 @@ owns implementation scope, sequencing, acceptance, and evidence for that work.
 | Contributor guidance | `guides/developer/` |
 | Agent rules | `guides/ai-agent/` |
 | Release/version process | `processes/` |
+| Durable document starters | `templates/` |
+| Documentation resources | `resources/` |
 | Active delivery contracts | `specs/` |
 | Compact lifecycle evidence | `history/` |
 

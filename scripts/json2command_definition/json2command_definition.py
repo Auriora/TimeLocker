@@ -21,9 +21,9 @@ from typing import List, Dict, Any
 
 from TimeLocker.command_builder import CommandParameter, ParameterStyle, CommandDefinition
 
-# Get the project root directory (two levels up from this script)
-PROJECT_ROOT = Path(__file__).parent.parent
-DOCS_DIR = PROJECT_ROOT / 'docs'
+# Get the project root directory (two levels above this script's directory).
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+RESOURCES_DIR = PROJECT_ROOT / 'docs' / 'resources'
 
 
 def convert_json_to_command_definition(json_data: List[dict]) -> CommandDefinition:
@@ -160,10 +160,10 @@ def format_command_definition(cmd_def: CommandDefinition, indent: int = 0) -> st
     return "".join(result)
 
 def main():
-    # Read the JSON file from the docs directory
-    json_file_path = DOCS_DIR / 'restic_commands.json'
+    # Read the canonical generated-source data from documentation resources.
+    json_file_path = RESOURCES_DIR / 'restic_commands.json'
     if not json_file_path.exists():
-        raise FileNotFoundError(f"Could not find restic_commands.json in {json_file_path}")
+        raise FileNotFoundError(f"Could not find restic_commands.json at {json_file_path}")
 
     with json_file_path.open('r') as f:
         json_data = json.load(f)
@@ -177,8 +177,8 @@ def main():
         f"restic_command_def = {format_command_definition(command_def)}\n"
     )
 
-    # Write to a Python file in the same directory as the input file
-    output_file = DOCS_DIR / 'restic_command_definition.py'
+    # Keep generated documentation resources together.
+    output_file = RESOURCES_DIR / 'restic_command_definition.py'
     with output_file.open('w') as f:
         f.write(formatted_output)
     print(f"Command definition written to {output_file}")

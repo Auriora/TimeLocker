@@ -1,10 +1,11 @@
 ---
 title: "Reference Documentation"
+doc_type: reference
 id: "RM-013"
 type: [ readme ]
-status: [ approved ]
+status: active
 owner: "Auriora Team"
-last_reviewed: "27-10-2023"
+last_reviewed: 2026-07-18
 tags: [readme, reference]
 links:
   tooling: []
@@ -58,7 +59,8 @@ licensing. These documents are typically stable and serve as authoritative sourc
 
 ## 5. Available Templates
 
-- `_template.md`: A generic template for any reference document.
+- Use the central [durable-document template](../templates/durable-document.md)
+  for current reference material.
 
 # References
 

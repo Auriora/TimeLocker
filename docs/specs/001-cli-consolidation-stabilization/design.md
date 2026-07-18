@@ -107,6 +107,20 @@ Land Tasks T005-T007 independently. Do not remove `get_cli_service_manager()`
 as part of this spec. Any removed wrapper must first have zero supported callers
 and focused evidence.
 
+Repository evidence cannot prove the absence of downstream package consumers,
+so `CLIServiceManager` and `get_cli_service_manager()` remain supported
+compatibility entry points throughout this spec. Internal callers may move to
+narrow services, while the public facade must delegate to the same behavior and
+retain focused compatibility tests.
+
+The retained command-facing monitoring owner is
+`cli_modules.commands.monitoring`, which is mounted by both the root CLI and
+the command registry. `CLIMonitoringIntegration` remains the data-access and
+formatting bridge behind the facade. The older
+`cli_modules.commands.monitor` module is a migration source, not a second
+command owner; T007 inventories its callers before removing or reducing it to
+an explicit compatibility delegate.
+
 ## Validation Strategy
 
 | Validation | Covers | Evidence Location | Residual Risk |
@@ -123,6 +137,15 @@ and focused evidence.
 - Update `change-impact.md` if the selected boundary differs from this design.
 - Promote accepted structure into implementation/reference docs before closure.
 
+## Cross-Spec Sequencing
+
+A temporary repository-hygiene package, Spec 004, may run concurrently only as
+a governance prerequisite. It owns agent instructions, documentation
+navigation, assets, templates, and historic-document cleanup; it must not edit
+CLI runtime behavior or tests owned by this package. Spec 004 must close before
+T005 enters implementation so agents execute the remaining CLI work under the
+correct repository rules and current front-door documentation.
+
 ## Operational Considerations
 
 No data migration or deployment sequencing is expected. Each slice should be
@@ -131,9 +154,19 @@ even when focused tests pass during individual slices.
 
 ## Open Questions
 
-- Which `CLIServiceManager` methods have consumers outside the repository?
-- Which monitoring wrapper should be the retained command-facing owner after
-  caller inventory?
+None. The two former implementation questions are resolved below.
+
+## Resolved Decisions
+
+- **D001 — compatibility facade:** retain `CLIServiceManager` and
+  `get_cli_service_manager()` as tested public compatibility seams. Repository
+  searches show internal use from the service facade, CLI helper, CLI module,
+  and tests, but cannot exclude external package consumers.
+- **D002 — monitoring ownership:** retain
+  `cli_modules.commands.monitoring` as the command owner and
+  `CLIMonitoringIntegration` as its integration bridge. Root CLI and registry
+  wiring both mount the former; the singular `commands.monitor` module is
+  migration input for T007.
 
 ## Related Artifacts
 

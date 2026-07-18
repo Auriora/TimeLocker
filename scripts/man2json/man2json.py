@@ -18,7 +18,12 @@
 import json
 import os
 import re
+from pathlib import Path
 from traceback import format_exc
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+MAN_SOURCE_DIR = PROJECT_ROOT / "sandbox" / "input" / "restic" / "man"
+OUTPUT_PATH = PROJECT_ROOT / "docs" / "resources" / "restic_commands.json"
 
 # Precompile the regular expression pattern
 section_pattern = re.compile(r'\.SH\s+"?([^"\n]+)"?\n((?:(?!\.SH\s+).|\n)*)')
@@ -277,11 +282,10 @@ def parse_man_file(file_path):
     return result
 
 def process_man_files():
-    man_dir = "../sandbox/input/restic/man"
     all_commands = []
 
     # Walk through the man directory
-    for root, dirs, files in os.walk(man_dir):
+    for root, dirs, files in os.walk(MAN_SOURCE_DIR):
         for man_file in files:
             if man_file.endswith('.1'):  # Man pages typically end with .1
                 file_path = os.path.join(root, man_file)
@@ -293,7 +297,8 @@ def process_man_files():
                     print(format_exc())
 
     # Write to JSON file
-    with open('restic_commands.json', 'w', encoding='utf-8') as output_file:
+    OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
+    with OUTPUT_PATH.open('w', encoding='utf-8') as output_file:
         json.dump(all_commands, output_file, indent=2, sort_keys=True)
 
 

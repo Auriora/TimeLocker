@@ -53,6 +53,8 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010
 
 - [ ] T005 Standardize CLI command modules on `RepositoryResolver`.
   - Depends on: T004
+  - Upstream specs: 004-repository-hygiene
+  - Status note: Runnable only after the governance prerequisite is closed and removed from the active index.
   - Requirement: Requirement 2
   - Acceptance Criteria: Requirement 2 AC1, Requirement 2 AC2
   - Properties: CP-001, CP-002
@@ -123,12 +125,17 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010
 
 ## Execution Rules
 
+- Do not start T005 until temporary governance prerequisite Spec 004 is closed
+  and removed from the active index.
 - Do not implement from this checklist alone; read the linked requirements,
   design, impact, verification, and traceability context first.
 - Before starting a task or subtask, mark it `[~]`.
 - Split a task further if caller inventory reveals multiple independent slices.
 - Complete parent tasks only after acceptance criteria and evidence are recorded.
 - Do not remove public compatibility entry points without explicit impact review.
+- Apply D001 by retaining the tested `CLIServiceManager` public facade; apply
+  D002 by treating `cli_modules.commands.monitoring` as the command owner and
+  `CLIMonitoringIntegration` as its bridge.
 
 ## Related Artifacts
 

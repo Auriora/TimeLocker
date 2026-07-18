@@ -127,7 +127,7 @@ that formatting, data access, and error handling have a clear owner.
 
 ## Technical Context
 
-- **Language/Version:** Python 3.11+
+- **Language/Version:** Python 3.12+
 - **Primary Dependencies:** Typer, Restic integration, pytest
 - **Target Platform:** TimeLocker CLI
 - **Constraints:** Small reviewable slices; preserve public behavior

@@ -1,10 +1,11 @@
 ---
 title: "User Guides Documentation"
+doc_type: reference
 id: "RM-009"
 type: [ readme ]
-status: [ approved ]
+status: active
 owner: "Auriora Team"
-last_reviewed: "27-10-2023"
+last_reviewed: 2026-07-18
 tags: [readme, guides, user]
 links:
   tooling: []
@@ -47,7 +48,8 @@ be non-technical and focus on how to use the features of the product.
 ## 5. Available Templates & Guides
 
 ### Getting Started
-- `_template.md`: Template for new user guides.
+- [Durable-document template](../../templates/durable-document.md): Starting
+  point for current user guides.
 - `installation.md`: Installing and verifying TimeLocker.
 
 ### Repository Management

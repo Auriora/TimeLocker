@@ -1,10 +1,11 @@
 ---
 title: "Developer Guides Documentation"
+doc_type: reference
 id: "RM-008"
 type: [ readme ]
-status: [ approved ]
+status: active
 owner: "Auriora Team"
-last_reviewed: "27-10-2023"
+last_reviewed: 2026-07-18
 tags: [readme, guides, developer]
 links:
   tooling: []
@@ -47,7 +48,8 @@ aimed at developers working on the project.
 
 ## 5. Available Templates & Guides
 
-- `_template.md`: Generic developer guide template.
+- [Durable-document template](../../templates/durable-document.md): Starting
+  point for current developer guidance.
 - `automation-examples.md`: Scheduling automation patterns (env vars, systemd, cron, containers).
 - `scheduling-guide.md`: Step-by-step jobs scheduling playbook.
 - `plugin-wrapper-development.md`: Guide for developing backup tool plugin wrappers.

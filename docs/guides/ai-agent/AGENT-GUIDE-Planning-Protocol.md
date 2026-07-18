@@ -1,11 +1,16 @@
 ---
+title: Planning protocol
+doc_type: guide
 type:        "agent_requested"
 name:        "Planning protocol"
 priority:    30
 scope:       "planning-flow"
 description: "Use structured planning for complex, multi-file changes or feature work."
-cross_reference: ["preferences.md"]
+cross_reference: ["AGENT-GUIDE-General-Preferences.md"]
 apply_when:   "task_type == \"complex_change\""
+owner: Auriora Team
+status: active
+last_reviewed: 2026-07-18
 ---
 
 # AI Agent Rule/Guide: Planning Protocol
@@ -14,7 +19,7 @@ apply_when:   "task_type == \"complex_change\""
 - **Priority**: 30
 - **Scope**: planning-flow
 - **Description**: Use structured planning for complex, multi-file changes or feature work.
-- **Cross-Reference**: preferences.md
+- **Cross-Reference**: AGENT-GUIDE-General-Preferences.md
 - **Apply When**: task_type == "complex_change"
 
 ## 1. Purpose
@@ -159,7 +164,8 @@ deliverables.
 
 ## 5. Related Information
 
-This planning protocol is cross-referenced with `preferences.md` for general project preferences and guidance on coordinating and applying other rules.
+This planning protocol is cross-referenced with the general preferences guide
+for coordinating and applying repository rules.
 
 # References
 

@@ -60,10 +60,14 @@ for the remaining consolidation work.
 Not applicable unless a focused slice discovers a behavior defect. Route any
 new defect through reconciliation and update this artifact before expanding scope.
 
-## Open Questions
+## Resolved Decisions
 
-- Whether external consumers call `CLIServiceManager` methods directly.
-- Which monitoring integration should remain the command-facing owner.
+- Retain `CLIServiceManager` and `get_cli_service_manager()` as tested public
+  compatibility seams because repository searches cannot exclude external
+  package consumers.
+- Retain `cli_modules.commands.monitoring` as the command owner and
+  `CLIMonitoringIntegration` as the command-facing bridge; reconcile the older
+  `cli_modules.commands.monitor` path during T007.
 
 ## Related Artifacts
 

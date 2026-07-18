@@ -15,8 +15,11 @@ accepted content has been promoted and the package is closed.
 
 ## Current Packages
 
+- [`004-repository-hygiene`](./004-repository-hygiene/requirements.md) —
+  temporary governance prerequisite that must close before Spec 001 T005 begins.
 - [`001-cli-consolidation-stabilization`](./001-cli-consolidation-stabilization/requirements.md) —
-  remaining CLI consolidation work migrated from the legacy active plan.
+  remaining CLI consolidation work; reconciled and ready, but implementation is
+  sequenced after Spec 004 closes.
 
 ## When a Spec Is Needed
 

@@ -32,6 +32,8 @@ approved active spec.
 - GitHub is authoritative for issue assignment and state.
 - [Spec 001](./specs/001-cli-consolidation-stabilization/requirements.md) is
   authoritative for the active CLI consolidation and stabilization slice.
+- [Spec 004](./specs/004-repository-hygiene/requirements.md) is the temporary
+  governance prerequisite and must close before Spec 001 implementation resumes.
 - [The active-spec index](./specs/README.md) lists all current delivery packages.
 
 ## Documentation Health
@@ -40,6 +42,8 @@ approved active spec.
   testing, processes, reference, and active specs.
 - Current durable documents no longer depend on legacy `.kiro/specs/`, removed
   plans, old completion reports, or dated update files.
+- Durable document starters are centralized under `templates/`; documentation
+  assets and generated source data are centralized under `resources/`.
 - Compact lifecycle evidence remains under `history/`; source packages are
   recoverable from their recorded Git commits.
 - Code and tests remain the final authority where prose has not been freshly

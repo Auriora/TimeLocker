@@ -1,4 +1,6 @@
 ---
+title: Documentation conventions
+doc_type: rule
 type: "agent_requested"
 name: "Documentation conventions"
 priority: 20
@@ -6,6 +8,9 @@ scope: "docs/**"
 description: "Keep documentation current-state oriented and use Git for history."
 cross_reference: ["AGENT-GUIDE-General-Preferences.md", "AGENT-GUIDE-Planning-Protocol.md"]
 apply_when: "task_changes_documentation == true"
+owner: Auriora Team
+status: active
+last_reviewed: 2026-07-18
 ---
 
 # AI Agent Rule: Documentation Conventions

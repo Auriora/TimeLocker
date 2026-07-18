@@ -5,7 +5,7 @@
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg?logo=python&logoColor=white)](https://www.python.org/downloads/)
 [![Status: Beta](https://img.shields.io/badge/Status-Beta-yellow.svg?logo=git)](https://github.com/Auriora/TimeLocker)
 [![GitHub Actions CI](https://img.shields.io/github/actions/workflow/status/Auriora/TimeLocker/test-suite.yml?branch=main&label=CI&logo=github)](https://github.com/Auriora/TimeLocker/actions/workflows/test-suite.yml)
-[![Quality Gate](https://img.shields.io/badge/Quality%20Gate-80%25%20Coverage-brightgreen?logo=sonarqube)](https://github.com/Auriora/TimeLocker/actions)
+[![Quality Gate](https://img.shields.io/badge/Quality%20Gate-50%25%20Coverage-brightgreen?logo=sonarqube)](https://github.com/Auriora/TimeLocker/actions)
 [![Contributing](https://img.shields.io/badge/Contributing-Welcome-brightgreen?logo=github)](CONTRIBUTING.md)
 
 ![TimeLocker](resources/images/TimeLocker-Logo-Color-White-64.png)
@@ -13,8 +13,9 @@
 TimeLocker provides a CLI-first interface for managing backups with Restic and related orchestration services. It covers repository management, file
 selection, scheduling, monitoring, and recovery workflows across local, S3-compatible, and B2 backends.
 
-This repository is feature-rich but still being consolidated. Treat the top-level docs as a current orientation layer, and use `docs/updates/`,
-`docs/plans/`, and the implementation/testing docs to judge current maturity in more detail.
+This repository is feature-rich but still being consolidated. Treat this README
+and [`docs/README.md`](docs/README.md) as the current orientation layer. Active
+delivery work is indexed under [`docs/specs/`](docs/specs/README.md).
 
 > **Note**: TimeLocker is a **CLI-based application**. There is currently no desktop GUI or REST API - these are design specifications for future consideration.
 > The application includes optional system tray integration for desktop notifications.
@@ -65,53 +66,33 @@ This project is intended for:
 
 ## Repository Structure
 
-```
+```text
 .
-├── src/                                # Main source code
-│   ├── TimeLocker/                    # Main package
-│   │   ├── cli.py                    # Typer entrypoint for `timelocker` / `tl`
-│   │   ├── cli_modules/              # CLI command implementations and helpers
-│   │   ├── services/                 # Service layer and orchestration
-│   │   ├── config/                   # Filesystem-backed configuration system
-│   │   ├── monitoring/               # Telemetry, progress, notifications
-│   │   ├── scheduling/               # Schedule management and integrations
-│   │   ├── security/                 # Credential and privacy workflows
-│   │   ├── integration/              # Service manager and integration seams
-│   │   ├── policy/                   # Policy models and storage abstractions
-│   │   ├── restic/                   # Restic-specific repositories and commands
-│   │   ├── adapters/                 # Backup tool adapters
-│   │   └── interfaces/               # Shared contracts and data models
-├── tests/                            # Test suite
-│   ├── TimeLocker/                   # Tests for core package
-│   │   ├── backup/                   # Tests for backup functionality
-│   │   ├── command_builder/          # Tests for command builder
-│   │   └── restic/                   # Tests for Restic implementations
-│   ├── json2command_definition/      # Tests for JSON converter
-│   └── man2json/                     # Tests for man page converter
-├── docs/                             # Documentation
-│   ├── command_builder.md            # Command builder documentation
-│   ├── compliance/                   # Compliance documentation
-│   ├── resources/                    # Documentation resources
-│   │   ├── diagrams/                 # UML and other diagrams
-│   │   └── images/                   # Images used in documentation
-│   ├── SDLC/                         # Software Development Lifecycle docs
-│   │   ├── Process/                  # SDLC process documentation
-│   │   ├── SRS/                      # Software Requirements Specification
-│   │   ├── acceptance_tests/         # Acceptance test documentation
-│   │   └── tests/                    # Test documentation
-│   └── restic_commands.json          # JSON definition of Restic commands
-├── temp/                             # Temporary files
-├── test-results/                     # Test results output
-├── CHANGELOG.md                      # Project changelog
-├── CODE_OF_CONDUCT.md                # Code of conduct
-├── CONTRIBUTING.md                   # Contributing guidelines
-├── LICENSE                           # GNU GPL v3 license
-├── README.md                         # This file
-├── SECURITY.md                       # Security policy
-├── SUPPORT.md                        # Support information
-├── devfile.yaml                      # Development environment configuration
-├── qodana.yaml                       # Code quality configuration
-└── requirements.txt                  # Python dependencies
+├── src/TimeLocker/                   # Python package and Typer CLI
+│   ├── cli.py                        # `timelocker` / `tl` entrypoint
+│   ├── cli_modules/                  # Commands, helpers, and CLI services
+│   ├── services/                     # Application orchestration
+│   ├── config/                       # Filesystem-backed configuration
+│   ├── monitoring/                   # Telemetry, progress, notifications
+│   ├── scheduling/                   # Scheduling integrations
+│   ├── security/                     # Credentials and privacy controls
+│   ├── policy/                       # Policy models and persistence
+│   └── restic/                       # Restic repositories and commands
+├── tests/TimeLocker/                 # Pytest unit and integration suites
+├── docs/
+│   ├── 1-requirements/               # Durable product requirements
+│   ├── 2-architecture/               # Current system architecture
+│   ├── 3-implementation/             # Current implementation guidance
+│   ├── 4-testing/                    # Test strategy and environments
+│   ├── guides/                       # User, developer, and agent guidance
+│   ├── reference/                    # Current command and API references
+│   ├── resources/                    # Documentation images and source data
+│   ├── specs/                        # Temporary active delivery packages
+│   └── history/                      # Compact spec closure indexes
+├── examples/                         # Integration examples
+├── resources/                        # Product branding assets
+├── scripts/                          # Repository maintenance utilities
+└── pyproject.toml                    # Package, dependencies, pytest, coverage
 ```
 
 ## Instructions for using TimeLocker
@@ -132,14 +113,11 @@ This project is intended for:
 # Basic installation
 pip install timelocker
 
-# With AWS S3 support
-pip install timelocker[aws]
+# With optional desktop integration
+pip install timelocker[gui]
 
-# With Backblaze B2 support
-pip install timelocker[b2]
-
-# With all optional dependencies
-pip install timelocker[aws,b2,dev]
+# Development and test tooling (from a source checkout)
+pip install -e '.[dev]'
 ```
 
 #### From Source
@@ -182,8 +160,9 @@ RESTIC_PASSWORD. The --password flag is available but discouraged; prefer secure
 
 TimeLocker’s modern backup flow revolves around reusable selection templates. Define the template once and reuse it through the same service layer that powers the CLI.
 
-This repository is feature-rich but still actively being consolidated. Prefer the docs under `docs/guides/`, `docs/reference/`, `docs/plans/`, and
-`docs/updates/` over older milestone-style status claims when assessing current maturity.
+This repository is feature-rich but still actively being consolidated. Prefer
+current guidance under `docs/guides/` and `docs/reference/`, and consult the
+[active-spec index](docs/specs/README.md) for approved work in progress.
 
 ```python
 from pathlib import Path
@@ -363,10 +342,12 @@ For detailed documentation, please refer to:
 - [Security System](docs/2-architecture/security-system.md) - Security and credential management
 - [Integration Layer](docs/2-architecture/integration-layer.md) - Service communication framework
 
-### Change History
+### Project State and Change History
 
-- [Updates Directory](docs/updates/README.md) - Detailed change history and implementation notes
-- [Documentation Status](docs/DOCUMENTATION-STATUS.md) - Current documentation health status
+- [Documentation Status](docs/DOCUMENTATION-STATUS.md) - Current documentation health
+- [Active Specifications](docs/specs/README.md) - Approved work in progress
+- [Specification Closure Log](docs/history/spec-closure-log.md) - Compact lifecycle history
+- [Changelog](CHANGELOG.md) - Release-facing notable changes
 
 ## Contributing
 
@@ -389,7 +370,7 @@ For security-related issues, please refer to our [Security Policy](SECURITY.md) 
 
 ## Terms of use
 
-This project is licensed under the [GNU General Public License v3.0 (GPL-3.0)](https://www.gnu.org/licenses/gpl-3.0.html). See the [LICENSE](LICENSE) file for
+This project is licensed under the [GNU General Public License v3.0 (GPL-3.0)](https://www.gnu.org/licenses/gpl-3.0.html). See the repository-root `LICENSE` file for
 details.
 
 The GPL-3.0 is a strong copyleft license that requires anyone who distributes your code or a derivative work to make the source available under the same terms.

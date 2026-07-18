@@ -1,10 +1,11 @@
 ---
 title: "Implementation Documentation Index"
+doc_type: reference
 id: "impl-index"
 type: [ implementation ]
-status: [ approved ]
+status: active
 owner: "Auriora Team"
-last_reviewed: "01-11-2025"
+last_reviewed: 2026-07-18
 tags: [implementation, index]
 links:
     tooling: []
@@ -28,8 +29,8 @@ documents and highlights the active materials available to contributors.
 ### 2.1 Development Guides
 
 - `command-builder.md` – CLI command construction utility reference.
-- `_template.md` – Generic implementation document template.
-- `_template.code-structure.md` – Template for documenting code structure.
+- [Durable-document template](../templates/durable-document.md) – Starting
+  point for current implementation guidance and code-structure references.
 
 ### 2.2 Supporting References
 
@@ -56,4 +57,4 @@ documents and highlights the active materials available to contributors.
 
 # References
 
-- Templates: `_template.md`, `_template.code-structure.md`
+- Templates: [`docs/templates/`](../templates/README.md)
