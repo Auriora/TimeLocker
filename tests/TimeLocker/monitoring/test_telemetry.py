@@ -1,5 +1,3 @@
-import os
-
 import pytest
 from opentelemetry.sdk.metrics.export import MetricExportResult, MetricExporter
 from opentelemetry.sdk.trace.export import SpanExportResult, SpanExporter
@@ -67,15 +65,15 @@ def test_setup_telemetry_uses_custom_exporters(monkeypatch: pytest.MonkeyPatch) 
     metric_exporter = DummyMetricExporter()
 
     config = TelemetryConfig(
-            enabled=True,
-            api_key="test-key",
-            endpoint="https://eu.i.posthog.com",
+        enabled=True,
+        api_key="test-key",
+        endpoint="https://eu.i.posthog.com",
     )
 
     handle = setup_telemetry(
-            config,
-            span_exporter_factory=lambda _: span_exporter,
-            metric_exporter_factory=lambda _: metric_exporter,
+        config,
+        span_exporter_factory=lambda _: span_exporter,
+        metric_exporter_factory=lambda _: metric_exporter,
     )
 
     assert isinstance(handle, TelemetryHandle)
@@ -107,7 +105,8 @@ def test_backend_posthog_selected(monkeypatch: pytest.MonkeyPatch) -> None:
         def close(self):
             calls["close"] = True
 
-    import types, sys
+    import sys
+    import types
 
     fake_module = types.SimpleNamespace(Posthog=FakePosthog)
     sys.modules["posthog"] = fake_module  # type: ignore[assignment]
@@ -115,6 +114,7 @@ def test_backend_posthog_selected(monkeypatch: pytest.MonkeyPatch) -> None:
     import TimeLocker.monitoring.telemetry as telemetry
 
     monkeypatch.setenv("TIMELOCKER_TELEMETRY_BACKEND", "posthog")
+    monkeypatch.setenv("TIMELOCKER_TELEMETRY_ENABLED", "true")
     monkeypatch.setenv("POSTHOG_API_KEY", "k")
     monkeypatch.setenv("POSTHOG_HOST", "https://eu.i.posthog.com")
 
@@ -127,7 +127,9 @@ def test_backend_posthog_selected(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "capture" in calls
 
 
-def test_auto_mode_disables_in_ci_even_with_key(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_auto_mode_disables_in_ci_even_with_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("CI", "true")
     monkeypatch.setenv("POSTHOG_API_KEY", "secret-key")
     monkeypatch.delenv("TIMELOCKER_TELEMETRY_ENABLED", raising=False)
