@@ -71,15 +71,15 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006
   - Evidence mode: implementation
   - Evidence: `test ! -e .kiro/specs` returned 0 after removal of 44 tracked files and empty directories. `rg` found zero retained Markdown links targeting the legacy tree. CLI and recovery references now target current durable docs.
 
-- [ ] T006 Validate, commit the final Spec 003 state, record closure, and remove the temporary package.
+- [x] T006 Validate the migration and prepare the final Spec 003 state for closure.
   - Depends on: T005
   - Requirement: Requirement 3
   - Acceptance Criteria: Requirement 3 AC1; Requirement 3 AC2; Requirement 3 AC3
   - Properties: CP-001-CP-004
   - Files: `docs/specs/003-migrate-legacy-kiro-specs/`, `docs/history/`, Git history
-  - Acceptance: Lifecycle, archive, link, legacy-target, Markdown, and formatting checks pass; final and cleanup commits are recorded.
+  - Acceptance: Lifecycle, link, legacy-target, syntax, and formatting checks pass; the migration commit is recorded and the package is ready for its required final-state commit.
   - Evidence mode: validation
-  - Evidence: Pending.
+  - Evidence: Migration commit `c32f9a3` preserves the complete source-removal change. Spec lifecycle lint has 0 findings and stage readiness has 0 gaps; `scripts/link_checker.py` scanned 111 docs and 215 links with 0 broken links; legacy link and directory checks, example `py_compile`, and `git diff --check` passed. The package is ready for its final-state commit and recorded removal.
 
 ## Execution Rules
 

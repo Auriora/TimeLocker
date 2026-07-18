@@ -19,18 +19,18 @@ all packages under `.kiro/specs/`.
 | Gate | Required? | Status | Evidence |
 |------|-----------|--------|----------|
 | Requirements acceptance criteria reviewed | yes | passed | User approved the selective migration plan. |
-| Task evidence complete | yes | pending | T001-T005 complete; T006 is the closure sequence. |
+| Task evidence complete | yes | passed | T001-T006 complete with concrete evidence. |
 | Automated tests pass or alternate verification recorded | yes | passed | All 316 focused tests passed; scoped coverage-gate distinction recorded below. |
 | Durable documentation updates identified | yes | passed | `change-impact.md`. |
 | Durable documentation promoted or explicitly deferred | yes | passed | Fifteen-package disposition matrix and current owners below. |
-| Spec cleanup decision recorded | yes | pending | Remove after final-state commit. |
+| Spec cleanup decision recorded | yes | passed | Remove after final-state commit. |
 | Governance or policy conflicts resolved | yes | passed | Active-only spec policy governs migration. |
 
 ## Validation Commands
 
 | Command | Purpose | Result | Evidence |
 |---------|---------|--------|----------|
-| Spec Lifecycle Manager scan/lint/readiness/evidence/audit/closure/archive | Package and history integrity | pending | |
+| Spec Lifecycle Manager scan/lint/readiness/evidence/audit/closure | Package integrity | passed | Lint, task audit, and evidence quality have zero findings; readiness has zero gaps; closure is ready with no blockers and low risk. |
 | Focused `pytest` commands selected from uncertain packages | Current completion evidence | passed with alternate gate | 316 passed; exit 1 only for 26.72% scoped coverage versus the repository-wide 50% threshold. |
 | `python scripts/link_checker.py` | Retained internal links | passed | 111 documents and 215 links scanned; zero broken links. |
 | `test ! -e .kiro/specs` and Markdown-link `rg` scan | Legacy authority removal | passed | Source tree absent; zero retained Markdown links target it. |
@@ -75,7 +75,7 @@ all packages under `.kiro/specs/`.
 | T003 | complete | No new package justified; Spec 001 remains authoritative | |
 | T004 | complete | Durable ownership matrix and redirected retained references | |
 | T005 | complete | Legacy tree absent and zero retained Markdown links target it | |
-| T006 | pending | | |
+| T006 | complete | Migration commit `c32f9a3`; lifecycle, link, legacy-target, syntax, and formatting checks passed | Final-state commit follows this record. |
 
 ## Evidence Log
 
@@ -84,6 +84,7 @@ all packages under `.kiro/specs/`.
 | 2026-07-18 | Legacy task marker inventory | passed | Thirteen ordinary packages plus two deferred requirements packages. |
 | 2026-07-18 | Spec Lifecycle Manager `scan_specs` | passed | Two active packages, both healthy; fallback package templates authoritative. |
 | 2026-07-18 | Focused legacy-risk test selection | passed with alternate gate | All 316 selected tests passed in 83.55 seconds. The command exit was 1 only because subset coverage was 26.72% against the repository-wide 50% threshold; test execution had zero failures. |
+| 2026-07-18 | Final lifecycle validation | passed | Lint, task audit, and evidence quality: zero findings; readiness: zero gaps; closure: ready; closure risk: low. |
 
 ## Legacy Package Dispositions
 
@@ -130,7 +131,7 @@ precedence. Each of the fifteen packages has exactly one destination.
 |--------------|---------------------------------|--------|----------|
 | Verified active legacy work | numbered lifecycle package | complete | No new package; Spec 001 already owns accepted remaining scope. |
 | Implemented current behavior | owning durable docs | complete | Fifteen-package disposition matrix. |
-| Completed/stale/deferred source | Git plus compact history | in progress | Source removal complete; commit and history entry pending. |
+| Completed/stale/deferred source | Git plus compact history | complete | Source removal is preserved by `c32f9a3`; compact history is the closure step. |
 | CLI refactoring | Spec 001 | complete | Existing healthy package. |
 
 ### Spec Cleanup Decision
@@ -139,10 +140,10 @@ precedence. Each of the fifteen packages has exactly one destination.
 - **Reason:** Temporary migration control package.
 - **Final spec commit:** pending
 - **Closure log path:** `docs/history/spec-closure-log.md`
-- **Closure log entry updated:** no
+- **Closure log entry updated:** no; performed immediately after the final-state commit
 - **Closure cleanup commit:** pending
-- **Active indexes updated:** no
-- **Durable docs linked back to evidence where useful:** no
+- **Active indexes updated:** yes; Spec 003 is listed until removal
+- **Durable docs linked back to evidence where useful:** yes
 - **Residual spec-only content:** reconciliation and validation evidence until closure
 
 ## Ship Or Closure Risk
@@ -153,13 +154,13 @@ precedence. Each of the fifteen packages has exactly one destination.
 - **Rollback path:** Git restore or revert
 - **Requires human review:** no; user approved the selective migration
 - **Release notes needed:** no
-- **Follow-up issue or spec needed:** depends on reconciliation
+- **Follow-up issue or spec needed:** no
 
 ## Readiness Decision
 
-- **Ready for promotion:** no
+- **Ready for promotion:** yes
 - **Ready for release:** not applicable
-- **Ready for closure:** no
+- **Ready for closure:** yes
 
 ## Related Artifacts
 
