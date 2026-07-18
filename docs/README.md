@@ -1,6 +1,6 @@
 # TimeLocker Documentation
 
-Last updated: 2026-04-23
+Last updated: 2026-07-18
 
 ## Overview
 
@@ -46,17 +46,17 @@ contributors and operators can navigate the knowledge base quickly.
 ### Contributing & Maintenance
 
 1. Review current initiatives in [Tasks-to-Issues Map](./0-project-management/tasks-to-issues-map.md) and the latest [updates entry](./updates/index.md).
-2. Consult [cli_helpers_extraction.md](./plans/cli_helpers_extraction.md) and other plans for active refactors or feature work.
+2. Consult the [active plans inventory](./plans/README.md#active-plans) for current refactors or feature work.
 3. Follow house style from [guides/ai-agent/](./guides/ai-agent/README.md) when authoring new documentation or automation.
 4. Capture changes in `docs/updates/` using the [update template](./updates/_template.md).
 
 ## 📊 Project Status Summary
 
-- **Current posture**: Beta CLI application with broad feature coverage and active consolidation work across the command layer and top-level docs.
+- **Current posture**: Beta CLI application with broad feature coverage and one active CLI consolidation plan.
 - **Status reference**: [Documentation Status Report](./DOCUMENTATION-STATUS.md) is the current high-level assessment; prefer it over older milestone reports.
 - **Implementation history**: See the [updates index](./updates/index.md) for the latest implementation and consolidation notes.
 - **Open work queue**: [Tasks-to-Issues Map](./0-project-management/tasks-to-issues-map.md) is the authoritative crosswalk between docs and GitHub issues.
-- **Active plans**: The [plans directory](./plans/README.md) tracks approved execution plans and stabilization work.
+- **Active plans**: The [plans directory](./plans/README.md#active-plans) separates active, completed, and superseded work.
 
 ## 🎯 Current Focus
 
@@ -128,4 +128,4 @@ Use the newest entries in [docs/updates](./updates/index.md) and the active item
 3. Ensure new documents include metadata consistent with their directory’s README and templates (e.g., `docs/_template/`).
 4. Align ongoing work with the authoritative mappings in [tasks-to-issues-map.md](./0-project-management/tasks-to-issues-map.md) to preserve traceability.
 
-*Last Updated: 2026-04-23*
+*Last Updated: 2026-07-18*

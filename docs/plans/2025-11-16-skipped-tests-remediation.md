@@ -2,9 +2,9 @@
 title: "RFC: Skipped Test Remediation Roadmap"
 id: "rfc-2025-11-skipped-tests"
 type: [ plan ]
-status: [ draft ]
+status: [ completed ]
 owner: "Codex Agent"
-last_reviewed: "16-11-2025"
+last_reviewed: "18-07-2026"
 tags: [plan, tests, cli, monitoring]
 links:
   tooling: [pytest]
@@ -13,8 +13,8 @@ links:
 # RFC: Skipped Test Remediation Roadmap
 
 - **Owner**: Codex Agent
-- **Status**: Draft
-- **Last Updated**: 16-11-2025
+- **Status**: Completed
+- **Last Updated**: 18-07-2026
 - **Created Date**: 16-11-2025
 - **Audience**: CLI maintainers, QA, Monitoring & Repository sub-teams
 
@@ -120,6 +120,7 @@ Without a remediation plan, we cannot trust CLI coverage during refactors, and s
 | Date | Decision | Notes |
 | --- | --- | --- |
 | 16-11-2025 | Draft remediation plan created and approved by user | Aligns with AI agent planning protocol |
+| 18-07-2026 | Marked completed | Current test scan contains only environment-conditional telemetry skips |
 
 ## 7. Progress Update (2025-11-16)
 

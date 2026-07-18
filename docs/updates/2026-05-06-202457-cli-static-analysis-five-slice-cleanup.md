@@ -2,9 +2,9 @@
 title: "Update: CLI Static Analysis Five-Slice Cleanup"
 id: "update-2026-05-06-202457-cli-static-analysis-five-slice-cleanup"
 type: [ update ]
-status: [ draft ]
+status: [ approved ]
 owner: "Agent"
-last_reviewed: "06-05-2026"
+last_reviewed: "18-07-2026"
 tags: [update, cli, static-analysis, policy, backup, repositories]
 links:
   tooling: [python-agent-ide, basedpyright, ruff, pytest]

@@ -2,20 +2,22 @@
 title: "Complete Implementation Plan: TimeLocker Specs & Refactoring"
 id: "plan-complete-implementation-2025-11-08"
 type: [ plan ]
-status: [ active ]
+status: [ superseded ]
 owner: "TimeLocker Development Team"
 created: "08-11-2025"
-last_updated: "08-11-2025"
+last_updated: "18-07-2026"
 tags: [plan, implementation, roadmap, specs, refactoring]
 links:
   related:
     - docs/reports/2025-11-08-082339-phase1-completion-status.md
-    - docs/archive/cli-refactoring/cli-refactoring-additional-opportunities.md
 ---
 
 # Complete Implementation Plan: TimeLocker Specs & Refactoring
 
 ## Executive Summary
+
+> **Lifecycle note (2026-07-18):** This roadmap is superseded. Current work is tracked through the live GitHub issue map and the active plans listed in
+> `docs/plans/README.md`. The progress figures below are retained as historical planning context and must not be treated as current status.
 
 This plan provides the implementation order for completing all remaining TimeLocker specifications and CLI refactoring improvements.
 
@@ -584,6 +586,5 @@ CLI Refactoring can proceed in parallel with Phase 3-4 implementation:
 ## References
 
 - Phase 1 Status: [docs/reports/2025-11-08-082339-phase1-completion-status.md](../reports/2025-11-08-082339-phase1-completion-status.md)
-- CLI Refactoring Opportunities: [docs/archive/cli-refactoring/cli-refactoring-additional-opportunities.md](../archive/cli-refactoring/cli-refactoring-additional-opportunities.md)
 - Spec Files: `.kiro/specs/`
 - Implementation Updates: `docs/updates/`

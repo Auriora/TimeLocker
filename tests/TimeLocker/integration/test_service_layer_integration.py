@@ -490,6 +490,7 @@ class TestServiceFacadeIntegration:
         mock_service_manager.shutdown_services.assert_called_once()
 
 
+@pytest.mark.performance
 class TestServiceLayerPerformanceBenchmarks:
     """Performance benchmarks for service layer components"""
     

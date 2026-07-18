@@ -2,9 +2,9 @@
 title: "Update: Services And Integration Validation"
 id: "update-2026-05-06-212010-services-integration-validation"
 type: [ update ]
-status: [ draft ]
+status: [ approved ]
 owner: "Agent"
-last_reviewed: "06-05-2026"
+last_reviewed: "18-07-2026"
 tags: [update, tests, services, integration, validation]
 links:
   tooling: [python-agent-ide, pytest]

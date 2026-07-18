@@ -4,7 +4,7 @@ id: "RM-017"
 type: [ readme ]
 status: [ approved ]
 owner: "Auriora Team"
-last_reviewed: "27-10-2023"
+last_reviewed: "18-07-2026"
 tags: [readme, updates]
 links:
   tooling: []
@@ -15,7 +15,7 @@ links:
 - **Owner**: Auriora Team
 - **Status**: Approved
 - **Created Date**: 27-10-2023
-- **Last Updated**: 08-11-2025
+- **Last Updated**: 18-07-2026
 
 ## 1. Purpose
 
@@ -47,6 +47,16 @@ that explains the *why* and *what* of a change.
   - **Format**: Year-Month-Day-HourMinuteSecond-descriptive-slug
   - **Example**: `2025-11-08-082339-repository-manager-implementation.md`
   - **Rationale**: Timestamp ensures uniqueness and precise chronological ordering
+
+### Update Lifecycle
+
+- `draft`: evidence or wording is incomplete and must not be cited as an approved outcome
+- `in_review`: implementation evidence is present and awaiting review
+- `approved`: claims, links, and validation evidence have been reviewed
+
+An update may describe incomplete implementation while still being `approved`; approval means the record is accurate, not that every follow-up is complete.
+Investigations must link to later fixes or explicitly say the finding remains open. Review draft entries before release and do not leave completed work in draft
+indefinitely.
 
 ## 5. Available Templates
 

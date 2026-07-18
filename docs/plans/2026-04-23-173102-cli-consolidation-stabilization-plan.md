@@ -2,9 +2,9 @@
 title: "RFC: CLI Consolidation Stabilization Plan"
 id: "rfc-2026-04-23-173102-cli-consolidation-stabilization-plan"
 type: [ plan ]
-status: [ accepted ]
+status: [ active ]
 owner: "Codex"
-last_reviewed: "23-04-2026"
+last_reviewed: "18-07-2026"
 tags: [plan, cli, consolidation, service-layer, configuration, monitoring]
 links:
   tooling: [pytest, python-agent-ide]
@@ -13,8 +13,8 @@ links:
 # RFC: CLI Consolidation Stabilization Plan
 
 - **Owner**: Codex
-- **Status**: Accepted
-- **Last Updated**: 23-04-2026
+- **Status**: Active
+- **Last Updated**: 18-07-2026
 - **Created Date**: 23-04-2026
 - **Audience**: Engineering Teams, Reviewers
 
@@ -105,7 +105,7 @@ Implement the consolidation in bounded slices:
    Status: Pending
    Success check: one monitoring command-facing integration path remains.
 8. Refresh docs and trace execution
-   Status: In Progress
+   Status: Completed on 2026-07-18
    Success check: update plan and update-log entries exist for each landed slice.
 
 ## 7. Initial Execution Notes

@@ -349,11 +349,11 @@ For detailed documentation, please refer to:
 
 - [**Architecture Documentation**](docs/2-architecture/README.design.md) - System architecture and design
 - [**Implementation Guides**](docs/3-implementation/README.md) - Implementation details and patterns
-- [**API References**](docs/reference/) - API references for backup and recovery operations
+- [**API References**](docs/reference/README.md) - API references for backup and recovery operations
 - [**Testing Documentation**](docs/4-testing/README.md) - Testing guides and strategies
 - [**System Tray Setup**](docs/SYSTEM-TRAY-SETUP.md) - Optional system tray integration
-- [**User Guides**](docs/guides/user/) - End-user documentation
-- [**Developer Guides**](docs/guides/developer/) - Developer documentation
+- [**User Guides**](docs/guides/user/README.md) - End-user documentation
+- [**Developer Guides**](docs/guides/developer/README.md) - Developer documentation
 
 ### Key Architecture Documents
 
@@ -365,10 +365,8 @@ For detailed documentation, please refer to:
 
 ### Change History
 
-- [Updates Directory](docs/updates/) - Detailed change history and implementation notes
+- [Updates Directory](docs/updates/README.md) - Detailed change history and implementation notes
 - [Documentation Status](docs/DOCUMENTATION-STATUS.md) - Current documentation health status
-
-> **Note**: Some older documentation links in this README are outdated. Please use the links above for the most current information.
 
 ## Contributing
 
@@ -399,10 +397,7 @@ This is particularly suitable for libraries and applications that you want to re
 
 ## Document Information
 
-- Version: 1.0.0
-- Last Updated: 2025-11-13
+- Version: 0.9.0
+- Last Updated: 2026-07-18
 - Author: Bruce Cherrington
 - Copyright © Bruce Cherrington
-
-> **Note**: This README is being updated to reflect the current implementation. The repository structure and some documentation links are outdated and will be
-> updated in a future revision. For the most current documentation, see the `docs/` directory, particularly `docs/2-architecture/` and `docs/3-implementation/`.

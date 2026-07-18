@@ -2,9 +2,9 @@
 title: "Update: Repos Add Set Default Fix"
 id: "update-2026-05-06-203537-repos-add-set-default-fix"
 type: [ update ]
-status: [ draft ]
+status: [ approved ]
 owner: "Agent"
-last_reviewed: "06-05-2026"
+last_reviewed: "18-07-2026"
 tags: [update, cli, repositories, e2e]
 links:
   tooling: [python-agent-ide, pytest, basedpyright, ruff]

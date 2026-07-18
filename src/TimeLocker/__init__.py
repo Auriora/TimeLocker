@@ -37,7 +37,7 @@ from .config.configuration_manager import ConfigurationManager
 # Integration components
 from .integration import IntegrationService
 
-__version__ = "1.0.0"
+__version__ = "0.9.0"
 
 __all__ = [
         # Core components

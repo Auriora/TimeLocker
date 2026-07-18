@@ -2,9 +2,9 @@
 title: "RFC: CLI Helpers Extraction"
 id: "rfc-cli-helpers-extraction"
 type: [ plan ]
-status: [ accepted ]
+status: [ completed ]
 owner: "CLI Team"
-last_reviewed: "01-11-2025"
+last_reviewed: "18-07-2026"
 tags: [ plan, refactor, cli ]
 links:
     tooling: [ ]
@@ -13,8 +13,8 @@ links:
 # RFC: CLI Helpers Extraction
 
 - **Owner**: CLI Team
-- **Status**: Accepted
-- **Last Updated**: 01-11-2025
+- **Status**: Completed
+- **Last Updated**: 18-07-2026
 - **Created Date**: 19-12-2024
 - **Audience**: Engineering Teams, QA, Reviewers
 
@@ -70,6 +70,7 @@ required complex CLI invocation, slowing feedback and obscuring failures. Succes
 - 19-12-2024 – RFC approved; work scheduled for Phase 4 integration refactors.
 - 20-12-2024 – Refactor merged; unit and integration tests passing.
 - 01-11-2025 – Document reformatted to repository plan template.
+- 18-07-2026 – Lifecycle reconciled to completed after implementation and test evidence review.
 
 # References
 

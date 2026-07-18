@@ -1,9 +1,10 @@
 ---
 title: "Implementation Plan: Restore Namespace"
 type: [ plan ]
-status: [ approved ]
+status: [ completed ]
 priority: high
 created: "2025-11-11"
+last_reviewed: "2026-07-18"
 owner: "CLI Team"
 tags: [cli, recovery-operations, implementation-plan]
 related_specs: [cli-interface, recovery-operations]
@@ -12,6 +13,8 @@ related_specs: [cli-interface, recovery-operations]
 # Implementation Plan: Restore Namespace
 
 ## Executive Summary
+
+**Lifecycle status**: Completed. The restore namespace and follow-up CLI documentation are present; this plan is retained for implementation traceability.
 
 Implement the `restore` namespace to achieve CLI Interface Requirements compliance. The current implementation violates Requirement 13 by missing the entire `restore` namespace. With no existing users, we can implement the correct architecture immediately without migration concerns.
 

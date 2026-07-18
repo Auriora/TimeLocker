@@ -37,6 +37,12 @@ Describe the change, reasoning, and any alternatives considered.
 - Updated docs references
 - Additional resources or external specs
 
+## 5. Review Outcome
+
+- **Review state**: [Draft | In review | Approved]
+- **Evidence reviewed**: [commands, diagnostics, issue/PR links]
+- **Open follow-up**: [none, or links to tracked work]
+
 <!-- Add more numbered sections as needed, e.g., ## 5. [Another Section Title] -->
 
 # References

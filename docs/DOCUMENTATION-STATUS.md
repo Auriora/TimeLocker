@@ -1,136 +1,110 @@
 # Documentation Status Report
 
-Last updated: 2026-04-23
+Last updated: 2026-07-18
 
-**Date**: 2026-04-23
-**Status**: ⚠️ Partially Current - consolidation in progress
+**Date**: 2026-07-18
+
+**Status**: Current for top-level project, lifecycle, and test-governance surfaces
 
 ## Overview
 
-This document tracks the current state of TimeLocker documentation after a targeted review of the top-level project surfaces. The documentation set is broad
-and mostly useful, but some release and status claims had drifted ahead of the observable implementation state.
-
-## Documentation Health: MIXED
-
-Most architecture, implementation, and guide material is still valuable. The gaps were concentrated in high-visibility status surfaces such as the root
-README, this report, and release-oriented metadata.
+This report records the current documentation posture after reconciling top-level status claims, plan and update lifecycles, issue traceability, release history,
+and test-governance configuration. It is the high-level status reference; implementation details remain in their owning architecture, reference, and update
+documents.
 
 ## Current Assessment
 
-### Currently Implemented, With Ongoing Consolidation
+### Implemented, With Ongoing Consolidation
 
-| Feature                | Status              | Documentation                                                      |
-|------------------------|---------------------|--------------------------------------------------------------------|
-| CLI Interface          | Implemented, active | [CLI Modules](3-implementation/cli-modules.md)                     |
-| Repository Management  | Implemented, active | [Component Breakdown](2-architecture/component-breakdown.md)       |
-| Backup Operations      | Implemented, active | [Backup API](reference/backup-operations-api.md)                   |
-| Recovery Operations    | Implemented, active | [Recovery API](reference/recovery-operations-api.md)               |
-| Policy Management      | Implemented in part | [Policy Management](3-implementation/policy-management.md)         |
-| Data Selection         | Implemented, active | Multiple docs                                                      |
-| Scheduling System      | Implemented, active | [Scheduling System](2-architecture/scheduling-system.md)           |
-| Security System        | Implemented, active | [Security System](2-architecture/security-system.md)               |
-| Integration Layer      | Implemented, active | [Integration Layer](2-architecture/integration-layer.md)           |
-| Performance Monitoring | Implemented, active | [Performance Monitoring](2-architecture/performance-monitoring.md) |
-| System Tray (Optional) | Implemented, niche  | [System Tray Setup](SYSTEM-TRAY-SETUP.md)                          |
+- Implemented and active: [CLI interface](3-implementation/cli-modules.md),
+  [repository management](2-architecture/component-breakdown.md), [backup operations](reference/backup-operations-api.md),
+  [recovery operations](reference/recovery-operations-api.md), [data selection](reference/repo-orientation-and-change-map.md),
+  [scheduling](2-architecture/scheduling-system.md), [security](2-architecture/security-system.md),
+  [integrations](2-architecture/integration-layer.md), and [performance monitoring](2-architecture/performance-monitoring.md).
+- Implemented in part: [policy management](3-implementation/policy-management.md).
+- Implemented and optional: [system tray integration](SYSTEM-TRAY-SETUP.md).
 
-### Design Specifications (Not Yet Implemented)
+### Design Specifications, Not Implemented
 
-| Feature          | Status         | Documentation                                                                   |
-|------------------|----------------|---------------------------------------------------------------------------------|
-| REST API         | Design only    | [API Reference](2-architecture/api-reference.md)                                |
-| Desktop GUI      | Design only    | [Component Breakdown](2-architecture/component-breakdown.md)                    |
-| Database Storage | Design only    | [Data Model](2-architecture/data-model.md)                                      |
+- [REST API](2-architecture/api-reference.md)
+- [Desktop GUI](2-architecture/component-breakdown.md)
+- [Database storage](2-architecture/data-model.md)
 
-## Repo Reality Snapshot
+## Current Work and Governance
 
-- The repository currently exposes a large CLI surface and a broad automated test suite.
-- Recent top-level cleanup improved release and status accuracy, but some secondary status pages were still anchored to older milestone language.
-- The highest current documentation risk is overstating maturity or pointing readers at outdated "latest status" artifacts.
+- The active implementation plan is the [CLI consolidation stabilization plan](plans/2026-04-23-173102-cli-consolidation-stabilization-plan.md).
+- GitHub issues are the live work-state authority; [tasks-to-issues-map.md](0-project-management/tasks-to-issues-map.md) is a dated repository snapshot and
+  navigation aid.
+- [Plans](plans/README.md) and [updates](updates/README.md) now define explicit lifecycle states and review expectations.
+- The project package remains version `0.9.0` and Beta; the changelog no longer represents the old `v1.0.0` design inventory as a released implementation.
+- Pytest configuration is owned by `pyproject.toml`. The main coverage suite runs for pull requests, pushes, and manual dispatches; timing-sensitive performance
+  and stress tests run without coverage instrumentation in a separate manual job.
 
-## Quality Snapshot
+## Documentation Health
 
-### Coverage: GOOD
+### Coverage: Good
 
-- Architecture documentation is broad and still useful.
-- Implementation docs cover most major subsystems.
-- User and developer guides are generally usable.
-- Updates history is extensive and helps reconstruct migration context.
+- Architecture, implementation, user, developer, reference, and historical update collections cover the main product surfaces.
+- The documentation hub and plan inventory provide current navigation paths.
+- Completed and superseded plans are separated from active work.
 
-### Accuracy: MIXED
+### Accuracy: Improved, With Bounded Follow-Up
 
-- Top-level install and status claims have been improved, but older milestone reports are still easy to misread as current state.
-- Older update entries still describe blockers that have since changed.
-- Code examples in implementation/reference docs are often useful, but not every example has been re-verified against the latest command composition.
+- The previous README and status-navigation gaps were resolved during the April and July 2026 consolidation passes.
+- Nine May 2026 update records were reviewed and promoted from draft to approved.
+- Older historical documents can still contain obsolete implementation claims; their directory and lifecycle context must be preserved when citing them.
+- Examples outside the top-level and active-plan surfaces have not all been re-executed against the current CLI.
 
-### Organization: STRONG
+### Organization: Strong
 
-- The `docs/` tree remains well structured.
-- Cross-link density is high.
-- Templates and update/report conventions are in place.
+- The `docs/` tree follows the repository structure and keeps task updates separate from durable reference material.
+- Current work is routed through GitHub issues, the active plan inventory, and the update index.
+- Templates now encode lifecycle expectations for future plans and updates.
 
-## Known Gaps
+## Remaining Gaps
 
-1. Top-level release and maturity claims were overstated relative to current implementation quality.
-2. The root `README.md` had drifted from the current repository layout and linked to a non-existent install path.
-3. Status documents, including this one, needed to stop presenting prior audits as authoritative without re-validation.
-4. `docs/README.md` still referenced an older phase-completion report as the latest project status even after the April 2026 consolidation pass.
+1. The active CLI consolidation plan still has pending repository-resolver, service-manager fan-out, and monitoring-path work.
+2. GitHub branch protection must require the restored test workflow after that workflow has run successfully on the default branch.
+3. Historical examples and secondary guides should be revalidated when their owning behavior changes or before a release.
+4. The two telemetry system tests remain environment-conditional and require the PostHog package/API key for live execution.
+5. Core-suite coverage is 51.8% against an enforced 50% baseline; the threshold should only move upward as focused tests add durable coverage.
 
-## Maintenance Guidance
+## Maintenance Cadence
 
-### When to Update Documentation
-
-1. Update top-level docs when release posture or maturity claims change.
-2. Update reference docs when public CLI or API behavior changes.
-3. Add `docs/updates/` entries for substantial implementation or consolidation work.
-4. Re-check top-level links before tagging a release.
-
-### Recommended Review Cadence
-
-- Weekly: scan `docs/updates/` for changes that should be reflected elsewhere.
-- Monthly: review top-level docs (`README.md`, `docs/README.md`, `docs/DOCUMENTATION-STATUS.md`) for drift.
-- Before release: verify install steps, current repo layout, and status wording.
+- Weekly: review new `docs/updates/` entries for durable documentation impact.
+- Monthly: review `README.md`, `docs/README.md`, this report, the issue map, and all `active` plans.
+- Before release: run the full test and documentation checks, verify installation instructions, reconcile the changelog, and confirm branch protection.
 
 ## Quick Links
 
 ### For Developers
 
-- [Architecture Index](2-architecture/README.design.md)
-- [Implementation Docs](3-implementation/README.md)
-- [API References](reference/)
-- [Testing Guides](4-testing/README.md)
+- [Architecture index](2-architecture/README.md)
+- [Implementation documentation](3-implementation/README.md)
+- [API references](reference/README.md)
+- [Testing guides](4-testing/README.md)
 
 ### For Users
 
-- [User Guides](guides/user/)
-- [CLI Command Reference](reference/timelocker-cli-command-hierarchy.md)
-- [System Tray Setup](SYSTEM-TRAY-SETUP.md)
+- [User guides](guides/user/README.md)
+- [CLI command reference](reference/timelocker-cli-command-hierarchy.md)
+- [System tray setup](SYSTEM-TRAY-SETUP.md)
 
 ### For Contributors
 
-- [Developer Guides](guides/developer/)
-- [AI Agent Rules](guides/ai-agent/README.md)
-- [Testing Overview](4-testing/testing-overview.md)
+- [Developer guides](guides/developer/README.md)
+- [AI agent rules](guides/ai-agent/README.md)
+- [Active plans](plans/README.md#active-plans)
+- [Updates index](updates/index.md)
 
 ## Verification
 
-Last focused documentation review: **2026-04-23**
-Next recommended audit: **2026-05-15**
+This refresh was checked against:
 
-This review was checked against:
+- current Git state and live GitHub issue state on 2026-07-18
+- root and documentation entry points
+- plan and update lifecycle metadata
+- pytest and GitHub Actions configuration
+- targeted Markdown structure and link checks
 
-- Codebase: `/src/TimeLocker/`
-- Top-level docs: `README.md`, `docs/README.md`, `docs/DOCUMENTATION-STATUS.md`
-- Current implementation seams under `src/TimeLocker/cli_services.py` and `src/TimeLocker/restore_manager.py`
-- Current CLI composition seam under `src/TimeLocker/cli.py` and `src/TimeLocker/cli_modules/commands/`
-
-## Contact
-
-For documentation issues or questions:
-
-- Create issue at: https://github.com/Auriora/TimeLocker/issues
-- Tag with: `documentation`
-
----
-
-**Status Summary**: ⚠️ Documentation coverage is broad and mostly usable, but high-visibility status surfaces still require active maintenance so they do not
-overstate maturity or lag behind current consolidation work.
+The implementation update for this pass records the exact commands and residual limitations.

@@ -2,9 +2,9 @@
 title: "Update: Unrelated E2E Failure Investigation"
 id: "update-2026-05-06-203255-unrelated-e2e-failure-investigation"
 type: [ update ]
-status: [ draft ]
+status: [ approved ]
 owner: "Agent"
-last_reviewed: "06-05-2026"
+last_reviewed: "18-07-2026"
 tags: [update, cli, e2e, repositories, backup]
 links:
   tooling: [python-agent-ide, pytest]
@@ -49,6 +49,9 @@ version had the same import shape, so this is not introduced by the static-analy
 
 Fix the `repos add --set-default` ordering/persistence issue first because it blocks multiple E2E flows. Then update the backup E2E patch target or restore a
 module-level compatibility alias in `backup.py`, depending on the preferred testing contract.
+
+Both findings were resolved later the same day; see `2026-05-06-203537-repos-add-set-default-fix.md` and
+`2026-05-06-204145-backup-e2e-patch-target-fix.md`.
 
 # References
 

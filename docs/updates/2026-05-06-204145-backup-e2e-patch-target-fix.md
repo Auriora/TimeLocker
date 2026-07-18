@@ -2,9 +2,9 @@
 title: "Update: Backup E2E Patch Target Fix"
 id: "update-2026-05-06-204145-backup-e2e-patch-target-fix"
 type: [ update ]
-status: [ draft ]
+status: [ approved ]
 owner: "Agent"
-last_reviewed: "06-05-2026"
+last_reviewed: "18-07-2026"
 tags: [update, cli, e2e, backup, tests]
 links:
   tooling: [python-agent-ide, pytest, basedpyright, ruff]

@@ -2,7 +2,7 @@
 title: "RFC: {{title}}"
 id: "rfc-{{id}}"
 type: [ plan ]
-status: [ draft | reviewing | accepted | rejected ]
+status: [ draft | reviewing | accepted | active | completed | superseded | rejected ]
 owner: "{{owner}}" # e.g., Author, Proposer
 last_reviewed: "{{DD-MM-YYYY}}"
 tags: [plan, rfc, tag1, tag2] # Practical tags for organization and search
@@ -13,7 +13,7 @@ links:
 # RFC: {{title}}
 
 - **Owner**: {{owner}} # e.g., Author, Proposer
-- **Status**: [Draft | Reviewing | Accepted | Rejected]
+- **Status**: [Draft | Reviewing | Accepted | Active | Completed | Superseded | Rejected]
 - **Last Updated**: DD-MM-YYYY
 - **Created Date**: DD-MM-YYYY
 - **Audience**: [e.g., Engineering Teams, Stakeholders, Reviewers]

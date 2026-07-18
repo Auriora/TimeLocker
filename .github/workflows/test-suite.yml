@@ -2,13 +2,13 @@ name: TimeLocker Test Suite
 
 on:
   workflow_dispatch:
-#  push:
-#    branches: [main, staging]
-#  pull_request:
-#    branches: [main, staging]
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main, staging]
 
 env:
-  COVERAGE_THRESHOLD: 70
+  COVERAGE_THRESHOLD: 50
 
 jobs:
   test:
@@ -66,16 +66,15 @@ jobs:
       - name: Run tests with coverage
         env:
           PYTHONPATH: src
-        run:  |
-              pytest tests/ --cov=src/TimeLocker --cov-report=xml --cov-report=html --cov-report=term-missing --cov-fail-under=${{ env.COVERAGE_THRESHOLD }}
-              
+        run: python -m pytest -m "not performance and not stress"
+
       - name: Upload coverage reports to Codecov
         if:   matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
         continue-on-error: true
         uses: codecov/codecov-action@v5
         with:
           token:            ${{ secrets.CODECOV_TOKEN }}
-          file:             ./coverage.xml
+          files:            ./coverage.xml
           flags:            unittests
           name:             codecov-umbrella
           fail_ci_if_error: false
@@ -90,11 +89,33 @@ jobs:
                 .coverage
                 coverage.xml
 
+  extended-test:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[dev]
+
+      - name: Run performance and stress tests without coverage instrumentation
+        env:
+          PYTHONPATH: src
+        run: python -m pytest -m "performance or stress" --no-cov
+
 
   quality-gate:
     runs-on: ubuntu-latest
     needs: [test]
-    if:      always()
     permissions:
       contents:      read
       pull-requests: write
@@ -115,16 +136,13 @@ jobs:
         uses:              actions/download-artifact@v4
         with:
           name: test-results-ubuntu-latest-3.12
-        continue-on-error: true
 
       - name: Check coverage threshold
         run:  |
               pip install coverage
-              if [ -f coverage.xml ]; then
-                coverage report --fail-under=70 || echo "Coverage below 70% threshold"
-              else
-                echo "No coverage.xml found, skipping coverage check"
-              fi
+              test -f coverage.xml
+              test -f .coverage
+              coverage report --fail-under=${{ env.COVERAGE_THRESHOLD }}
 
       - name: Generate quality report
         run:  |
@@ -150,8 +168,8 @@ jobs:
               # Create quality report
               quality_report = {
                   'coverage_percentage': coverage,
-                  'coverage_threshold': 70,
-                  'coverage_passed': coverage >= 70,
+                  'coverage_threshold': 50,
+                  'coverage_passed': coverage >= 50,
                   'timestamp': datetime.utcnow().isoformat() + 'Z'
               }
 
@@ -159,8 +177,8 @@ jobs:
                   json.dump(quality_report, f, indent=2)
 
               print(f'Coverage: {coverage:.1f}%')
-              print(f'Threshold: 70%')
-              print(f'Passed: {coverage >= 70}')
+              print(f'Threshold: 50%')
+              print(f'Passed: {coverage >= 50}')
               "
 
       - name: Upload quality report

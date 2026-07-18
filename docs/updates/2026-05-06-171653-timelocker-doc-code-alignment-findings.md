@@ -2,9 +2,9 @@
 title: "Update: TimeLocker Doc/Code Alignment Findings"
 id: "update-2026-05-06-171653-timelocker-doc-code-alignment-findings"
 type: [ update ]
-status: [ draft ]
+status: [ approved ]
 owner: "Agent"
-last_reviewed: "06-05-2026"
+last_reviewed: "18-07-2026"
 tags: [update, docs, service-facade, alignment, implementation-plan]
 links:
   tooling: [python-agent-ide, basedpyright, ruff]

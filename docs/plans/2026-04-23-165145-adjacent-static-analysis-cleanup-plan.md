@@ -2,9 +2,9 @@
 title: "RFC: Adjacent Static Analysis Cleanup Plan"
 id: "rfc-2026-04-23-165145-adjacent-static-analysis-cleanup-plan"
 type: [ plan ]
-status: [ draft ]
+status: [ completed ]
 owner: "Codex"
-last_reviewed: "23-04-2026"
+last_reviewed: "18-07-2026"
 tags: [plan, typing, static-analysis, scheduling, services]
 links:
   tooling: [basedpyright, ruff, python-agent-ide]
@@ -13,8 +13,8 @@ links:
 # RFC: Adjacent Static Analysis Cleanup Plan
 
 - **Owner**: Codex
-- **Status**: Draft
-- **Last Updated**: 23-04-2026
+- **Status**: Completed
+- **Last Updated**: 18-07-2026
 - **Created Date**: 23-04-2026
 - **Audience**: Engineering Teams, Reviewers
 

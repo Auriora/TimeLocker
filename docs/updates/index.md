@@ -1,5 +1,6 @@
 # Update Index
 
+- [2026-07-18-091457-process-documentation-debt-cleanup](./2026-07-18-091457-process-documentation-debt-cleanup.md)
 - [2026-05-06-214605-scheduling-credential-static-analysis-smoke](./2026-05-06-214605-scheduling-credential-static-analysis-smoke.md)
 - [2026-05-06-212010-services-integration-validation](./2026-05-06-212010-services-integration-validation.md)
 - [2026-05-06-211110-cli-test-patch-target-cleanup](./2026-05-06-211110-cli-test-patch-target-cleanup.md)
@@ -85,7 +86,6 @@
 - [2025-11-07-115228-performance-monitoring-implementation](./2025-11-07-115228-performance-monitoring-implementation.md)
 - [2025-11-07-101920-cli-refactoring-phase3](./2025-11-07-101920-cli-refactoring-phase3.md)
 - [2025-11-07-095327-cli-refactoring-phase2-summary](./2025-11-07-095327-cli-refactoring-phase2-summary.md)
-- [2025-11-07-095256-cli-refactoring-phase2-progress](./2025-11-07-095256-cli-refactoring-phase2-progress.md)
 - [2025-11-07-093135-cli-refactoring-phase1](./2025-11-07-093135-cli-refactoring-phase1.md)
 - [2025-11-07-080303-named-repository-management](./2025-11-07-080303-named-repository-management.md)
 - [2025-11-07-074421-plugin-architecture-implementation](./2025-11-07-074421-plugin-architecture-implementation.md)

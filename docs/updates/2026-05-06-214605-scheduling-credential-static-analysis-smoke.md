@@ -2,9 +2,9 @@
 title: "Update: Scheduling Credential Static Analysis Smoke"
 id: "update-2026-05-06-214605-scheduling-credential-static-analysis-smoke"
 type: [ update ]
-status: [ draft ]
+status: [ approved ]
 owner: "Agent"
-last_reviewed: "06-05-2026"
+last_reviewed: "18-07-2026"
 tags: [update, static-analysis, scheduling, credentials, tests]
 links:
   tooling: [python-agent-ide, pytest, py_compile]

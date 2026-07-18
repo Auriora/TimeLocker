@@ -2,9 +2,9 @@
 title: "RFC: Stabilize CLI repo tests, scheduling adapters, and telemetry guardrails"
 id: "rfc-2025-11-22-testing-scheduling-telemetry"
 type: [ plan ]
-status: [ accepted ]
+status: [ completed ]
 owner: "Codex AI Agent"
-last_reviewed: "22-11-2025"
+last_reviewed: "18-07-2026"
 tags: [plan, testing, scheduling, telemetry]
 links:
   tooling: [pytest]
@@ -13,8 +13,8 @@ links:
 # RFC: Stabilize CLI repo tests, scheduling adapters, and telemetry guardrails
 
 - **Owner**: Codex AI Agent
-- **Status**: Accepted
-- **Last Updated**: 22-11-2025
+- **Status**: Completed
+- **Last Updated**: 18-07-2026
 - **Created Date**: 22-11-2025
 - **Audience**: Engineering, QA, Observability
 
@@ -58,6 +58,7 @@ requirements, and harden the new PostHog/OpenTelemetry integration so it is safe
 ## 6. Decision Log
 
 - 22-11-2025: Draft plan created for review. Pending approval from maintainers.
+- 18-07-2026: Marked completed after repository-test, scheduling-contract, and telemetry-guardrail evidence review.
 
 # References
 

@@ -2,9 +2,9 @@
 title: "Update: Repository Boundary Type Cleanup"
 id: "update-2026-05-06-201601-repository-boundary-type-cleanup"
 type: [ update ]
-status: [ draft ]
+status: [ approved ]
 owner: "Agent"
-last_reviewed: "06-05-2026"
+last_reviewed: "18-07-2026"
 tags: [update, cli, repositories, static-analysis]
 links:
   tooling: [python-agent-ide, basedpyright, ruff, pytest]

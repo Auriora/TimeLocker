@@ -4,7 +4,7 @@ id: "RM-010"
 type: [ readme ]
 status: [ approved ]
 owner: "Auriora Team"
-last_reviewed: "27-10-2023"
+last_reviewed: "18-07-2026"
 tags: [readme, plans]
 links:
   tooling: []
@@ -15,7 +15,7 @@ links:
 - **Owner**: Auriora Team
 - **Status**: Approved
 - **Created Date**: 27-10-2023
-- **Last Updated**: 27-10-2023
+- **Last Updated**: 18-07-2026
 
 ## 1. Purpose
 
@@ -44,16 +44,41 @@ concrete than proposals and are created after a proposal has been accepted.
 
 - **Naming Convention**: N/A for this file.
 
+### Plan Lifecycle
+
+Plans use one of these states:
+
+- `draft`: being written; not approved for execution
+- `reviewing`: awaiting a decision
+- `accepted`: approved but execution has not started
+- `active`: execution is in progress and task statuses must be maintained
+- `completed`: success criteria were met and linked evidence was reviewed
+- `superseded`: replaced by a newer plan, issue queue, or implementation direction
+- `rejected`: reviewed and intentionally not pursued
+
+Moving a plan to `completed` requires a linked update or equivalent validation evidence. Superseded and completed plans remain in place when other documents
+link to them; they are historical context, not active work. Review `active` plans monthly and before release.
+
 ## 5. Available Templates
 
 - `_template.md`: A generic template for any plan.
 - `_template.test-coverage-plan.md`: A specific template for creating a plan to improve test coverage.
 
-## Current Plans
+## Active Plans
 
-- `2026-04-23-173102-cli-consolidation-stabilization-plan.md` — phased cleanup plan for CLI registration, config access, repository resolution, and monitoring seams.
-- `2026-04-23-165145-adjacent-static-analysis-cleanup-plan.md` — follow-up cleanup plan for adjacent services and scheduling static-analysis debt after `tool_manager.py`.
-- `2025-11-22-testing-scheduling-telemetry-plan.md` — stabilization of CLI repo tests, scheduling adapters, and telemetry guardrails.
+- [`2026-04-23-173102-cli-consolidation-stabilization-plan.md`](./2026-04-23-173102-cli-consolidation-stabilization-plan.md) — active phased cleanup for repository resolution, service-manager fan-out, monitoring seams, and documentation tracing.
+
+## Completed Plans
+
+- [`2026-04-23-165145-adjacent-static-analysis-cleanup-plan.md`](./2026-04-23-165145-adjacent-static-analysis-cleanup-plan.md)
+- [`2025-11-22-testing-scheduling-telemetry-plan.md`](./2025-11-22-testing-scheduling-telemetry-plan.md)
+- [`2025-11-16-skipped-tests-remediation.md`](./2025-11-16-skipped-tests-remediation.md)
+- [`cli_helpers_extraction.md`](./cli_helpers_extraction.md)
+- [`restore-namespace-implementation-plan.md`](./restore-namespace-implementation-plan.md)
+
+## Superseded Plans
+
+- [`complete-implementation-plan.md`](./complete-implementation-plan.md) — replaced by the live GitHub issue queue and the active plan inventory above.
 
 # References
 

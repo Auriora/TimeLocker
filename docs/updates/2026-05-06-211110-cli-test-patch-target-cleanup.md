@@ -2,9 +2,9 @@
 title: "Update: CLI Test Patch Target Cleanup"
 id: "update-2026-05-06-211110-cli-test-patch-target-cleanup"
 type: [ update ]
-status: [ draft ]
+status: [ approved ]
 owner: "Agent"
-last_reviewed: "06-05-2026"
+last_reviewed: "18-07-2026"
 tags: [update, cli, tests, repositories, credentials]
 links:
   tooling: [python-agent-ide, pytest, py_compile]

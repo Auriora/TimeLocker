@@ -20,6 +20,7 @@ from typer.testing import CliRunner
 from TimeLocker.cli import app
 
 
+@pytest.mark.performance
 class TestCommandStartupPerformance:
     """Test command startup times meet performance requirements."""
     
