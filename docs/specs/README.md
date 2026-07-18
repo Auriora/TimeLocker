@@ -17,8 +17,6 @@ accepted content has been promoted and the package is closed.
 
 - [`001-cli-consolidation-stabilization`](./001-cli-consolidation-stabilization/requirements.md) —
   remaining CLI consolidation work migrated from the legacy active plan.
-- [`002-prune-historical-documentation`](./002-prune-historical-documentation/requirements.md) —
-  remove historical delivery artifacts and establish a current-state-only docs policy.
 
 ## When a Spec Is Needed
 

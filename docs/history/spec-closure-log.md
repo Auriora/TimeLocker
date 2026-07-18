@@ -15,6 +15,23 @@ final spec commit preserves the complete package.
 
 ## Entries
 
+### 2026-07-18 - 002-prune-historical-documentation
+
+- **Spec:** removed; recover from Git
+- **Title:** Prune Historical Documentation
+- **Final spec commit:** `0d10228`
+- **Closure cleanup commit:** pending
+- **Closure action:** removed
+- **Closed by:** Auriora Team
+- **Durable docs updated:** `docs/README.md`, `docs/DOCUMENTATION-STATUS.md`,
+  `docs/guides/ai-agent/`, and `docs/history/`
+- **Verification summary:** Package lint and task audit reported zero findings;
+  evidence quality reported ten concrete records; closure was ready; the link
+  checker found zero broken links across 111 documents and 215 links.
+- **Residual risks:** Agent Workbench retained advisory table-readability
+  findings; these do not affect link integrity or current-state authority.
+- **Follow-up:** Continue remaining CLI consolidation work under Spec 001.
+
 ### 2026-07-18 - 000-adopt-spec-lifecycle-manager
 
 - **Spec:** removed; recover from Git
