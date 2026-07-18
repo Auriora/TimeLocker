@@ -407,7 +407,8 @@ class RepositoryResolver:
         if not hasattr(repository, 'uri'):
             raise ConfigurationError("Repository missing 'uri' attribute")
     
-    def validate_repository_name_or_uri(self, value: str) -> None:
+    @staticmethod
+    def validate_repository_name_or_uri(value: str) -> None:
         """
         Validate repository name or URI format.
         

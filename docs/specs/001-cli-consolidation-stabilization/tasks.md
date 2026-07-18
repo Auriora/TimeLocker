@@ -54,20 +54,39 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010
 
 ## Phase 2: Remaining Consolidation
 
-- [ ] T005 Standardize CLI command modules on `RepositoryResolver`.
+- [x] T005 Standardize CLI command modules on `RepositoryResolver`.
   - Depends on: T004
-  - Status note: Ready; the repository-hygiene prerequisite closed on 2026-07-18.
+  - Status note: Completed 2026-07-18; T006 is now dependency-ready.
   - Requirement: Requirement 2
   - Acceptance Criteria: Requirement 2 AC1, Requirement 2 AC2
   - Properties: CP-001, CP-002
   - Files: `src/TimeLocker/cli_modules/commands/`, `src/TimeLocker/cli_modules/services/repository_resolver.py`, focused tests
   - Acceptance: Command modules use the service seam; remaining direct utility imports are documented compatibility cases with tests.
   - Validation: Focused resolver/command tests, CLI contract tests, and an import search.
-  - Evidence: Pending.
-  - [ ] T005.1 Inventory command callers, direct utility imports, and current tests.
-  - [ ] T005.2 Add or refine regression coverage for repository inputs and errors.
-  - [ ] T005.3 Migrate one coherent caller group and remove duplicate resolution logic.
-  - [ ] T005.4 Run focused validation and record commands/results.
+  - Evidence mode: implementation
+  - Evidence: Repository input validation in backup and snapshots now uses the
+    `RepositoryResolver` seam; restore's unused direct utility import was
+    removed. Focused resolver/command validation passed 87 tests; the unique
+    top-level command test passed; the direct-import search returned no matches;
+    package lint and `git diff --check` passed.
+  - [x] T005.1 Inventory command callers, direct utility imports, and current tests.
+    - Evidence: `rg` inventory on 2026-07-18 identified the three command
+      imports and existing resolver, backup, restore, snapshots, and CLI tests.
+  - [x] T005.2 Add or refine regression coverage for repository inputs and errors.
+    - Evidence: Added service delegation/error-contract tests and a command
+      import-boundary regression; the pre-implementation run failed with five
+      expected failures (`41 passed, 5 failed`).
+  - [x] T005.3 Migrate one coherent caller group and remove duplicate resolution logic.
+    - Evidence: Repository input validation in backup and snapshots now crosses
+      the `RepositoryResolver` service seam; restore's unused direct utility
+      import was removed. The first focused post-change run passed all 87 tests.
+  - [x] T005.4 Run focused validation and record commands/results.
+    - Evidence: `pytest` over resolver integration/service plus backup, restore,
+      and snapshots command tests passed 87 tests; the isolated CLI uniqueness
+      test passed; `rg` found no command imports from
+      `TimeLocker.utils.repository_resolver`; lifecycle lint and diff checks
+      passed. Agent Workbench static diagnostics were unavailable for Python
+      files and returned no actionable findings.
 
 - [ ] T006 Reduce `CLIServiceManager` domain fan-out.
   - Depends on: T005
@@ -137,6 +156,10 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010
 - Apply D001 by retaining the tested `CLIServiceManager` public facade; apply
   D002 by treating `cli_modules.commands.monitoring` as the command owner and
   `CLIMonitoringIntegration` as its bridge.
+
+Rules consulted and applied: Coding Standards (100), General Preferences (50),
+Operational Best Practices (40), Planning Protocol (30), Testing Conventions
+(25), Documentation Conventions (20). Overrides: none.
 
 ## Related Artifacts
 

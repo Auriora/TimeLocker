@@ -28,8 +28,9 @@ from .base import (
     ConfigDirOption,
 )
 
-from TimeLocker.utils.repository_resolver import validate_repository_name_or_uri
 from TimeLocker.utils.snapshot_validation import validate_snapshot_id_format
+
+from ..services import RepositoryResolver
 
 snapshots_app = create_typer_app(
         name="snapshots",
@@ -55,7 +56,7 @@ def _snapshot_service(config_dir: Optional[Path] = None):
 def _normalize_repository(repository: Optional[str]) -> Optional[str]:
     if repository:
         try:
-            validate_repository_name_or_uri(repository)
+            RepositoryResolver.validate_repository_name_or_uri(repository)
         except ValueError as exc:
             show_error_panel("Invalid Repository", str(exc))
             raise typer.Exit(1)

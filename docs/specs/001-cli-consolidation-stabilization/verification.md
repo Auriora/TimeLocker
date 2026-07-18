@@ -13,7 +13,7 @@ last_reviewed: 2026-07-18
 
 | Gate | Covers | Pass criterion | Evidence |
 |------|--------|----------------|----------|
-| Package lint/readiness | Spec integrity | No unwaived errors or readiness gaps; next task is T005 | reconciliation validation |
+| Package lint/readiness | Spec integrity | No unwaived errors or readiness gaps; next task is T006 | reconciliation validation |
 | CLI contract tests | Requirement 1, CP-001 | Help/discovery and unique-registration tests pass | record per slice |
 | Resolver validation | Requirement 2, CP-002 | Focused tests pass and direct imports are eliminated or justified | T005 |
 | Service-manager validation | Requirement 3, CP-003 | Focused tests pass and selected fan-out is removed | T006 |
@@ -40,7 +40,18 @@ last_reviewed: 2026-07-18
   `commands.monitoring`; the repository-hygiene prerequisite is satisfied.
 - 2026-07-18 charter baseline review: `CHARTER.md` adds enduring governance but
   does not change this package's validation plan or T005 readiness.
-- T005-T008: pending.
+- T005 (2026-07-18): repository input validation in backup and snapshots moved
+  behind `RepositoryResolver`; restore's unused direct utility import was
+  removed. Red-first coverage produced five expected failures (`41 passed`),
+  followed by 87 passing focused resolver/command tests from `pytest` over the
+  resolver service/integration, backup, restore, and snapshots test modules.
+  `pytest tests/TimeLocker/cli/test_cli_help_system.py::TestCLIHelpSystem::test_top_level_command_names_are_unique -q`
+  passed; `rg` found no command imports from
+  `TimeLocker.utils.repository_resolver`; package lint returned zero
+  diagnostics; and `git diff --check` passed.
+  Agent Workbench had no Python diagnostics provider, so executed tests and
+  direct source/import checks are the authoritative evidence.
+- T006-T008: pending.
 
 ## Evidence Recording Rules
 

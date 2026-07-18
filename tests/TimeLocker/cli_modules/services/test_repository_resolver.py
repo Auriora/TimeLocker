@@ -194,6 +194,32 @@ class TestRepositoryResolution:
             
             assert name == 'test-repo'
 
+    @pytest.mark.parametrize(
+        "repository_input",
+        ["production", "file:///tmp/repository", "s3:example/bucket"],
+    )
+    def test_validate_repository_name_or_uri_delegates_to_utility(
+        self, repository_input
+    ):
+        """The command-facing resolver owns repository input validation."""
+        with patch(
+            "TimeLocker.cli_modules.services.repository_resolver."
+            "validate_repository_name_or_uri"
+        ) as mock_validate:
+            RepositoryResolver.validate_repository_name_or_uri(repository_input)
+
+        mock_validate.assert_called_once_with(repository_input)
+
+    def test_validate_repository_name_or_uri_preserves_validation_error(self):
+        """Validation failures retain the utility boundary's ValueError contract."""
+        with patch(
+            "TimeLocker.cli_modules.services.repository_resolver."
+            "validate_repository_name_or_uri",
+            side_effect=ValueError("invalid repository"),
+        ):
+            with pytest.raises(ValueError, match="invalid repository"):
+                RepositoryResolver.validate_repository_name_or_uri("invalid")
+
 
 class TestCredentialResolution:
     """Test credential resolution chain"""

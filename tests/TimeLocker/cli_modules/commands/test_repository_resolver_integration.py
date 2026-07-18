@@ -2,9 +2,11 @@
 Integration tests for RepositoryResolver in CLI commands
 """
 
-import pytest
+import ast
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
+
+import pytest
 
 from TimeLocker.cli_modules.commands.base import _create_repository_resolver
 
@@ -231,3 +233,34 @@ class TestConsistencyAcrossCommands:
         assert hasattr(resolver, 'resolve_credentials')
         assert hasattr(resolver, 'detect_backend')
         assert hasattr(resolver, 'get_backend_info')
+
+    def test_commands_do_not_import_repository_resolution_utilities_directly(self):
+        """Command modules depend on RepositoryResolver, not its utility internals."""
+        commands_dir = (
+            Path(__file__).parents[4]
+            / "src"
+            / "TimeLocker"
+            / "cli_modules"
+            / "commands"
+        )
+        direct_imports: list[str] = []
+
+        for command_path in sorted(commands_dir.glob("*.py")):
+            tree = ast.parse(command_path.read_text(encoding="utf-8"))
+            for node in ast.walk(tree):
+                imported_modules = []
+                if isinstance(node, ast.ImportFrom) and node.module:
+                    imported_modules.append(node.module)
+                elif isinstance(node, ast.Import):
+                    imported_modules.extend(alias.name for alias in node.names)
+
+                if any(
+                    module.endswith("utils.repository_resolver")
+                    for module in imported_modules
+                ):
+                    direct_imports.append(command_path.name)
+
+        assert direct_imports == [], (
+            "Command modules bypass RepositoryResolver: "
+            + ", ".join(direct_imports)
+        )

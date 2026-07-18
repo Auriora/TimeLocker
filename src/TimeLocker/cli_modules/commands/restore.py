@@ -44,8 +44,6 @@ from TimeLocker.completion import (
     snapshot_id_completer,
     selection_name_completer,
 )
-from TimeLocker.utils.repository_resolver import validate_repository_name_or_uri
-
 logger = logging.getLogger(__name__)
 
 # Create Typer app for restore operations

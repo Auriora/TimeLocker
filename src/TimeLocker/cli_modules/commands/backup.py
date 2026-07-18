@@ -36,9 +36,10 @@ from TimeLocker.cli_modules.helpers.backup_cli_handler import (
     SelectionTemplateNotFoundError,
 )
 from TimeLocker.interfaces.backup_orchestrator import BackupOrchestratorError
-from TimeLocker.utils.repository_resolver import validate_repository_name_or_uri
 from TimeLocker.utils.snapshot_validation import validate_snapshot_id_format
 from TimeLocker.utils import get_progress_service
+
+from ..services import RepositoryResolver
 
 # Create Typer app for backup operations
 CLI_CONTEXT_SETTINGS = {"max_content_width": 110}
@@ -445,7 +446,7 @@ def backup_verify(
     # Validate inputs early (but only when provided so --help still works with exit 0)
     try:
         if repository:
-            validate_repository_name_or_uri(repository)
+            RepositoryResolver.validate_repository_name_or_uri(repository)
         if latest and snapshot:
             raise ValueError("Use either --snapshot or --latest, not both.")
         if snapshot:
