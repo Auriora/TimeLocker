@@ -53,8 +53,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010
 
 - [ ] T005 Standardize CLI command modules on `RepositoryResolver`.
   - Depends on: T004
-  - Upstream specs: 004-repository-hygiene
-  - Status note: Runnable only after the governance prerequisite is closed and removed from the active index.
+  - Status note: Ready; the repository-hygiene prerequisite closed on 2026-07-18.
   - Requirement: Requirement 2
   - Acceptance Criteria: Requirement 2 AC1, Requirement 2 AC2
   - Properties: CP-001, CP-002
@@ -125,8 +124,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010
 
 ## Execution Rules
 
-- Do not start T005 until temporary governance prerequisite Spec 004 is closed
-  and removed from the active index.
+- Start with T005; the repository-hygiene prerequisite is satisfied.
 - Do not implement from this checklist alone; read the linked requirements,
   design, impact, verification, and traceability context first.
 - Before starting a task or subtask, mark it `[~]`.

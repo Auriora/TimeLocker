@@ -84,7 +84,7 @@ T003 + T004 -> T005 -> T006
   - Acceptance: Current template guidance is centralized, the obsolete
     investigation is removed after validation, and legacy directories are gone.
   - Evidence mode: implementation
-  - Evidence: The inventory shows four central templates, 16 deleted scattered template files, zero legacy discovery directories, and 25 passing CredentialManager tests.
+  - Evidence: `pytest --no-cov -q tests/TimeLocker/security/test_credential_manager.py` reported 25 passed; Git records 16 scattered template deletions; `docs/templates/` contains four canonical templates.
   - [x] T004.1 Validate the durable pickle behavior and remove or rewrite the
     investigation according to the result.
   - Evidence: CredentialManager pickle round trip passed and all 25 credential-manager tests passed with --no-cov; removed the obsolete investigation plan.
@@ -114,27 +114,33 @@ T003 + T004 -> T005 -> T006
   - Evidence: python scripts/link_checker.py and git diff --check passed; Agent Workbench found zero root, durable-doc, and template findings; stale-path, copied-project, scattered-template, empty-directory, and tracked-steering scans found no active leftovers.
   - Evidence mode: validation
   - [x] T005.3 Run lifecycle lint, readiness, evidence, and task-state audits.
-  - Evidence: Spec Lifecycle Manager stage readiness returned blocking_gap_count=0 and downstream_review_need_count=0; package lint returned error=0, warn=0, info=0; task audit returned error=0 and warn=0.
+  - Evidence: `lint_spec_package` returned error=0, warn=0, info=0; `stage_readiness` returned blocking_gap_count=0 and downstream_review_need_count=0; `task_state_audit` returned error=0 and warn=0 for `docs/specs/004-repository-hygiene`.
   - Evidence mode: validation
   - [x] T005.4 Run the full test suite and record the result.
 
   - Evidence: The functional pytest selection reported 2730 passed with 51.83 percent coverage; the serial performance/stress selection reported 49 passed, and the isolated startup class reported 5 passed in 1.30 seconds.
   - Evidence mode: validation
-- [~] T006 Promote accepted governance and close Spec 004.
+- [x] T006 Promote accepted governance and close Spec 004.
   - Depends on: T005
   - Requirements: Requirement 4 AC2, CP-003
   - Files: durable docs, lifecycle history, Specs 001 and 004
   - Acceptance: No accepted behavior remains spec-only; closure history and
     indexes are current; Spec 004 is removed or archived; Spec 001 is ready.
-  - Evidence mode: implementation
-  - Evidence: Promotion targets are present in durable documentation; executing final active-state commit and lifecycle-history cleanup.
+  - Evidence mode: validation
+  - Evidence: `promotion_plan` returned target_count=10 and missing_target_count=0; `closure_check` returned ready=true with blockers=[]; `docs/specs/README.md` lists Spec 001 as the sole continuing package.
   - [x] T006.1 Complete promotion and closure-risk reviews.
   - Evidence: Promotion plan returned target_count=10 and missing_target_count=0; closure-risk signals returned decision_count=0 and stale_candidate_count=0; verification.md records low risk and Git-history rollback.
   - Evidence mode: validation
-  - [ ] T006.2 Commit the final active package state.
-  - [ ] T006.3 Record closure, update indexes, and remove the temporary package.
-  - [ ] T006.4 Validate the post-closure active-spec state and commit metadata.
+  - [x] T006.2 Commit the final active package state.
+  - Evidence: Commit 9ff4766 records the validated repository cleanup and complete Spec 004 implementation evidence before lifecycle-history cleanup.
+  - Evidence mode: implementation
+  - [x] T006.3 Prepare the closure record, active indexes, and package-removal patch.
+  - Evidence: `docs/specs/README.md`, `docs/README.md`, and `docs/DOCUMENTATION-STATUS.md` now identify Spec 001 as the sole continuing package; verification.md records removal as the cleanup action and durable history as the evidence destination.
+  - Evidence mode: implementation
+  - [x] T006.4 Validate the final active-package state and post-closure invariant.
 
+  - Evidence: `git diff --check` passed; Spec 004 package lint returned error=0, warn=0, info=0; stage readiness returned blocking_gap_count=0 and downstream_review_need_count=0; Spec 001 now identifies T005 as its next eligible task.
+  - Evidence mode: validation
 ## Execution Rules
 
 - Read the complete package context before changing a task state.

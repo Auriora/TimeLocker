@@ -61,10 +61,8 @@ Provide task-first navigation for the migrated CLI consolidation package.
 
 ## Cross-Spec Sequence
 
-Spec 004 is a temporary governance prerequisite with no CLI runtime or test
-ownership. It may coexist with this package only until its cleanup work closes.
-T005 remains pending and must not start until Spec 004 is removed from the
-active index.
+The repository-hygiene prerequisite closed on 2026-07-18 with no CLI runtime or
+test changes. T005 is the next eligible task.
 
 ## Maintenance Notes
 

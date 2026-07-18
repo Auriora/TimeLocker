@@ -139,12 +139,10 @@ an explicit compatibility delegate.
 
 ## Cross-Spec Sequencing
 
-A temporary repository-hygiene package, Spec 004, may run concurrently only as
-a governance prerequisite. It owns agent instructions, documentation
-navigation, assets, templates, and historic-document cleanup; it must not edit
-CLI runtime behavior or tests owned by this package. Spec 004 must close before
-T005 enters implementation so agents execute the remaining CLI work under the
-correct repository rules and current front-door documentation.
+The repository-hygiene prerequisite closed on 2026-07-18 after centralizing
+agent instructions, documentation navigation, assets, and templates. It made no
+CLI runtime changes. T005 may now enter implementation under the corrected
+repository rules and current front-door documentation.
 
 ## Operational Considerations
 

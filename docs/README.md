@@ -32,8 +32,7 @@ mobile client.
 
 The current delivery focus is CLI consolidation and stabilization. GitHub owns
 assignment and issue status; [Spec 001](./specs/001-cli-consolidation-stabilization/requirements.md)
-owns that product scope. The temporary [Spec 004](./specs/004-repository-hygiene/requirements.md)
-governance prerequisite must close before Spec 001 implementation resumes.
+owns that product scope and is ready to resume at T005.
 
 ## Documentation Map
 

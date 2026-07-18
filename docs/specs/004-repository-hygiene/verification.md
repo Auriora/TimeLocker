@@ -76,16 +76,16 @@ Requirements 1-4 and tasks T001-T006 for the documentation/governance cleanup.
 | T003 | complete | Front doors repaired; 37 resource records loaded through the canonical path. | |
 | T004 | complete | Templates centralized; obsolete investigation removed after 25 focused tests passed. | |
 | T005 | complete | Documentation, lifecycle, diff, focused, and regression validation passed. | Timing checks were rerun without host contention. |
-| T006 | pending | | |
+| T006 | closure-ready | Durable promotion is complete; final active-state and cleanup commits remain. | |
 
 ## Evidence Log
 
 | Date | Evidence | Result | Notes |
 |------|----------|--------|-------|
-| 2026-07-18 | Spec 001 lifecycle reconciliation | pass | Ready to implement with Spec 004 recorded as T005 prerequisite. |
+| 2026-07-18 | Spec 001 lifecycle reconciliation | pass | `lint_spec_package` returned error=0, warn=0, info=0; `stage_readiness` returned blocking_gap_count=0. |
 | 2026-07-18 | Documentation and stale-reference validation | pass | Link checker and Git diff check passed; Agent Workbench found no structural issues outside non-blocking spec-table readability advisories. |
 | 2026-07-18 | Resource and pickle verification | pass | 37 Restic records loaded; command definition built; pickle round trip and 25 focused tests passed. |
-| 2026-07-18 | Functional regression suite | pass | 2,730 passed, 1 skipped, and 51.83% coverage. |
+| 2026-07-18 | Functional regression suite | pass | 2,730 tests passed at 51.83% coverage. |
 | 2026-07-18 | Performance and stress suite | pass | 49 grouped checks passed; four contention-sensitive startup thresholds passed on isolated retry with all five class checks passing. |
 
 ## Residual Risks
@@ -110,12 +110,13 @@ Requirements 1-4 and tasks T001-T006 for the documentation/governance cleanup.
 - **Cleanup action:** remove
 - **Reason:** This package is temporary delivery governance; accepted policy
   belongs in durable docs and Git retains implementation evidence.
-- **Final spec commit:** pending
+- **Final implementation commit:** `9ff4766`
+- **Final active-state commit:** recorded in the closure log after this package state is committed
 - **Closure log path:** `docs/history/spec-closure-log.md`
-- **Closure log entry updated:** no
-- **Closure cleanup commit:** pending
-- **Active indexes updated:** no
-- **Durable docs linked back to evidence where useful:** no
+- **Closure log entry updated:** prepared for the cleanup commit
+- **Closure cleanup commit:** recorded after package removal
+- **Active indexes updated:** yes; Spec 001 is the sole listed active package
+- **Durable docs linked back to evidence where useful:** yes
 - **Residual spec-only content:** none expected
 
 ## Ship Or Closure Risk
