@@ -15,6 +15,9 @@ accepted content has been promoted and the package is closed.
 
 ## Current Packages
 
+- [`006-repository-review-skill`](./006-repository-review-skill/requirements.md) —
+  approved repository-local review skill; bounded governance/tooling work that
+  must not modify Spec 001 or its T005 readiness.
 - [`001-cli-consolidation-stabilization`](./001-cli-consolidation-stabilization/requirements.md) —
   remaining CLI consolidation work; reconciled and ready to begin at T005.
 

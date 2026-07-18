@@ -28,6 +28,9 @@ If you are implementing or running agents/tools:
   cross-cutting, migration, or governance-sensitive work, use the Spec
   Lifecycle Manager workflow and the active package as the implementation
   contract. Durable docs remain the current-state authority.
+- For code, documentation, architecture, security, test-quality, or overall
+  repository reviews, use the repository-local skill at
+  `.agents/skills/review-timelocker/SKILL.md`.
 - Prefer the Python Agent IDE plugin, its skills, and its MCP tools for repository exploration, context gathering, impact analysis, diagnostics, and test
   targeting. Keep using that workflow even when it is slow, returns partial results, or encounters timeouts; record any limitations and only fall back when the
   plugin or requested capability is unavailable.

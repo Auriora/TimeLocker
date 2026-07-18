@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review TimeLocker"
+  short_description: "Review TimeLocker code and documentation"
+  default_prompt: "Use $review-timelocker to review this TimeLocker repository and report evidence-backed findings."
