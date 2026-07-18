@@ -16,6 +16,7 @@ contracts.
 
 | Spec ID | Title | Package path | Status | Final spec commit | Cleanup commit | Closure action | Durable destinations | Verification |
 |---------|-------|--------------|--------|-------------------|----------------|----------------|----------------------|--------------|
+| 003-migrate-legacy-kiro-specs | Migrate Legacy Kiro Specifications | removed; recover from Git | removed | `7fb10e5` | pending | removed | `docs/reference/timelocker-cli-command-hierarchy.md`; `docs/guides/user/recovery-operations-guide.md`; `docs/specs/001-cli-consolidation-stabilization/requirements.md`; `docs/history/` | `docs/history/spec-closure-log.md` |
 | 002-prune-historical-documentation | Prune Historical Documentation | removed; recover from Git | removed | `0d10228` | `c25a11e` | removed | `docs/README.md`; `docs/DOCUMENTATION-STATUS.md`; `docs/guides/ai-agent/`; `docs/history/` | `docs/history/spec-closure-log.md` |
 | 000-adopt-spec-lifecycle-manager | Adopt Spec Lifecycle Manager | removed; recover from Git | removed | `c84dc3a` | `3855e68` | removed | `docs/specs/README.md`; `docs/guides/ai-agent/`; `docs/history/` | `docs/history/spec-closure-log.md` |
 | legacy-cli-consolidation-stabilization-plan | RFC: CLI Consolidation Stabilization Plan | removed; recover from Git | superseded | `ce23d07` | `3855e68` | removed | `docs/specs/001-cli-consolidation-stabilization/requirements.md`; `docs/history/spec-archive-index.md` | `docs/specs/001-cli-consolidation-stabilization/traceability.md` |

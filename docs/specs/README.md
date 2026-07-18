@@ -17,8 +17,6 @@ accepted content has been promoted and the package is closed.
 
 - [`001-cli-consolidation-stabilization`](./001-cli-consolidation-stabilization/requirements.md) —
   remaining CLI consolidation work migrated from the legacy active plan.
-- [`003-migrate-legacy-kiro-specs`](./003-migrate-legacy-kiro-specs/requirements.md) —
-  temporary control package for reconciling and retiring legacy Kiro specs.
 
 ## When a Spec Is Needed
 

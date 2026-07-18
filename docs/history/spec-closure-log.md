@@ -15,6 +15,27 @@ final spec commit preserves the complete package.
 
 ## Entries
 
+### 2026-07-18 - 003-migrate-legacy-kiro-specs
+
+- **Spec:** removed; recover from Git
+- **Title:** Migrate Legacy Kiro Specifications
+- **Final spec commit:** `7fb10e5`
+- **Closure cleanup commit:** pending
+- **Closure action:** removed
+- **Closed by:** Auriora Team
+- **Durable docs updated:** current CLI and recovery references,
+  `docs/specs/README.md`, and `docs/history/`
+- **Verification summary:** All fifteen legacy packages received exactly one
+  evidence-backed disposition. All 316 focused tests passed; package lint,
+  readiness, task audit, evidence quality, closure, link, legacy-target,
+  syntax, and formatting checks passed.
+- **Residual risks:** The focused pytest command returned nonzero only because
+  its 26.72% subset coverage did not meet the repository-wide 50% threshold;
+  it had zero test failures.
+- **Follow-up:** Spec 001 remains the only active destination for accepted
+  unfinished legacy scope. Deferred REST API and broad import proposals require
+  new intake and approval.
+
 ### 2026-07-18 - 002-prune-historical-documentation
 
 - **Spec:** removed; recover from Git
