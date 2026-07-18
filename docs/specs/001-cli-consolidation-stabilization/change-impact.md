@@ -42,10 +42,10 @@ for the remaining consolidation work.
 
 | Spec content | Durable destination | Promotion status | Notes |
 |--------------|---------------------|------------------|-------|
-| Final service boundaries | `docs/3-implementation/service-layer-integration.md` | pending | Promote with T009 |
-| Final code ownership/navigation | `docs/reference/repo-orientation-and-change-map.md` | pending | Promote with T009 |
-| User-visible CLI changes | `docs/reference/timelocker-cli-command-hierarchy.md` | not expected | Update only if validation discovers contract drift |
-| Per-slice implementation evidence | Git commits, pull requests, and CI artifacts | pending | Record evidence for each landed slice in this package |
+| Final service boundaries | `docs/3-implementation/service-layer-integration.md` | complete | Current repository-resolution, selection-handler, facade, and monitoring seams promoted by T009 |
+| Final code ownership/navigation | `docs/reference/repo-orientation-and-change-map.md` | complete | Single monitoring owner and focused service routes promoted by T009 |
+| User-visible CLI changes | `docs/reference/timelocker-cli-command-hierarchy.md` | no update required | Contract tests found no command-hierarchy drift |
+| Per-slice implementation evidence | Git commits, pull requests, and CI artifacts | complete | T005-T007 evidence and commits recorded in this package |
 
 ## Unchanged Durable Areas
 

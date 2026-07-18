@@ -170,32 +170,47 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010
 
 ## Phase 3: Promotion and Closure
 
-- [ ] T008 Run the full required regression suite.
+- [x] T008 Run the full required regression suite.
   - Depends on: T007
   - Requirement: Requirement 1, Requirement 2, Requirement 3, Requirement 4
   - Acceptance Criteria: Requirement 1 AC1, Requirement 1 AC2, Requirement 2 AC1, Requirement 2 AC2, Requirement 3 AC1, Requirement 3 AC2, Requirement 4 AC1, Requirement 4 AC2
   - Properties: CP-001, CP-002, CP-003
   - Files: `verification.md`, repository test suite
   - Acceptance: Focused and full tests pass or have explicit justified waivers and recorded residual risk.
-  - Evidence: Pending.
+  - Evidence: Completed 2026-07-18. The configured suite reached 2,801 passed, 1 skipped, 6 timing-only deselections, 1 environment-sensitive stress timing failure, and 52.45% coverage. All five CLI startup benchmarks plus the repository-resolver benchmark passed without coverage (6 passed in 1.33s), establishing a coverage-instrumentation waiver. The unchanged 60-second long-running selection stress test completed 57 iterations under coverage and 70 without coverage versus its >100 threshold while unrelated host workloads produced load averages of 17-23; its stability assertions and every other stress/selection test passed. This pre-existing, host-sensitive throughput threshold is waived with residual performance risk; Spec 001 did not change the test or its FileSelection implementation.
 
-- [ ] T009 Promote accepted service and ownership boundaries into durable docs.
+  - Status: Complete with explicit timing waivers and recorded residual risk; T009 is dependency-ready.
+  - Evidence mode: validation
+- [x] T009 Promote accepted service and ownership boundaries into durable docs.
   - Depends on: T008
   - Requirement: Requirement 1, Requirement 2, Requirement 3, Requirement 4
   - Files: durable promotion targets listed in `change-impact.md`
   - Acceptance: Durable docs describe the final seams and implementation evidence is linked without duplicating the spec.
-  - Evidence: Pending.
+  - Evidence: Completed 2026-07-18. Promoted the final RepositoryResolver command seam, focused BackupCLIHandler selection routing, retained CLIServiceManager compatibility boundary, and single monitoring command/integration ownership into docs/3-implementation/service-layer-integration.md and docs/reference/repo-orientation-and-change-map.md. The public command hierarchy was unchanged. Agent Workbench checked both documents with zero findings; the repository link checker found no broken links; the deleted monitoring module is absent from current implementation/reference docs; and git diff --check passed.
 
-- [ ] T010 Record residual risk and prepare lifecycle closure.
+  - Status: Durable promotion complete; T010 is dependency-ready.
+  - Evidence mode: documentation
+- [x] T010 Record residual risk and prepare lifecycle closure.
   - Depends on: T009
   - Requirement: Requirement 1, Requirement 2, Requirement 3, Requirement 4
   - Files: `verification.md`
   - Acceptance: `verification.md` contains a complete, evidence-backed closure-readiness decision.
-  - Evidence: Pending.
-  - [ ] T010.1 Record residual risks and any deferred destinations.
-  - [ ] T010.2 Record the final-spec-commit requirement and cleanup action.
-  - [ ] T010.3 Run closure checks and record their results.
+  - Evidence: Completed 2026-07-18. verification.md contains the full-suite results and waivers, four residual-risk classes, the stress-threshold test-infrastructure destination, complete durable-promotion status, the final-spec and cleanup sequence, and an affirmative closure-readiness decision. T010.1-T010.3 each contain concrete lifecycle evidence; package lint, links, and Git integrity passed.
+  - Status: Closure preparation complete; package is ready for final deterministic checks and final-spec commit.
+  - Evidence mode: lifecycle
+  - [x] T010.1 Record residual risks and any deferred destinations.
+  - Evidence: Completed 2026-07-18. verification.md now contains four explicit residual-risk entries covering the retained facade, backend variation, optional monitoring integrations, and environment-sensitive timing. Its routing section states that every Spec 001 requirement and implementation task was delivered and assigns the baseline stress-threshold concern to test-infrastructure intake through the durable closure record.
+  - Status: Residual-risk classification and destination are documented.
+  - Evidence mode: lifecycle
+  - [x] T010.2 Record the final-spec-commit requirement and cleanup action.
+  - Evidence: Completed 2026-07-18. verification.md records removal as the package disposition, Git as the recovery path, a complete-package commit before removal, the final commit hash in both history records, package and active-index removal in the cleanup commit, and exact cleanup-hash recording in a following history-only commit.
+  - Status: Final-spec commit and cleanup sequence documented.
+  - Evidence mode: lifecycle
+  - [x] T010.3 Run closure checks and record their results.
 
+  - Evidence: Completed 2026-07-18. Final package lint and task audit returned 0 findings; evidence quality classified all 34 records as 33 concrete and 1 explicitly waived with 0 diagnostics; promotion reported 6 targets and 0 missing; closure risk was low with 0 findings and blind spots; and closure readiness was ready with 0 blockers. Promoted durable docs had 0 Markdown findings, the link checker found 0 broken links, and git diff --check passed. verification.md records these results.
+  - Status: Final deterministic closure checks passed with zero blockers.
+  - Evidence mode: lifecycle
 ## Execution Rules
 
 - Start with T005; the repository-hygiene prerequisite is satisfied.

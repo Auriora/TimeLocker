@@ -4,7 +4,7 @@ id: "RM-014"
 type: [ reference ]
 status: [ approved ]
 owner: "Codex"
-last_reviewed: "23-04-2026"
+last_reviewed: "18-07-2026"
 tags: [reference, cli, architecture, onboarding]
 links:
   tooling: [python-agent-ide]
@@ -12,7 +12,7 @@ links:
 
 # Reference: Repository Orientation and Change Map
 
-Last updated: 2026-04-23
+Last updated: 2026-07-18
 
 ## 1. Purpose
 
@@ -166,9 +166,9 @@ The live command surface is mounted in `src/TimeLocker/cli.py`. The main top-lev
 
 ### 3.11 Monitoring
 
-- Modules:
-  - `src/TimeLocker/cli_modules/commands/monitoring.py`
-  - `src/TimeLocker/cli_modules/commands/monitor.py`
+- Command owner: `src/TimeLocker/cli_modules/commands/monitoring.py`
+- Integration bridge:
+  `src/TimeLocker/cli_modules/monitoring_integration.py`
 - Mounted groups in the current root CLI:
   - `monitor`
   - `logs`
@@ -179,6 +179,12 @@ The live command surface is mounted in `src/TimeLocker/cli.py`. The main top-lev
   - `monitor health`
   - `monitor history`
   - `monitor stats`
+- Ownership notes:
+  - the root CLI and command registry both mount the same command-owner module
+  - `CLIMonitoringIntegration` owns monitoring data access and presentation
+    conversion
+  - public `CLIServiceManager` monitoring methods are compatibility delegates,
+    not a second command owner
 
 ### 3.12 Root Commands
 
@@ -331,6 +337,7 @@ This section answers a practical question: where should a contributor start when
 Start here:
 
 - `src/TimeLocker/cli_modules/commands/backup.py`
+- `src/TimeLocker/cli_modules/helpers/backup_cli_handler.py`
 - `src/TimeLocker/cli_services.py`
 - `src/TimeLocker/services/backup_orchestrator.py`
 - `src/TimeLocker/services/repository_service.py`
@@ -342,6 +349,7 @@ Also inspect selection-related modules when the change involves include/exclude 
 Start here:
 
 - `src/TimeLocker/cli_modules/commands/repositories.py`
+- `src/TimeLocker/cli_modules/services/repository_resolver.py`
 - `src/TimeLocker/services/repository_manager.py`
 - `src/TimeLocker/services/repository_factory.py`
 - `src/TimeLocker/config/configuration_manager.py`
@@ -406,6 +414,8 @@ Then inspect the relevant platform adapter:
 Start here:
 
 - `src/TimeLocker/cli_modules/commands/monitoring.py`
+- `src/TimeLocker/cli_modules/monitoring_integration.py`
+- `src/TimeLocker/cli_services.py` for retained compatibility delegates
 - `src/TimeLocker/monitoring/monitoring_service.py`
 - `src/TimeLocker/monitoring/status_reporter.py`
 - `src/TimeLocker/monitoring/telemetry.py`
@@ -417,6 +427,10 @@ Start here:
 Start here:
 
 - `src/TimeLocker/cli_modules/commands/selections.py`
+- `src/TimeLocker/cli_modules/commands/backup.py` for selection-driven backup
+  command routing
+- `src/TimeLocker/cli_modules/helpers/backup_cli_handler.py` for focused
+  selection-backup orchestration
 - `src/TimeLocker/selection_manager.py`
 - `src/TimeLocker/selection_template_manager.py`
 - `src/TimeLocker/pattern_engine.py`
@@ -440,6 +454,8 @@ Start here:
 - `src/TimeLocker/integration/service_manager.py`
 - `src/TimeLocker/cli_modules/registry_integration.py`
 - `src/TimeLocker/cli_modules/commands/base.py`
+- `src/TimeLocker/cli_modules/services/repository_resolver.py`
+- `src/TimeLocker/cli_modules/monitoring_integration.py`
 
 Use this route when:
 
@@ -447,6 +463,10 @@ Use this route when:
 - service initialization or dependency flow changes
 - help output, command registration, or plugin/registry behavior changes
 - behavior appears duplicated between the root CLI and command modules
+
+Preserve `CLIServiceManager` and `get_cli_service_manager()` as public
+compatibility seams. Prefer focused command services and integrations for new
+work; compatibility methods should remain thin delegates.
 
 ## 6. Navigation Notes
 

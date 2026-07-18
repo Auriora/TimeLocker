@@ -2,12 +2,37 @@
 
 **Document Type**: Implementation Guide  
 **Status**: Active  
-**Last Updated**: 2025-11-12  
-**Related Spec**: [CLI Consolidation Stabilization](../specs/001-cli-consolidation-stabilization/requirements.md)
+**Last Updated**: 2026-07-18
 
 ## Overview
 
 The Service Layer provides centralized access to TimeLocker services, configuration, and repository resolution for CLI commands. This layer reduces code duplication and provides consistent error handling across all CLI commands.
+
+### Current CLI Integration Boundaries
+
+The command layer uses focused services behind a retained compatibility facade:
+
+- `src/TimeLocker/cli_modules/services/repository_resolver.py` is the
+  command-facing repository-resolution boundary. Commands should use its
+  `RepositoryResolver` for repository validation, normalization, lookup, and
+  credential-aware repository construction instead of importing the low-level
+  utility functions directly.
+- `src/TimeLocker/cli_modules/helpers/backup_cli_handler.py` owns selection-
+  driven backup orchestration. `backup create` obtains this focused
+  `BackupCLIHandler` through the public `CLIServiceManager.selection_handler`
+  property.
+- `CLIServiceManager` and `get_cli_service_manager()` remain public
+  compatibility seams. Existing selection and monitoring methods are thin,
+  tested delegates; new command behavior should prefer a focused service or
+  integration rather than expanding the facade.
+- `src/TimeLocker/cli_modules/commands/monitoring.py` is the sole command owner
+  for the `monitor`, `logs`, and `reports` groups. Both the root CLI and command
+  registry mount that module. `CLIMonitoringIntegration` owns monitoring data
+  access and presentation conversion, while the facade retains compatibility
+  delegates to it.
+
+These are internal ownership boundaries. The public command hierarchy and
+command names remain unchanged.
 
 ## Components
 
@@ -74,7 +99,10 @@ config_service.save_configuration(config_service._config_data)
 
 **Purpose**: Centralized repository resolution and URI handling
 
-**Location**: `src/TimeLocker/utils/repository_resolver.py`
+**Command-facing location**:
+`src/TimeLocker/cli_modules/services/repository_resolver.py`
+
+**Low-level utility location**: `src/TimeLocker/utils/repository_resolver.py`
 
 **Key Features**:
 - Resolves repository names to URIs
@@ -82,6 +110,12 @@ config_service.save_configuration(config_service._config_data)
 - URI normalization (standard to restic format)
 - Backend type detection
 - Validation of repository identifiers
+- Consistent command-facing credential resolution and repository caching
+
+CLI commands should construct `RepositoryResolver(config_dir=...)` and call
+its methods. The utility functions shown below remain lower-level primitives
+used by the service and non-command code; they are not the command integration
+seam.
 
 **Usage Example**:
 
@@ -397,10 +431,35 @@ else:
 
 **After**:
 ```python
-from TimeLocker.utils.repository_resolver import resolve_repository_uri
+from TimeLocker.cli_modules.services.repository_resolver import RepositoryResolver
 
-repo_uri = resolve_repository_uri(repository_name)
+resolver = RepositoryResolver(config_dir=config_dir)
+repo_uri = resolver.resolve_repository_uri(repository_name)
 ```
+
+### Selection-Driven Backup Commands
+
+Command code should obtain the focused handler through the compatibility
+manager and use it for selection validation, summaries, and execution:
+
+```python
+from TimeLocker.cli_services import get_cli_service_manager
+
+service_manager = get_cli_service_manager(config_dir=config_dir)
+selection_handler = service_manager.selection_handler
+```
+
+Do not duplicate selection orchestration in the command module. The facade's
+legacy selection methods remain supported only as tested delegates for callers
+that have not migrated to `selection_handler`.
+
+### Monitoring Commands
+
+Add or change monitoring commands in
+`TimeLocker.cli_modules.commands.monitoring`. Use
+`CLIMonitoringIntegration` for command-facing monitoring data and formatting.
+Do not introduce another command module or a second monitoring orchestration
+path; compatibility methods on `CLIServiceManager` delegate to the integration.
 
 ## Testing
 
@@ -515,4 +574,5 @@ logger.setLevel(logging.DEBUG)
 ## See Also
 
 - [Service Facade Implementation](./service-facade.md)
-- [CLI Consolidation Stabilization](../specs/001-cli-consolidation-stabilization/requirements.md)
+- [Repository Orientation and Change Map](../reference/repo-orientation-and-change-map.md)
+- [Spec Closure Log](../history/spec-closure-log.md)
