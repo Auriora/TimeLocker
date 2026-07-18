@@ -14,6 +14,7 @@ status snapshots—preserves superseded context.
 
 ## Start Here
 
+- [Project charter](../CHARTER.md)
 - [Installation](./guides/user/installation.md)
 - [Repository management](./guides/user/repository-management-guide.md)
 - [S3-compatible services](./guides/user/s3-compatible-services.md)
@@ -57,6 +58,8 @@ add a current-state document there or promote them from an active spec.
 
 ## Authority Boundaries
 
+- The project charter owns enduring mandate, boundaries, governance, and
+  success measures.
 - Code, tests, configuration, and generated contracts override stale prose.
 - Durable docs describe implemented and accepted current behavior.
 - Active specs describe approved intended changes until promotion and closure.

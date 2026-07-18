@@ -15,6 +15,9 @@ accepted content has been promoted and the package is closed.
 
 ## Current Packages
 
+- [`005-project-charter`](./005-project-charter/requirements.md) — temporary
+  documentation-only governance package; it does not block Spec 001 and will be
+  removed after charter promotion.
 - [`001-cli-consolidation-stabilization`](./001-cli-consolidation-stabilization/requirements.md) —
   remaining CLI consolidation work; reconciled and ready to begin at T005.
 

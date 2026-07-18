@@ -7,6 +7,7 @@ This repository uses centralized agent instructions located in `docs/guides/ai-a
 
 For general project context and developer documentation, refer to:
 
+- `CHARTER.md` (project mandate, boundaries, governance, success measures)
 - `README.md` (project overview, commands, architecture)
 - `docs/` (project documentation, active specifications, agent workflows, and implementation history)
 - `CLAUDE.md` (editor-specific tips, if applicable)

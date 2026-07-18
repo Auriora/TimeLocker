@@ -42,6 +42,7 @@ observable command hierarchy.
 
 | Source | Current behavior relied on | Confidence | Notes |
 |--------|----------------------------|------------|-------|
+| `CHARTER.md` | Enduring project mandate, boundaries, governance, and success measures. | high | This delivery package remains subordinate to the charter and does not amend it. |
 | `docs/reference/timelocker-cli-command-hierarchy.md` | Current public CLI organization. | high | Must remain stable. |
 | `docs/3-implementation/service-layer-integration.md` | Current service-layer boundaries and compatibility seams. | medium | Promote changes after each accepted slice. |
 | `docs/reference/repo-orientation-and-change-map.md` | Navigation and ownership map for CLI modules. | high | Refresh if files move or responsibilities change. |

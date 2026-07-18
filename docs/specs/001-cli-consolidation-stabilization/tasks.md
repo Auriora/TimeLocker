@@ -9,6 +9,9 @@ last_reviewed: 2026-07-18
 
 # Tasks
 
+The `CHARTER.md` durable-baseline addition was reviewed on 2026-07-18; no task,
+dependency, acceptance, or sequencing change is required.
+
 ## Task Dependency Graph
 
 ```text

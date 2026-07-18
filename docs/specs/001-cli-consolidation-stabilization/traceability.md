@@ -66,5 +66,7 @@ test changes. T005 is the next eligible task.
 
 ## Maintenance Notes
 
+- The `CHARTER.md` baseline was reviewed on 2026-07-18 and adds no delivery or
+  acceptance mapping.
 Reconcile this matrix after each caller inventory and before changing a task's
 scope or completion state.

@@ -16,6 +16,9 @@ adds or updates focused regression tests, records evidence, and only then moves
 to the next dependency. Compatibility entry points remain thin delegates until
 their callers can safely migrate.
 
+The `CHARTER.md` durable-baseline addition was reviewed on 2026-07-18 and does
+not change this design or its CLI implementation boundaries.
+
 ## Requirement Coverage
 
 | Requirement | Acceptance Criteria | Design Coverage | Validation Approach |

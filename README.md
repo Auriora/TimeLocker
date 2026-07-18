@@ -17,12 +17,20 @@ This repository is feature-rich but still being consolidated. Treat this README
 and [`docs/README.md`](docs/README.md) as the current orientation layer. Active
 delivery work is indexed under [`docs/specs/`](docs/specs/README.md).
 
+## Project Direction
+
+The [TimeLocker project charter](CHARTER.md) is the enduring authority for the
+project mandate, operating principles, scope boundaries, governance, and
+measures of success. Read it when deciding whether proposed work belongs in
+TimeLocker; use active specs for approved delivery details.
+
 > **Note**: TimeLocker is a **CLI-based application**. There is currently no desktop GUI or REST API - these are design specifications for future consideration.
 > The application includes optional system tray integration for desktop notifications.
 
 ## Table of Contents
 
 - [Project description](#project-description)
+- [Project Direction](#project-direction)
 - [Who this project is for](#who-this-project-is-for)
 - [Features](#features)
 - [Repository Structure](#repository-structure)

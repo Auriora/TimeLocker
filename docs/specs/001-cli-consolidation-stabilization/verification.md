@@ -38,6 +38,8 @@ last_reviewed: 2026-07-18
 - 2026-07-18 reconciliation: all eight acceptance criteria are explicitly
   mapped; D001 retains the public service-manager facade; D002 selects
   `commands.monitoring`; the repository-hygiene prerequisite is satisfied.
+- 2026-07-18 charter baseline review: `CHARTER.md` adds enduring governance but
+  does not change this package's validation plan or T005 readiness.
 - T005-T008: pending.
 
 ## Evidence Recording Rules
