@@ -127,7 +127,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010
     (50), Operational Best Practices (40), Testing Conventions (25),
     Documentation Conventions (20), and Git Conventions (15); no overrides.
 
-- [ ] T007 Consolidate monitoring command and integration paths.
+- [x] T007 Consolidate monitoring command and integration paths.
   - Depends on: T006
   - Requirement: Requirement 4
   - Acceptance Criteria: Requirement 4 AC1, Requirement 4 AC2
@@ -135,11 +135,38 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010
   - Files: monitoring command modules, `src/TimeLocker/cli_modules/monitoring_integration.py`, focused tests
   - Acceptance: One documented command-facing monitoring integration path remains; compatibility delegates are explicit and tested.
   - Validation: Focused monitoring tests, CLI contract tests, and caller/dependency search.
-  - Evidence: Pending.
-  - [ ] T007.1 Inventory monitoring commands, formatters, integrations, and tests.
-  - [ ] T007.2 Choose the retained owner and document compatibility constraints.
-  - [ ] T007.3 Migrate callers and remove unreachable duplicate orchestration.
-  - [ ] T007.4 Run focused validation and record commands/results.
+  - Evidence: Completed 2026-07-18. Root CLI and the command registry both
+    mount `cli_modules.commands.monitoring`; the unreferenced singular
+    `commands.monitor` duplicate was removed. Focused ownership, facade,
+    monitoring-command, registry, and CLI uniqueness validation passed 35
+    tests. The retained `CLIServiceManager` methods are tested delegates to
+    `CLIMonitoringIntegration`.
+  - Status: Completed 2026-07-18; T008 is now dependency-ready.
+  - Evidence mode: implementation
+  - [x] T007.1 Inventory monitoring commands, formatters, integrations, and tests.
+    - Evidence: `rg` and Agent Workbench reference inventory found both root
+      CLI and registry mounting the plural module, four bridge construction or
+      import references, no runtime caller of the singular module, and the
+      focused monitoring and registry test surfaces.
+  - [x] T007.2 Choose the retained owner and document compatibility constraints.
+    - Evidence: Applied D002: `cli_modules.commands.monitoring` owns the
+      `monitor`, `logs`, and `reports` groups; `CLIMonitoringIntegration` owns
+      data access and formatting. Public `CLIServiceManager` monitoring methods
+      remain compatibility delegates and have focused coverage.
+  - [x] T007.3 Migrate callers and remove unreachable duplicate orchestration.
+    - Evidence: No callers required migration because both supported mounting
+      paths already imported `commands.monitoring`; removed the 449-line
+      unreferenced `commands.monitor` duplicate and added a regression that
+      enforces the single module owner.
+  - [x] T007.4 Run focused validation and record commands/results.
+    - Evidence: `pytest --no-cov -q` over monitoring commands, registry
+      integration, and isolated CLI uniqueness passed 35 tests; Ruff and the
+      runtime caller search passed. Configured coverage also passed all 35 test
+      cases but reported 15.53% repository-wide coverage, below the global 50%
+      gate assigned to T008.
+  - Rules consulted and applied: Coding Standards (100), General Preferences
+    (50), Operational Best Practices (40), Testing Conventions (25),
+    Documentation Conventions (20), and Git Conventions (15); no overrides.
 
 ## Phase 3: Promotion and Closure
 

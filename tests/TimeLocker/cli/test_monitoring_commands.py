@@ -4,10 +4,18 @@ Unit tests for TimeLocker CLI monitoring command groups.
 Tests monitor, logs, and reports command parsing, parameter validation, help output, and error handling.
 """
 
+import importlib.util
+from unittest.mock import Mock, patch
+
 import pytest
-from unittest.mock import patch
 
 from TimeLocker.cli import app
+from TimeLocker.cli_modules.commands import monitoring as monitoring_commands
+from TimeLocker.cli_modules.monitoring_integration import (
+    CLIMonitoringFilters,
+    CLIMonitoringIntegration,
+)
+from TimeLocker.cli_services import CLIServiceManager
 from tests.TimeLocker.cli.test_utils import (
     get_cli_runner,
     combined_output,
@@ -17,6 +25,81 @@ from tests.TimeLocker.cli.test_utils import (
 )
 
 runner = get_cli_runner()
+
+
+class TestMonitoringOwnership:
+    """Regression coverage for the retained monitoring command path."""
+
+    @pytest.mark.unit
+    def test_monitoring_command_groups_have_one_module_owner(self) -> None:
+        """All mounted groups come from the canonical plural module."""
+        assert monitoring_commands.monitor_app.info.name == "monitor"
+        assert monitoring_commands.logs_app.info.name == "logs"
+        assert monitoring_commands.reports_app.info.name == "reports"
+        assert importlib.util.find_spec(
+            "TimeLocker.cli_modules.commands.monitor"
+        ) is None
+
+    @pytest.mark.unit
+    def test_service_manager_monitoring_facade_delegates_to_bridge(self) -> None:
+        """Supported facade methods delegate to CLIMonitoringIntegration."""
+        integration = Mock(spec=CLIMonitoringIntegration)
+        integration.get_system_status.return_value = {"health_status": "healthy"}
+        integration.get_recent_logs.return_value = [{"message": "backup complete"}]
+        integration.search_logs.return_value = [{"message": "matched"}]
+        integration.get_backup_history.return_value = [{"status": "success"}]
+        integration.get_current_operations.return_value = [{"operation_id": "op-1"}]
+        integration.get_operation_status.return_value = {"operation_id": "op-1"}
+        manager = CLIServiceManager.__new__(CLIServiceManager)
+        manager._monitoring_integration = integration
+
+        assert manager.get_monitoring_integration() is integration
+        assert manager.get_system_monitoring_status() == {"health_status": "healthy"}
+        assert manager.get_cli_monitoring_logs(
+            hours=6,
+            repository_id="repo",
+            log_level="error",
+            limit=10,
+        ) == [{"message": "backup complete"}]
+        assert manager.search_monitoring_logs(
+            "failed",
+            days=2,
+            repository_id="repo",
+            limit=5,
+        ) == [{"message": "matched"}]
+        assert manager.get_cli_backup_history(
+            days=7,
+            repository_id="repo",
+            status="success",
+            limit=3,
+        ) == [{"status": "success"}]
+        assert manager.get_cli_current_operations() == [{"operation_id": "op-1"}]
+        assert manager.get_cli_operation_status("op-1") == {"operation_id": "op-1"}
+
+        recent_filters = integration.get_recent_logs.call_args.args[0]
+        search_filters = integration.search_logs.call_args.args[1]
+        history_filters = integration.get_backup_history.call_args.args[0]
+        assert recent_filters == CLIMonitoringFilters(
+            hours=6,
+            repository_id="repo",
+            log_level="error",
+            limit=10,
+        )
+        assert search_filters == CLIMonitoringFilters(
+            days=2,
+            repository_id="repo",
+            limit=5,
+        )
+        assert history_filters == CLIMonitoringFilters(
+            days=7,
+            repository_id="repo",
+            status="success",
+            limit=3,
+        )
+        integration.get_system_status.assert_called_once_with()
+        integration.search_logs.assert_called_once_with("failed", search_filters)
+        integration.get_current_operations.assert_called_once_with()
+        integration.get_operation_status.assert_called_once_with("op-1")
 
 
 class TestMonitorCommands:

@@ -21,7 +21,7 @@ Provide task-first navigation for the migrated CLI consolidation package.
 | T004 | Requirements 1, 3 | Requirement 1 AC2; Requirement 3 AC1 | Components and Changes | service boundary | Existing Evidence | service-layer docs | none |
 | T005 | Requirement 2 | Requirement 2 AC1; Requirement 2 AC2 | Components; Error Handling | repository resolution complete; command utility imports removed | Resolver validation passed | service-layer and orientation docs | none |
 | T006 | Requirement 3 | Requirement 3 AC1; Requirement 3 AC2 | Interfaces; Migration | selection callers use focused handler; facade retained as thin delegate | Service-manager validation passed | service-layer docs | D001 resolved: retain tested public facade |
-| T007 | Requirement 4 | Requirement 4 AC1; Requirement 4 AC2 | Components; Data Flow | monitoring integration | Monitoring validation | service-layer and orientation docs | D002 resolved: `commands.monitoring` owns commands |
+| T007 | Requirement 4 | Requirement 4 AC1; Requirement 4 AC2 | Components; Data Flow | singular duplicate removed; canonical commands and facade delegates retained | Monitoring validation passed | service-layer and orientation docs | D002 resolved: `commands.monitoring` owns commands |
 | T008 | Requirements 1-4 | Requirement 1 AC1; Requirement 1 AC2; Requirement 2 AC1; Requirement 2 AC2; Requirement 3 AC1; Requirement 3 AC2; Requirement 4 AC1; Requirement 4 AC2 | Validation Strategy | validation | Full regression suite | `verification.md` | none |
 | T009 | Requirements 1-4 | Requirement 1 AC1; Requirement 1 AC2; Requirement 2 AC1; Requirement 2 AC2; Requirement 3 AC1; Requirement 3 AC2; Requirement 4 AC1; Requirement 4 AC2 | Operational Considerations | Promotion Targets | durable-doc review | implementation and orientation docs | none |
 | T010 | Requirements 1-4 | Requirement 1 AC1; Requirement 1 AC2; Requirement 2 AC1; Requirement 2 AC2; Requirement 3 AC1; Requirement 3 AC2; Requirement 4 AC1; Requirement 4 AC2 | Operational Considerations | Promotion Targets | closure checks | lifecycle history | none |
@@ -62,7 +62,7 @@ Provide task-first navigation for the migrated CLI consolidation package.
 ## Cross-Spec Sequence
 
 The repository-hygiene prerequisite closed on 2026-07-18 with no CLI runtime or
-test changes. T006 is complete, making T007 the next eligible task.
+test changes. T007 is complete, making T008 the next eligible task.
 
 ## Maintenance Notes
 
@@ -76,5 +76,9 @@ test changes. T006 is complete, making T007 the next eligible task.
   create`. Real managers now route those operations through `BackupCLIHandler`;
   the public `CLIServiceManager` compatibility methods remain thin, tested
   delegates and legacy manager doubles retain an explicit fallback.
+- T007 inventory confirmed root CLI and registry ownership already converged on
+  `commands.monitoring`. The unreferenced singular duplicate was removed, while
+  the public monitoring facade methods remain tested delegates to
+  `CLIMonitoringIntegration`.
 Reconcile this matrix after each caller inventory and before changing a task's
 scope or completion state.

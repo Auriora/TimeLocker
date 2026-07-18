@@ -13,7 +13,7 @@ last_reviewed: 2026-07-18
 
 | Gate | Covers | Pass criterion | Evidence |
 |------|--------|----------------|----------|
-| Package lint/readiness | Spec integrity | No unwaived errors or readiness gaps; next task is T007 | reconciliation validation |
+| Package lint/readiness | Spec integrity | No unwaived errors or readiness gaps; next task is T008 | reconciliation validation |
 | CLI contract tests | Requirement 1, CP-001 | Help/discovery and unique-registration tests pass | record per slice |
 | Resolver validation | Requirement 2, CP-002 | Focused tests pass and direct imports are eliminated or justified | T005 |
 | Service-manager validation | Requirement 3, CP-003 | Focused tests pass and selected fan-out is removed | T006 |
@@ -64,7 +64,18 @@ last_reviewed: 2026-07-18
   with configured coverage passed all 50 tests but produced 18.52% aggregate
   repository coverage and therefore did not satisfy the global 50% threshold;
   the full-suite coverage gate remains assigned to T008.
-- T007-T008: pending.
+- T007 (2026-07-18): removed `src/TimeLocker/cli_modules/commands/monitor.py`
+  after root CLI and registry
+  imports were confirmed on `cli_modules.commands.monitoring`. New tests
+  enforce the single module owner and verify that the retained public
+  `CLIServiceManager` monitoring
+  methods delegate to `CLIMonitoringIntegration` with the expected filters.
+  `pytest --no-cov -q` over monitoring commands, registry integration, and the
+  isolated top-level uniqueness contract passed 35 tests; Ruff passed; and the
+  runtime caller search found no legacy module references. The configured
+  coverage run passed all 35 test cases but produced 15.53% aggregate
+  repository coverage, leaving the global 50% gate for T008.
+- T008: pending.
 
 ## Evidence Recording Rules
 
@@ -84,7 +95,7 @@ search result alone does not prove runtime behavior; pair it with focused tests.
 ### Spec Cleanup Decision
 
 - **Cleanup action:** keep active
-- **Reason:** T007-T008 remain pending.
+- **Reason:** T008 remains pending.
 - **Final spec commit:** pending
 - **Closure log path:** `docs/history/spec-closure-log.md`
 - **Closure log entry updated:** no

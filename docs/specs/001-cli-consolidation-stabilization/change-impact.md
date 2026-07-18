@@ -66,8 +66,9 @@ new defect through reconciliation and update this artifact before expanding scop
   compatibility seams because repository searches cannot exclude external
   package consumers.
 - Retain `cli_modules.commands.monitoring` as the command owner and
-  `CLIMonitoringIntegration` as the command-facing bridge; reconcile the older
-  `cli_modules.commands.monitor` path during T007.
+  `CLIMonitoringIntegration` as the command-facing bridge. T007 removed the
+  unreferenced older `cli_modules.commands.monitor` duplicate; public
+  `CLIServiceManager` monitoring delegates remain supported and tested.
 
 ## Related Artifacts
 
