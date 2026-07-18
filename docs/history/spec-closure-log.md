@@ -15,6 +15,26 @@ final spec commit preserves the complete package.
 
 ## Entries
 
+### 2026-07-18 - 006-repository-review-skill
+
+- **Spec:** removed; recover from Git
+- **Title:** Repository Review Skill
+- **Final spec commit:** `62dac67`
+- **Closure cleanup commit:** pending
+- **Closure action:** removed
+- **Closed by:** Auriora Team
+- **Durable docs updated:** `.agents/skills/review-timelocker/` and `AGENTS.md`
+- **Verification summary:** Skill Creator validation, metadata/reference
+  assertions, link and Git checks passed. All 12 lifecycle evidence records
+  were concrete; package lint, task audit, evidence quality, promotion, and
+  closure checks had no errors or blockers. A bounded read-only exercise
+  produced the required scope receipt and no actionable findings.
+- **Residual risks:** Role-based review improves breadth but cannot guarantee
+  defect discovery. Agent Workbench excludes hidden `.agents/` paths, so skill
+  package validation relies on Skill Creator and direct filesystem evidence.
+- **Follow-up:** Resume Spec 001 at T005; invoke `$review-timelocker` for
+  evidence-backed code and documentation reviews.
+
 ### 2026-07-18 - 005-project-charter
 
 - **Spec:** removed; recover from Git
