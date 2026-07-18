@@ -88,7 +88,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010
       passed. Agent Workbench static diagnostics were unavailable for Python
       files and returned no actionable findings.
 
-- [~] T006 Reduce `CLIServiceManager` domain fan-out.
+- [x] T006 Reduce `CLIServiceManager` domain fan-out.
   - Depends on: T005
   - Requirement: Requirement 3
   - Acceptance Criteria: Requirement 3 AC1, Requirement 3 AC2
@@ -96,9 +96,11 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010
   - Files: `src/TimeLocker/cli_services.py`, command/service callers, focused tests
   - Acceptance: Selected callers use narrow services while `get_cli_service_manager()` remains a tested compatibility facade.
   - Validation: Focused service/facade tests, CLI contract tests, and dependency search.
-  - Evidence: Inventory identified selection-template orchestration in
-    `CLIServiceManager` and four backup-command callers as a bounded migration
-    group. D001 requires all public facade methods to remain compatible.
+  - Evidence: Completed 2026-07-18. The four selection-template operations in
+    `backup create` now use `BackupCLIHandler` directly for real managers, while
+    D001's public `CLIServiceManager` methods remain tested thin delegates and
+    compatible manager doubles retain the legacy path. The focused service,
+    command, integration, and CLI-contract run passed 50 tests.
   - [x] T006.1 Inventory manager methods, callers, fallbacks, and external compatibility risk.
     - Evidence: `rg` inventory on 2026-07-18 mapped manager methods, command
       callers, focused services, and tests; selection backup is isolated behind
@@ -107,12 +109,23 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010
     - Evidence: Selected selection-template backup orchestration; added tests
       for the focused handler, public facade property, and legacy facade
       compatibility. The first focused run passed 31 tests.
-  - [~] T006.3 Move domain logic to focused services and retain thin delegates as needed.
-    - Evidence: `CLIServiceManager.selection_handler` now exposes the focused
-      service. Missing-template guidance uses it for real managers and retains
-      the legacy facade adapter for compatible test/external doubles. The
-      remaining selection callers still require migration.
-  - [ ] T006.4 Run focused validation and record commands/results.
+  - [x] T006.3 Move domain logic to focused services and retain thin delegates as needed.
+    - Evidence: `CLIServiceManager.selection_handler` exposes the focused
+      service. Template existence, missing-template guidance, selection
+      summaries, and selection backup execution now use it for real managers.
+      The public facade remains a tested thin delegate, and compatible
+      test/external doubles retain the legacy adapter path.
+  - [x] T006.4 Run focused validation and record commands/results.
+    - Evidence: `pytest --no-cov -q` over backup command, focused handler,
+      selection integration, and isolated CLI uniqueness tests passed 50 tests;
+      the caller search found facade calls only in explicit compatibility
+      branches; lifecycle lint and `git diff --check` passed. The same focused
+      set under configured coverage passed all 50 tests but reported 18.52%
+      repository-wide coverage, below the global 50% gate; T008 owns the full
+      suite and coverage decision.
+  - Rules consulted and applied: Coding Standards (100), General Preferences
+    (50), Operational Best Practices (40), Testing Conventions (25),
+    Documentation Conventions (20), and Git Conventions (15); no overrides.
 
 - [ ] T007 Consolidate monitoring command and integration paths.
   - Depends on: T006

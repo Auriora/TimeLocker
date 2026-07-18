@@ -6,6 +6,7 @@ This module contains CLI commands for creating and verifying backups.
 
 import logging
 import sys
+import asyncio
 from typing import Optional, List, Annotated, TypeAlias, cast
 from pathlib import Path
 
@@ -140,7 +141,12 @@ def backup_create(
             selection_handler = _get_selection_handler_for_command(service_manager)
             
             try:
-                template_exists = service_manager.selection_template_exists(selection)
+                if isinstance(selection_handler, BackupCLIHandler):
+                    template_exists = asyncio.run(
+                        selection_handler.validate_selection_exists(selection)
+                    )
+                else:
+                    template_exists = service_manager.selection_template_exists(selection)
             except BackupOrchestratorError as exc:
                 logger.error("Backup orchestrator unavailable: %s", exc)
                 initialization_message = "\n".join(
@@ -210,7 +216,12 @@ def backup_create(
             # Display selection info
             console.print(f"📁 Using selection template: [bold cyan]{selection}[/bold cyan]")
             try:
-                summary = service_manager.get_selection_summary(selection)
+                if isinstance(selection_handler, BackupCLIHandler):
+                    summary = asyncio.run(
+                        selection_handler.get_selection_summary(selection)
+                    )
+                else:
+                    summary = service_manager.get_selection_summary(selection)
                 if summary:
                     console.print(f"[dim]{summary}[/dim]")
             except SelectionTemplateNotFoundError as exc:
@@ -229,13 +240,24 @@ def backup_create(
             }
             
             try:
-                result = service_manager.run_selection_backup(
-                    selection_name=selection,
-                    repository=repository,
-                    tags=tags,
-                    dry_run=dry_run,
-                    cli_options=cli_options
-                )
+                if isinstance(selection_handler, BackupCLIHandler):
+                    result = asyncio.run(
+                        selection_handler.execute_backup_with_selection(
+                            selection_name=selection,
+                            repository=repository,
+                            tags=tags,
+                            dry_run=dry_run,
+                            **cli_options,
+                        )
+                    )
+                else:
+                    result = service_manager.run_selection_backup(
+                        selection_name=selection,
+                        repository=repository,
+                        tags=tags,
+                        dry_run=dry_run,
+                        cli_options=cli_options
+                    )
             except SelectionTemplateNotFoundError as exc:
                 show_error_panel("Selection Template Not Found", str(exc))
                 raise typer.Exit(1)

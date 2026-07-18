@@ -13,7 +13,7 @@ last_reviewed: 2026-07-18
 
 | Gate | Covers | Pass criterion | Evidence |
 |------|--------|----------------|----------|
-| Package lint/readiness | Spec integrity | No unwaived errors or readiness gaps; next task is T006 | reconciliation validation |
+| Package lint/readiness | Spec integrity | No unwaived errors or readiness gaps; next task is T007 | reconciliation validation |
 | CLI contract tests | Requirement 1, CP-001 | Help/discovery and unique-registration tests pass | record per slice |
 | Resolver validation | Requirement 2, CP-002 | Focused tests pass and direct imports are eliminated or justified | T005 |
 | Service-manager validation | Requirement 3, CP-003 | Focused tests pass and selected fan-out is removed | T006 |
@@ -51,7 +51,20 @@ last_reviewed: 2026-07-18
   diagnostics; and `git diff --check` passed.
   Agent Workbench had no Python diagnostics provider, so executed tests and
   direct source/import checks are the authoritative evidence.
-- T006-T008: pending.
+- T006 (2026-07-18): `backup create` now obtains the public focused
+  `BackupCLIHandler` and uses it for template validation, creation guidance,
+  summary retrieval, and selection backup execution. `CLIServiceManager`
+  retains tested thin delegates for D001 compatibility, and command doubles
+  without the focused handler retain an explicit legacy adapter. `pytest
+  --no-cov -q` over `test_backup_commands.py`,
+  `test_backup_cli_handler.py`, `test_backup_data_selection_integration.py`,
+  and the isolated top-level command uniqueness test passed 50 tests. A direct
+  caller search found facade selection calls only in guarded compatibility
+  branches; package lint and `git diff --check` passed. The same focused set
+  with configured coverage passed all 50 tests but produced 18.52% aggregate
+  repository coverage and therefore did not satisfy the global 50% threshold;
+  the full-suite coverage gate remains assigned to T008.
+- T007-T008: pending.
 
 ## Evidence Recording Rules
 
@@ -71,7 +84,7 @@ search result alone does not prove runtime behavior; pair it with focused tests.
 ### Spec Cleanup Decision
 
 - **Cleanup action:** keep active
-- **Reason:** T005-T008 remain pending.
+- **Reason:** T007-T008 remain pending.
 - **Final spec commit:** pending
 - **Closure log path:** `docs/history/spec-closure-log.md`
 - **Closure log entry updated:** no

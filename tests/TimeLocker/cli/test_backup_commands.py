@@ -6,7 +6,7 @@ Tests backup command parsing, parameter validation, help output, and error handl
 
 import pytest
 import tempfile
-from unittest.mock import Mock, patch
+from unittest.mock import AsyncMock, Mock, patch
 
 from TimeLocker.cli import app
 from TimeLocker.cli_services import CLIServiceManager
@@ -49,11 +49,77 @@ class TestBackupCommands:
         assert manager.selection_handler is handler
 
     @pytest.mark.unit
+    def test_cli_service_manager_selection_facade_delegates_to_handler(self) -> None:
+        """Compatibility methods delegate to the same narrow handler behavior."""
+        handler = Mock(spec=BackupCLIHandler)
+        handler.validate_selection_exists = AsyncMock(return_value=True)
+        handler.get_selection_summary = AsyncMock(return_value="summary")
+        handler.suggest_template_creation.return_value = "create it"
+        handler.execute_backup_with_selection = AsyncMock(return_value=Mock())
+        manager = CLIServiceManager.__new__(CLIServiceManager)
+        manager._backup_orchestrator = Mock()
+        manager._selection_handler = handler
+
+        assert manager.selection_template_exists("documents") is True
+        assert manager.get_selection_summary("documents") == "summary"
+        assert manager.suggest_selection_creation("documents") == "create it"
+        result = manager.run_selection_backup(
+            selection_name="documents",
+            repository="repo",
+        )
+
+        assert result is handler.execute_backup_with_selection.return_value
+        handler.validate_selection_exists.assert_awaited_once_with("documents")
+        handler.get_selection_summary.assert_awaited_once_with("documents")
+        handler.suggest_template_creation.assert_called_once_with("documents")
+        handler.execute_backup_with_selection.assert_awaited_once()
+
+    @pytest.mark.unit
     def test_selection_handler_retains_legacy_facade_compatibility(self) -> None:
         """Legacy manager doubles without a real handler remain supported."""
         manager = Mock()
 
         assert _get_selection_handler_for_command(manager) is manager
+
+    @pytest.mark.unit
+    @patch('TimeLocker.cli_modules.helpers.service_helpers.get_cli_service_manager')
+    def test_backup_create_routes_selection_through_focused_handler(
+            self, mock_service_manager: Mock
+    ) -> None:
+        """The production-shaped command path bypasses facade selection methods."""
+        handler = BackupCLIHandler(
+            selection_manager=Mock(),
+            backup_orchestrator=Mock(),
+        )
+        handler.validate_selection_exists = AsyncMock(return_value=True)
+        handler.get_selection_summary = AsyncMock(return_value="Test selection")
+        handler.execute_backup_with_selection = AsyncMock(return_value=Mock(
+            status=Mock(value='completed'),
+            snapshot_id='test123',
+            files_processed=10,
+            bytes_transferred=1000,
+            duration=Mock(total_seconds=lambda: 5.0),
+            warnings=[],
+            errors=[],
+        ))
+        manager = Mock()
+        manager.selection_handler = handler
+        mock_service_manager.return_value = manager
+
+        result = runner.invoke(app, [
+            "backup", "create",
+            "--selection", "test-selection",
+            "--repository", "test-repo",
+            "--dry-run",
+        ])
+
+        assert result.exit_code == 0, (combined_output(result), result.exception)
+        handler.validate_selection_exists.assert_awaited_once_with("test-selection")
+        handler.get_selection_summary.assert_awaited_once_with("test-selection")
+        handler.execute_backup_with_selection.assert_awaited_once()
+        assert not manager.selection_template_exists.called
+        assert not manager.get_selection_summary.called
+        assert not manager.run_selection_backup.called
 
     @pytest.mark.unit
     def test_backup_help_output(self) -> None:
