@@ -15,12 +15,18 @@ accepted content has been promoted and the package is closed.
 
 ## Current Packages
 
-None.
+- [`007-release-readiness-stabilization`](./007-release-readiness-stabilization/requirements.md)
+  — active package for restoring trustworthy CI, stabilizing release signals,
+  validating `v0.9.1` artifacts, rehearsing release operations, and promoting
+  durable release guidance.
 
 ## Active-Package Sequencing
 
-There are no active packages. Closed package identity and recovery commits are
-recorded in `docs/history/` rather than kept in this active documentation path.
+Spec 007 is the only active package. GitHub milestone `v0.9.1` and issue #68
+provide external scheduling and stress-test evidence; the spec remains
+authoritative for implementation sequencing, acceptance, validation, and
+promotion. Closed package identity and recovery commits remain recorded in
+`docs/history/` rather than kept in this active documentation path.
 
 ## When a Spec Is Needed
 
