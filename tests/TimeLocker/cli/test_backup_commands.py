@@ -6,6 +6,7 @@ Tests backup command parsing, parameter validation, help output, and error handl
 
 import pytest
 import tempfile
+from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
 from TimeLocker.cli import app
@@ -255,10 +256,15 @@ class TestBackupCommands:
         mock_get_manager.return_value = manager
 
         with tempfile.TemporaryDirectory() as temp_dir:
+            exclude_file = Path(temp_dir) / "excludes.txt"
+            exclude_file.write_text("*.cache\n")
             result = runner.invoke(app, [
                 "backup", "create", temp_dir,
                 "--compression", "max",
                 "--one-file-system",
+                "--exclude-file", str(exclude_file),
+                "--exclude-caches",
+                "--backend-option", "s3.storage-class=INTELLIGENT_TIERING",
                 "--dry-run",
             ])
 
@@ -266,6 +272,9 @@ class TestBackupCommands:
         request = manager.execute_backup.call_args.args[0]
         assert request.compression == "max"
         assert request.one_file_system is True
+        assert request.exclude_files == [exclude_file]
+        assert request.exclude_caches is True
+        assert request.backend_options == ["s3.storage-class=INTELLIGENT_TIERING"]
 
     @pytest.mark.unit
     @patch('TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')

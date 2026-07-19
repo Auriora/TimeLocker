@@ -106,6 +106,12 @@ def _build_backup_command(schedule: Dict[str, Any], config_dir: Optional[Path] =
         argv.extend(['--tags', str(tag)])
     for pattern in schedule.get('exclude_patterns') or []:
         argv.extend(['--exclude', str(pattern)])
+    for exclude_file in schedule.get('exclude_files') or []:
+        argv.extend(['--exclude-file', str(exclude_file)])
+    if schedule.get('exclude_caches', False):
+        argv.append('--exclude-caches')
+    for backend_option in schedule.get('backend_options') or []:
+        argv.extend(['--backend-option', str(backend_option)])
     compression = schedule.get('compression')
     if compression:
         if compression not in {'auto', 'off', 'max'}:
@@ -154,6 +160,12 @@ def _format_schedule_table(schedules: Dict[str, Dict[str, Any]]) -> Table:
             options.append(f"tags={len(schedule['tags'])}")
         if schedule.get('exclude_patterns'):
             options.append(f"excludes={len(schedule['exclude_patterns'])}")
+        if schedule.get('exclude_files'):
+            options.append(f"exclude-files={len(schedule['exclude_files'])}")
+        if schedule.get('exclude_caches', False):
+            options.append("exclude-caches")
+        if schedule.get('backend_options'):
+            options.append(f"backend-options={len(schedule['backend_options'])}")
 
         table.add_row(name, repository, frequency, next_run, enabled, ", ".join(options) or "default")
     
@@ -228,6 +240,9 @@ def _interactive_schedule_configuration(config_dir: Optional[Path] = None) -> Di
         "system": False,
         "tags": [],
         "exclude_patterns": [],
+        "exclude_files": [],
+        "exclude_caches": False,
+        "backend_options": [],
         "compression": None,
         "one_file_system": False,
         "config_dir": str(config_dir.expanduser().resolve()) if config_dir else None,
@@ -378,6 +393,9 @@ def schedule_create(
     system: Annotated[bool, typer.Option("--system/--user", help="Generate a system-level or user-level schedule")] = False,
     tags: Annotated[Optional[List[str]], typer.Option("--tags", help="Backup tag (repeatable)")] = None,
     exclude_patterns: Annotated[Optional[List[str]], typer.Option("--exclude", help="Backup exclusion pattern (repeatable)")] = None,
+    exclude_files: Annotated[Optional[List[Path]], typer.Option("--exclude-file", help="Restic exclusion file (repeatable)")] = None,
+    exclude_caches: Annotated[bool, typer.Option("--exclude-caches", help="Exclude directories marked with CACHEDIR.TAG")] = False,
+    backend_options: Annotated[Optional[List[str]], typer.Option("--backend-option", help="Allowlisted Restic backend option (repeatable)")] = None,
     compression: Annotated[Optional[str], typer.Option(
         "--compression",
         help="Restic compression mode: auto, off, or max",
@@ -447,6 +465,9 @@ def schedule_create(
                 "system": system,
                 "tags": tags or [],
                 "exclude_patterns": exclude_patterns or [],
+                "exclude_files": [str(path.expanduser().resolve()) for path in (exclude_files or [])],
+                "exclude_caches": exclude_caches,
+                "backend_options": backend_options or [],
                 "compression": compression,
                 "one_file_system": one_file_system,
                 "config_dir": str(config_dir.expanduser().resolve()) if config_dir else None,
@@ -533,6 +554,9 @@ def schedule_show(
                 f"[bold]Sources:[/bold] {', '.join(schedule.get('sources', [])) or 'N/A'}\n"
                 f"[bold]Tags:[/bold] {', '.join(schedule.get('tags', [])) or 'N/A'}\n"
                 f"[bold]Exclusions:[/bold] {', '.join(schedule.get('exclude_patterns', [])) or 'N/A'}\n"
+                f"[bold]Exclusion Files:[/bold] {', '.join(schedule.get('exclude_files', [])) or 'N/A'}\n"
+                f"[bold]Exclude Caches:[/bold] {'Yes' if schedule.get('exclude_caches', False) else 'No'}\n"
+                f"[bold]Backend Options:[/bold] {', '.join(schedule.get('backend_options', [])) or 'N/A'}\n"
                 f"[bold]Compression:[/bold] {schedule.get('compression') or 'default'}\n"
                 f"[bold]One Filesystem:[/bold] {'Yes' if schedule.get('one_file_system', False) else 'No'}\n"
                 f"[bold]Frequency:[/bold] {schedule.get('frequency', 'N/A')}\n"
@@ -560,6 +584,9 @@ def schedule_edit(
     system: Annotated[Optional[bool], typer.Option("--system/--user", help="Generate a system-level or user-level schedule")] = None,
     tags: Annotated[Optional[List[str]], typer.Option("--tags", help="Replace backup tags (repeatable)")] = None,
     exclude_patterns: Annotated[Optional[List[str]], typer.Option("--exclude", help="Replace exclusion patterns (repeatable)")] = None,
+    exclude_files: Annotated[Optional[List[Path]], typer.Option("--exclude-file", help="Replace exclusion files (repeatable)")] = None,
+    exclude_caches: Annotated[Optional[bool], typer.Option("--exclude-caches/--include-caches", help="Replace cache-directory exclusion mode")] = None,
+    backend_options: Annotated[Optional[List[str]], typer.Option("--backend-option", help="Replace allowlisted Restic backend options (repeatable)")] = None,
     compression: Annotated[Optional[str], typer.Option(
         "--compression",
         help="Replace Restic compression mode",
@@ -604,6 +631,12 @@ def schedule_edit(
             schedule['tags'] = tags
         if exclude_patterns is not None:
             schedule['exclude_patterns'] = exclude_patterns
+        if exclude_files is not None:
+            schedule['exclude_files'] = [str(path.expanduser().resolve()) for path in exclude_files]
+        if exclude_caches is not None:
+            schedule['exclude_caches'] = exclude_caches
+        if backend_options is not None:
+            schedule['backend_options'] = backend_options
         if compression is not None:
             schedule['compression'] = compression
         if one_file_system is not None:

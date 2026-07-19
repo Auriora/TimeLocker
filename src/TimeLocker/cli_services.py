@@ -187,6 +187,9 @@ class CLIBackupRequest:
     exclude_patterns: List[str] = None
     compression: Optional[str] = None
     one_file_system: bool = False
+    exclude_files: List[Path] = None
+    exclude_caches: bool = False
+    backend_options: List[str] = None
     dry_run: bool = False
 
     def __post_init__(self):
@@ -196,6 +199,10 @@ class CLIBackupRequest:
             self.include_patterns = []
         if self.exclude_patterns is None:
             self.exclude_patterns = []
+        if self.exclude_files is None:
+            self.exclude_files = []
+        if self.backend_options is None:
+            self.backend_options = []
 
 
 class CLIServiceManager:
@@ -1131,6 +1138,9 @@ class CLIServiceManager:
                             'exclude_patterns': request.exclude_patterns,
                             'compression':      request.compression,
                             'one_file_system':  request.one_file_system,
+                            'exclude_files':    [str(path) for path in request.exclude_files],
+                            'exclude_caches':   request.exclude_caches,
+                            'backend_options':  request.backend_options,
                     }
                     self._config_service.add_backup_target(target_config)
                 else:
@@ -1176,6 +1186,9 @@ class CLIServiceManager:
                 'exclude_patterns': request.exclude_patterns,
                 'compression':      request.compression,
                 'one_file_system':  request.one_file_system,
+                'exclude_files':    [str(path) for path in request.exclude_files],
+                'exclude_caches':   request.exclude_caches,
+                'backend_options':  request.backend_options,
         }
 
         # Add to configuration temporarily

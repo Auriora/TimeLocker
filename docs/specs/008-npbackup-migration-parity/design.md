@@ -44,9 +44,10 @@ CLI or stored schedule -> CLIBackupRequest/job metadata -> BackupTarget
 
 ### Contracts And Interfaces
 
-Add optional `compression` and default-false `one_file_system` fields to
-`CLIBackupRequest` and `BackupTarget`. Add `tags`, `exclude_patterns`,
-`compression`, and `one_file_system` to schedule records. The abstract
+Add optional `compression`, default-false `one_file_system` and
+`exclude_caches`, repeatable `exclude_files`, and repeatable allowlisted
+`backend_options` fields to `CLIBackupRequest` and `BackupTarget`. Add the same
+execution fields to schedule records. The abstract
 repository method remains unchanged; the Restic adapter reads invocation
 options from the concrete targets it already receives.
 
@@ -68,6 +69,8 @@ programmatic callers cannot bypass the guardrail.
 
 - Validate compression at the CLI and Restic adapter boundary.
 - Reject conflicting target-level invocation options rather than choosing one.
+- Accept only `s3.storage-class` as the initial migrated backend option and
+  validate its Restic-supported value before invoking the repository.
 - Test direct and selection-based backup propagation.
 - Test stored schedule creation, editing, display, parser round trip, and all
   renderers.
@@ -82,6 +85,13 @@ virtual environment such as `/opt/timelocker/venv`. Store configuration under
 to the existing repository read-only, list and restore snapshot `8958659e`,
 then stage a disabled system timer at a non-overlapping time. Retention remains
 simulation-only during overlap.
+
+The T007 host reconciliation found 252 unique patterns across three NPBackup
+exclude files, cache-directory exclusion enabled, and
+`s3.storage-class=INTELLIGENT_TIERING`. Preserve the files by reference rather
+than expanding their contents into generated unit arguments; preserve cache
+semantics with Restic `--exclude-caches` and the storage class through the
+allowlisted global backend option.
 
 ## Security And Rollback
 
@@ -113,7 +123,14 @@ and NPBackup cutover remain explicit Phase 2 operator gates.
   value output from the existing Restic service-account environment, supplies
   the production repository and backend credentials.
 
+## Resolved T007 Reconciliation
+
+- The effective NPBackup exclusion set requires explicit migration support:
+  three reviewed exclusion files remain referenced, and cache-directory
+  exclusion is carried separately. Expanding 252 patterns into generated unit
+  arguments is rejected because it duplicates another tool's maintained files.
+
 ## Open Questions
 
-- Does the effective NPBackup built-in exclusion expansion require a normalized
-  TimeLocker selection template before T007?
+- No implementation question remains for T007. D002 remains the separate
+  operator decision about production schedule retention and NPBackup cutover.

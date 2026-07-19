@@ -19,14 +19,14 @@ last_reviewed: 2026-07-19
 | T004 | Requirement 1, Requirement 2, Requirement 3 | R1-R2 all; R3 AC1 | Validation And Failure Handling | Phase 1 checkpoint | both guides | none |
 | T005 | Requirement 3 | AC2 | Security And Rollback | credential-path review | installation guidance | D001 resolved |
 | T006 | Requirement 3 | AC2-AC3 | Operator Staging Design | version, list, and restore | installation and recovery guides | none |
-| T007 | Requirement 3 | AC3-AC4 | Operator Staging Design | scheduled runs and restore | scheduling guide | D002 |
+| T007 | Requirement 1, Requirement 3 | R1 AC5; R3 AC3-AC4 | Low-Level Design; Operator Staging Design | focused parity tests, scheduled runs, and restore | backup and scheduling guides | D002 |
 | T008 | Requirement 3 | AC4 | Security And Rollback | operator decision | scheduling guide | D002 |
 
 ## Requirement To Delivery Matrix
 
 | Requirement | Priority | Acceptance Criteria | Design Sections | Tasks | Verification | Durable Targets | Coverage State | Residual Destination |
 |-------------|----------|---------------------|-----------------|-------|--------------|-----------------|----------------|----------------------|
-| Requirement 1 | must-have | AC1-AC4 | Overview; Low-Level Design | T002, T004 | focused and normal-profile backup tests | recovery operations guide | complete | none |
+| Requirement 1 | must-have | AC1-AC5 | Overview; Low-Level Design | T002, T004, T007 | focused and normal-profile backup tests; live migrated command | recovery operations guide | partial-blocking | T007 |
 | Requirement 2 | must-have | AC1-AC4 | High-Level Design; Compatibility | T003, T004 | schedule and renderer tests | scheduling guide | complete | none |
 | Requirement 3 | must-have | AC1-AC4 | Operational Considerations; Security And Rollback | T004-T008 | host comparison, restore, observation, decision | installation and scheduling guides | partial-blocking | T005-T008 |
 

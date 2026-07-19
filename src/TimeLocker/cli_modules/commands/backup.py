@@ -114,6 +114,9 @@ def backup_create(
             "--one-file-system/--cross-filesystems",
             help="Do not cross filesystem boundaries while backing up",
         )] = False,
+        exclude_file: Annotated[Optional[List[Path]], typer.Option("--exclude-file", help="Restic exclusion file (repeatable)")] = None,
+        exclude_caches: Annotated[bool, typer.Option("--exclude-caches", help="Exclude directories marked with CACHEDIR.TAG")] = False,
+        backend_option: Annotated[Optional[List[str]], typer.Option("--backend-option", help="Allowlisted Restic backend option (repeatable)")] = None,
         dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be backed up without actually performing backup")] = False,
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
@@ -248,6 +251,9 @@ def backup_create(
                 'priority': 0,
                 'compression': compression,
                 'one_file_system': one_file_system,
+                'exclude_files': exclude_file or [],
+                'exclude_caches': exclude_caches,
+                'backend_options': backend_option or [],
             }
             
             try:
@@ -423,6 +429,9 @@ def backup_create(
                     exclude_patterns=exclude or [],
                     compression=compression,
                     one_file_system=one_file_system,
+                    exclude_files=exclude_file or [],
+                    exclude_caches=exclude_caches,
+                    backend_options=backend_option or [],
                     dry_run=dry_run
             )
             logger.debug("CLIBackupRequest created successfully")

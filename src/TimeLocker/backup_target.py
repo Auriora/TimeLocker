@@ -37,6 +37,9 @@ class BackupTarget:
                  template_overrides: Optional[Dict[str, Any]] = None,
                  compression: Optional[str] = None,
                  one_file_system: bool = False,
+                 exclude_files: Optional[List[str]] = None,
+                 exclude_caches: bool = False,
+                 backend_options: Optional[List[str]] = None,
                  **kwargs):
         """
         Initialize a backup target
@@ -90,6 +93,9 @@ class BackupTarget:
         self.name = name
         self.compression = compression
         self.one_file_system = one_file_system
+        self.exclude_files = list(exclude_files or [])
+        self.exclude_caches = exclude_caches
+        self.backend_options = list(backend_options or [])
         
         # New selection management integration
         self.template_id = template_id

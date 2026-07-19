@@ -72,6 +72,10 @@ filesystem or compression boundary.
    cross-filesystem behavior.
 4. GIVEN tags and exclude patterns, WHEN the backup runs, THEN all values SHALL
    reach the existing tag and exclusion command path without credential output.
+5. GIVEN reviewed exclusion files, cache-directory exclusion, and allowlisted
+   Restic backend options, WHEN the migrated production backup runs, THEN those
+   values SHALL reach Restic exactly and unsupported backend options SHALL fail
+   before repository mutation.
 
 ### Requirement 2: Executable schedule parity
 
@@ -118,6 +122,8 @@ NPBackup remains a recoverable fallback until TimeLocker is observed.
 - **CP-004:** Generated assets contain credential references only, never values.
 - **CP-005:** Phase 1 leaves systemd, cron, NPBackup, and production credentials
   unchanged.
+- **CP-006:** Production migration does not silently drop NPBackup exclusion
+  files, cache-directory exclusion, or reviewed S3 storage-class intent.
 
 ## Success Criteria
 

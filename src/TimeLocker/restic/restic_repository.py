@@ -340,6 +340,23 @@ class ResticRepository(BackupRepository):
                 "Backup targets specify conflicting filesystem traversal modes"
             )
 
+        cache_values = {target.exclude_caches for target in targets}
+        if len(cache_values) > 1:
+            raise RepositoryError("Backup targets specify conflicting cache exclusion modes")
+
+        backend_option_values = {tuple(target.backend_options) for target in targets}
+        if len(backend_option_values) > 1:
+            raise RepositoryError("Backup targets specify conflicting Restic backend options")
+        backend_options = list(next(iter(backend_option_values), ()))
+        allowed_storage_classes = {
+            "STANDARD", "STANDARD_IA", "ONEZONE_IA",
+            "INTELLIGENT_TIERING", "REDUCED_REDUNDANCY",
+        }
+        for option in backend_options:
+            key, separator, value = option.partition("=")
+            if key != "s3.storage-class" or not separator or value not in allowed_storage_classes:
+                raise RepositoryError(f"Unsupported Restic backend option: {option}")
+
         # Collect all paths to backup and build command arguments
         all_paths = []
         all_tags = set(tags or [])
@@ -355,13 +372,22 @@ class ResticRepository(BackupRepository):
 
         # Build backup command using the existing command builder pattern
         backup_command = self._command.command("backup")
+        for option in backend_options:
+            backup_command.param("option", option)
         if compression_values:
             backup_command.param("compression", next(iter(compression_values)))
         if filesystem_values == {True}:
             backup_command.param("one-file-system")
+        if cache_values == {True}:
+            backup_command.param("exclude-caches")
 
         # Add exclude patterns from all targets
         for target in targets:
+            for exclude_file in target.exclude_files:
+                exclude_path = Path(exclude_file)
+                if not exclude_path.is_file():
+                    raise RepositoryError(f"Restic exclusion file does not exist: {exclude_path}")
+                backup_command.param("exclude-file", str(exclude_path))
             for pattern in target.selection.exclude_patterns:
                 backup_command.param("exclude", pattern)
             for path in target.selection.excludes:

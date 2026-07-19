@@ -125,6 +125,9 @@ class TestScheduleCommands:
             "exclude_patterns": ["cache/*", "name;still-an-argument"],
             "compression": "max",
             "one_file_system": True,
+            "exclude_files": [str(tmp_path / "excludes with spaces")],
+            "exclude_caches": True,
+            "backend_options": ["s3.storage-class=INTELLIGENT_TIERING"],
         }
 
         command = _build_backup_command(schedule)
@@ -134,6 +137,9 @@ class TestScheduleCommands:
         assert argv.count("--exclude") == 2
         assert argv[argv.index("--compression") + 1] == "max"
         assert argv.count("--one-file-system") == 1
+        assert argv.count("--exclude-file") == 1
+        assert argv.count("--exclude-caches") == 1
+        assert argv[argv.index("--backend-option") + 1] == "s3.storage-class=INTELLIGENT_TIERING"
         assert "tag with spaces" in argv
         assert "name;still-an-argument" in argv
 
@@ -149,6 +155,8 @@ class TestScheduleCommands:
         for rendered in (cron, service, windows):
             assert "--compression max" in rendered
             assert "--one-file-system" in rendered
+            assert "--exclude-caches" in rendered
+            assert "--backend-option s3.storage-class=INTELLIGENT_TIERING" in rendered
 
     @pytest.mark.unit
     def test_generated_backup_command_preserves_legacy_defaults(self, tmp_path):
@@ -162,6 +170,9 @@ class TestScheduleCommands:
         assert "--one-file-system" not in argv
         assert "--tags" not in argv
         assert "--exclude" not in argv
+        assert "--exclude-file" not in argv
+        assert "--exclude-caches" not in argv
+        assert "--backend-option" not in argv
 
     @pytest.mark.unit
     @patch('TimeLocker.cli_modules.commands.schedule._get_schedule_storage_dir')
@@ -172,6 +183,8 @@ class TestScheduleCommands:
         mock_storage_dir.return_value = tmp_path
         source = tmp_path / "source"
         source.mkdir()
+        exclude_file = tmp_path / "excludes.txt"
+        exclude_file.write_text("*.cache\n")
 
         create = runner.invoke(app, [
             "schedule", "create", "migration",
@@ -182,6 +195,9 @@ class TestScheduleCommands:
             "--exclude", "cache/*",
             "--compression", "max",
             "--one-file-system",
+            "--exclude-file", str(exclude_file),
+            "--exclude-caches",
+            "--backend-option", "s3.storage-class=INTELLIGENT_TIERING",
         ])
         assert_success(create)
 
@@ -190,6 +206,9 @@ class TestScheduleCommands:
         assert stored['exclude_patterns'] == ['cache/*']
         assert stored['compression'] == 'max'
         assert stored['one_file_system'] is True
+        assert stored['exclude_files'] == [str(exclude_file.resolve())]
+        assert stored['exclude_caches'] is True
+        assert stored['backend_options'] == ['s3.storage-class=INTELLIGENT_TIERING']
 
         edit = runner.invoke(app, [
             "schedule", "edit", "migration",
@@ -197,6 +216,7 @@ class TestScheduleCommands:
             "--exclude", "*.tmp",
             "--compression", "off",
             "--cross-filesystems",
+            "--include-caches",
         ])
         assert_success(edit)
         stored = json.loads((tmp_path / "schedules.json").read_text())['migration']
@@ -204,6 +224,7 @@ class TestScheduleCommands:
         assert stored['exclude_patterns'] == ['*.tmp']
         assert stored['compression'] == 'off'
         assert stored['one_file_system'] is False
+        assert stored['exclude_caches'] is False
 
         shown = runner.invoke(app, ["schedule", "show", "migration"])
         listed = runner.invoke(app, ["schedule", "list"])
@@ -211,6 +232,7 @@ class TestScheduleCommands:
         assert_success(listed)
         assert "Compression:" in combined_output(shown)
         assert "compression=off" in combined_output(listed)
+        assert "Exclusion Files:" in combined_output(shown)
 
     @pytest.mark.unit
     def test_linux_renderers_reference_environment_without_secret_values(self, tmp_path):

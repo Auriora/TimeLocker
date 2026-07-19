@@ -71,14 +71,14 @@ last_reviewed: 2026-07-19
 
   - Evidence: Operator-approved T005 completed on 2026-07-19: `/etc/timelocker/npbackup-migration.env` is root:root mode 0600 and byte-identical to the existing Restic service-account environment. It contains exactly the five expected non-empty Restic/AWS assignments and loads successfully as root; no values were emitted. Root's 17:30 NPBackup cron is unchanged, and no TimeLocker unit or `/opt/timelocker` installation exists.
   - Status: D001 resolved; protected credential source ready. T006 privileged artifact installation remains separately gated.
-- [~] T006 Install a committed root-owned TimeLocker artifact and attach read-only.
+- [x] T006 Install a committed root-owned TimeLocker artifact and attach read-only.
   - Depends on: T005 and explicit privileged-install approval
   - Requirement: Requirement 3
   - Acceptance: Root-owned versioned installation lists and restores existing
     snapshot `8958659e`; NPBackup remains unchanged.
   - Evidence mode: validation
 
-  - Evidence: Operator authorized T006 on 2026-07-19. The validated Phase 1/T005 tree will be committed before building; only that commit may be installed. Repository access is limited to snapshot listing and a bounded restore, with NPBackup and scheduling unchanged.
+  - Evidence: Committed selective-restore repair `6896c8d` passed 64 focused tests and the full normal profile (2,797 passed, one skipped, 57 deselected, 52.53% coverage). Wheel SHA-256 `876246c4783d63f4d9f1fae80c5a4180afe95fbcb5161df01278e5b60de8da3c` was installed root-owned at `/opt/timelocker/releases/6896c8d6d90cb4c8320ec1fa66b966d9eb2dabcd`; both entry points report 0.9.1. The protected named repository listed snapshot `8958659e`; a bounded `/etc/hostname` restore produced a nonempty root-only result matching the live file byte-for-byte. Root's 17:30 NPBackup cron remains present; no TimeLocker cron entry, systemd unit, or timer exists. No backup, retention, schedule, or cutover action ran.
   - Evidence: Phase 1 was committed as `2c93709`; its root-owned release listed
     the protected repository and found snapshot `8958659e`. The first bounded
     restore exposed two recovery defects before Restic ran: selective validation
@@ -86,15 +86,22 @@ last_reviewed: 2026-07-19
     propagated to the backend. The repair removes the invalid field and carries
     bounded paths through the restore interfaces to repeated Restic arguments;
     64 focused recovery and adapter tests pass.
-  - Status: Preparing a replacement committed artifact for the live bounded
-    restore; production backup and timer operations remain prohibited.
-- [ ] T007 Stage, install, and observe a non-overlapping TimeLocker timer.
+  - Status: T006 complete. T007 remains separately gated by explicit timer-install approval.
+- [~] T007 Stage, install, and observe a non-overlapping TimeLocker timer.
   - Depends on: T006 and explicit timer-install approval
-  - Requirement: Requirement 3
+  - Requirements: Requirement 1, Requirement 3
+  - Acceptance Criteria: Requirement 1 AC5; Requirement 3 AC3-AC4
+  - Properties: CP-006
   - Acceptance: Production-equivalent sources/options run successfully on the
     scheduler and a subsequent restore passes; no retention deletion runs.
   - Evidence mode: validation
 
+  - Evidence: Masked NPBackup reconciliation found three exclusion files containing 252 unique patterns, cache-directory exclusion enabled, and `s3.storage-class=INTELLIGENT_TIERING`. TimeLocker now carries repeatable exclusion-file references, CACHEDIR.TAG exclusion, and an allowlisted S3 storage-class option through direct and selection CLI requests, stored schedules, generated assets, targets, orchestrators, and Restic argv. Invalid options and missing exclusion files fail before repository mutation. The focused parity profile passed 77 tests; the full normal profile passed 2,797 tests with one skipped, 57 deselected, and 52.56% coverage.
+  - Evidence: Masked NPBackup reconciliation found three exclusion files with
+    252 unique patterns, cache-directory exclusion enabled, and reviewed
+    `s3.storage-class=INTELLIGENT_TIERING` intent. These must be carried by the
+    committed TimeLocker artifact before the timer may run.
+  - Status: Parity implementation validated; preparing the committed root-owned artifact and non-overlapping timer.
 - [ ] T008 Checkpoint - Separate NPBackup cutover decision.
   - Depends on: T007
   - Requirement: Requirement 3

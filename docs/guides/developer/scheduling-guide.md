@@ -35,6 +35,10 @@ Schedules may also persist repeatable `--tags` and `--exclude` values,
 `--compression auto|off|max`, and the
 `--one-file-system/--cross-filesystems` traversal choice. Missing fields retain
 the legacy defaults and emit no additional backup arguments.
+Migration schedules may additionally reference repeatable root-readable
+`--exclude-file` paths, enable `--exclude-caches`, and carry an allowlisted
+`--backend-option`. The initial backend allowlist supports only Restic
+`s3.storage-class` with its documented non-archive storage classes.
 
 ## Create a disabled schedule
 
@@ -61,6 +65,9 @@ tl schedule create nightly-config \
   --system \
   --tags Bruce-5560 \
   --exclude 'cache/*' \
+  --exclude-file /etc/timelocker/excludes \
+  --exclude-caches \
+  --backend-option s3.storage-class=INTELLIGENT_TIERING \
   --compression max \
   --one-file-system \
   --cron '30 1 * * *' \
@@ -100,7 +107,8 @@ Before installation:
 
 1. Confirm the generated backup command contains `backup create`, the intended
    repository, all sources or the selection, the intended `--config-dir`, and
-   every reviewed tag, exclusion, compression, and traversal option.
+   every reviewed tag, exclusion, exclusion-file, cache, backend, compression,
+   and traversal option.
 2. Confirm it contains no password or other credential value.
 3. Run the generated wrapper manually in the intended user or root context.
 4. Complete a backup and a digest-verified TimeLocker restore.

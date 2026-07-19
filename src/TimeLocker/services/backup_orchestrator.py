@@ -879,6 +879,9 @@ class BackupOrchestrator(IBackupOrchestrator):
             tags=backup_job.config.tags,
             compression=cli_options.get('compression'),
             one_file_system=bool(cli_options.get('one_file_system', False)),
+            exclude_files=cli_options.get('exclude_files', []),
+            exclude_caches=bool(cli_options.get('exclude_caches', False)),
+            backend_options=cli_options.get('backend_options', []),
         )
         
         targets.append(target)
@@ -1152,6 +1155,9 @@ class BackupOrchestrator(IBackupOrchestrator):
                     tags=target_config.get('tags', []),
                     compression=target_config.get('compression'),
                     one_file_system=bool(target_config.get('one_file_system', False)),
+                    exclude_files=target_config.get('exclude_files', []),
+                    exclude_caches=bool(target_config.get('exclude_caches', False)),
+                    backend_options=target_config.get('backend_options', []),
             )
 
             logger.debug(f"BackupTarget created successfully for '{target_name}'")

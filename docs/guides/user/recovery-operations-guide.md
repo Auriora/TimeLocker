@@ -95,6 +95,9 @@ tl backup create /home /etc /var /srv /root /nix/var \
   --repository primary \
   --tags Bruce-5560 \
   --exclude 'cache/*' \
+  --exclude-file /etc/timelocker/excludes \
+  --exclude-caches \
+  --backend-option s3.storage-class=INTELLIGENT_TIERING \
   --compression max \
   --one-file-system \
   --dry-run \
@@ -104,6 +107,10 @@ tl backup create /home /etc /var /srv /root /nix/var \
 Omitting these options preserves the existing defaults: TimeLocker does not
 add a Restic compression argument and permits cross-filesystem traversal.
 Unsupported compression values fail CLI validation before repository access.
+Exclusion files remain external inputs and must be readable by the backup
+service account. `--exclude-caches` preserves Restic's CACHEDIR.TAG semantics.
+Backend options are validated before execution; the initial migration
+allowlist accepts only documented `s3.storage-class` values.
 
 Record the full snapshot ID from the result or JSON listing. Reported file and
 byte counts come from Restic's summary.

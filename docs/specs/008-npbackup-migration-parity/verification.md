@@ -19,7 +19,7 @@ last_reviewed: 2026-07-19
 | Stored and rendered schedule parity | passed | T003 create/edit/show/list and cron/systemd/Windows tests. |
 | Phase 1 host state unchanged | passed | Root cron still contains the 17:30 NPBackup job; no TimeLocker unit installed. |
 | Durable guidance promoted | passed | Both current guides pass bounded Markdown checks with zero findings. |
-| Production attachment and restore | in progress | Approved T006 release listed snapshot `8958659e`; bounded restore exposed and now has a focused-tested selective-restore repair awaiting replacement install. |
+| Production attachment and restore | passed | Root-owned release `6896c8d` listed snapshot `8958659e` and restored `/etc/hostname` selectively with a byte-for-byte match. |
 | Scheduled observation and cutover | blocked | T007-T008 explicit operator gates required. |
 
 ## Baseline Evidence
@@ -37,7 +37,7 @@ last_reviewed: 2026-07-19
 |-------------|-----------------------------|----------|---------------|
 | Requirement 1 | AC1-AC4 | T002 focused tests and 2,796-test normal profile | none for Phase 1 |
 | Requirement 2 | AC1-AC4 | T003 stored schedule and renderer tests | none for Phase 1 |
-| Requirement 3 | AC1; T005 prerequisite | Phase 1 host comparison and protected credential-source validation | AC2-AC4 remain gated in T006-T008. |
+| Requirement 3 | AC1-AC3 | Phase 1 host comparison, protected credential source, committed root-owned release, repository listing, and bounded restore | AC4 remains gated in T007-T008. |
 
 ## Evidence Log
 
@@ -54,8 +54,15 @@ last_reviewed: 2026-07-19
 | 2026-07-19 | T005 protected credential-source installation | pass | Root-only `/etc/timelocker/npbackup-migration.env` is a mode-0600, root-owned, byte-identical copy containing exactly the five expected non-empty assignments; values were not emitted. |
 | 2026-07-19 | T005 post-install host comparison | pass | Root loaded all required variables; NPBackup cron remained unchanged, with no TimeLocker unit or `/opt/timelocker` installation. |
 | 2026-07-19 | First committed T006 artifact and repository attachment | partial | Root-owned release from `2c93709` reported version 0.9.1 and listed snapshot `8958659e` through the protected named repository without changing NPBackup. |
-| 2026-07-19 | First T006 bounded restore | fail-safe | Recovery stopped before invoking Restic because selective validation supplied an unsupported constructor field; review also found bounded include/exclude paths were dropped before the backend. No full restore or backup ran. |
+| 2026-07-19 | First T006 bounded restore | fail-safe | Root-only log `restore-8958659e.log` records `SelectionConfig.__init__()` rejecting keyword `name` before Restic invocation; code review found include/exclude paths were also dropped. No full restore or backup ran. |
 | 2026-07-19 | Selective-restore repair focused suite | pass | 64 adapter, restore-manager, orchestrator, and repository tests passed with coverage disabled; tests verify include/exclude propagation and completed selective orchestration. |
+| 2026-07-19 | Replacement T006 committed artifact | pass | Wheel SHA-256 `876246c4783d63f4d9f1fae80c5a4180afe95fbcb5161df01278e5b60de8da3c` was built from `6896c8d`, installed root-owned under `/opt/timelocker/releases/`, and both entry points reported 0.9.1. |
+| 2026-07-19 | T006 protected repository listing and bounded restore | pass | Snapshot `8958659e` was present; selective `/etc/hostname` restore produced a nonempty file matching the live file byte-for-byte. Output remains in root-only verification logs. |
+| 2026-07-19 | T006 scheduler safety comparison | pass | Root `crontab -l`, `systemctl list-unit-files`, and `systemctl list-timers --all` checks found the 17:30 NPBackup job and zero TimeLocker scheduler entries. No backup, retention, schedule, or cutover operation ran. |
+| 2026-07-19 | Repaired-artifact full normal profile | pass | `python -m pytest -m "not performance and not stress and not minio"` exited 0: 2,797 passed, one skipped, 57 deselected, and 52.53% coverage in 803.23 seconds. |
+| 2026-07-19 | T007 masked execution-parity reconciliation | pass | Three exclusion files contain 252 unique patterns; cache exclusion and `s3.storage-class=INTELLIGENT_TIERING` are enabled. No credential value was emitted. |
+| 2026-07-19 | T007 focused parity profile | pass | 77 backup, CLI, schedule, target, and selection tests passed with coverage disabled. |
+| 2026-07-19 | T007 full normal profile | pass | `python -m pytest -m "not performance and not stress and not minio"` exited 0: 2,797 passed, one skipped, 57 deselected, and 52.56% coverage in 797.47 seconds. |
 
 ## Residual Risks
 
@@ -66,16 +73,15 @@ last_reviewed: 2026-07-19
 - Same-repository overlap can lock or duplicate work; timers must not overlap.
 - Retention enforcement can delete snapshots and remains simulation-only until
   separately reviewed.
-- The first installed T006 artifact is retained for rollback but is not accepted;
-  a replacement committed artifact and successful bounded restore are required.
+- The first installed T006 artifact is retained for rollback; the accepted
+  `current` release is the repaired `6896c8d` artifact.
 - Timer installation and cutover remain external mutations requiring approval.
 
 ## Readiness Decision
 
 - **Phase 1 ready for host staging:** yes
 - **Credential source ready for production attachment:** yes; T005 passed.
-- **Ready for production repository attachment:** in progress; approval was
-  granted and listing passed, but T006 still requires a successful bounded
-  restore from the repaired replacement artifact.
-- **Ready for timer installation or NPBackup cutover:** no; T006-T008 and
+- **Ready for production repository attachment:** yes; T006 passed listing and
+  bounded restore from the committed root-owned artifact.
+- **Ready for timer installation or NPBackup cutover:** no; T007-T008 and
   their explicit approvals remain pending.
