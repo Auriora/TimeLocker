@@ -11,12 +11,14 @@ last_reviewed: 2026-07-18
 
 ## Introduction
 
-TimeLocker is versioned as `0.9.0`, has no published release tags, and its
-normal GitHub Actions test profile currently fails because MinIO integration
-tests run without a reachable MinIO service. The next milestone is a bounded
-`v0.9.1` stabilization release that restores trustworthy CI, validates built
-artifacts in clean environments, rehearses the tag-triggered release path, and
-publishes evidence-backed release notes.
+TimeLocker is prepared as `0.9.1` but has no published release tags. Phases 1-4
+restored CI, artifact, cross-platform smoke, and non-publishing release
+evidence. A subsequent Linux Mint machine pilot proved that a valid Restic
+backup can be created but exposed release-blocking defects in repository
+initialization, dry-run, snapshot discovery, restore, system-tray integration,
+and generated scheduling commands. Phase 5 extends the stabilization boundary
+until a real local backup can be discovered and restored through TimeLocker and
+an executable staged-migration schedule can be prepared safely.
 
 ## Goals
 
@@ -27,6 +29,8 @@ publishes evidence-backed release notes.
 - Prove the supported installation and CLI smoke paths in clean environments.
 - Rehearse the release workflow without creating a production tag.
 - Produce accurate changelog-derived release communications and operator documentation.
+- Prove repository setup, backup, snapshot discovery, restore, Linux Mint tray
+  compatibility, and schedule generation on a real operator machine.
 
 ## Non-Goals
 
@@ -35,6 +39,8 @@ publishes evidence-backed release notes.
 - Implementing unrelated feature, CLI, configuration, or performance backlog.
 - Creating a release tag or GitHub release during implementation rehearsal.
 - Weakening tests, coverage, or supported-platform claims to obtain a pass.
+- Extracting masked NPBackup secrets, disabling NPBackup before TimeLocker
+  restore proof, or installing a privileged timer without explicit sudo access.
 
 ## Glossary
 
@@ -65,20 +71,22 @@ publishes evidence-backed release notes.
 ## Durable Impact
 
 See `change-impact.md`. This spec modifies test workflow behavior, package
-version metadata, installation guidance, the release process, and release
-communications. It does not change product architecture or the supported
-credential model.
+version metadata, installation guidance, the release process, release
+communications, CLI recovery behavior, optional Linux tray integration, and
+schedule generation. It preserves the supported credential model while making
+its precedence and non-interactive use consistent.
 
 ## Staged Readiness
 
-- **Current stage:** implementation-ready
-- **Next stage:** implementation
+- **Current stage:** implementation
+- **Next stage:** validation
 - **Ready to implement when:** package lint, traceability, task dependency, and
   agent-readiness checks pass.
 - **Design-first exception:** no
 - **Optional artifacts included:** `change-impact.md`, `verification.md`,
   `traceability.md`
-- **Downstream review needed:** verification and release readiness
+- **Downstream review needed:** recovery, security, operations, documentation,
+  and release readiness
 
 ## Requirements
 
@@ -193,6 +201,83 @@ from failures.
    release communications; the eventual GitHub release body SHALL be derived
    from that version section rather than a second durable release-note file.
 
+### Requirement 6: Operator-ready repository and backup workflow
+
+**User Story:** As an operator, I want repository initialization and backup
+commands to honor the documented credential and source contracts, so that I can
+run TimeLocker non-interactively without hidden CLI exceptions.
+
+#### Acceptance Criteria
+
+1. GIVEN a repository password from the explicit option or supported
+   environment chain, WHEN a local repository is initialized, THEN TimeLocker
+   SHALL initialize it without requiring an unrelated interactive prompt.
+2. GIVEN a file or directory accepted by `backup create`, WHEN a dry-run is
+   requested, THEN it SHALL complete without repository mutation or an
+   undefined-variable exception.
+3. GIVEN a valid initialized repository and source, WHEN a backup completes,
+   THEN the result SHALL identify the created snapshot and SHALL NOT report a
+   false zero-file count when files were stored.
+4. IF source validation fails, THEN TimeLocker SHALL report the actionable
+   validation error without retrying a deterministic input failure.
+
+### Requirement 7: Recoverable snapshot workflow
+
+**User Story:** As an operator, I want TimeLocker to list and restore its
+snapshots, so that a successful backup represents recoverable data rather than
+an opaque Restic artifact.
+
+#### Acceptance Criteria
+
+1. GIVEN a valid Restic snapshot, WHEN table or JSON listing is requested,
+   THEN TimeLocker SHALL map the canonical snapshot timestamp and return the
+   snapshot without an attribute error.
+2. GIVEN `latest` or an exact snapshot ID, WHEN a full restore is requested,
+   THEN TimeLocker SHALL resolve the snapshot and restore its files.
+3. GIVEN a restored reference file, WHEN its digest is compared with the
+   source, THEN the digests SHALL match.
+4. IF discovery or restore fails, THEN the original failure SHALL remain
+   visible and SHALL NOT be replaced by progress-context or persisted-status
+   secondary errors.
+
+### Requirement 8: Linux Mint system-tray compatibility
+
+**User Story:** As a Linux Mint operator, I want optional tray integration to
+use the desktop toolkit actually installed, so that TimeLocker does not claim
+the tray is unavailable on a supported Cinnamon session.
+
+#### Acceptance Criteria
+
+1. GIVEN PyGObject and `AyatanaAppIndicator3`, WHEN TimeLocker initializes the
+   Linux tray, THEN it SHALL create an indicator through that namespace.
+2. WHERE legacy `AppIndicator3` is available, THE SYSTEM SHALL retain that
+   supported compatibility path.
+3. IF no tray toolkit is importable or a command runs headlessly, THEN CLI
+   backup and recovery behavior SHALL remain usable and the diagnostic SHALL
+   identify the missing optional dependency rather than deny platform support.
+
+### Requirement 9: Executable staged-migration schedules
+
+**User Story:** As an operator replacing a privileged NPBackup job, I want
+generated automation to invoke a real TimeLocker command with explicit
+configuration and credential boundaries, so that scheduling cannot silently
+run an unsupported CLI shape or omit protected sources.
+
+#### Acceptance Criteria
+
+1. GIVEN a schedule bound to a repository and either explicit sources or a
+   selection, WHEN cron or systemd assets are generated, THEN every emitted
+   TimeLocker option SHALL be accepted by the current CLI.
+2. WHERE a non-default configuration directory or protected environment file
+   is required, THE GENERATED ASSET SHALL reference it explicitly without
+   embedding secret values.
+3. GIVEN sources such as `/etc`, `/var`, or `/root`, WHEN system scheduling is
+   prepared, THEN the guidance SHALL preserve the required privileged execution
+   boundary and SHALL NOT imply that a user timer provides equivalent coverage.
+4. UNTIL TimeLocker backup, listing, and restore validation pass and the new
+   timer has observed successful runs, NPBackup SHALL remain enabled or its
+   external scheduling state SHALL remain unchanged.
+
 ## Correctness Properties
 
 - **CP-001:** Every test in normal CI either has all external dependencies
@@ -206,6 +291,14 @@ from failures.
   publication, commit, or tag as a side effect.
 - **CP-005:** Each public release claim maps to a recorded validation result or
   an explicit known limitation.
+- **CP-006:** Every accepted credential source produces the same Restic
+  repository password without exposing it in generated assets or logs.
+- **CP-007:** A snapshot created through TimeLocker can be listed and restored
+  through TimeLocker with byte-identical file content.
+- **CP-008:** Every generated schedule command parses successfully against the
+  installed TimeLocker CLI.
+- **CP-009:** Optional tray initialization cannot make core CLI backup or
+  recovery operations fail.
 
 ## Technical Context
 
@@ -214,6 +307,8 @@ from failures.
 - **Primary Dependencies:** pytest, coverage, build, GitHub Actions, Restic,
   MinIO for S3 integration tests.
 - **Target Platform:** Linux, macOS, and Windows, each on Python 3.12 and 3.13.
+- **Machine Acceptance Platform:** Linux Mint/Cinnamon on X11, with the system
+  `python3-gi` and Ayatana AppIndicator typelib available.
 - **Constraints:** No secrets in logs or artifacts; no production tag during
   rehearsal; coverage threshold remains 50 percent; PyPI is deferred.
 - **Performance Goals:** Stress thresholds must distinguish regression from
@@ -231,6 +326,12 @@ from failures.
 - **SC-005:** Release rehearsal completes without external publication.
 - **SC-006:** Durable operator guidance, installation guidance, changelog, and
   release notes are ready for human release approval.
+- **SC-007:** A fresh local pilot repository completes init, backup, TimeLocker
+  snapshot listing, TimeLocker restore, and digest verification.
+- **SC-008:** Linux Mint tray initialization recognizes Ayatana when the GUI
+  extra and system typelib are present.
+- **SC-009:** Generated systemd assets use only supported commands and preserve
+  the separate credential, sudo, and NPBackup cutover gates.
 
 ## Related Artifacts
 

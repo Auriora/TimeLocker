@@ -184,6 +184,7 @@ def configured_restore_patches(source_dir: Path) -> Iterator[dict]:
         snapshot_entry = SimpleNamespace(
                 id=SNAPSHOT_ID,
                 time=now,
+                timestamp=now,
                 hostname="timelocker-e2e",
                 username="cli-user",
                 tags=["e2e", "documents"],

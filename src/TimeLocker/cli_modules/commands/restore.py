@@ -126,11 +126,11 @@ def restore_list(
             import json
             console.print_json(data=[{
                 'id': s.id,
-                'time': s.time.isoformat() if s.time else None,
-                'hostname': s.hostname,
-                'username': s.username,
+                'time': s.timestamp.isoformat() if s.timestamp else None,
+                'hostname': getattr(s, 'hostname', ''),
+                'username': getattr(s, 'username', ''),
                 'tags': s.tags,
-                'paths': s.paths
+                'paths': [str(path) for path in s.paths]
             } for s in snapshots])
         else:
             table = Table(title=f"Snapshots in {repository}")
@@ -142,8 +142,8 @@ def restore_list(
             for snapshot in snapshots:
                 table.add_row(
                     snapshot.id[:12],
-                    snapshot.time.strftime("%Y-%m-%d %H:%M:%S") if snapshot.time else "N/A",
-                    snapshot.hostname or "N/A",
+                    snapshot.timestamp.strftime("%Y-%m-%d %H:%M:%S") if snapshot.timestamp else "N/A",
+                    getattr(snapshot, 'hostname', '') or "N/A",
                     ", ".join(snapshot.tags) if snapshot.tags else ""
                 )
             

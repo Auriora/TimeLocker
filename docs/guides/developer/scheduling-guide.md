@@ -1,127 +1,139 @@
 ---
-title: "Developer Guide: Scheduling Backups"
+title: "Operator Guide: Scheduling Backups"
 id: "dev-guide-scheduling"
 type: [ guide ]
 status: [ approved ]
 owner: "Operations Team"
-last_reviewed: "01-11-2025"
-tags: [guide, developer, scheduling]
+last_reviewed: "19-07-2026"
+tags: [guide, developer, operator, scheduling]
 links:
   tooling: []
 ---
 
-# Developer Guide: Scheduling Backups
+# Operator Guide: Scheduling Backups
 
 - **Owner**: Operations Team
 - **Status**: Approved
-- **Created Date**: 19-12-2024
-- **Last Updated**: 01-11-2025
-- **Audience**: Developers, Operators
+- **Audience**: Developers and operators
 
-## 1. Purpose
+## Purpose and boundaries
 
-Provide actionable steps for scheduling recurring TimeLocker backups using systemd timers or cron, including validation, customization, and troubleshooting guidance.
+Use TimeLocker to define a recurring backup, generate reviewable cron or
+systemd assets, and stage a migration from another scheduler. Schedule
+generation does not install or enable anything. Installing a system unit,
+choosing repository credentials, and disabling an existing backup job are
+separate operator decisions.
 
-## 2. Steps
+Each executable schedule must explicitly bind:
 
-### 2.1 Prepare Secrets
-1. Edit the reusable environment file:
-   ```bash
-   nano ~/.config/timelocker/env
-   TIMELOCKER_PASSWORD="your-actual-repository-password"
-   ```
-2. Validate the configuration:
-   ```bash
-   ~/.local/bin/timelocker-test.sh
-   ```
+- one repository name or URI;
+- either one configured selection or one or more source paths;
+- its configuration directory when it is not the default; and
+- an optional protected environment-file path, never copied secret values.
 
-### 2.2 Option A – systemd Timer (Recommended on Linux)
-1. Install service and timer units:
-   ```bash
-   sudo cp ~/.config/timelocker/timelocker-backup.service /etc/systemd/system/
-   sudo cp ~/.config/timelocker/timelocker-backup.timer /etc/systemd/system/
-   ```
-2. Enable and start:
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable --now timelocker-backup.timer
-   ```
-3. Monitor runtime:
-   ```bash
-   journalctl -u timelocker-backup.service -f
-   journalctl -u timelocker-backup.timer -f
-   ```
-4. Modify schedule by editing the timer and reloading:
-   ```bash
-   sudo nano /etc/systemd/system/timelocker-backup.timer
-   sudo systemctl daemon-reload
-   sudo systemctl restart timelocker-backup.timer
-   ```
+## Create a disabled schedule
 
-### 2.3 Option B – Cron Job
-1. Edit crontab (`crontab -e`) and choose a schedule:
-   ```bash
-   # Daily at 2 AM
-   0 2 * * * /home/bcherrington/.local/bin/timelocker-backup.sh
-   # Every 6 hours
-   0 */6 * * * /home/bcherrington/.local/bin/timelocker-backup.sh
-   # Weekly on Sunday at 3 AM
-   0 3 * * 0 /home/bcherrington/.local/bin/timelocker-backup.sh
-   ```
-2. Monitor logs:
-   ```bash
-   tail -f ~/.local/share/timelocker/backup.log
-   grep CRON /var/log/syslog | tail
-   ```
+Use a selection template:
 
-### 2.4 Customize Backup Script
-1. Adjust target:
-   ```bash
-   python3 -m src.TimeLocker.cli backup run your-backup-target-name
-   ```
-2. Process multiple targets:
-   ```bash
-   for target in target1 target2 target3; do
-       python3 -m src.TimeLocker.cli backup run "$target"
-   done
-   ```
-3. Add health checks:
-   ```bash
-   if python3 -m src.TimeLocker.cli backup run my-target; then
-       curl -fsS https://hc-ping.com/your-uuid
-   else
-       curl -fsS https://hc-ping.com/your-uuid/fail
-       exit 1
-   fi
-   ```
-4. Extend environment variables within `~/.config/timelocker/env` (repository overrides, cache location, bandwidth limits, AWS credentials, etc.).
+```bash
+tl schedule create nightly-documents \
+  --repository primary \
+  --selection documents \
+  --environment-file ~/.config/timelocker/backup.env \
+  --frequency daily \
+  --disabled \
+  --config-dir ~/.config/timelocker
+```
 
-## 3. Troubleshooting
+Or supply repeatable direct sources:
 
-- **Permission issues**:
-  ```bash
-  chmod +x ~/.local/bin/timelocker-backup.sh
-  chmod 600 ~/.config/timelocker/env
-  ```
-- **Python import errors**:
-  ```bash
-  export PYTHONPATH="/home/bcherrington/Projects/Auriora/TimeLocker:$PYTHONPATH"
-  ```
-- **Repository not found**:
-  ```bash
-  python3 -m src.TimeLocker.cli config repositories show local-test
-  ```
-- **Verify manually**:
-  ```bash
-  ~/.local/bin/timelocker-backup.sh
-  ```
-- **Log locations**:
-  - Backup logs: `~/.local/share/timelocker/backup.log`
-  - systemd logs: `journalctl -u timelocker-backup.service`
-  - Cron logs: `/var/log/syslog` or `/var/log/cron`
+```bash
+tl schedule create nightly-config \
+  --repository primary \
+  --source /etc \
+  --source /srv/application/config \
+  --environment-file ~/.config/timelocker/backup.env \
+  --system \
+  --cron '30 1 * * *' \
+  --disabled \
+  --config-dir ~/.config/timelocker
+```
 
-# References
+`--system` preserves the privilege boundary for sources that require root
+access. It does not grant privileges or install a unit.
 
-- `docs/guides/developer/automation-examples.md`
-- `docs/guides/user/per-repo-credentials.md`
-- `docs/guides/user/installation.md`
+Protect the referenced environment file and keep it outside generated assets:
+
+```bash
+chmod 600 ~/.config/timelocker/backup.env
+```
+
+See [Per-Repository Credentials](../user/per-repo-credentials.md) for the
+credential choices. Do not copy a masked credential from another backup tool.
+
+## Generate and review assets
+
+Generate both candidate formats without installing either:
+
+```bash
+mkdir -p ~/.local/share/timelocker/staged-schedules
+tl schedule generate-scripts nightly-config \
+  --platform systemd \
+  --output ~/.local/share/timelocker/staged-schedules \
+  --config-dir ~/.config/timelocker
+tl schedule generate-scripts nightly-config \
+  --platform cron \
+  --output ~/.local/share/timelocker/staged-schedules \
+  --config-dir ~/.config/timelocker
+```
+
+Before installation:
+
+1. Confirm the generated backup command contains `backup create`, the intended
+   repository, all sources or the selection, and the intended `--config-dir`.
+2. Confirm it contains no password or other credential value.
+3. Run the generated wrapper manually in the intended user or root context.
+4. Complete a backup and a digest-verified TimeLocker restore.
+5. Review the displayed install commands; generation has not run them.
+
+For systemd assets, `EnvironmentFile=` references the protected file. The cron
+wrapper sources the same file with fail-fast shell settings. A missing environment file causes the
+backup to fail instead of silently switching credentials.
+
+## Staged NPBackup replacement
+
+Keep the NPBackup job enabled while TimeLocker is staged:
+
+1. Discover and record the actual NPBackup scheduling mechanism and protected
+   source list using its supported, masked interface.
+2. Create a disabled TimeLocker schedule with matching sources and an
+   independently chosen TimeLocker credential source.
+3. Generate and review the TimeLocker assets.
+4. With explicit approval, install the system-level timer or root cron entry.
+5. Observe successful scheduled TimeLocker backups and perform a restore test.
+6. Only then make a separate cutover decision to disable NPBackup.
+
+Do not extract masked NPBackup secrets, install a privileged timer, or disable
+NPBackup as part of schedule generation.
+
+## Validation and troubleshooting
+
+```bash
+tl schedule list --json --config-dir ~/.config/timelocker
+tl schedule show nightly-config --config-dir ~/.config/timelocker
+bash -n ~/.local/share/timelocker/staged-schedules/nightly-config_cron.sh
+systemd-analyze verify \
+  ~/.local/share/timelocker/staged-schedules/timelocker-nightly-config.service \
+  ~/.local/share/timelocker/staged-schedules/timelocker-nightly-config.timer
+```
+
+If the command reports a missing repository, selection, or source, recreate or
+edit the schedule so the execution target is explicit. If access fails only in
+the scheduler, compare its user, environment-file permissions, executable
+path, and configuration directory with the successful manual run.
+
+## References
+
+- [Installation](../user/installation.md)
+- [Per-Repository Credentials](../user/per-repo-credentials.md)
+- [Scheduling Architecture](../../2-architecture/scheduling-system.md)

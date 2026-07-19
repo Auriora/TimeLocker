@@ -9,6 +9,7 @@ import sys
 import logging
 import json
 import platform
+import shlex
 from typing import Optional, List, Annotated, Dict, Any
 from pathlib import Path
 from datetime import datetime, time
@@ -82,11 +83,46 @@ def _save_schedules(schedules: Dict[str, Dict[str, Any]], config_dir: Optional[P
         json.dump(schedules, f, indent=2)
 
 
+def _build_backup_command(schedule: Dict[str, Any], config_dir: Optional[Path] = None) -> str:
+    """Build an executable backup command without embedding credentials."""
+    repository = schedule.get('repository')
+    selection = schedule.get('selection')
+    sources = schedule.get('sources') or []
+    if not repository:
+        raise ValueError("Schedule is missing a repository")
+    if bool(selection) == bool(sources):
+        raise ValueError("Schedule must define exactly one selection or one or more sources")
+
+    import shutil
+    executable = shutil.which('tl') or shutil.which('timelocker') or 'tl'
+    argv = [executable, 'backup', 'create']
+    if selection:
+        argv.extend(['--selection', str(selection)])
+    else:
+        argv.extend(str(source) for source in sources)
+    argv.extend(['--repository', str(repository)])
+
+    effective_config_dir = schedule.get('config_dir') or config_dir
+    if effective_config_dir:
+        argv.extend(['--config-dir', str(Path(effective_config_dir).resolve())])
+    return shlex.join(argv)
+
+
+def _environment_file(schedule: Dict[str, Any]) -> Optional[Path]:
+    """Return a validated environment-file reference, never its contents."""
+    value = schedule.get('environment_file')
+    if not value:
+        return None
+    if '\n' in str(value) or '\r' in str(value):
+        raise ValueError("Environment file path contains a newline")
+    return Path(value).expanduser().resolve()
+
+
 def _format_schedule_table(schedules: Dict[str, Dict[str, Any]]) -> Table:
     """Format schedules as a Rich table."""
     table = Table(title="Backup Schedules")
     table.add_column("Name", style="cyan")
-    table.add_column("Policy", style="green")
+    table.add_column("Repository", style="green")
     table.add_column("Frequency", style="yellow")
     table.add_column("Next Run", style="white")
     table.add_column("Enabled", style="magenta")
@@ -95,9 +131,9 @@ def _format_schedule_table(schedules: Dict[str, Dict[str, Any]]) -> Table:
         enabled = "✓" if schedule.get('enabled', False) else "✗"
         next_run = schedule.get('next_run', 'N/A')
         frequency = schedule.get('frequency', 'N/A')
-        policy = schedule.get('policy', 'N/A')
+        repository = schedule.get('repository', 'N/A')
         
-        table.add_row(name, policy, frequency, next_run, enabled)
+        table.add_row(name, repository, frequency, next_run, enabled)
     
     return table
 
@@ -106,38 +142,15 @@ def _interactive_schedule_configuration(config_dir: Optional[Path] = None) -> Di
     """Interactively configure a schedule."""
     console.print("\n[bold]Schedule Configuration[/bold]\n")
     
-    # Select or create policy
-    console.print("[bold]1. Select Backup Policy[/bold]")
-    
-    # Try to list existing policies
-    try:
-        from TimeLocker.cli_modules.commands.policy import _get_policy_manager
-        policy_manager = _get_policy_manager(config_dir)
-        policies = policy_manager.list_backup_policies()
-        
-        if policies:
-            console.print("\nExisting policies:")
-            for i, policy in enumerate(policies, 1):
-                console.print(f"  {i}. {policy.name} (ID: {policy.id[:8]})")
-            
-            choice = Prompt.ask(
-                "\nSelect policy number or enter 'new' to create one",
-                default="1"
-            )
-            
-            if choice.lower() == 'new':
-                policy_name = Prompt.ask("New policy name")
-                console.print(f"[yellow]Note: Create policy '{policy_name}' using 'timelocker policy backup create' first[/yellow]")
-            else:
-                try:
-                    idx = int(choice) - 1
-                    policy_name = policies[idx].name
-                except (ValueError, IndexError):
-                    policy_name = choice
-        else:
-            policy_name = Prompt.ask("Policy name")
-    except Exception:
-        policy_name = Prompt.ask("Policy name")
+    console.print("[bold]1. Select Backup Inputs[/bold]")
+    repository = Prompt.ask("Repository name or URI")
+    source_mode = Prompt.ask("Use a selection or direct source?", choices=["selection", "source"])
+    selection = None
+    sources = []
+    if source_mode == "selection":
+        selection = Prompt.ask("Selection template")
+    else:
+        sources = [str(Path(Prompt.ask("Source path")).expanduser().resolve())]
     
     # Configure frequency
     console.print("\n[bold]2. Configure Frequency[/bold]")
@@ -185,7 +198,13 @@ def _interactive_schedule_configuration(config_dir: Optional[Path] = None) -> Di
     enabled = Confirm.ask("Enable schedule immediately?", default=True)
     
     return {
-        "policy": policy_name,
+        "policy": None,
+        "repository": repository,
+        "selection": selection,
+        "sources": sources,
+        "environment_file": None,
+        "system": False,
+        "config_dir": str(config_dir.expanduser().resolve()) if config_dir else None,
         "frequency": frequency,
         "cron_expression": cron_expression,
         "enabled": enabled,
@@ -196,33 +215,40 @@ def _interactive_schedule_configuration(config_dir: Optional[Path] = None) -> Di
 
 def _generate_cron_script(schedule_name: str, schedule: Dict[str, Any], config_dir: Optional[Path] = None) -> str:
     """Generate cron script for Linux/macOS."""
-    policy = schedule.get('policy', '')
     cron_expr = schedule.get('cron_expression', '0 2 * * *')
-    
-    # Get timelocker executable path
-    import shutil
-    timelocker_path = shutil.which('timelocker') or 'timelocker'
+    command = _build_backup_command(schedule, config_dir)
+    environment_file = _environment_file(schedule)
+    environment_setup = ""
+    if environment_file:
+        environment_setup = (
+            "set -a\n"
+            f". {shlex.quote(str(environment_file))}\n"
+            "set +a\n"
+        )
+    cron_owner = "root" if schedule.get('system') else "the current user"
     
     script = f"""#!/bin/bash
+set -euo pipefail
 # TimeLocker Backup Schedule: {schedule_name}
 # Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-# Policy: {policy}
+# Repository: {schedule.get('repository')}
 # Frequency: {schedule.get('frequency', 'custom')}
+# Install for: {cron_owner}
 
 # Cron expression: {cron_expr}
-# Add this line to your crontab (crontab -e):
-# {cron_expr} {timelocker_path} backup create --policy {policy} --non-interactive >> /var/log/timelocker/{schedule_name}.log 2>&1
+# Schedule this generated wrapper; it contains no credential values.
 
 # Or run this script directly:
-{timelocker_path} backup create --policy {policy} --non-interactive
+{environment_setup}{command}
 """
     return script
 
 
 def _generate_systemd_script(schedule_name: str, schedule: Dict[str, Any], config_dir: Optional[Path] = None) -> tuple[str, str]:
     """Generate systemd service and timer files for Linux."""
-    policy = schedule.get('policy', '')
     cron_expr = schedule.get('cron_expression', '0 2 * * *')
+    command = _build_backup_command(schedule, config_dir)
+    environment_file = _environment_file(schedule)
     
     # Convert cron to systemd OnCalendar
     # This is a simplified conversion
@@ -243,9 +269,8 @@ def _generate_systemd_script(schedule_name: str, schedule: Dict[str, Any], confi
     else:
         oncalendar = "daily"
     
-    # Get timelocker executable path
-    import shutil
-    timelocker_path = shutil.which('timelocker') or '/usr/local/bin/timelocker'
+    environment_line = f"EnvironmentFile={environment_file}\n" if environment_file else ""
+    user_line = "User=root\n" if schedule.get('system') else ""
     
     service = f"""[Unit]
 Description=TimeLocker Backup - {schedule_name}
@@ -254,13 +279,10 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart={timelocker_path} backup create --policy {policy} --non-interactive
+{user_line}{environment_line}ExecStart={command}
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=timelocker-{schedule_name}
-
-[Install]
-WantedBy=multi-user.target
 """
     
     timer = f"""[Unit]
@@ -280,8 +302,10 @@ WantedBy=timers.target
 
 def _generate_windows_script(schedule_name: str, schedule: Dict[str, Any], config_dir: Optional[Path] = None) -> str:
     """Generate Windows Task Scheduler script."""
-    policy = schedule.get('policy', '')
     cron_expr = schedule.get('cron_expression', '0 2 * * *')
+    command = _build_backup_command(schedule, config_dir)
+    if _environment_file(schedule):
+        raise ValueError("Environment-file schedules are not supported by the Windows renderer")
     
     # Parse cron for Windows schedule
     parts = cron_expr.split()
@@ -302,10 +326,10 @@ def _generate_windows_script(schedule_name: str, schedule: Dict[str, Any], confi
     script = f"""@echo off
 REM TimeLocker Backup Schedule: {schedule_name}
 REM Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-REM Policy: {policy}
+REM Repository: {schedule.get('repository')}
 
 REM Create scheduled task
-schtasks /CREATE /TN "TimeLocker\\{schedule_name}" {trigger} /TR "timelocker backup create --policy {policy} --non-interactive" /F
+schtasks /CREATE /TN "TimeLocker\\{schedule_name}" {trigger} /TR "{command}" /F
 
 echo Scheduled task created: TimeLocker\\{schedule_name}
 echo Run 'schtasks /Query /TN "TimeLocker\\{schedule_name}"' to verify
@@ -320,7 +344,12 @@ echo Run 'schtasks /Query /TN "TimeLocker\\{schedule_name}"' to verify
 @with_logging
 def schedule_create(
     name: Annotated[str, typer.Argument(help="Schedule name")],
-    policy: Annotated[Optional[str], typer.Argument(help="Policy name", autocompletion=policy_name_completer)] = None,
+    policy: Annotated[Optional[str], typer.Argument(help="Legacy policy label", autocompletion=policy_name_completer)] = None,
+    repository: Annotated[Optional[str], typer.Option("--repository", "-r", help="Repository name or URI")] = None,
+    selection: Annotated[Optional[str], typer.Option("--selection", "-s", help="Configured selection template")] = None,
+    sources: Annotated[Optional[List[Path]], typer.Option("--source", help="Source path (repeatable)")] = None,
+    environment_file: Annotated[Optional[Path], typer.Option("--environment-file", help="Protected environment file to reference, not copy")] = None,
+    system: Annotated[bool, typer.Option("--system/--user", help="Generate a system-level or user-level schedule")] = False,
     frequency: Annotated[Optional[str], typer.Option("--frequency", "-f", help="Frequency (hourly, daily, weekly, monthly)")] = None,
     cron: Annotated[Optional[str], typer.Option("--cron", help="Custom cron expression")] = None,
     enabled: Annotated[bool, typer.Option("--enabled/--disabled", help="Enable schedule immediately")] = True,
@@ -342,8 +371,15 @@ def schedule_create(
             schedule_config = _interactive_schedule_configuration(config_dir)
         else:
             # Command-line configuration
-            if not policy:
-                show_error_panel("Missing Policy", "Policy name is required. Use --interactive or provide policy name.")
+            if not repository:
+                show_error_panel("Missing Repository", "--repository is required for an executable schedule.")
+                raise typer.Exit(1)
+
+            if bool(selection) == bool(sources):
+                show_error_panel(
+                    "Missing or Ambiguous Sources",
+                    "Provide exactly one --selection or one or more --source options."
+                )
                 raise typer.Exit(1)
             
             if not frequency and not cron:
@@ -367,6 +403,12 @@ def schedule_create(
             
             schedule_config = {
                 "policy": policy,
+                "repository": repository,
+                "selection": selection,
+                "sources": [str(source.expanduser().resolve()) for source in (sources or [])],
+                "environment_file": str(environment_file.expanduser().resolve()) if environment_file else None,
+                "system": system,
+                "config_dir": str(config_dir.expanduser().resolve()) if config_dir else None,
                 "frequency": frequency or "custom",
                 "cron_expression": cron_expression,
                 "enabled": enabled,
@@ -383,7 +425,8 @@ def schedule_create(
             f"Created backup schedule '{name}'",
             details={
                 "Name": name,
-                "Policy": schedule_config['policy'],
+                "Repository": schedule_config.get('repository', 'N/A'),
+                "Selection/Sources": schedule_config.get('selection') or ", ".join(schedule_config.get('sources', [])),
                 "Frequency": schedule_config['frequency'],
                 "Cron": schedule_config['cron_expression'],
                 "Enabled": "Yes" if schedule_config['enabled'] else "No",
@@ -444,7 +487,9 @@ def schedule_show(
             
             console.print(Panel(
                 f"[bold]Name:[/bold] {name}\n"
-                f"[bold]Policy:[/bold] {schedule.get('policy', 'N/A')}\n"
+                f"[bold]Repository:[/bold] {schedule.get('repository', 'N/A')}\n"
+                f"[bold]Selection:[/bold] {schedule.get('selection', 'N/A')}\n"
+                f"[bold]Sources:[/bold] {', '.join(schedule.get('sources', [])) or 'N/A'}\n"
                 f"[bold]Frequency:[/bold] {schedule.get('frequency', 'N/A')}\n"
                 f"[bold]Cron Expression:[/bold] {schedule.get('cron_expression', 'N/A')}\n"
                 f"[bold]Status:[/bold] {enabled_status}\n"
@@ -463,6 +508,11 @@ def schedule_show(
 def schedule_edit(
     name: Annotated[str, typer.Argument(help="Schedule name", autocompletion=schedule_name_completer)],
     policy: Annotated[Optional[str], typer.Option("--policy", "-p", help="New policy name", autocompletion=policy_name_completer)] = None,
+    repository: Annotated[Optional[str], typer.Option("--repository", "-r", help="New repository name or URI")] = None,
+    selection: Annotated[Optional[str], typer.Option("--selection", "-s", help="Replace sources with a selection template")] = None,
+    sources: Annotated[Optional[List[Path]], typer.Option("--source", help="Replace selection with source path(s)")] = None,
+    environment_file: Annotated[Optional[Path], typer.Option("--environment-file", help="New protected environment-file reference")] = None,
+    system: Annotated[Optional[bool], typer.Option("--system/--user", help="Generate a system-level or user-level schedule")] = None,
     frequency: Annotated[Optional[str], typer.Option("--frequency", "-f", help="New frequency")] = None,
     cron: Annotated[Optional[str], typer.Option("--cron", help="New cron expression")] = None,
     enabled: Annotated[Optional[bool], typer.Option("--enabled/--disabled", help="Enable/disable schedule")] = None,
@@ -482,6 +532,18 @@ def schedule_edit(
         # Update fields
         if policy is not None:
             schedule['policy'] = policy
+        if repository is not None:
+            schedule['repository'] = repository
+        if selection is not None:
+            schedule['selection'] = selection
+            schedule['sources'] = []
+        if sources:
+            schedule['sources'] = [str(source.expanduser().resolve()) for source in sources]
+            schedule['selection'] = None
+        if environment_file is not None:
+            schedule['environment_file'] = str(environment_file.expanduser().resolve())
+        if system is not None:
+            schedule['system'] = system
         if frequency is not None:
             schedule['frequency'] = frequency
         if cron is not None:
@@ -634,7 +696,12 @@ def schedule_generate_scripts(
                     "Platform": "Linux/macOS (cron)",
                 }
             )
-            console.print(f"\n[cyan]To install:[/cyan] Add the cron line from {script_file} to your crontab")
+            cron_command = f"{schedule.get('cron_expression', '0 2 * * *')} {script_file}"
+            if schedule.get('system'):
+                console.print(f"\n[cyan]Privileged install gate:[/cyan] Review, then add to root's crontab with 'sudo crontab -e':")
+            else:
+                console.print(f"\n[cyan]To install after review:[/cyan] Add to your crontab with 'crontab -e':")
+            console.print(f"  {cron_command}")
             
         elif platform_type == "systemd":
             service, timer = _generate_systemd_script(name, schedule, config_dir)
@@ -655,10 +722,17 @@ def schedule_generate_scripts(
                     "Platform": "Linux (systemd)",
                 }
             )
-            console.print(f"\n[cyan]To install:[/cyan]")
-            console.print(f"  sudo cp {service_file} {timer_file} /etc/systemd/system/")
-            console.print(f"  sudo systemctl daemon-reload")
-            console.print(f"  sudo systemctl enable --now timelocker-{name}.timer")
+            if schedule.get('system'):
+                console.print(f"\n[cyan]Privileged install gate (not performed):[/cyan]")
+                console.print(f"  sudo cp {service_file} {timer_file} /etc/systemd/system/")
+                console.print("  sudo systemctl daemon-reload")
+                console.print(f"  sudo systemctl enable --now timelocker-{name}.timer")
+            else:
+                console.print(f"\n[cyan]User install gate (not performed):[/cyan]")
+                console.print("  mkdir -p ~/.config/systemd/user")
+                console.print(f"  cp {service_file} {timer_file} ~/.config/systemd/user/")
+                console.print("  systemctl --user daemon-reload")
+                console.print(f"  systemctl --user enable --now timelocker-{name}.timer")
             
         elif platform_type == "windows":
             script = _generate_windows_script(name, schedule, config_dir)
@@ -702,46 +776,61 @@ def schedule_test(
             raise typer.Exit(1)
         
         schedule = schedules[name]
-        policy_name = schedule.get('policy')
-        
         console.print(f"\n[bold]Testing Schedule: {name}[/bold]\n")
-        
-        # Test 1: Check policy exists
-        console.print("[cyan]1. Checking policy...[/cyan]")
+        errors = []
+
+        # Test 1: Validate the executable command contract
+        console.print("[cyan]1. Validating backup command...[/cyan]")
         try:
-            from TimeLocker.cli_modules.commands.policy import _get_policy_manager
-            policy_manager = _get_policy_manager(config_dir)
-            policies = policy_manager.list_backup_policies()
-            policy_exists = any(p.name == policy_name for p in policies)
-            
-            if policy_exists:
-                console.print(f"   [green]✓[/green] Policy '{policy_name}' exists")
-            else:
-                console.print(f"   [red]✗[/red] Policy '{policy_name}' not found")
+            command = _build_backup_command(schedule, config_dir)
+            console.print(f"   [green]✓[/green] Executable command: {command}")
         except Exception as e:
-            console.print(f"   [yellow]⚠[/yellow] Could not verify policy: {e}")
+            errors.append(str(e))
+            console.print(f"   [red]✗[/red] Invalid backup command: {e}")
+
+        # Test 2: Validate referenced paths without reading credential contents
+        console.print("\n[cyan]2. Validating referenced paths...[/cyan]")
+        for source in schedule.get('sources') or []:
+            if Path(source).exists():
+                console.print(f"   [green]✓[/green] Source exists: {source}")
+            else:
+                errors.append(f"Source does not exist: {source}")
+                console.print(f"   [red]✗[/red] Source does not exist: {source}")
+        environment_file = _environment_file(schedule)
+        if environment_file:
+            if environment_file.is_file():
+                console.print(f"   [green]✓[/green] Environment file exists: {environment_file}")
+            else:
+                errors.append(f"Environment file does not exist: {environment_file}")
+                console.print(f"   [red]✗[/red] Environment file does not exist: {environment_file}")
         
-        # Test 2: Validate cron expression
-        console.print("\n[cyan]2. Validating cron expression...[/cyan]")
+        # Test 3: Validate cron expression
+        console.print("\n[cyan]3. Validating cron expression...[/cyan]")
         cron_expr = schedule.get('cron_expression')
         if cron_expr:
             parts = cron_expr.split()
             if len(parts) == 5:
                 console.print(f"   [green]✓[/green] Valid cron expression: {cron_expr}")
             else:
+                errors.append(f"Invalid cron expression: {cron_expr}")
                 console.print(f"   [red]✗[/red] Invalid cron expression: {cron_expr}")
         else:
+            errors.append("No cron expression defined")
             console.print(f"   [red]✗[/red] No cron expression defined")
         
-        # Test 3: Check schedule status
-        console.print("\n[cyan]3. Checking schedule status...[/cyan]")
+        # Test 4: Check schedule status
+        console.print("\n[cyan]4. Checking schedule status...[/cyan]")
         enabled = schedule.get('enabled', False)
         if enabled:
             console.print(f"   [green]✓[/green] Schedule is enabled")
         else:
             console.print(f"   [yellow]⚠[/yellow] Schedule is disabled")
         
-        console.print(f"\n[bold green]Schedule test complete[/bold green]")
+        if errors:
+            show_error_panel("Schedule Test Failed", "; ".join(errors))
+            raise typer.Exit(1)
+
+        console.print("\n[bold green]Schedule test complete[/bold green]")
         
     except Exception as e:
         CommandBase.handle_error(e, verbose, "Schedule Test Error")

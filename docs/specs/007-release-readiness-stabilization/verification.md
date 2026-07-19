@@ -11,23 +11,27 @@ last_reviewed: 2026-07-19
 
 ## Scope
 
-This record covers Spec 007 requirements R1-R5 and tasks T001-T013. It records
-release-preparation evidence only; creating a production tag or release requires
-separate explicit approval.
+This record covers Spec 007 requirements R1-R9 and tasks T001-T019. It records
+release-preparation and machine-acceptance evidence; creating a production tag,
+installing a privileged schedule, disabling NPBackup, or publishing a release
+requires separate explicit approval.
 
 ## Quality Gates
 
 | Gate | Required? | Status | Evidence |
 |------|-----------|--------|----------|
-| Acceptance traceability complete | yes | passed | Lifecycle stage readiness reports zero acceptance, property, context, downstream-review, or blocking gaps after reconciliation. |
+| Acceptance traceability complete | yes | passed | Phase 5 requirement, criterion, property, design, task, and verification mappings were reconciled by T014. |
 | Substantive requirements and design review | yes | passed | Review on 2026-07-18 produced TLR-001 through TLR-006; all six findings were reconciled into the package before implementation. |
-| Task evidence complete | yes | passed | T001-T013 contain concrete implementation or validation evidence. |
+| Task evidence complete | yes | passed | T001-T019 have implementation and validation evidence. |
 | Normal and dependency-owning test profiles pass | yes | passed | GitHub Actions run `29676747955` passed normal, MinIO, coverage quality-gate, and notification jobs. |
 | Stress implementation and disposition recorded | yes | passed | T004 implementation and repeat evidence are recorded in GitHub issue #68. |
 | Artifacts and six-combination clean installs validate | yes | passed | Run `29679083454` passed one build and all 12 artifact/OS/Python jobs. |
 | Release interface and rehearsal prove no publication side effect | yes | passed | T009-T010: reusable read-only validation, local rehearsal, three negative paths, and unchanged external state. |
-| Durable documentation and communications promoted | yes | passed | T011-T012; Markdown/link check found zero issues in the five durable targets. |
-| Final lifecycle checks and expert review pass | yes | passed | T013 lifecycle checks have zero blocking gaps; bounded expert review has no remaining actionable findings. |
+| Durable documentation and communications promoted | yes | passed | Phase 4 targets and Phase 5 installation, recovery, and scheduling guidance are complete. |
+| TimeLocker backup/list/restore machine round trip passes | yes | passed | Two snapshots list correctly; latest and exact-ID restores match the source digest. |
+| Linux Mint tray path passes | yes | passed | Ayatana initialization/shutdown, legacy fallback tests, and headless CLI smoke passed. |
+| Generated schedule parses and preserves migration boundaries | yes | passed | Disabled cron/systemd assets parse against the current CLI and contain references, not credential values. |
+| Final lifecycle checks and expert review pass | yes | passed | T013 expert review passed; T019 task audit, closure readiness, and traceability have zero blockers. Optional canonical-context and historical evidence-quality advisories remain recorded. |
 
 ## Validation Commands And Methods
 
@@ -43,6 +47,10 @@ separate explicit approval.
 | `actionlint`, nine focused release-contract tests, build/inspect, two clean-install smokes, and negative mismatch/missing/permission paths | Prove the reusable pre-tag interface and CP-004 rehearsal | passed | T009-T010; HEAD `1dcf910`, zero tags/releases, and 11 historical release runs were unchanged. |
 | `python scripts/extract_release_notes.py --version 0.9.1` | Derive the eventual GitHub body from the canonical changelog section | passed | T012 preview contains the complete evidence-backed section and limitations. |
 | Agent Workbench Markdown/link set check and `git diff --check` | Validate durable-doc hygiene | passed | Five durable documents had zero findings; whitespace check passed before final review. |
+| isolated Linux Mint repository init, dry-run, backup, list, restore, and digest comparison | Prove TimeLocker-owned recoverability | passed | Environment-only init, file/directory dry-runs, actual backup, table/JSON listing, latest and exact-ID restore, and SHA-256 comparison passed. |
+| Mint tray namespace and headless smoke | Prove optional tray compatibility | passed | System Python initialized Ayatana on Cinnamon/X11; fallback tests and the project-interpreter headless CLI smoke passed. |
+| generated schedule argv parsed by current CLI | Prove schedule executability before asset installation | passed | Disabled cron/systemd assets use the current `backup create` contract, explicit config and environment references, and no credential values. |
+| `python -m pytest -m "not performance and not stress and not minio"` | Revalidate the complete normal profile after Phase 5 | passed | 2,787 passed, one skipped, 57 deselected, 19 warnings, and 52.38% coverage in 801.81 seconds. |
 
 ## Requirement Coverage
 
@@ -53,6 +61,10 @@ separate explicit approval.
 | Requirement 3 | AC1-AC5 | T006 and T008 passed; run `29679083454` | Preparation must continue to use both disabling flags. |
 | Requirement 4 | AC1-AC5 | T007-T008 passed; installation guide and release procedure updated by T011 | Future support changes require the same matrix. |
 | Requirement 5 | AC1-AC6 | T009-T013 passed | Human operator error at first actual tag remains explicitly owned. |
+| Requirement 6 | AC1-AC4 | T015 focused tests and isolated Mint init/dry-run/backup passed | Operator credential and real-source selection remain deployment decisions. |
+| Requirement 7 | AC1-AC4 | T016 focused tests plus TimeLocker-owned list/latest/exact/digest round trip passed | Filesystem metadata may vary across target filesystems. |
+| Requirement 8 | AC1-AC3 | T017 namespace/fallback tests, headless CLI smoke, and Mint Ayatana initialization passed | Desktop packaging variance remains documented. |
+| Requirement 9 | AC1-AC4 | T018 focused tests and disabled Mint cron/systemd staging passed | Privileged install, observed runs, and cutover remain operator gates. |
 
 ## Correctness Property Coverage
 
@@ -61,19 +73,23 @@ separate explicit approval.
 | CP-001 | T001-T003, collection partition and workflow run `29676747955` | passed | Contract tests guard marker, selector, service, and artifact-transfer drift. |
 | CP-002 | T006 version guard and negative test | passed | Automated guard covers source and artifact identity. |
 | CP-003 | T007 six-combination artifact matrix | passed | Final shared-artifact run passed all 12 jobs. |
-| CP-004 | T006, T008-T010, and T013 external-state comparisons | partial | Preparation and rehearsal passed; final comparison remains in T013. |
-| CP-005 | T012-T013 changelog and derived release-body review | partial | Derivation passed; final expert review remains. |
+| CP-004 | T006, T008-T010, and T013 external-state comparisons | passed | Preparation and rehearsal did not create a tag, release, or publication. |
+| CP-005 | T012-T013 changelog and derived release-body review | passed | Canonical changelog derivation and expert review passed. |
+| CP-006 | T014-T015 and T018-T019 | passed | Runtime credentials converge on the environment boundary; generated assets contain the protected file reference, not values. |
+| CP-007 | T014, T016, and T019 | passed | Two TimeLocker-created snapshots listed; latest and exact restores matched the source digest. |
+| CP-008 | T014 and T018-T019 | passed | Generated backup argv parsed current CLI with explicit repository, source, and config directory. |
+| CP-009 | T014, T017, and T019 | passed | Ayatana, legacy fallback, missing-dependency, headless CLI, and Mint initialization paths passed. |
 
 ## Agent Readiness Evidence
 
 | Field | Evidence | Residual Risk |
 |-------|----------|---------------|
-| Scope and out-of-scope files | Requirements goals, non-goals, change impact, and task file lists | Newly discovered release blockers require reconciliation. |
+| Scope and out-of-scope files | Requirements goals, non-goals, change impact, and task file lists | Actual host migration remains outside implementation authority. |
 | Must-read and optional context | Full Spec 007 package, `CHARTER.md`, workflows, metadata, version helper/config, install and process docs, issue #68 | GitHub evidence can change. |
 | Permissions and approval points | Branch work approved; task commits require explicit commit instruction; tag, GitHub release, and PyPI publication require separate release approval | Do not infer publication authority. |
 | Validation commands and expected signals | Validation table plus task-specific commands | Hosted services and runners remain external. |
-| Review needs | CI, packaging, security, operations, and documentation review at T013 | Human release decision remains. |
-| Durable-doc or closure impact | Promotion table and `change-impact.md` | Package cannot close before promotion. |
+| Review needs | Recovery, security, operations, documentation, and release review completed across T013 and T019 | Human release and cutover decisions remain. |
+| Durable-doc or closure impact | Promotion table and `change-impact.md` | Promotion is complete; closure still requires the lifecycle decision. |
 | Optional repo-evidence provider caveats | Agent Workbench routing is advisory and has stale deleted-path candidates; direct repository and lifecycle evidence are authoritative | Recheck provider before relying on suggestions. |
 
 ## Task Evidence
@@ -93,6 +109,12 @@ separate explicit approval.
 | T011 | passed | Existing process corrected and indexed; README and installation claims aligned; Markdown/link set clean | PyPI and 1.0 remain deferred. |
 | T012 | passed | Canonical changelog section and successful derived release-body preview | Four limitations are explicit. |
 | T013 | passed | Final normal profile, lifecycle/hygiene checks, external-state comparison, and bounded TimeLocker expert-panel review | Human release approval and lifecycle closure remain separate. |
+| T014 | passed | Linux Mint pilot blockers reconciled into requirements, design, tasks, traceability, and verification; lifecycle lint and stage readiness have zero gaps | No external schedule state or secrets changed. |
+| T015 | passed | 124 focused tests; Mint environment-only init; 1-file and 11-file dry-runs; actual snapshot `731d9784` with one file and 15,839 bytes | Pilot snapshot count changed from one to two only for the actual backup. |
+| T016 | passed | 120 focused tests, 19 snapshot-manager tests, 14 orchestrator tests; Mint table/JSON listing; latest and exact restores; matching SHA-256 digests | Final combined checkpoint remains T019. |
+| T017 | passed | Six focused tests; project-interpreter headless smoke; `tl version`; system-Python Ayatana initialization/shutdown | Desktop package availability remains operator-owned. |
+| T018 | passed | 20 focused tests; disabled Mint schedule; cron shell parse; systemd/CLI parser review; redacted assets | Nothing installed or enabled; NPBackup unchanged. |
+| T019 | passed | Machine round trip, Mint tray, staged schedules, promoted docs, full normal profile, and lifecycle/hygiene checks passed | No timer installed or enabled; NPBackup unchanged; operator migration gates remain. |
 
 ## Evidence Log
 
@@ -133,6 +155,17 @@ separate explicit approval.
 | 2026-07-19 | Final T013 normal-profile run | passed | 2,774 passed, one skipped, 57 deselected, 19 warnings, and 52.14% coverage in 1,439.49 seconds. |
 | 2026-07-19 | T013 TimeLocker expert-panel review | passed | Bounded Phase 4 diff review applied stewardship, Python CLI, security, reliability, operations, and documentation/lifecycle lenses; Restic behavior was unchanged. No actionable findings remained after test isolation. |
 | 2026-07-19 | T013 lifecycle and hygiene checks | passed with advisory | Lifecycle lint had no errors and only the reviewed optional canonical-context advisory; traceability had zero acceptance gaps; `actionlint`, Markdown/link checks, workflow boundary validation, and `git diff --check` passed. |
+| 2026-07-19 | Isolated Linux Mint/Cinnamon machine pilot | failed | Explicit-password init and a directory backup created snapshot `876b20bc7916`; environment-only init, dry-run, truthful result reporting, TimeLocker listing, TimeLocker restore, Ayatana tray discovery, and generated schedule parsing failed. |
+| 2026-07-19 | Raw Restic diagnostic control | passed | Restic listed one snapshot with 11 files and restored the reference file with a matching digest; this does not satisfy TimeLocker-owned recovery acceptance. |
+| 2026-07-19 | NPBackup migration boundary review | unchanged | Existing protected configuration was inspected only through its masked interface; no credential was extracted, scheduler changed, timer installed, or job disabled. |
+| 2026-07-19 | T015 focused validation | passed | 124 repository, CLI, resolver, orchestrator, backup, and regression tests passed without coverage instrumentation. |
+| 2026-07-19 | T015 isolated Mint pilot | passed | Environment-only init recognized the repository; file and directory dry-runs reported 1 and 11 files; actual file backup created snapshot `731d9784` with one file and 15,839 bytes. Exactly two snapshots exist after the one real T015 backup. |
+| 2026-07-19 | T016 focused recovery validation | passed | 120 snapshot, recovery, restore CLI, and progress tests passed; the latest-alias and initialized-progress regressions then passed 19 and 14 focused tests. |
+| 2026-07-19 | T016 isolated Mint recovery pilot | passed | Table and JSON listed two snapshots with canonical metadata. TimeLocker restored `latest` and exact full ID `731d9784...`; both restored `README.md` files matched the source SHA-256 digest. |
+| 2026-07-19 | T017 Mint tray validation | passed | Six namespace/fallback tests passed; the pyenv CLI remained functional without `gi`; system Python initialized and shut down `AyatanaAppIndicator3` on Cinnamon/X11. |
+| 2026-07-19 | T018 schedule validation | passed | Twenty focused tests passed. A disabled system-level pilot schedule generated redacted cron/systemd assets whose command parsed the current CLI with explicit repository, `/etc` source, environment-file reference, and config directory. No scheduler state changed. |
+| 2026-07-19 | T019 final normal profile | passed | 2,787 passed, one skipped, 57 deselected, 19 warnings, and 52.38% coverage in 801.81 seconds. |
+| 2026-07-19 | T019 machine and handoff checkpoint | passed with advisories | TimeLocker-owned backup/list/latest/exact/digest, Mint Ayatana/headless, staged-schedule, promoted-guide, task-audit, closure-readiness, traceability, link, compile, and whitespace gates passed. Lifecycle lint retained one optional canonical-context advisory; historical evidence-quality and spec-table-readability advisories remain non-blocking. No privileged schedule or NPBackup state changed. |
 
 ## Manual Or External Verification
 
@@ -155,6 +188,14 @@ release artifacts must be linked here before release readiness can be approved.
   combinations block readiness until rerun or the support claim is reviewed.
 - The first actual tag exercises external publication behavior that rehearsal
   cannot reproduce fully; it remains a human-controlled release risk.
+- Tray availability still depends on the desktop toolkit being installed for
+  the interpreter that runs the tray integration; core CLI behavior is
+  deliberately independent.
+- Repository credentials, actual NPBackup source/scheduler discovery,
+  privileged schedule installation, observed scheduled TimeLocker runs, and
+  final NPBackup cutover remain unapproved operator actions.
+- The staged `/etc` source proves the protected-source boundary but is not a
+  claim about the sources configured in the existing NPBackup job.
 
 ## Durable Promotion And Cleanup
 
@@ -167,25 +208,28 @@ release artifacts must be linked here before release readiness can be approved.
 | Front-door support and version claims | `README.md` | complete | T011 aligned version and Python support. |
 | PyPI and `1.0.0` deferral | GitHub issue #22, milestone description, version process | complete | External and durable boundaries agree. |
 | Follow-up work | GitHub issues outside milestone or an approved successor spec | complete | Existing issue #68 retains stress history; no new Phase 4 finding requires routing. |
+| Backup/recovery runtime contract | `docs/guides/user/recovery-operations-guide.md` | complete | T015-T016 machine acceptance and T019 review passed. |
+| Linux tray prerequisites | `docs/guides/user/installation.md` | complete | T017 Mint and headless validation passed. |
+| Schedule and staged NPBackup cutover boundary | `docs/guides/developer/scheduling-guide.md` | complete | T018 staging and T019 handoff review passed. |
 
 ### Spec Cleanup Decision
 
 - **Cleanup action:** keep active
-- **Reason:** All implementation tasks are complete; the package remains active
-  only for the separately authorized lifecycle closure and its final commits.
+- **Reason:** Phase 5 is complete, but release approval, operator migration, and
+  lifecycle closure are separately human-controlled decisions.
 - **Final spec commit:** pending
 - **Closure log path:** `docs/history/spec-closure-log.md`
 - **Closure log entry updated:** no
 - **Closure cleanup commit:** pending
 - **Active indexes updated:** yes for package creation
 - **Durable docs linked back to evidence where useful:** yes
-- **Residual spec-only content:** task-level implementation and validation evidence only
+- **Residual spec-only content:** release decision and machine-pilot evidence
 
 ## Ship Or Closure Risk
 
-- **Risk level:** high
+- **Risk level:** medium
 - **Breaking change:** no
-- **Blast radius checked:** complete for the Phase 4 workflow, scripts, tests, and docs diff
+- **Blast radius checked:** complete for the approved Phase 5 implementation boundary
 - **Rollback path:** corrected and validated in `docs/processes/version-management.md`
 - **Requires human review:** yes
 - **Release notes needed:** yes, in `CHANGELOG.md`
@@ -194,15 +238,16 @@ release artifacts must be linked here before release readiness can be approved.
 ### Risk Rationale
 
 Normal, provisioned MinIO, extended, artifact, cross-platform install, rehearsal,
-documentation, and expert-review gates pass. The tag-triggered release workflow
-still has no successful repository release history, so the first tag remains a
-high, human-controlled publication risk rather than an implementation blocker.
+documentation, expert-review, and Linux Mint machine-acceptance gates pass.
+Remaining risk is operational: the actual NPBackup job has not been reconciled,
+the privileged TimeLocker schedule has not been installed or observed, and no
+publication or cutover authority has been granted.
 
 ## Readiness Decision
 
-- **Ready for promotion:** yes
-- **Ready for release:** yes, for a separate release-maintainer decision
-- **Ready for closure:** yes, through the separate lifecycle closure workflow
+- **Ready for promotion:** no, Phase 5 durable guidance is pending
+- **Ready for release:** no
+- **Ready for closure:** no
 
 ## Related Artifacts
 

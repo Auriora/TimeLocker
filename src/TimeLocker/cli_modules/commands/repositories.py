@@ -33,6 +33,7 @@ from .base import (
     _call_service_method,
     _get_service_manager_for_command,
     _create_config_service,
+    _create_repository_resolver,
     VerboseOption,
     JsonOption,
     YesOption,
@@ -1699,16 +1700,19 @@ def repos_init(
                 )
                 raise typer.Exit(1)
         
-        # Prompt for password if not provided and in interactive mode
-        if not password and interactive:
-            from rich.prompt import Prompt
-            password = Prompt.ask("Enter password for repository", password=True)
-            password_confirm = Prompt.ask("Confirm password", password=True)
-            if password != password_confirm:
-                show_error_panel("Password Mismatch", "Passwords do not match.")
-                raise typer.Exit(1)
-        elif not password and not interactive:
-            show_error_panel("Password Required", "Password must be provided with --password in non-interactive mode.")
+        resolver = _create_repository_resolver(config_dir)
+        password = resolver.resolve_credentials(
+            repository_name=name,
+            explicit_password=password,
+            allow_prompt=interactive,
+            repository_uri=repo_uri,
+        )
+        if not password:
+            show_error_panel(
+                "Password Required",
+                "Repository password is required; provide --password, configure "
+                "stored credentials, or set RESTIC_PASSWORD/TIMELOCKER_PASSWORD."
+            )
             raise typer.Exit(1)
 
         init_method = _get_service_method(manager, "initialize_repository")

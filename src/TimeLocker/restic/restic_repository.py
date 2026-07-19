@@ -610,7 +610,7 @@ class ResticRepository(BackupRepository):
 
             snapshot = BackupSnapshot(
                     repo=self,
-                    snapshot_id=s["short_id"],
+                    snapshot_id=s["id"] if "id" in s else s["short_id"],
                     timestamp=timestamp,
                     paths=paths
             )
@@ -618,6 +618,8 @@ class ResticRepository(BackupRepository):
             # Add additional attributes from restic data
             if "hostname" in s:
                 snapshot.hostname = s["hostname"]
+            if "username" in s:
+                snapshot.username = s["username"]
             if "tags" in s:
                 snapshot.tags = s["tags"]
             else:

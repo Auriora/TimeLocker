@@ -107,13 +107,11 @@ def test_remove_pattern_group(selection):
 @pytest.mark.backup
 @pytest.mark.filesystem
 @pytest.mark.unit
-def test_validate_requires_folder(selection, test_dir, test_file):
-    """Test that validation requires at least one folder"""
-    # Should raise error when no folders are included
+def test_validate_accepts_file_and_requires_path(selection, test_file):
+    """Validation accepts direct files but rejects an empty selection."""
     selection.add_path(test_file)
-    with pytest.raises(ValueError):
-        selection.validate()
-
-    # Should pass when a folder is included
-    selection.add_path(test_dir)
     assert selection.validate()
+
+    empty_selection = type(selection)()
+    with pytest.raises(ValueError, match="At least one path"):
+        empty_selection.validate()

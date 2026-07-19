@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
+import importlib
 import sys
 import threading
 from datetime import datetime
@@ -25,6 +26,35 @@ from typing import Optional, Callable, Dict, Any
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+
+
+def _load_linux_tray_modules():
+    """Load GTK and the first supported AppIndicator namespace."""
+    try:
+        import gi
+    except ImportError as exc:
+        raise SystemTrayError("PyGObject is not installed") from exc
+
+    try:
+        gi.require_version('Gtk', '3.0')
+        gtk = importlib.import_module('gi.repository.Gtk')
+    except (ImportError, ValueError) as exc:
+        raise SystemTrayError("GTK 3 is not available") from exc
+
+    errors = []
+    for namespace in ('AyatanaAppIndicator3', 'AppIndicator3'):
+        try:
+            gi.require_version(namespace, '0.1')
+            indicator = importlib.import_module(f'gi.repository.{namespace}')
+            return gtk, indicator, namespace
+        except (ImportError, ValueError) as exc:
+            errors.append(f"{namespace}: {exc}")
+
+    raise SystemTrayError(
+        "Neither AyatanaAppIndicator3 nor AppIndicator3 is available ("
+        + "; ".join(errors)
+        + ")"
+    )
 
 
 class SystemTrayError(Exception):
@@ -255,25 +285,22 @@ class LinuxSystemTray:
     
     def _initialize_tray(self):
         """Initialize tray with available toolkit"""
-        # Try GTK first
         try:
-            import gi
-            gi.require_version('Gtk', '3.0')
-            gi.require_version('AppIndicator3', '0.1')
-            from gi.repository import Gtk, AppIndicator3
-            
+            self._gtk, self._indicator_module, self._indicator_namespace = (
+                _load_linux_tray_modules()
+            )
             self._use_gtk = True
-            self._indicator = AppIndicator3.Indicator.new(
+            self._indicator = self._indicator_module.Indicator.new(
                 self.app_name,
                 "dialog-information",
-                AppIndicator3.IndicatorCategory.APPLICATION_STATUS
+                self._indicator_module.IndicatorCategory.APPLICATION_STATUS
             )
-            self._indicator.set_status(AppIndicator3.IndicatorStatus.ACTIVE)
+            self._indicator.set_status(self._indicator_module.IndicatorStatus.ACTIVE)
             self._create_gtk_menu()
-            logger.info("Using GTK for Linux system tray")
+            logger.info("Using GTK with %s for Linux system tray", self._indicator_namespace)
             return
-        except (ImportError, ValueError) as e:
-            logger.debug(f"GTK not available: {e}")
+        except SystemTrayError as e:
+            logger.debug(f"GTK AppIndicator not available: {e}")
         
         # Fallback: log that tray is not available
         logger.warning("No suitable system tray toolkit found for Linux")
@@ -282,8 +309,7 @@ class LinuxSystemTray:
     def _create_gtk_menu(self):
         """Create GTK context menu"""
         try:
-            from gi.repository import Gtk
-            
+            Gtk = self._gtk
             self._menu = Gtk.Menu()
             
             # Open item
@@ -370,8 +396,7 @@ class LinuxSystemTray:
         """Shutdown tray"""
         if hasattr(self, '_indicator'):
             try:
-                from gi.repository import AppIndicator3
-                self._indicator.set_status(AppIndicator3.IndicatorStatus.PASSIVE)
+                self._indicator.set_status(self._indicator_module.IndicatorStatus.PASSIVE)
             except Exception as e:
                 logger.error(f"Failed to shutdown GTK tray: {e}")
 

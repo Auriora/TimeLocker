@@ -918,7 +918,7 @@ class BackupOrchestrator(IBackupOrchestrator):
                 repository_name=repository_name,
                 target_names=target_names.copy(),
                 start_time=time.time(),
-                metadata={'operation_id': operation_id, 'dry_run': dry_run, 'tags': tags or [], 'password': password}
+                metadata={'operation_id': operation_id, 'dry_run': dry_run, 'tags': tags or []}
         )
 
         # Track the operation
@@ -948,7 +948,7 @@ class BackupOrchestrator(IBackupOrchestrator):
             if dry_run:
                 backup_result = self._execute_dry_run(backup_result)
             else:
-                backup_result = self._execute_actual_backup(backup_result)
+                backup_result = self._execute_actual_backup(backup_result, password=password)
 
             backup_result.end_time = time.time()
 
@@ -998,7 +998,12 @@ class BackupOrchestrator(IBackupOrchestrator):
 
             for target in targets:
                 # Estimate files and size (simplified)
-                for path in target.paths:
+                paths = (
+                    target.selection.get_backup_paths()
+                    if target.selection is not None
+                    else []
+                )
+                for path in paths:
                     try:
                         from pathlib import Path
                         path_obj = Path(path)
@@ -1025,10 +1030,13 @@ class BackupOrchestrator(IBackupOrchestrator):
             backup_result.errors.append(f"Dry run failed: {e}")
             backup_result.status = BackupStatus.FAILED
 
-        self._attach_selection_warnings(backup_job, backup_result)
         return backup_result
 
-    def _execute_actual_backup(self, backup_result: BackupResult) -> BackupResult:
+    def _execute_actual_backup(
+        self,
+        backup_result: BackupResult,
+        password: Optional[str] = None,
+    ) -> BackupResult:
         """Execute an actual backup"""
         logger.info(f"Executing backup for repository: {backup_result.repository_name}")
 
@@ -1046,7 +1054,6 @@ class BackupOrchestrator(IBackupOrchestrator):
                 return backup_result
 
             # Create repository instance
-            password = backup_result.metadata.get('password')
             logger.debug(f"Password retrieved from metadata: {'***' if password else 'None'}")
             logger.debug(f"Repository URI: {repo_config['uri']}")
             repository = self._repository_factory.create_repository(
@@ -1058,6 +1065,10 @@ class BackupOrchestrator(IBackupOrchestrator):
             # Get backup targets
             targets = self._get_backup_targets(backup_result.target_names)
 
+            # Deterministic target validation must fail before retry handling.
+            for target in targets:
+                target.validate()
+
             # Execute backup with retry
             @with_retry(max_retries=3, delay=1.0, backoff_multiplier=2.0)
             def _perform_backup():
@@ -1067,8 +1078,15 @@ class BackupOrchestrator(IBackupOrchestrator):
 
             if result and 'snapshot_id' in result:
                 backup_result.snapshot_id = result['snapshot_id']
-                backup_result.files_processed = result.get('files_processed', 0)
-                backup_result.bytes_processed = result.get('bytes_processed', 0)
+                backup_result.files_processed = result.get(
+                    'files_processed',
+                    result.get('files_new', 0)
+                    + result.get('files_changed', 0)
+                    + result.get('files_unmodified', 0),
+                )
+                backup_result.bytes_processed = result.get(
+                    'bytes_processed', result.get('data_added', 0)
+                )
                 backup_result.status = BackupStatus.COMPLETED
 
                 logger.info(f"Backup completed successfully: {backup_result.snapshot_id}")

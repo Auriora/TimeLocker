@@ -266,20 +266,11 @@ class FileSelection:
             bool: True if valid, False otherwise
             
         Raises:
-            ValueError: If no folders are included in the backup selection
+            ValueError: If no paths are included in the backup selection
         """
 
-        # Check if path exists and is a directory, or if it looks like a directory path
-        def is_directory_path(path: Path) -> bool:
-            # If path exists, check if it's a directory
-            if path.exists():
-                return path.is_dir()
-            # Otherwise check if it looks like a directory path (no file extension)
-            return path.suffix == '' or path.name.endswith('/')
-
-        has_folder = any(is_directory_path(path) for path in self._includes)
-        if not has_folder:
-            raise ValueError("At least one folder must be included in the backup selection")
+        if not self._includes:
+            raise ValueError("At least one path must be included in the backup selection")
         return True
 
     @property

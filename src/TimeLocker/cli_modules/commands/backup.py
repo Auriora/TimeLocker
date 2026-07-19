@@ -281,7 +281,7 @@ def backup_create(
             if result.status.value in ['completed', 'success']:
                 details = {
                     "Snapshot ID": result.snapshot_id or "Unknown",
-                    "Files processed": f"{result.files_processed:,}" if result.files_processed else "Unknown",
+                    "Files processed": f"{result.files_processed:,}",
                     "Data processed": f"{result.bytes_transferred:,} bytes" if result.bytes_transferred else "Unknown",
                     "Duration": f"{result.duration.total_seconds():.1f}s" if result.duration else "Unknown"
                 }
@@ -321,6 +321,15 @@ def backup_create(
     if not sources:
         show_error_panel("No Sources", "No source paths specified for backup")
         console.print("💡 Either provide source paths or use --selection to specify a data selection template")
+        raise typer.Exit(1)
+
+    invalid_sources = [str(source) for source in sources if not source.exists()]
+    if invalid_sources:
+        show_error_panel(
+            "Invalid Sources",
+            "The following backup source paths do not exist:",
+            invalid_sources,
+        )
         raise typer.Exit(1)
 
     repository_uri = repository

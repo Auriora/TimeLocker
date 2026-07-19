@@ -155,6 +155,12 @@ class SnapshotManager:
         Raises:
             SnapshotNotFoundError: If snapshot is not found
         """
+        if snapshot_id == "latest":
+            snapshot = self.get_latest_snapshot()
+            if snapshot is None:
+                raise SnapshotNotFoundError("No snapshots are available")
+            return snapshot
+
         snapshots = self.list_snapshots()
 
         for snapshot in snapshots:

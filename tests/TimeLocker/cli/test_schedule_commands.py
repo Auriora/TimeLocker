@@ -5,9 +5,16 @@ Tests schedule command parsing, parameter validation, help output, and error han
 """
 
 import pytest
+import shlex
+from pathlib import Path
 from unittest.mock import Mock, patch
 
 from TimeLocker.cli import app
+from TimeLocker.cli_modules.commands.schedule import (
+    _build_backup_command,
+    _generate_cron_script,
+    _generate_systemd_script,
+)
 from tests.TimeLocker.cli.test_utils import (
     get_cli_runner, combined_output, assert_success, assert_exit_code, assert_help_quality
 )
@@ -81,11 +88,54 @@ class TestScheduleCommands:
     def test_schedule_create_with_parameters(self):
         """Test schedule create command with parameters."""
         result = runner.invoke(app, [
-            "schedule", "create", "test-schedule", "test-policy",
+            "schedule", "create", "test-schedule",
+            "--repository", "test-repo", "--source", ".",
             "--frequency", "daily"
         ])
         # Should succeed or fail gracefully (policy might not exist)
         assert result.exit_code in [0, 1, 2]
+
+    @pytest.mark.unit
+    def test_generated_backup_command_parses_current_cli(self, tmp_path):
+        schedule = {
+            "repository": "pilot-repo",
+            "sources": [str(tmp_path / "source")],
+            "selection": None,
+            "config_dir": str(tmp_path / "config"),
+        }
+
+        argv = shlex.split(_build_backup_command(schedule))
+        result = runner.invoke(app, argv[1:] + ["--help"])
+
+        assert_success(result)
+        assert "--policy" not in argv
+        assert "--non-interactive" not in argv
+        assert argv[-2:] == ["--config-dir", str((tmp_path / "config").resolve())]
+
+    @pytest.mark.unit
+    def test_linux_renderers_reference_environment_without_secret_values(self, tmp_path):
+        env_file = tmp_path / "pilot.env"
+        schedule = {
+            "repository": "pilot-repo",
+            "selection": "protected-files",
+            "sources": [],
+            "environment_file": str(env_file),
+            "config_dir": str(tmp_path / "config"),
+            "system": True,
+            "cron_expression": "0 2 * * *",
+            "frequency": "daily",
+        }
+
+        cron = _generate_cron_script("pilot", schedule)
+        service, timer = _generate_systemd_script("pilot", schedule)
+
+        assert str(env_file) in cron
+        assert f"EnvironmentFile={env_file}" in service
+        assert "set -euo pipefail" in cron
+        assert "User=root" in service
+        assert "backup create --selection protected-files" in cron
+        assert "--repository pilot-repo" in service
+        assert "RESTIC_PASSWORD=" not in cron + service + timer
 
     @pytest.mark.unit
     def test_schedule_edit_command(self):

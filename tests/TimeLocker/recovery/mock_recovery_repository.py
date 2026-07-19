@@ -23,6 +23,7 @@ class MockRecoveryRepository(BackupRepository):
 
     def __init__(self):
         self._initialized = True  # Initialize by default for testing
+        self._password = "test_password"
         self._snapshots = {}
         self._location = "/mock/recovery/repository"
         self._restore_results = {}

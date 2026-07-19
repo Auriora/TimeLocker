@@ -42,6 +42,13 @@ class BackupSnapshot:
         self.paths = paths
         self.tags = []
         self.size = 0
+        self.hostname = ""
+        self.username = ""
+
+    @property
+    def time(self) -> datetime:
+        """Backward-compatible alias for the canonical snapshot timestamp."""
+        return self.timestamp
 
     def restore(
             self,
@@ -89,10 +96,19 @@ class BackupSnapshot:
     @classmethod
     def from_dict(cls, repository: 'BackupRepository', data: Mapping[str, object]) -> Self:
         """Create a snapshot instance from dictionary data"""
-        raw_path = Path(str(data['path']))
+        if 'paths' not in data and 'path' not in data:
+            raise KeyError('path')
+        raw_paths = data.get('paths', data.get('path'))
+        if isinstance(raw_paths, (str, Path)):
+            paths = [Path(str(raw_paths))]
+        else:
+            paths = [Path(str(path)) for path in raw_paths]
+        timestamp_value = data.get('timestamp', data.get('time'))
+        if timestamp_value is None:
+            raise ValueError("Snapshot timestamp is required")
         return cls(
             repo=repository,
             snapshot_id=str(data['id']),
-            timestamp=datetime.fromisoformat(str(data['timestamp'])),
-            paths=raw_path
+            timestamp=datetime.fromisoformat(str(timestamp_value).replace('Z', '+00:00')),
+            paths=paths
         )

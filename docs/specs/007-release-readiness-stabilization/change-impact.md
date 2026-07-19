@@ -4,15 +4,15 @@ doc_type: spec
 artifact_type: change-impact
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-18
+last_reviewed: 2026-07-19
 ---
 
 # Change Impact
 
 ## Purpose
 
-Record the durable behavior and documentation changed while preparing the
-bounded `v0.9.1` stabilization release.
+Record the durable behavior and documentation changed while preparing and
+machine-validating the bounded `v0.9.1` stabilization release.
 
 ## Durable Source Mapping
 
@@ -27,13 +27,17 @@ bounded `v0.9.1` stabilization release.
 | `docs/processes/version-management.md` | Existing version and release procedure. | high | Correct in place rather than creating a duplicate process. |
 | `docs/processes/README.md` | Existing process index. | high | Must link the corrected procedure. |
 | `CHARTER.md` | PyPI distribution is outside current project state. | high | Remains unchanged. |
+| Repository, backup, snapshot, and restore command paths | A Linux Mint pilot created a valid Restic snapshot but exposed TimeLocker credential, dry-run, listing, restore, and reporting defects. | high | Raw Restic recovery proved the data while TimeLocker recovery remained blocked. |
+| Linux tray integration | Mint provides the Ayatana namespace while the implementation expects only the legacy namespace. | high | Optional GUI behavior must not affect CLI availability. |
+| Schedule generation | Generated commands currently reference unsupported policy and non-interactive options. | high | Assets are not safe to install until parser validation passes. |
 
 ## Change Type
 
 - **Primary type:** operational
 - **Breaking change:** no
 - **Durable docs required:** yes
-- **External behavior affected:** yes, CI and release artifacts
+- **External behavior affected:** yes, CI, release artifacts, backup/recovery,
+  optional tray behavior, and generated schedules
 
 ## Proposed Changes
 
@@ -46,6 +50,9 @@ bounded `v0.9.1` stabilization release.
 | Correct the release operator procedure | modify | Spec 007 design and rehearsal evidence | `docs/processes/version-management.md` and process index | yes |
 | Publish accurate `v0.9.1` communications | add | Git history and verification evidence | `CHANGELOG.md`; GitHub release body derived from its version section | yes |
 | Defer PyPI and `1.0.0` | clarify | `CHARTER.md`, milestone decision | version process and changelog | yes |
+| Repair local repository initialization, dry-run, backup result, snapshot listing, and restore | bug_fix | runtime command and Restic adapter behavior | user backup/recovery guidance | yes |
+| Support Mint's Ayatana indicator with legacy fallback | bug_fix | tray integration | installation and troubleshooting guidance | yes |
+| Generate executable schedules with explicit configuration and privilege boundaries | modify | schedule model and renderers | scheduling/operator guidance | yes |
 
 ## Promotion Targets
 
@@ -56,14 +63,16 @@ bounded `v0.9.1` stabilization release.
 | Release procedure and rollback boundary | `docs/processes/version-management.md` | complete | Corrected in place and linked from `docs/processes/README.md` by T011. |
 | Release contents and limitations | `CHANGELOG.md` | complete | T012 made the `v0.9.1` section canonical and previewed its derived release body. |
 | Current version and release path | `README.md` | complete | T011 records Python 3.12-3.13 and `0.9.1` prepared, not published. |
+| Backup/recovery credential and source contract | `docs/guides/user/recovery-operations-guide.md` | complete | T015-T016 machine acceptance and T019 review passed. |
+| Linux tray prerequisites and fallback | `docs/guides/user/installation.md` | complete | T017 Mint and headless validation passed. |
+| Schedule configuration, environment, privilege, and cutover boundary | `docs/guides/developer/scheduling-guide.md` | complete | T018 staging and T019 handoff review passed. |
 
 ## Unchanged Durable Areas
 
 | Durable area | Reviewed source | Reason unchanged |
 |--------------|-----------------|------------------|
 | Product scope | `CHARTER.md` | Stabilization does not expand the product or publication boundary. |
-| Application architecture | `docs/2-architecture/` | No runtime component boundary changes are intended. |
-| Credential handling | durable security and user guidance | CI uses only ephemeral MinIO values; repository credential behavior is out of scope. |
+| Product mandate | `CHARTER.md` | Runtime stabilization remains within the existing backup and recovery mandate. |
 | CLI feature backlog | GitHub issues #5, #7, #9, #11, #28-#30, #33-#34, #54-#56 | These are reconciled but not pulled into the patch release spec. |
 
 ## Bug Fix Details
@@ -83,9 +92,10 @@ bounded `v0.9.1` stabilization release.
 
 ## Open Questions
 
-None block implementation. The declared Python 3.12 and 3.13 contract passed on
-Linux, macOS, and Windows. Publication and lifecycle closure remain separate
-human decisions after T013.
+Implementation is unblocked in the isolated pilot. Privileged schedule
+installation, repository credential selection, identification of the actual
+NPBackup scheduler, and final cutover remain explicit operator decisions after
+T019; publication and lifecycle closure remain separate human decisions.
 
 ## Related Artifacts
 

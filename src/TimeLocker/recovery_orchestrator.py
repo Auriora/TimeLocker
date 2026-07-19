@@ -191,7 +191,13 @@ class RecoveryOrchestrator:
         """
         try:
             # Check if repository has valid credentials
-            if not self.repository._password:
+            password_getter = getattr(self.repository, "password", None)
+            password = password_getter() if callable(password_getter) else getattr(
+                self.repository,
+                "_explicit_password",
+                getattr(self.repository, "_password", None),
+            )
+            if not password:
                 raise RepositoryAccessError(
                     "Repository password not available. Cannot access encrypted repository."
                 )
@@ -280,7 +286,8 @@ class RecoveryOrchestrator:
             recovery_type=RecoveryType.FULL,
             target_path=str(target),
             status=OperationStatus.PENDING,
-            start_time=datetime.now()
+            start_time=datetime.now(),
+            progress=ProgressStatus(0, 0, 0, 0)
         )
         
         # Store options separately (not part of the data model)
@@ -377,7 +384,8 @@ class RecoveryOrchestrator:
             recovery_type=RecoveryType.SELECTIVE,
             target_path=str(target),
             status=OperationStatus.PENDING,
-            start_time=datetime.now()
+            start_time=datetime.now(),
+            progress=ProgressStatus(0, 0, 0, 0)
         )
         
         # Store options separately (not part of the data model)
@@ -551,7 +559,13 @@ class RecoveryOrchestrator:
             
             if encryption_status.is_encrypted:
                 # Check if we have valid credentials
-                if not self.repository._password:
+                password_getter = getattr(self.repository, "password", None)
+                password = password_getter() if callable(password_getter) else getattr(
+                    self.repository,
+                    "_explicit_password",
+                    getattr(self.repository, "_password", None),
+                )
+                if not password:
                     raise EncryptionKeyError(
                         f"Snapshot {snapshot_id} is encrypted but no decryption key is available"
                     )

@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: design
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-18
+last_reviewed: 2026-07-19
 ---
 
 # Technical Design
@@ -17,6 +17,10 @@ under this spec with issue #68 retaining assignment and evidence history;
 versioned artifacts are then built once and installed into
 clean environments; finally, the existing release workflow is rehearsed and
 the evidence is promoted into durable guidance and release communications.
+Phase 5 adds a machine-acceptance gate after a Linux Mint pilot exposed runtime
+defects that artifact smoke tests could not detect. Release readiness now also
+requires a TimeLocker-owned backup, listing, restore, tray, and scheduling path
+to work without changing the existing NPBackup job prematurely.
 
 ## Requirement Coverage
 
@@ -27,6 +31,10 @@ the evidence is promoted into durable guidance and release communications.
 | R3 | AC1-AC5 | Side-effect-safe version preparation, one version guard, and one artifact set reused by smoke validation | Git-state comparison, build, metadata inspection, hashes, CLI version |
 | R4 | AC1-AC5 | Explicit six-combination support contract | Wheel and sdist installs, CLI smoke matrix |
 | R5 | AC1-AC6 | Non-publishing rehearsal followed by in-place process updates and changelog-derived communications | Workflow lint/review, rehearsal, docs review |
+| R6 | AC1-AC4 | Consistent credential resolution, side-effect-free dry-run, source validation, and truthful backup results | Focused CLI/service tests and local pilot |
+| R7 | AC1-AC4 | Canonical snapshot mapping plus robust latest/exact restore and error propagation | Focused snapshot/restore tests and digest-verified restore |
+| R8 | AC1-AC3 | Ayatana-first Linux indicator discovery with legacy fallback and non-fatal headless behavior | Import-path tests and Linux Mint tray smoke |
+| R9 | AC1-AC4 | Schedule records bind executable repository/source inputs and render only supported CLI options | Parser round-trip tests and staged systemd asset inspection |
 
 ## Correctness Property Coverage
 
@@ -37,6 +45,10 @@ the evidence is promoted into durable guidance and release communications.
 | CP-003 | The same smoke contract is run against wheel and sdist installs | Clean virtual environments and supported platform jobs | System prerequisites remain explicit. |
 | CP-004 | Rehearsal stops before tag creation and uses workflow validation or a non-publishing harness | Command review and absence of new tag/release | Any external write needs separate release approval. |
 | CP-005 | Release-note items link to commits, specs, issues, tests, or known limitations | Documentation and release review | Generated notes may be input, not sole evidence. |
+| CP-006 | Credential sources converge on one repository password boundary and generated assets contain references, never values | Unit tests and redacted asset review | Existing NPBackup secrets are not inspected. |
+| CP-007 | TimeLocker creates, lists, restores, and digest-verifies the same snapshot | Focused tests plus local round trip | Raw Restic proof alone is insufficient. |
+| CP-008 | Rendered schedule commands are parsed by the installed CLI before installation | Parser contract tests | Privileged execution still requires operator approval. |
+| CP-009 | Tray imports and initialization are optional and isolated from core CLI execution | Namespace/fallback tests and headless CLI smoke | Desktop packaging varies by distribution. |
 
 ## High-Level Design
 
@@ -50,6 +62,7 @@ CI profile repair
     -> clean-install matrix
     -> release workflow rehearsal
     -> durable docs and changelog-derived release communications
+    -> Linux Mint machine acceptance and staged schedule validation
     -> human release decision
 ```
 
@@ -73,10 +86,20 @@ CI profile repair
 - `CHANGELOG.md`, installation guide, and the existing version-management
   process receive accepted current-state guidance before spec closure. The
   GitHub release body is derived from the `v0.9.1` changelog section.
+- Repository, backup, snapshot, and restore commands: reconcile credential
+  precedence, source handling, snapshot mapping, progress cleanup, and reported
+  results around the existing Restic adapter.
+- Linux tray integration: prefer `AyatanaAppIndicator3` on current Mint while
+  retaining the legacy `AppIndicator3` fallback and non-fatal headless mode.
+- Schedule generation: persist an executable repository/source target, render
+  current CLI commands, and make configuration and environment-file boundaries
+  explicit without embedding secrets.
 
 ### Data Models
 
-No application data model changes are required. Release evidence uses files and
+The schedule record gains the repository and source/selection inputs required
+to execute a backup; compatibility handling is required for existing records.
+Other release evidence uses files and
 external records: workflow runs, `dist/` artifacts, `SHA256SUMS`, clean-install
 logs, issue #68, changelog text, and release review notes. Generated `dist/`
 content remains untracked unless repository policy explicitly says otherwise.
@@ -90,6 +113,20 @@ results, and linked issue evidence feed the verification record. Accepted
 operator and user guidance
 is promoted to durable docs, while the spec remains the temporary coordination
 surface until closure.
+
+### Phase 5 Machine Acceptance Flow
+
+```text
+resolve repository credential -> initialize isolated repository
+    -> validate dry-run without mutation -> create TimeLocker backup
+    -> list snapshot through TimeLocker -> restore latest and exact snapshot
+    -> verify reference-file digest -> validate Mint tray namespace
+    -> render and parse staged schedule assets -> operator cutover decision
+```
+
+The pilot uses isolated TimeLocker configuration and data directories. It does
+not read masked NPBackup secret values, install privileged units, or disable an
+existing schedule. The raw Restic CLI remains a diagnostic control only.
 
 ## Low-Level Design
 
@@ -153,6 +190,34 @@ It records pre/post commit, tag, and GitHub-release identity. The publishing
 boundary is a hard stop before any commit, `git tag`, tag push,
 `gh release create`, or package-index upload.
 
+### Repository and Credential Boundary
+
+Repository initialization and later operations use the same credential
+resolver. Explicit command input takes precedence over the documented
+environment chain; interactive prompting occurs only when allowed and no
+non-interactive source is available. Credentials are passed to Restic without
+being stored in schedule commands, normal logs, or verification evidence.
+
+Dry-run validates the same repository and sources as execution but must not
+create a snapshot. Deterministic source or credential validation failures are
+returned directly and are not retried.
+
+### Snapshot and Restore Boundary
+
+Snapshot adapters map Restic's canonical timestamp into the domain model once.
+Listing and restore share exact/latest resolution. Progress and status cleanup
+must preserve the primary exception even if cleanup itself encounters stale or
+partially initialized state.
+
+### Schedule Rendering Boundary
+
+A schedule is executable only when it identifies a repository and explicit
+sources or a saved selection. Renderers build argv from commands accepted by
+the current parser and validate that argv before writing cron or systemd
+assets. Non-default config and credential environment files are references in
+the asset; secret values are never serialized. Privileged sources require a
+system-level unit and remain an operator/sudo gate.
+
 ### Error Handling
 
 - Missing MinIO fails at dependency preflight in the MinIO profile.
@@ -161,6 +226,11 @@ boundary is a hard stop before any commit, `git tag`, tag push,
 - Unsupported platform results are recorded as blocking support-claim gaps, not
   silently ignored.
 - Rehearsal or workflow uncertainty remains a release blocker until reviewed.
+- Repository and source validation errors remain primary and are not retried.
+- Progress/status cleanup logs secondary failures without replacing the
+  original backup or restore error.
+- An incomplete schedule target blocks generation before any asset is written.
+- Missing tray libraries disable only the optional tray integration.
 
 ### Security, Trust, and Access
 
@@ -172,9 +242,11 @@ required nor accessed.
 
 ### Migration and Compatibility
 
-This is a patch release. No application data migration or intended breaking CLI
-change is included. Any discovered breaking change is removed from the release
-or escalated for a new requirement and explicit versioning decision.
+This is a patch release with no intended breaking CLI change. Existing schedule
+records without an executable target remain readable but cannot generate new
+assets until repository and source/selection fields are supplied. Any other
+discovered breaking change is removed from the release or escalated for a new
+requirement and explicit versioning decision.
 
 ## Validation Strategy
 
@@ -186,6 +258,10 @@ or escalated for a new requirement and explicit versioning decision.
 | Build, metadata, hashes, wheel and sdist installs | R3, R4, CP-002, CP-003 | `verification.md`, artifacts | OS coverage limits |
 | Non-publishing workflow rehearsal | R5, CP-004 | `verification.md`, review record | Tag-only behavior not executed until release approval |
 | Changelog-derived communications, install, and process review | R4, R5, CP-005 | durable docs and review | Human wording error |
+| Repository init, dry-run, backup, and result checks | R6, CP-006 | focused tests and `verification.md` | Host credential differences |
+| TimeLocker snapshot list/restore and digest round trip | R7, CP-007 | focused tests and isolated Mint pilot | Filesystem metadata variance |
+| Ayatana, legacy, and headless tray paths | R8, CP-009 | focused tests and Mint tray smoke | Desktop session variance |
+| Schedule render/parser round trip and staged asset review | R9, CP-006, CP-008 | focused tests and `verification.md` | Privileged installation remains manual |
 
 ## Downstream Task Guidance
 
@@ -197,6 +273,10 @@ or escalated for a new requirement and explicit versioning decision.
   does not authorize tagging or publishing.
 - Reconcile requirements, design, tasks, verification, and traceability after
   any support-matrix or workflow-scope change.
+- Do not restore release-ready status until the TimeLocker-owned machine round
+  trip succeeds and generated schedule commands parse against the current CLI.
+- Do not disable NPBackup or install a privileged timer within implementation;
+  prepare redacted assets and leave those actions as explicit operator gates.
 
 ## Operational Considerations
 
@@ -208,9 +288,10 @@ durable release procedure.
 
 ## Open Questions
 
-None block implementation. The support contract is Python 3.12 and 3.13 on
-Linux, macOS, and Windows; T007 must validate all six combinations or correct
-the associated claim before release preparation can continue.
+Implementation can proceed on the isolated pilot. Final cutover still requires
+the operator to provide a supported TimeLocker repository credential, approve
+sudo installation for protected sources, identify the actual NPBackup scheduler,
+and observe successful TimeLocker scheduled runs before disabling it.
 
 ## Related Artifacts
 

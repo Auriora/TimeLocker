@@ -15,7 +15,8 @@ last_reviewed: 2026-07-19
 
 ```text
 T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
-  -> T009 -> T010 -> T011 -> T012 -> T013
+  -> T009 -> T010 -> T011 -> T012 -> T013 -> T014 -> T015 -> T016
+  -> T017 -> T018 -> T019
 ```
 
 ## Phase 1: Restore Trustworthy Validation
@@ -361,10 +362,164 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
   - Validation: Lifecycle lint, readiness, traceability and evidence checks,
     required test profiles, Markdown and internal-link checks,
     `git diff --check`, security and release-readiness expert review.
-  - Evidence: Final normal profile passed: 2,774 passed, one skipped, 57 deselected, 19 warnings, 52.14% coverage in 1,439.49 seconds. The initial run exposed one live-host-load test dependency; explicit low-load test resources corrected it and all 22 tool-manager tests passed. Nine release-contract tests, `actionlint`, release intent/boundary validators, derived-notes preview, Agent Workbench Markdown/link checks, and `git diff --check` passed. TimeLocker expert-panel review found no remaining actionable Phase 4 findings. Lifecycle lint has zero errors, zero acceptance gaps, and only the reviewed non-blocking canonical-context advisory. Final HEAD remains `1dcf910`; tags and GitHub releases remain zero; release-run inventory remains 11; no PyPI action occurred.
+  - Evidence: The final normal profile passed 2,774 tests with 52.14%
+    coverage. All 22 tool-manager tests, nine release-contract tests,
+    `actionlint`, release validators, derived-notes preview, documentation
+    checks, lifecycle checks, and expert-panel assessment passed. External-state
+    identities matched the recorded baseline and the publication boundary was
+    preserved.
 
   - Status: Complete on 2026-07-19; ready for separate release-maintainer approval and lifecycle closure, with no commit or publication created.
   - Evidence mode: validation
+
+## Phase 5: Machine Acceptance and Migration Preparation
+
+- [x] T014 Reconcile the Linux Mint pilot findings into the active package.
+  - Depends on: T013
+  - Requirements: Requirements 6, 7, 8, and 9
+  - Acceptance Criteria: all
+  - Properties: CP-006, CP-007, CP-008, CP-009
+  - Files: all Spec 007 artifacts
+  - Acceptance: The package records the failed TimeLocker-owned pilot, removes
+    stale release/closure readiness claims, maps every new criterion, and
+    preserves credential, privilege, and NPBackup cutover boundaries.
+  - Validation: Lifecycle lint, readiness, traceability, and `git diff --check`.
+  - Evidence: The isolated Linux Mint/Cinnamon pilot created Restic snapshot
+    `876b20bc7916` but exposed repository-init credential inconsistency, an
+    undefined dry-run variable, false backup counts, snapshot timestamp and
+    restore-state failures, Ayatana namespace mismatch, and unparseable
+    generated scheduling commands. Raw Restic listing and digest-verified
+    restore passed as a diagnostic control; no secret was extracted, no timer
+    was installed, and NPBackup state was not changed.
+  - Status: Complete on 2026-07-19; lifecycle lint and stage readiness passed
+    with zero gaps and the release/closure decision is explicitly withdrawn.
+  - Evidence mode: reconciliation
+
+- [x] T015 Repair repository initialization and backup execution.
+  - Depends on: T014
+  - Requirement: Requirement 6
+  - Acceptance Criteria: AC1-AC4
+  - Properties: CP-006
+  - Files: repository and backup CLI/service paths plus focused tests
+  - Acceptance: Explicit and environment credentials initialize consistently;
+    file/directory dry-runs do not mutate or raise; successful results identify
+    the snapshot and truthful counts; deterministic validation is not retried.
+  - Validation: Focused repository/backup tests and isolated pilot init,
+    dry-run, and backup.
+  - Evidence: Credential resolution now accepts explicit, stored, or environment
+    input without re-resolving a known URI; direct files are valid selections;
+    missing CLI sources and invalid targets fail before retry; both dry-run
+    paths avoid job-only state; Restic summary fields produce truthful counts;
+    runtime passwords are absent from result metadata. Focused validation passed
+    124 tests. On the isolated Mint pilot, environment-only init recognized the
+    repository, file and directory dry-runs reported 1 and 11 files, and an
+    actual file backup created snapshot `731d9784` with one file and 15,839
+    bytes. Snapshot count moved from one to two only after the actual backup.
+  - Status: Complete on 2026-07-19.
+  - Evidence mode: implementation
+
+- [x] T016 Repair snapshot discovery and restore.
+  - Depends on: T015
+  - Requirement: Requirement 7
+  - Acceptance Criteria: AC1-AC4
+  - Properties: CP-007
+  - Files: snapshot model/adapter, restore manager/CLI, progress/status handling,
+    and focused tests
+  - Acceptance: Table and JSON listing work; latest and exact restore work;
+    a reference digest matches; cleanup never replaces the primary failure.
+  - Validation: Focused snapshot/restore tests and isolated TimeLocker-owned
+    list/restore/digest round trip.
+  - Evidence: The snapshot adapter now maps Restic `time`, `paths`, host, user,
+    and full IDs; table and JSON listing serialize canonical fields; `latest`
+    resolves to the newest snapshot; recovery operations initialize progress;
+    and progress cleanup preserves a primary body exception. The focused
+    snapshot/recovery/CLI/progress suite passed 120 tests, followed by 19
+    snapshot-manager and 14 orchestrator regression tests. On the isolated
+    Mint pilot, both listing formats exposed two snapshots, `latest` and the
+    exact 64-character ID restored through TimeLocker, and both restored
+    `README.md` files matched the source SHA-256 digest.
+  - Status: Complete on 2026-07-19.
+  - Evidence mode: implementation
+
+- [x] T017 Add Linux Mint tray compatibility without coupling core CLI behavior.
+  - Depends on: T016
+  - Requirement: Requirement 8
+  - Acceptance Criteria: AC1-AC3
+  - Properties: CP-009
+  - Files: tray integration, optional dependency metadata/guidance, focused tests
+  - Acceptance: Ayatana and legacy namespaces are supported; headless or
+    missing-dependency state is accurate and non-fatal to backup/recovery.
+  - Validation: Focused import/fallback tests, headless CLI smoke, and Mint tray smoke.
+  - Evidence: Linux tray discovery now prefers `AyatanaAppIndicator3`, falls
+    back to legacy `AppIndicator3`, retains the selected namespace for
+    shutdown, and leaves the facade unavailable without affecting the CLI when
+    PyGObject is absent. Six focused tests passed. On this Mint Cinnamon/X11
+    host, the project interpreter remained correctly headless, `tl version`
+    passed, and `/usr/bin/python3` initialized and shut down an Ayatana
+    indicator using the installed GTK/PyGObject typelibs. Installation guidance
+    now explains the optional packages and pyenv boundary.
+  - Status: Complete on 2026-07-19.
+  - Evidence mode: implementation
+
+- [x] T018 Generate executable staged-migration schedules.
+  - Depends on: T017
+  - Requirement: Requirement 9
+  - Acceptance Criteria: AC1-AC3
+  - Properties: CP-006, CP-008
+  - Files: schedule model/CLI/renderers, migrations or compatibility handling,
+    operator guidance, and focused tests
+  - Acceptance: Schedules bind a repository and sources/selection; rendered
+    commands parse against the current CLI; assets reference non-default config
+    and protected environment files without secret values; protected sources
+    retain a system-level privilege boundary.
+  - Validation: Focused schedule tests, parser round trip, and redacted staged
+    cron/systemd asset inspection without installation.
+  - Evidence: Schedule creation now requires an explicit repository and exactly
+    one selection or one-or-more sources; it records non-default config,
+    environment-file reference, and user/system boundary. Cron, systemd, and
+    Windows renderers use the current `backup create` contract and never emit
+    credential values. The schedule test validates the command and referenced
+    paths. Twenty focused CLI and end-to-end tests passed. The isolated Mint
+    pilot created a disabled system schedule for repository
+    `timelocker-pilot`, protected source `/etc`, the mode-0600 pilot environment
+    reference, and the explicit pilot config directory. Cron and systemd assets
+    passed shell/parser and current-CLI checks; no unit or cron entry was
+    installed or enabled, and NPBackup state was unchanged.
+  - Status: Complete on 2026-07-19.
+  - Evidence mode: implementation
+
+- [x] T019 Checkpoint - Machine acceptance and operator cutover handoff.
+  - Depends on: T018
+  - Requirements: Requirements 6, 7, 8, and 9
+  - Acceptance Criteria: all
+  - Properties: CP-006, CP-007, CP-008, CP-009
+  - Acceptance: The isolated TimeLocker round trip and tray/schedule checks pass;
+    durable guidance is promoted; privileged installation, repository
+    credential selection, actual NPBackup scheduler discovery, observation, and
+    final cutover are documented as separate operator gates.
+  - Decision owner: operator and release maintainer
+  - Validation: Focused and normal test profiles, machine pilot, lifecycle and
+    traceability checks, durable-doc review, and `git diff --check`.
+  - Evidence: T015-T018 passed focused implementation suites and the isolated
+    Linux Mint/Cinnamon pilot: environment-only init, non-mutating dry-runs, a
+    real TimeLocker snapshot, table/JSON listing, latest and exact-ID restores
+    with matching SHA-256 digests, Ayatana initialization, headless CLI use,
+    and redacted cron/systemd staging. The final normal profile passed 2,787
+    tests with one skipped, 57 deselected, and 52.38% coverage in 801.81
+    seconds. Durable installation, recovery, and scheduling guidance was
+    promoted. Task-state audit, closure readiness, acceptance traceability,
+    guide-specific Markdown, local-link, compile, and whitespace checks passed;
+    lifecycle lint retained only its optional canonical-context advisory and
+    the package retains historical evidence/table-readability advisories. No
+    privileged unit was installed, NPBackup was not changed, and `/etc` remains
+    a representative protected pilot source rather than a confirmed NPBackup
+    source.
+  - Status: Complete on 2026-07-19; ready for separate operator credential and
+    source reconciliation, scheduler discovery, privileged-install approval,
+    observed scheduled runs, and final cutover approval. Release approval and
+    lifecycle closure remain separate human decisions.
+  - Evidence mode: validation
+
 ## Execution Rules
 
 - Read the linked row in `traceability.md` and the relevant requirements,

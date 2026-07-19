@@ -60,6 +60,20 @@ sudo apt install python3.12 python3-pip git  # Ubuntu/Debian; Python 3.13 is als
 # sudo pacman -S python python-pip git         # Arch
 ```
 
+The system tray is optional and does not affect backup, restore, or other CLI
+commands. On Linux Mint/Ubuntu, install GTK 3, PyGObject, and the Ayatana
+AppIndicator typelib when you want tray support:
+
+```bash
+sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-ayatanaappindicator3-0.1
+```
+
+TimeLocker prefers `AyatanaAppIndicator3` and retains the legacy
+`AppIndicator3` fallback. A pyenv-managed Python does not normally see
+distribution `python3-gi`; use the supported system Python in a virtual
+environment created with `--system-site-packages`, or install the build
+prerequisites needed for `python -m pip install '.[gui]'`.
+
 #### macOS
 
 ```bash
