@@ -241,7 +241,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
 
 ## Phase 4: Rehearse, Promote, and Review
 
-- [ ] T009 Implement a safe pre-tag validation interface.
+- [x] T009 Implement a safe pre-tag validation interface.
   - Depends on: T008
   - Requirement: Requirement 5
   - Acceptance Criteria: Requirement 5 AC1, AC5
@@ -251,12 +251,22 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
     contains no commit, tag, release, or package-index publication action.
   - Evidence mode: implementation
   - Validation: Workflow syntax, focused script tests, publication-boundary review.
-  - Evidence: Pending.
-  - [ ] T009.1 Identify and isolate every pre-publication release step.
-  - [ ] T009.2 Implement a manual or local validation entry point with read-only permissions.
-  - [ ] T009.3 Add regression coverage for the publication boundary and failure propagation.
+  - Evidence: Added reusable `.github/workflows/release-validation.yml`, extracted release-intent, release-note, and workflow-boundary validators, and refactored `.github/workflows/release.yml` so validation is read-only and only the dependent publish job has `contents: write`. Focused release-contract tests: 9 passed. `actionlint` passed both workflows. Boundary validator passed and negative permission/mismatch/missing-artifact paths propagate failure.
+  - Status: Complete on 2026-07-19; no publication action executed.
+  - [x] T009.1 Identify and isolate every pre-publication release step.
+  - Evidence: Separated checkout, prerequisites, intent, tests, build, artifact inspection, both smoke installs, notes derivation, and uploads into the reusable validation workflow; GitHub release creation remains outside it.
+  - Status: Complete on 2026-07-19.
+  - Evidence mode: validation
+  - [x] T009.2 Implement a manual or local validation entry point with read-only permissions.
+  - Evidence: Added manual `workflow_dispatch` and reusable `workflow_call` entry points under `contents: read`.
+  - Status: Complete on 2026-07-19.
+  - Evidence mode: validation
+  - [x] T009.3 Add regression coverage for the publication boundary and failure propagation.
 
-- [ ] T010 Execute and record a non-publishing release rehearsal.
+  - Evidence: Added focused positive and negative tests for intent, derivation, missing artifacts, rehearsal permission, and the isolated publish job.
+  - Status: Complete on 2026-07-19.
+  - Evidence mode: validation
+- [x] T010 Execute and record a non-publishing release rehearsal.
   - Depends on: T009
   - Requirement: Requirement 5
   - Acceptance Criteria: Requirement 5 AC1, AC4, AC5
@@ -267,13 +277,26 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
     unchanged; no external publication occurs.
   - Evidence mode: validation
   - Validation: Non-publishing rehearsal and external-state comparison.
-  - Evidence: Pending.
-  - [ ] T010.1 Capture pre-rehearsal commit, tag, release, and permission state.
-  - [ ] T010.2 Exercise successful build, smoke, artifact, and release-note inputs.
-  - [ ] T010.3 Exercise version mismatch, missing prerequisite, and permission failure paths.
-  - [ ] T010.4 Capture unchanged post-rehearsal external state and link all logs.
+  - Evidence: Local rehearsal passed release-intent and permission-boundary validation, built and inspected one wheel and one sdist, wrote SHA256SUMS, and clean-installed/smoked both artifacts through `timelocker` and `tl`. Negative version `v0.9.0`, missing-artifact, and unsafe-permission cases failed as intended. Pre/post HEAD remained `1dcf91090c755c476afe1851b2c4e02cdd9a949f`; tags remained zero, GitHub releases remained zero, and historical tag-triggered release runs remained 11.
+  - Status: Complete on 2026-07-19; no external publication occurred.
+  - [x] T010.1 Capture pre-rehearsal commit, tag, release, and permission state.
+  - Evidence: Captured HEAD `1dcf910`, zero tags, zero GitHub releases, 11 historical release runs, read-only rehearsal permission, and one job-scoped publish permission.
+  - Status: Complete on 2026-07-19.
+  - Evidence mode: validation
+  - [x] T010.2 Exercise successful build, smoke, artifact, and release-note inputs.
+  - Evidence: Built and validated both distributions, hashes, both clean-install smokes, upload configuration, and the changelog-derived release-body input.
+  - Status: Complete on 2026-07-19.
+  - Evidence mode: validation
+  - [x] T010.3 Exercise version mismatch, missing prerequisite, and permission failure paths.
+  - Evidence: Confirmed `v0.9.0` mismatch, missing artifact, and unsafe rehearsal permission all fail.
+  - Status: Complete on 2026-07-19.
+  - Evidence mode: validation
+  - [x] T010.4 Capture unchanged post-rehearsal external state and link all logs.
 
-- [ ] T011 Update existing durable release and installation procedures.
+  - Evidence: Post-state remained HEAD `1dcf910`, zero tags, zero GitHub releases, and 11 historical release runs.
+  - Status: Complete on 2026-07-19.
+  - Evidence mode: validation
+- [x] T011 Update existing durable release and installation procedures.
   - Depends on: T010
   - Requirements: Requirements 4 and 5
   - Acceptance Criteria: Requirement 4 AC3, AC4, AC5; Requirement 5 AC2, AC5
@@ -285,12 +308,22 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
     the validated support matrix and prerequisites.
   - Evidence mode: implementation
   - Validation: Procedure review, Markdown and internal-link checks, command review.
-  - Evidence: Pending.
-  - [ ] T011.1 Correct `version-management.md` in place; do not create a duplicate release procedure.
-  - [ ] T011.2 Link the procedure from `docs/processes/README.md`.
-  - [ ] T011.3 Update installation and front-door claims from T007 evidence.
+  - Evidence: Corrected `docs/processes/version-management.md` in place with preparation, rehearsal, approval, publication, verification, failure, rollback, and PyPI/1.0 deferral boundaries; indexed it from `docs/processes/README.md`; aligned README and installation claims to Python 3.12-3.13, version 0.9.1 prepared/not published, and the normal test selector. Agent Workbench checked all five durable documents with zero Markdown or link findings.
+  - Status: Complete on 2026-07-19; durable procedure and front-door claims are current.
+  - [x] T011.1 Correct `version-management.md` in place; do not create a duplicate release procedure.
+  - Evidence: Rewrote the existing version-management process in place with preparation, authorization, validation, recovery, and deferral boundaries.
+  - Status: Complete on 2026-07-19.
+  - Evidence mode: validation
+  - [x] T011.2 Link the procedure from `docs/processes/README.md`.
+  - Evidence: Linked the corrected release procedure from the current processes index.
+  - Status: Complete on 2026-07-19.
+  - Evidence mode: validation
+  - [x] T011.3 Update installation and front-door claims from T007 evidence.
 
-- [ ] T012 Prepare evidence-backed `v0.9.1` communications.
+  - Evidence: Aligned README and installation claims to version 0.9.1 prepared/not published, Python 3.12-3.13, and the normal selector.
+  - Status: Complete on 2026-07-19.
+  - Evidence mode: validation
+- [x] T012 Prepare evidence-backed `v0.9.1` communications.
   - Depends on: T011
   - Requirement: Requirement 5
   - Acceptance Criteria: Requirement 5 AC3, AC5, AC6
@@ -301,12 +334,22 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
     limitation; the eventual GitHub release body is derived from that section.
   - Evidence mode: implementation
   - Validation: Claim-to-evidence review and release-body derivation preview.
-  - Evidence: Pending.
-  - [ ] T012.1 Draft the changelog section from verified changes and limitations.
-  - [ ] T012.2 Map each public claim to verification, commits, specs, or issues.
-  - [ ] T012.3 Preview the GitHub release body without creating a release.
+  - Evidence: Added canonical `CHANGELOG.md` section `[0.9.1] - Prepared 2026-07-19` using verified CI, stress, artifact, cross-platform, encoding, version, and publication-boundary evidence plus four explicit limitations. `scripts/extract_release_notes.py` derived the complete GitHub release-body preview from that exact section; focused extraction tests passed.
+  - Status: Complete on 2026-07-19; communications are prepared but unpublished.
+  - [x] T012.1 Draft the changelog section from verified changes and limitations.
+  - Evidence: Drafted the canonical 0.9.1 changelog section from verified changes and explicit limitations.
+  - Status: Complete on 2026-07-19.
+  - Evidence mode: validation
+  - [x] T012.2 Map each public claim to verification, commits, specs, or issues.
+  - Evidence: Mapped public claims to hosted CI, stress issue evidence, artifact matrix, rehearsal, or explicit limitation in verification.md.
+  - Status: Complete on 2026-07-19.
+  - Evidence mode: validation
+  - [x] T012.3 Preview the GitHub release body without creating a release.
 
-- [ ] T013 Checkpoint - Human release decision and spec closure readiness.
+  - Evidence: Derived and inspected the complete GitHub release-body preview without creating a release.
+  - Status: Complete on 2026-07-19.
+  - Evidence mode: validation
+- [x] T013 Checkpoint - Human release decision and spec closure readiness.
   - Depends on: T012
   - Requirements: Requirement 1, Requirement 2, Requirement 3, Requirement 4,
     Requirement 5
@@ -318,8 +361,10 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
   - Validation: Lifecycle lint, readiness, traceability and evidence checks,
     required test profiles, Markdown and internal-link checks,
     `git diff --check`, security and release-readiness expert review.
-  - Evidence: Pending.
+  - Evidence: Final normal profile passed: 2,774 passed, one skipped, 57 deselected, 19 warnings, 52.14% coverage in 1,439.49 seconds. The initial run exposed one live-host-load test dependency; explicit low-load test resources corrected it and all 22 tool-manager tests passed. Nine release-contract tests, `actionlint`, release intent/boundary validators, derived-notes preview, Agent Workbench Markdown/link checks, and `git diff --check` passed. TimeLocker expert-panel review found no remaining actionable Phase 4 findings. Lifecycle lint has zero errors, zero acceptance gaps, and only the reviewed non-blocking canonical-context advisory. Final HEAD remains `1dcf910`; tags and GitHub releases remain zero; release-run inventory remains 11; no PyPI action occurred.
 
+  - Status: Complete on 2026-07-19; ready for separate release-maintainer approval and lifecycle closure, with no commit or publication created.
+  - Evidence mode: validation
 ## Execution Rules
 
 - Read the linked row in `traceability.md` and the relevant requirements,

@@ -19,8 +19,9 @@ bounded `v0.9.1` stabilization release.
 | Source | Current behavior relied on | Confidence | Notes |
 |--------|----------------------------|------------|-------|
 | `.github/workflows/test-suite.yml` | Normal CI runs all non-performance, non-stress tests but provisions no MinIO. | high | Current failure source. |
-| `.github/workflows/release.yml` | A version tag triggers tests, build, wheel smoke, artifact upload, and GitHub release creation. | high | Must be rehearsed without publication. |
-| `pyproject.toml` | Version `0.9.0`, Python range, package metadata, scripts, markers, and coverage threshold. | high | Will move to `0.9.1`. |
+| `.github/workflows/release-validation.yml` | A reusable read-only workflow validates intent, tests, artifacts, both smoke installs, and release-note derivation. | high | Added by T009 and exercised locally by T010. |
+| `.github/workflows/release.yml` | A version tag calls the validation workflow before a separately permissioned GitHub release job. | high | Publication remains human-authorized. |
+| `pyproject.toml` | Version `0.9.1`, bounded Python range, package metadata, scripts, markers, and coverage threshold. | high | Prepared but not published. |
 | `scripts/bump_version.py` and `.bumpversion.cfg` | Version bumping commits and tags by default unless both are disabled. | high | Preparation must use `--no-commit --no-tag`. |
 | `docs/guides/user/installation.md` | Current source install and test guidance. | high | Must reflect only verified artifact and platform behavior. |
 | `docs/processes/version-management.md` | Existing version and release procedure. | high | Correct in place rather than creating a duplicate process. |
@@ -50,11 +51,11 @@ bounded `v0.9.1` stabilization release.
 
 | Spec content | Durable destination | Promotion status | Notes |
 |--------------|---------------------|------------------|-------|
-| Test profile contract and commands | `docs/4-testing/README.md` | partial | T001-T002 promoted normal and MinIO ownership, prerequisites, and commands; T004 will add the extended-profile disposition. |
-| Verified install matrix and prerequisites | `docs/guides/user/installation.md` | pending | Do not claim untested platforms. |
-| Release procedure and rollback boundary | `docs/processes/version-management.md` | pending | Correct in place and link from `docs/processes/README.md`. |
-| Release contents and limitations | `CHANGELOG.md` | pending | Canonical checked-in source; derive the GitHub release body from the `v0.9.1` section. |
-| Current version and release path | `README.md` where needed | pending | Keep front door concise. |
+| Test profile contract and commands | `docs/4-testing/README.md` | complete | T001-T004 promoted normal, MinIO, and extended-profile ownership and commands. |
+| Verified install matrix and prerequisites | `docs/guides/user/installation.md` | complete | T007 and T011 limit claims to the validated six-combination matrix. |
+| Release procedure and rollback boundary | `docs/processes/version-management.md` | complete | Corrected in place and linked from `docs/processes/README.md` by T011. |
+| Release contents and limitations | `CHANGELOG.md` | complete | T012 made the `v0.9.1` section canonical and previewed its derived release body. |
+| Current version and release path | `README.md` | complete | T011 records Python 3.12-3.13 and `0.9.1` prepared, not published. |
 
 ## Unchanged Durable Areas
 
@@ -82,9 +83,9 @@ bounded `v0.9.1` stabilization release.
 
 ## Open Questions
 
-None block implementation. The declared validation contract is Python 3.12 and
-3.13 on Linux, macOS, and Windows. T007 must validate all six combinations or
-correct the affected claim before downstream work continues.
+None block implementation. The declared Python 3.12 and 3.13 contract passed on
+Linux, macOS, and Windows. Publication and lifecycle closure remain separate
+human decisions after T013.
 
 ## Related Artifacts
 

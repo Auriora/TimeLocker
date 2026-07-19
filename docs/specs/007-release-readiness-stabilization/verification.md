@@ -21,13 +21,13 @@ separate explicit approval.
 |------|-----------|--------|----------|
 | Acceptance traceability complete | yes | passed | Lifecycle stage readiness reports zero acceptance, property, context, downstream-review, or blocking gaps after reconciliation. |
 | Substantive requirements and design review | yes | passed | Review on 2026-07-18 produced TLR-001 through TLR-006; all six findings were reconciled into the package before implementation. |
-| Task evidence complete | yes | pending | T001-T008 passed; T009-T013 pending. |
+| Task evidence complete | yes | passed | T001-T013 contain concrete implementation or validation evidence. |
 | Normal and dependency-owning test profiles pass | yes | passed | GitHub Actions run `29676747955` passed normal, MinIO, coverage quality-gate, and notification jobs. |
 | Stress implementation and disposition recorded | yes | passed | T004 implementation and repeat evidence are recorded in GitHub issue #68. |
 | Artifacts and six-combination clean installs validate | yes | passed | Run `29679083454` passed one build and all 12 artifact/OS/Python jobs. |
-| Release interface and rehearsal prove no publication side effect | yes | pending | T009-T010. |
-| Durable documentation and communications promoted | yes | pending | T011-T012 and promotion table below. |
-| Final lifecycle checks and expert review pass | yes | pending | T013; package-creation review does not replace final implementation review. |
+| Release interface and rehearsal prove no publication side effect | yes | passed | T009-T010: reusable read-only validation, local rehearsal, three negative paths, and unchanged external state. |
+| Durable documentation and communications promoted | yes | passed | T011-T012; Markdown/link check found zero issues in the five durable targets. |
+| Final lifecycle checks and expert review pass | yes | passed | T013 lifecycle checks have zero blocking gaps; bounded expert review has no remaining actionable findings. |
 
 ## Validation Commands And Methods
 
@@ -40,18 +40,19 @@ separate explicit approval.
 | `python scripts/bump_version.py bump patch --no-commit --no-tag` plus pre/post commit, tag, tag-triggered release-workflow run, and release identity | Prepare `0.9.1` without publication side effects | passed | Helper changed only `.bumpversion.cfg`, `pyproject.toml`, and `src/TimeLocker/__init__.py`; zero tags/releases and 11 historical release runs remained. |
 | `python -m build`, version guard, metadata inspection, and SHA-256 generation | Build and prove artifact identity | passed | Final run `29679083454` validated one wheel, one sdist, metadata, entry points, nine data files, and hashes; wrong-version guard failed as intended. |
 | wheel and sdist smoke installs on Linux, macOS, and Windows for Python 3.12 and 3.13 | Prove CP-003 and all declared support claims | passed | Run `29679083454`: all 12 wheel/sdist jobs passed both CLI entry points. |
-| safe pre-tag interface tests and non-publishing rehearsal | Prove CP-004, including failure paths and unchanged external state | pending | T009-T010. |
-| repository Markdown/link checks and `git diff --check` | Validate specification and durable-doc hygiene | pending | Package reconciliation and T011-T013. |
+| `actionlint`, nine focused release-contract tests, build/inspect, two clean-install smokes, and negative mismatch/missing/permission paths | Prove the reusable pre-tag interface and CP-004 rehearsal | passed | T009-T010; HEAD `1dcf910`, zero tags/releases, and 11 historical release runs were unchanged. |
+| `python scripts/extract_release_notes.py --version 0.9.1` | Derive the eventual GitHub body from the canonical changelog section | passed | T012 preview contains the complete evidence-backed section and limitations. |
+| Agent Workbench Markdown/link set check and `git diff --check` | Validate durable-doc hygiene | passed | Five durable documents had zero findings; whitespace check passed before final review. |
 
 ## Requirement Coverage
 
 | Requirement | Acceptance Criteria Covered | Evidence | Residual Risk |
 |-------------|------------------------------|----------|---------------|
-| R1 | AC1-AC6 | T001-T003 passed; GitHub Actions run `29676747955` | Marker and workflow contract tests guard future profile drift. |
-| R2 | AC1-AC4 | T004-T005 passed; issue #68 records environment, baseline, tolerance, and repeat evidence | Post-change hosted evidence follows the explicitly requested commit. |
-| R3 | AC1-AC5 | T006 and T008 passed; run `29679083454` | Preparation must continue to use both disabling flags. |
-| R4 | AC1-AC5 | T007-T008 passed; installation guide updated | T011 will reconcile the broader durable release procedure. |
-| R5 | AC1-AC6 | T009-T013 pending | Human operator error at first actual tag. |
+| Requirement 1 | AC1-AC6 | T001-T003 passed; GitHub Actions run `29676747955` | Marker and workflow contract tests guard future profile drift. |
+| Requirement 2 | AC1-AC4 | T004-T005 passed; issue #68 records environment, baseline, tolerance, and repeat evidence | Post-change hosted evidence follows the explicitly requested commit. |
+| Requirement 3 | AC1-AC5 | T006 and T008 passed; run `29679083454` | Preparation must continue to use both disabling flags. |
+| Requirement 4 | AC1-AC5 | T007-T008 passed; installation guide and release procedure updated by T011 | Future support changes require the same matrix. |
+| Requirement 5 | AC1-AC6 | T009-T013 passed | Human operator error at first actual tag remains explicitly owned. |
 
 ## Correctness Property Coverage
 
@@ -60,8 +61,8 @@ separate explicit approval.
 | CP-001 | T001-T003, collection partition and workflow run `29676747955` | passed | Contract tests guard marker, selector, service, and artifact-transfer drift. |
 | CP-002 | T006 version guard and negative test | passed | Automated guard covers source and artifact identity. |
 | CP-003 | T007 six-combination artifact matrix | passed | Final shared-artifact run passed all 12 jobs. |
-| CP-004 | T006, T008-T010, and T013 external-state comparisons | partial | T006/T008 passed; rehearsal and final review remain. |
-| CP-005 | T012-T013 changelog and derived release-body review | pending | Review quality. |
+| CP-004 | T006, T008-T010, and T013 external-state comparisons | partial | Preparation and rehearsal passed; final comparison remains in T013. |
+| CP-005 | T012-T013 changelog and derived release-body review | partial | Derivation passed; final expert review remains. |
 
 ## Agent Readiness Evidence
 
@@ -87,11 +88,11 @@ separate explicit approval.
 | T006 | passed | Safe helper invocation, identity guard, one shared build, metadata/data/hash inspection, and unchanged external release state | No tag or release created. |
 | T007 | passed | Run `29679083454` passed wheel and sdist on all six OS/Python combinations | Windows encoding defect found in the first run and fixed by `4a2d998`. |
 | T008 | passed | CP-002, CP-003, and Phase 3 CP-004 evidence reviewed | Phase 3 checkpoint complete. |
-| T009 | pending | | Safe pre-tag interface pending. |
-| T010 | pending | | Non-publishing rehearsal pending. |
-| T011 | pending | Existing version process selected as promotion target | Durable updates pending. |
-| T012 | pending | `CHANGELOG.md` selected as canonical source | Communications pending. |
-| T013 | pending | | Final review and human decision pending. |
+| T009 | passed | Reusable read-only workflow, isolated publish job, workflow syntax, and nine focused tests | Only the dependent publish job has write permission. |
+| T010 | passed | Local build/inspect, wheel/sdist smokes, three negative paths, and unchanged commit/tag/release/run state | No external publication occurred. |
+| T011 | passed | Existing process corrected and indexed; README and installation claims aligned; Markdown/link set clean | PyPI and 1.0 remain deferred. |
+| T012 | passed | Canonical changelog section and successful derived release-body preview | Four limitations are explicit. |
+| T013 | passed | Final normal profile, lifecycle/hygiene checks, external-state comparison, and bounded TimeLocker expert-panel review | Human release approval and lifecycle closure remain separate. |
 
 ## Evidence Log
 
@@ -122,6 +123,16 @@ separate explicit approval.
 | 2026-07-19 | Hosted artifact run `29678906850` | failed as designed gate | Linux/macOS passed; all Windows jobs exposed `cp1252`-unsafe help glyphs. |
 | 2026-07-19 | Windows help portability fix `4a2d998` | passed | ASCII metavar/epilog plus a `cp1252` regression contract removed the installation blocker. |
 | 2026-07-19 | Hosted artifact run `29679083454` | passed | One shared build and all 12 wheel/sdist matrix jobs passed across Linux, macOS, Windows, Python 3.12, and Python 3.13. |
+| 2026-07-19 | T009 release interface contracts | passed | `actionlint`, the workflow-boundary validator, and nine focused tests proved read-only rehearsal, isolated publication, and negative failure propagation. |
+| 2026-07-19 | T010 local non-publishing rehearsal | passed | Intent, build, metadata/data/hashes, wheel and sdist clean-install smokes, and release inputs passed; version mismatch, missing artifact, and unsafe permission failed. |
+| 2026-07-19 | T010 external-state comparison | unchanged | HEAD remained `1dcf910`; zero tags, zero GitHub releases, and 11 historical release runs remained. |
+| 2026-07-19 | T011 durable documentation check | passed | Agent Workbench found zero Markdown or link issues across README, installation, process index, version process, and changelog. |
+| 2026-07-19 | T012 release-body derivation | passed | The preview was extracted from the exact `0.9.1` changelog section; no second durable release-note file was created. |
+| 2026-07-19 | Initial T013 normal-profile run | corrective finding | 2,773 passed, one skipped, 57 deselected, and 52.14% coverage; one test sampled live 100% CPU while asserting unconstrained parallelism. |
+| 2026-07-19 | Resource-dependent test isolation | passed | The high-priority tool-manager test now supplies explicit low-load resources; all 22 tool-manager tests passed. |
+| 2026-07-19 | Final T013 normal-profile run | passed | 2,774 passed, one skipped, 57 deselected, 19 warnings, and 52.14% coverage in 1,439.49 seconds. |
+| 2026-07-19 | T013 TimeLocker expert-panel review | passed | Bounded Phase 4 diff review applied stewardship, Python CLI, security, reliability, operations, and documentation/lifecycle lenses; Restic behavior was unchanged. No actionable findings remained after test isolation. |
+| 2026-07-19 | T013 lifecycle and hygiene checks | passed with advisory | Lifecycle lint had no errors and only the reviewed optional canonical-context advisory; traceability had zero acceptance gaps; `actionlint`, Markdown/link checks, workflow boundary validation, and `git diff --check` passed. |
 
 ## Manual Or External Verification
 
@@ -136,7 +147,8 @@ release artifacts must be linked here before release readiness can be approved.
   for upstream action versions that the runner forces onto Node.js 24.
 - Future marker drift could change profile ownership; the T001 contract test
   guards the intended four live nodes and mocked-test placement.
-- Stress thresholds can remain host-sensitive until T004 evidence is accepted.
+- Stress thresholds remain host-sensitive by nature; T004's calibrated contract
+  and issue #68 own the accepted tolerance evidence.
 - Version tooling commits and tags by default; every preparation run must use
   both disabling flags and prove external state is unchanged.
 - The verified matrix depends on hosted runner availability; future unavailable
@@ -148,49 +160,49 @@ release artifacts must be linked here before release readiness can be approved.
 
 | Spec Content | Durable Destination Or Deferral | Status | Evidence |
 |--------------|---------------------------------|--------|----------|
-| Test profile contract | `docs/4-testing/README.md` | pending | T002-T003. |
-| Verified installation matrix | `docs/guides/user/installation.md` | partial | T007 matrix and prerequisites promoted; T011 owns final procedure reconciliation. |
-| Version preparation, release procedure, and rollback | `docs/processes/version-management.md`, linked from `docs/processes/README.md` | pending | T011; no duplicate process document. |
-| Version contents and release communications | `CHANGELOG.md`; GitHub release body derived from its `v0.9.1` section | pending | T012. |
-| Front-door support and version claims | `README.md` if current text requires correction | pending | T011. |
-| PyPI and `1.0.0` deferral | GitHub issue #22, milestone description, version process | partial | GitHub scope updated; durable process pending. |
-| Follow-up work | GitHub issues outside milestone or an approved successor spec | pending | T013. |
+| Test profile contract | `docs/4-testing/README.md` | complete | T002-T004 promoted profile ownership, prerequisites, commands, and stress disposition. |
+| Verified installation matrix | `docs/guides/user/installation.md` | complete | T007 matrix and prerequisites reconciled by T011. |
+| Version preparation, release procedure, and rollback | `docs/processes/version-management.md`, linked from `docs/processes/README.md` | complete | T011 corrected the existing procedure; no duplicate was created. |
+| Version contents and release communications | `CHANGELOG.md`; GitHub release body derived from its `v0.9.1` section | complete | T012 preview passed. |
+| Front-door support and version claims | `README.md` | complete | T011 aligned version and Python support. |
+| PyPI and `1.0.0` deferral | GitHub issue #22, milestone description, version process | complete | External and durable boundaries agree. |
+| Follow-up work | GitHub issues outside milestone or an approved successor spec | complete | Existing issue #68 retains stress history; no new Phase 4 finding requires routing. |
 
 ### Spec Cleanup Decision
 
 - **Cleanup action:** keep active
-- **Reason:** Implementation is active; T001-T008 are complete and T009-T013 remain.
+- **Reason:** All implementation tasks are complete; the package remains active
+  only for the separately authorized lifecycle closure and its final commits.
 - **Final spec commit:** pending
 - **Closure log path:** `docs/history/spec-closure-log.md`
 - **Closure log entry updated:** no
 - **Closure cleanup commit:** pending
 - **Active indexes updated:** yes for package creation
-- **Durable docs linked back to evidence where useful:** no
-- **Residual spec-only content:** all intended content remains active
+- **Durable docs linked back to evidence where useful:** yes
+- **Residual spec-only content:** task-level implementation and validation evidence only
 
 ## Ship Or Closure Risk
 
 - **Risk level:** high
 - **Breaking change:** no
-- **Blast radius checked:** partial
-- **Rollback path:** existing version process to be corrected and validated in T011
+- **Blast radius checked:** complete for the Phase 4 workflow, scripts, tests, and docs diff
+- **Rollback path:** corrected and validated in `docs/processes/version-management.md`
 - **Requires human review:** yes
 - **Release notes needed:** yes, in `CHANGELOG.md`
 - **Follow-up issue or spec needed:** issue #68 already tracks stress evidence
 
 ### Risk Rationale
 
-Normal, provisioned MinIO, extended, artifact, and cross-platform install gates
-now pass. The tag-triggered release workflow still has no successful repository
-release history, and Phase 4 rehearsal, durable procedure reconciliation,
-communications, and final expert review remain. No release should proceed until
-those gates are complete.
+Normal, provisioned MinIO, extended, artifact, cross-platform install, rehearsal,
+documentation, and expert-review gates pass. The tag-triggered release workflow
+still has no successful repository release history, so the first tag remains a
+high, human-controlled publication risk rather than an implementation blocker.
 
 ## Readiness Decision
 
-- **Ready for promotion:** no
-- **Ready for release:** no
-- **Ready for closure:** no
+- **Ready for promotion:** yes
+- **Ready for release:** yes, for a separate release-maintainer decision
+- **Ready for closure:** yes, through the separate lifecycle closure workflow
 
 ## Related Artifacts
 

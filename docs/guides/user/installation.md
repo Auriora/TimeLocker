@@ -115,11 +115,13 @@ python -m pip install -e '.[dev]'
 timelocker --help
 tl --help
 python -c "from TimeLocker.backup_manager import BackupManager; print('TimeLocker installed successfully')"
-python -m pytest -m "not performance and not stress"
+python -m pytest -m "not performance and not stress and not minio"
 ```
 
 Expected results: both CLI commands display help. For contributor installs, the
-configured suite passes and enforces coverage of at least 50%.
+normal suite passes and enforces coverage of at least 50%. Live MinIO tests are
+owned by the separately provisioned profile documented in
+[`docs/4-testing/README.md`](../../4-testing/README.md).
 
 ### 4.7 Validated Platform Matrix
 

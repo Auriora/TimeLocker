@@ -2,7 +2,7 @@
 
 <!-- Project Info Badges -->
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?logo=gnu)](https://www.gnu.org/licenses/gpl-3.0)
-[![Python 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![Python 3.12–3.13](https://img.shields.io/badge/Python-3.12%E2%80%933.13-blue.svg?logo=python&logoColor=white)](https://www.python.org/downloads/)
 [![Status: Beta](https://img.shields.io/badge/Status-Beta-yellow.svg?logo=git)](https://github.com/Auriora/TimeLocker)
 [![GitHub Actions CI](https://img.shields.io/github/actions/workflow/status/Auriora/TimeLocker/test-suite.yml?branch=main&label=CI&logo=github)](https://github.com/Auriora/TimeLocker/actions/workflows/test-suite.yml)
 [![Quality Gate](https://img.shields.io/badge/Quality%20Gate-50%25%20Coverage-brightgreen?logo=sonarqube)](https://github.com/Auriora/TimeLocker/actions)
@@ -108,7 +108,7 @@ This project is intended for:
 
 ### Project dependencies
 
-- Python 3.12 or higher
+- Python 3.12 or 3.13
 - Restic backup tool installed and accessible in PATH
 - For cloud storage:
     - S3: boto3 package (`pip install boto3`)
@@ -385,7 +385,7 @@ This is particularly suitable for libraries and applications that you want to re
 
 ## Document Information
 
-- Version: 0.9.0
-- Last Updated: 2026-07-18
+- Version: 0.9.1 (prepared, not published)
+- Last Updated: 2026-07-19
 - Author: Bruce Cherrington
 - Copyright © Bruce Cherrington
