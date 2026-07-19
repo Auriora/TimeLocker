@@ -4,7 +4,7 @@ id: "user-guide-installation"
 type: [ guide ]
 status: [ approved ]
 owner: "Documentation Team"
-last_reviewed: "18-07-2026"
+last_reviewed: "19-07-2026"
 tags: [guide, user, installation]
 links:
   tooling: []
@@ -15,7 +15,7 @@ links:
 - **Owner**: Documentation Team
 - **Status**: Approved
 - **Created Date**: 19-12-2024
-- **Last Updated**: 18-07-2026
+- **Last Updated**: 19-07-2026
 - **Audience**: End Users, Administrators
 
 ## 1. Purpose
@@ -28,7 +28,9 @@ After completing this guide you will have TimeLocker installed, dependencies con
 
 ## 3. Prerequisites
 
-- Supported operating system (Linux, macOS, or Windows).
+- Supported operating system: Linux, macOS, or Windows.
+- Python 3.12 or 3.13. TimeLocker declares `>=3.12,<3.14`.
+- Restic 0.18.0 or later available on `PATH`.
 - Internet access to install Python and Restic.
 - Git if cloning from source.
 - Optional: AWS/B2 credentials for cloud backends.
@@ -37,7 +39,7 @@ After completing this guide you will have TimeLocker installed, dependencies con
 
 ### 4.1 Review Release Status
 
-- **Current status**: Beta, version 0.9.0.
+- **Current status**: Beta, version 0.9.1 is prepared but not published.
 - **Distribution**: Source checkout only; TimeLocker is not currently published
   to PyPI.
 - **Quality gate**: The configured test suite enforces at least 50% coverage.
@@ -53,20 +55,20 @@ multi-backend support.
 
 ```bash
 sudo apt update
-sudo apt install python3.12 python3-pip git  # Ubuntu/Debian
-# sudo dnf install python3.12 python3-pip git  # Fedora
+sudo apt install python3.12 python3-pip git  # Ubuntu/Debian; Python 3.13 is also supported
+# sudo dnf install python3.12 python3-pip git  # Fedora; use python3.13 if preferred
 # sudo pacman -S python python-pip git         # Arch
 ```
 
 #### macOS
 
 ```bash
-brew install python@3.12 git
+brew install python@3.12 git  # python@3.13 is also supported
 ```
 
 #### Windows
 
-1. Download Python 3.12 from [python.org](https://www.python.org/downloads/).
+1. Download Python 3.12 or 3.13 from [python.org](https://www.python.org/downloads/).
 2. Run the installer and select "Add Python to PATH".
 3. Install Git from [git-scm.com](https://git-scm.com/download/win).
 
@@ -119,14 +121,31 @@ python -m pytest -m "not performance and not stress"
 Expected results: both CLI commands display help. For contributor installs, the
 configured suite passes and enforces coverage of at least 50%.
 
-### 4.7 Understand Modern Packaging Features
+### 4.7 Validated Platform Matrix
+
+The `0.9.1` wheel and source distribution are clean-install tested on every
+combination below. Each test runs `version --short` and root help through both
+the `timelocker` and `tl` entry points.
+
+| Operating system | Python 3.12 | Python 3.13 |
+|------------------|-------------|-------------|
+| Linux | wheel and sdist | wheel and sdist |
+| macOS | wheel and sdist | wheel and sdist |
+| Windows | wheel and sdist | wheel and sdist |
+
+This validates installation and safe CLI startup. Backup and restore operations
+still require a compatible Restic executable and any backend-specific
+credentials. No PyPI distribution is currently published; use the source path
+above until an authorized release provides downloadable artifacts.
+
+### 4.8 Understand Modern Packaging Features
 
 - `pyproject.toml` for modern builds (PEP 517/518).
 - Optional dependency groups (`dev`, `gui`). S3 and B2 runtime dependencies are
   included in the base installation.
 - Entry points install both `timelocker` and `tl` commands.
 
-### 4.8 Configure Environment
+### 4.9 Configure Environment
 
 Basic configuration focuses on setting up repositories and targets. For cloud backends, export credentials:
 
@@ -141,7 +160,7 @@ export B2_ACCOUNT_ID=your_account_id
 export B2_ACCOUNT_KEY=your_account_key
 ```
 
-### 4.9 Optional: Manual Vacuum / Additional Sections
+### 4.10 Optional: Manual Vacuum / Additional Sections
 
 (If applicable, include other configuration tasks; original document contains extended instructions you may retain here.)
 

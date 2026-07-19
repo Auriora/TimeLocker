@@ -170,7 +170,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
 
 ## Phase 3: Build and Install v0.9.1
 
-- [~] T006 Prepare version `0.9.1` safely and build reproducible artifacts.
+- [x] T006 Prepare version `0.9.1` safely and build reproducible artifacts.
   - Depends on: T005
   - Requirement: Requirement 3
   - Acceptance Criteria: Requirement 3 AC1, AC2, AC3, AC4, AC5
@@ -184,16 +184,26 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
   - Validation: Pre/post Git and release-state comparison,
     `python scripts/bump_version.py bump patch --no-commit --no-tag`, version
     guard, `python -m build`, artifact inspection.
-  - Evidence: Implementation started from clean commit `6572f65`; charter, metadata, version helper/configuration, release workflow, installation guide, and version process were reviewed directly. The missing canonical-context artifact is an advisory with no concrete authority ambiguity, so no duplicate context file is needed.
-  - Status: Capturing a clean pre-change external-state snapshot before the non-publishing version bump.
+  - Evidence: From clean commit `9348c58413af3422167faf0a052ef5e80571d647`, the exact non-publishing helper changed only the three version sources. Final run `29679083454` built one shared wheel/sdist set, validated version `0.9.1`, `Requires-Python`, both entry points, nine package-data files, and hashes. The deliberate `0.9.0` guard failed before artifact checks. Tags remained empty, GitHub releases remained empty, and the release workflow retained its 11 historical runs with the newest dated 2025-09-27.
+  - Status: Complete on 2026-07-19; no tag, GitHub release, or publication was created.
   - Evidence mode: implementation
-  - [ ] T006.1 Record pre-change commit, tag, tag-triggered release-workflow run, and GitHub-release identity.
-  - [ ] T006.2 Run the version helper with both commit and tag side effects disabled.
-  - [ ] T006.3 Update `requires-python` to `>=3.12,<3.14`, remove `OS Independent`, and reconcile Python and OS classifiers.
-  - [ ] T006.4 Build sdist and wheel once; inspect metadata, contents, entry points, and hashes.
-  - [ ] T006.5 Prove a version mismatch blocks the guard and prove commit, tag, tag-triggered release-workflow run, and release identity did not change.
+  - [x] T006.1 Record pre-change commit, tag, tag-triggered release-workflow run, and GitHub-release identity.
+    - Evidence: Baseline was commit `9348c58413af3422167faf0a052ef5e80571d647`, zero tags, 11 historical release-workflow runs (newest 2025-09-27), and zero GitHub releases.
+    - Status: Complete on 2026-07-19.
+  - [x] T006.2 Run the version helper with both commit and tag side effects disabled.
+    - Evidence: `python scripts/bump_version.py bump patch --no-commit --no-tag` advanced `0.9.0` to `0.9.1` and modified only the three configured version files.
+    - Status: Complete on 2026-07-19.
+  - [x] T006.3 Update `requires-python` to `>=3.12,<3.14`, remove `OS Independent`, and reconcile Python and OS classifiers.
+    - Evidence: Final metadata declares only Python 3.12/3.13 and the explicitly validated Linux, macOS, and Windows classifiers.
+    - Status: Complete on 2026-07-19.
+  - [x] T006.4 Build sdist and wheel once; inspect metadata, contents, entry points, and hashes.
+    - Evidence: Run `29679083454` built one shared artifact set and validated version, Python range, two entry points, nine data files, and SHA-256 hashes before matrix fan-out.
+    - Status: Complete on 2026-07-19.
+  - [x] T006.5 Prove a version mismatch blocks the guard and prove commit, tag, tag-triggered release-workflow run, and release identity did not change.
+    - Evidence: Expected version `0.9.0` exited nonzero before artifact checks; the helper itself left HEAD and all external release identities at their baseline values.
+    - Status: Complete on 2026-07-19.
 
-- [ ] T007 Validate wheel and sdist across the declared support matrix.
+- [x] T007 Validate wheel and sdist across the declared support matrix.
   - Depends on: T006
   - Requirement: Requirement 4
   - Acceptance Criteria: Requirement 4 AC1, AC2, AC3, AC4, AC5
@@ -204,20 +214,30 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
     macOS, and Windows for Python 3.12 and 3.13; an unvalidated combination
     blocks readiness until its support claim is corrected and reviewed.
   - Validation: Six OS/Python combinations, both artifact types, both console entry points.
-  - Evidence: Pending.
-  - [ ] T007.1 Add or reconcile the six-combination Linux/macOS/Windows and Python 3.12/3.13 smoke matrix.
-  - [ ] T007.2 Install the wheel and run version, root help, and safe quick-start smoke checks in every combination.
-  - [ ] T007.3 Install the sdist and run the identical smoke contract in every combination.
-  - [ ] T007.4 Record platform prerequisites and correct any support claim that cannot be validated.
+  - Evidence: Read-only pull-request run `29679083454` passed a single shared build plus 12 install jobs: wheel and sdist on Linux, macOS, and Windows with Python 3.12 and 3.13. Both console entry points passed version and root-help checks. The first matrix exposed Windows `cp1252`-unsafe help glyphs; commit `4a2d998` replaced them and the full rerun passed. The installation guide records the verified matrix, Python range, Restic prerequisite, and publication boundary.
+  - Status: Complete on 2026-07-19.
+  - [x] T007.1 Add or reconcile the six-combination Linux/macOS/Windows and Python 3.12/3.13 smoke matrix.
+    - Evidence: `.github/workflows/artifact-smoke.yml` defines the full three-OS by two-Python matrix and reuses one uploaded artifact set.
+    - Status: Complete on 2026-07-19.
+  - [x] T007.2 Install the wheel and run version, root help, and safe quick-start smoke checks in every combination.
+    - Evidence: All six wheel jobs passed both `timelocker` and `tl` version and root-help checks in run `29679083454`.
+    - Status: Complete on 2026-07-19.
+  - [x] T007.3 Install the sdist and run the identical smoke contract in every combination.
+    - Evidence: All six sdist jobs passed the identical two-entry-point contract in run `29679083454`.
+    - Status: Complete on 2026-07-19.
+  - [x] T007.4 Record platform prerequisites and correct any support claim that cannot be validated.
+    - Evidence: The installation guide now records Python `>=3.12,<3.14`, Restic 0.18.0 or later, the verified matrix, and the no-PyPI-publication boundary; Windows help was corrected and revalidated rather than dropping support.
+    - Status: Complete on 2026-07-19.
 
-- [ ] T008 Checkpoint - Artifact and installation readiness.
+- [x] T008 Checkpoint - Artifact and installation readiness.
   - Depends on: T007
   - Requirements: Requirements 3 and 4
   - Acceptance: Side-effect safety, artifact identity, hashes, six-combination
     installation results, platform coverage, and residual risk are recorded
     before release rehearsal.
   - Validation: Review artifact and clean-install evidence against CP-002, CP-003, and CP-004.
-  - Evidence: Pending.
+  - Evidence: CP-002 passed through source/artifact identity checks and the negative mismatch guard. CP-003 passed all 12 artifact install jobs in run `29679083454`. CP-004 side-effect evidence shows zero tags, zero GitHub releases, and no new release-workflow run. Final artifact hashes are `a3d5eb9f423cbb38a829387f286c261c93e6bedd2a9cc1413069981d6a268bc5` (wheel) and `75c5fc42a3a2909094d9d1ed52466ecdd05266160f36ae1eb04cb23e9236b843` (sdist). The only observed advisory is upstream Actions Node.js 20 deprecation; it did not affect validation and remains a workflow-maintenance risk.
+  - Status: Complete on 2026-07-19; Phase 3 passed and T009 is next.
 
 ## Phase 4: Rehearse, Promote, and Review
 
