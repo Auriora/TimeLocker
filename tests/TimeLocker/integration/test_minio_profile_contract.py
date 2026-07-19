@@ -53,6 +53,14 @@ def test_normal_ci_explicitly_excludes_live_minio_profile():
     )
 
 
+def test_coverage_artifact_includes_hidden_data_file():
+    repo_root = Path(__file__).resolve().parents[3]
+    workflow = (repo_root / ".github/workflows/test-suite.yml").read_text()
+
+    assert "include-hidden-files: true" in workflow
+    assert "test -f .coverage" in workflow
+
+
 def test_workflow_provisions_and_runs_live_minio_profile():
     repo_root = Path(__file__).resolve().parents[3]
     workflow = (repo_root / ".github/workflows/test-suite.yml").read_text()
