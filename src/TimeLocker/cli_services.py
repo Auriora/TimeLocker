@@ -781,8 +781,11 @@ class CLIServiceManager:
         Raises:
             ConfigurationError: If repository cannot be resolved
         """
-        # Check if it's already a URI (contains scheme)
-        if "://" in repository_input or repository_input.startswith("/"):
+        # Restic supports both conventional URIs (``s3://...``) and native
+        # backend syntax (``s3:host/bucket``). Preserve either form here: this
+        # method is also called after the CLI has already resolved a configured
+        # repository name to its stored location.
+        if self._looks_like_uri(repository_input):
             return repository_input
 
         # Try to resolve as repository name from configuration
@@ -846,7 +849,10 @@ class CLIServiceManager:
             return False
         if "://" in candidate:
             return True
-        prefixes = ("s3:", "b2:", "gs:", "azure:", "rest:", "rclone:", "local:", "minio:", "swift:", "/")
+        prefixes = (
+            "s3:", "b2:", "sftp:", "gs:", "azure:", "rest:",
+            "rclone:", "local:", "minio:", "swift:", "/",
+        )
         return candidate.startswith(prefixes)
 
     def _create_repository_instance(self,

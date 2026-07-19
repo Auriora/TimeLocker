@@ -25,6 +25,27 @@ class TestBackupCommands:
     """Test suite for backup command group."""
 
     @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "repository_uri",
+        [
+            "s3:s3.af-south-1.amazonaws.com/example-restic",
+            "b2:example-bucket:path",
+            "sftp:user@example.test:/srv/restic",
+        ],
+    )
+    def test_cli_service_manager_preserves_restic_native_repository_uri(
+            self, repository_uri: str
+    ) -> None:
+        """A second resolution pass must not reinterpret Restic URIs as paths."""
+        manager = CLIServiceManager.__new__(CLIServiceManager)
+        manager._config_service = Mock()
+        manager._config_module = Mock()
+
+        assert manager.resolve_repository_uri(repository_uri) == repository_uri
+        manager._config_service.get_repositories.assert_not_called()
+        manager._config_module.get_repository.assert_not_called()
+
+    @pytest.mark.unit
     def test_selection_handler_prefers_focused_service(self) -> None:
         """Real managers expose the narrow handler instead of facade internals."""
         handler = BackupCLIHandler(
