@@ -63,6 +63,9 @@ last_reviewed: 2026-07-19
 | 2026-07-19 | T007 masked execution-parity reconciliation | pass | Three exclusion files contain 252 unique patterns; cache exclusion and `s3.storage-class=INTELLIGENT_TIERING` are enabled. No credential value was emitted. |
 | 2026-07-19 | T007 focused parity profile | pass | 77 backup, CLI, schedule, target, and selection tests passed with coverage disabled. |
 | 2026-07-19 | T007 full normal profile | pass | `python -m pytest -m "not performance and not stress and not minio"` exited 0: 2,797 passed, one skipped, 57 deselected, and 52.56% coverage in 797.47 seconds. |
+| 2026-07-19 | T007 committed artifact and timer staging | pass | Commit `3a4572c`, wheel SHA-256 `90c45af99b3e6c913757fcc9539afe91ae5c6c735556ee252a015637c9dbbbf8`, generated-unit parity, installation, and active-timer checks passed. The first observation trigger was set for 19:30, safely after NPBackup. |
+| 2026-07-19 | T007 first scheduler observation | fail-safe | The 19:30 timer and non-overlap condition ran, but the service exited by `SIGTRAP` during GTK tray initialization before Restic started. No backup, retention, or cutover operation completed. |
+| 2026-07-19 | T007 headless-service repair | pass | Commit `2eb9928` skips native Linux tray startup without `DISPLAY` or `WAYLAND_DISPLAY`. Seven focused tests passed; the full normal profile passed 2,798 tests with one skipped, 57 deselected, and 52.55% coverage. Replacement wheel SHA-256: `c6998f9af68068185d80ad6261086fdc0dd8092cc38d97565a529bce1ab421e5`. Privileged installation and live retry remain pending. |
 
 ## Residual Risks
 

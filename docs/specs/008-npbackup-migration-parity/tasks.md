@@ -96,12 +96,21 @@ last_reviewed: 2026-07-19
     scheduler and a subsequent restore passes; no retention deletion runs.
   - Evidence mode: validation
 
-  - Evidence: Masked NPBackup reconciliation found three exclusion files containing 252 unique patterns, cache-directory exclusion enabled, and `s3.storage-class=INTELLIGENT_TIERING`. TimeLocker now carries repeatable exclusion-file references, CACHEDIR.TAG exclusion, and an allowlisted S3 storage-class option through direct and selection CLI requests, stored schedules, generated assets, targets, orchestrators, and Restic argv. Invalid options and missing exclusion files fail before repository mutation. The focused parity profile passed 77 tests; the full normal profile passed 2,797 tests with one skipped, 57 deselected, and 52.56% coverage.
+  - Evidence: Committed parity artifact `3a4572c` (wheel SHA-256 `90c45af99b3e6c913757fcc9539afe91ae5c6c735556ee252a015637c9dbbbf8`) is installed root-owned and reports 0.9.1. The stored disabled schedule and generated systemd assets match six sources, three direct patterns, three exclusion files, cache exclusion, tag `Bruce-5560`, maximum compression, single-filesystem traversal, and allowlisted `s3.storage-class=INTELLIGENT_TIERING`; systemd verification passed and no credentials are embedded. The timer was enabled for daily 03:30 with a one-time 2026-07-19 19:30 observation trigger, after the 17:30 NPBackup job and its recent maximum 2,867-second event span. A service condition skips TimeLocker if NPBackup remains active. Retention and cutover remain prohibited.
   - Evidence: Masked NPBackup reconciliation found three exclusion files with
     252 unique patterns, cache-directory exclusion enabled, and reviewed
     `s3.storage-class=INTELLIGENT_TIERING` intent. These must be carried by the
     committed TimeLocker artifact before the timer may run.
-  - Status: Parity implementation validated; preparing the committed root-owned artifact and non-overlapping timer.
+  - Evidence: The 19:30 timer triggered and its NPBackup exclusion condition
+    passed, but the service exited by `SIGTRAP` before Restic started because
+    GTK tray initialization ran without a display. No backup or retention
+    operation completed. Commit `2eb9928` now skips native Linux tray startup
+    when neither `DISPLAY` nor `WAYLAND_DISPLAY` is present. Seven focused
+    tests and the full normal profile passed: 2,798 passed, one skipped, 57
+    deselected, and 52.55% coverage. The replacement wheel SHA-256 is
+    `c6998f9af68068185d80ad6261086fdc0dd8092cc38d97565a529bce1ab421e5`.
+  - Status: Awaiting privileged installation of `2eb9928`, a controlled
+    scheduler retry, and a subsequent bounded restore; T007 is not complete.
 - [ ] T008 Checkpoint - Separate NPBackup cutover decision.
   - Depends on: T007
   - Requirement: Requirement 3
