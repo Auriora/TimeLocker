@@ -131,6 +131,11 @@ class TestRecoveryOrchestrator:
         assert operation.recovery_type == RecoveryType.SELECTIVE
         assert operation.progress == ProgressStatus(0, 0, 0, 0)
         assert operation.target_path == target_path
+        assert operation.status == OperationStatus.COMPLETED
+        assert self.repository._restore_results["abc123"]["include_paths"] == [
+            Path("*.txt"),
+            Path("*.pdf"),
+        ]
 
     @pytest.mark.recovery
     @pytest.mark.unit

@@ -19,7 +19,7 @@ last_reviewed: 2026-07-19
 | Stored and rendered schedule parity | passed | T003 create/edit/show/list and cron/systemd/Windows tests. |
 | Phase 1 host state unchanged | passed | Root cron still contains the 17:30 NPBackup job; no TimeLocker unit installed. |
 | Durable guidance promoted | passed | Both current guides pass bounded Markdown checks with zero findings. |
-| Production attachment and restore | blocked | T005 credential decision and T006 approval required. |
+| Production attachment and restore | in progress | Approved T006 release listed snapshot `8958659e`; bounded restore exposed and now has a focused-tested selective-restore repair awaiting replacement install. |
 | Scheduled observation and cutover | blocked | T007-T008 explicit operator gates required. |
 
 ## Baseline Evidence
@@ -53,6 +53,9 @@ last_reviewed: 2026-07-19
 | 2026-07-19 | Post-implementation host comparison | pass | Root crontab is unchanged with NPBackup at 17:30; no installed TimeLocker unit or `/opt/timelocker` path. |
 | 2026-07-19 | T005 protected credential-source installation | pass | Root-only `/etc/timelocker/npbackup-migration.env` is a mode-0600, root-owned, byte-identical copy containing exactly the five expected non-empty assignments; values were not emitted. |
 | 2026-07-19 | T005 post-install host comparison | pass | Root loaded all required variables; NPBackup cron remained unchanged, with no TimeLocker unit or `/opt/timelocker` installation. |
+| 2026-07-19 | First committed T006 artifact and repository attachment | partial | Root-owned release from `2c93709` reported version 0.9.1 and listed snapshot `8958659e` through the protected named repository without changing NPBackup. |
+| 2026-07-19 | First T006 bounded restore | fail-safe | Recovery stopped before invoking Restic because selective validation supplied an unsupported constructor field; review also found bounded include/exclude paths were dropped before the backend. No full restore or backup ran. |
+| 2026-07-19 | Selective-restore repair focused suite | pass | 64 adapter, restore-manager, orchestrator, and repository tests passed with coverage disabled; tests verify include/exclude propagation and completed selective orchestration. |
 
 ## Residual Risks
 
@@ -63,13 +66,16 @@ last_reviewed: 2026-07-19
 - Same-repository overlap can lock or duplicate work; timers must not overlap.
 - Retention enforcement can delete snapshots and remains simulation-only until
   separately reviewed.
-- Root installation and cutover remain external mutations requiring approval.
+- The first installed T006 artifact is retained for rollback but is not accepted;
+  a replacement committed artifact and successful bounded restore are required.
+- Timer installation and cutover remain external mutations requiring approval.
 
 ## Readiness Decision
 
 - **Phase 1 ready for host staging:** yes
 - **Credential source ready for production attachment:** yes; T005 passed.
-- **Ready for production repository attachment:** no; T006 still requires a
-  committed root-owned artifact and explicit privileged-install approval.
+- **Ready for production repository attachment:** in progress; approval was
+  granted and listing passed, but T006 still requires a successful bounded
+  restore from the repaired replacement artifact.
 - **Ready for timer installation or NPBackup cutover:** no; T006-T008 and
   their explicit approvals remain pending.

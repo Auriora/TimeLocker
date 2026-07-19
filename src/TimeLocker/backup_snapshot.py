@@ -55,9 +55,17 @@ class BackupSnapshot:
             target_path: Optional[Path] = None,
             *,
             overwrite: str = "never",
+            include_paths: Optional[list[Path]] = None,
+            exclude_paths: Optional[list[Path]] = None,
     ) -> str:
         """Restore this snapshot"""
-        return self.repo.restore(self.id, target_path, overwrite=overwrite)
+        return self.repo.restore(
+            self.id,
+            target_path,
+            overwrite=overwrite,
+            include_paths=include_paths,
+            exclude_paths=exclude_paths,
+        )
 
     def restore_file(self, target_path: Optional[Path] = None) -> bool:
         """Restore a single file from this snapshot"""

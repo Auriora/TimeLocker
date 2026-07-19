@@ -658,6 +658,8 @@ class ResticRepository(BackupRepository):
             target_path: Optional[Path] = None,
             *,
             overwrite: str = "never",
+            include_paths: Optional[List[Path]] = None,
+            exclude_paths: Optional[List[Path]] = None,
     ) -> str:
         if overwrite not in {"never", "always"}:
             raise ValueError("overwrite must be 'never' or 'always'")
@@ -667,6 +669,10 @@ class ResticRepository(BackupRepository):
             .param("target", target_path)
             .param("overwrite", overwrite)
         )
+        for path in include_paths or []:
+            restore_command.param("include", path)
+        for path in exclude_paths or []:
+            restore_command.param("exclude", path)
         return restore_command.run(self.to_env(), synopsis_values={"snapshotID": snapshot_id})
 
     def stats(self) -> dict:

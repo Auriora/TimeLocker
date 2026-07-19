@@ -79,7 +79,15 @@ last_reviewed: 2026-07-19
   - Evidence mode: validation
 
   - Evidence: Operator authorized T006 on 2026-07-19. The validated Phase 1/T005 tree will be committed before building; only that commit may be installed. Repository access is limited to snapshot listing and a bounded restore, with NPBackup and scheduling unchanged.
-  - Status: Preparing an auditable commit and versioned root-owned installation; production backup and timer operations remain prohibited.
+  - Evidence: Phase 1 was committed as `2c93709`; its root-owned release listed
+    the protected repository and found snapshot `8958659e`. The first bounded
+    restore exposed two recovery defects before Restic ran: selective validation
+    supplied an unsupported selection name, and include/exclude paths were not
+    propagated to the backend. The repair removes the invalid field and carries
+    bounded paths through the restore interfaces to repeated Restic arguments;
+    64 focused recovery and adapter tests pass.
+  - Status: Preparing a replacement committed artifact for the live bounded
+    restore; production backup and timer operations remain prohibited.
 - [ ] T007 Stage, install, and observe a non-overlapping TimeLocker timer.
   - Depends on: T006 and explicit timer-install approval
   - Requirement: Requirement 3

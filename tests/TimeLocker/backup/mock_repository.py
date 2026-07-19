@@ -104,6 +104,8 @@ class MockBackupRepository(BackupRepository):
             target_path: Optional[Path] = None,
             *,
             overwrite: str = "never",
+            include_paths: Optional[List[Path]] = None,
+            exclude_paths: Optional[List[Path]] = None,
     ) -> str:
         self.last_restore_overwrite = overwrite
         if snapshot_id not in self._snapshots:

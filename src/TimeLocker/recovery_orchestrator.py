@@ -866,7 +866,6 @@ class RecoveryOrchestrator:
             ]
             
             config = SelectionConfig(
-                name=f"recovery_validation_{snapshot_id}",
                 include_patterns=include_rules,
                 exclude_patterns=exclude_rules,
                 precedence_config=PrecedenceConfig()

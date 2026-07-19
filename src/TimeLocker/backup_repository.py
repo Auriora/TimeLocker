@@ -116,6 +116,8 @@ class BackupRepository(ABC):
             target_path: Optional[Path] = None,
             *,
             overwrite: str = "never",
+            include_paths: Optional[List[Path]] = None,
+            exclude_paths: Optional[List[Path]] = None,
     ) -> str:
         """
         Restores a specific snapshot to the given target path.
@@ -130,6 +132,8 @@ class BackupRepository(ABC):
             should be restored to.
         :param overwrite: Backend overwrite policy. Supported values are
             ``never`` (the safe default) and ``always``.
+        :param include_paths: Optional repository-relative paths to restore.
+        :param exclude_paths: Optional repository-relative paths to omit.
         :return: A string message indicating the result of the
             restore operation.
         """
