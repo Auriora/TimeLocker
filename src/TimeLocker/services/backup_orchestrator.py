@@ -872,10 +872,13 @@ class BackupOrchestrator(IBackupOrchestrator):
         for pattern in backup_job.include_patterns:
             selection.add_pattern(pattern, SelectionType.INCLUDE)
         
+        cli_options = backup_job.config.metadata.get('cli_options', {})
         target = BackupTarget(
             selection=selection,
             name=f"job-{backup_job.config.job_id}",
-            tags=backup_job.config.tags
+            tags=backup_job.config.tags,
+            compression=cli_options.get('compression'),
+            one_file_system=bool(cli_options.get('one_file_system', False)),
         )
         
         targets.append(target)
@@ -1146,7 +1149,9 @@ class BackupOrchestrator(IBackupOrchestrator):
             target = BackupTarget(
                     selection=selection,
                     name=target_config['name'],
-                    tags=target_config.get('tags', [])
+                    tags=target_config.get('tags', []),
+                    compression=target_config.get('compression'),
+                    one_file_system=bool(target_config.get('one_file_system', False)),
             )
 
             logger.debug(f"BackupTarget created successfully for '{target_name}'")

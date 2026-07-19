@@ -31,6 +31,11 @@ Each executable schedule must explicitly bind:
 - its configuration directory when it is not the default; and
 - an optional protected environment-file path, never copied secret values.
 
+Schedules may also persist repeatable `--tags` and `--exclude` values,
+`--compression auto|off|max`, and the
+`--one-file-system/--cross-filesystems` traversal choice. Missing fields retain
+the legacy defaults and emit no additional backup arguments.
+
 ## Create a disabled schedule
 
 Use a selection template:
@@ -54,6 +59,10 @@ tl schedule create nightly-config \
   --source /srv/application/config \
   --environment-file ~/.config/timelocker/backup.env \
   --system \
+  --tags Bruce-5560 \
+  --exclude 'cache/*' \
+  --compression max \
+  --one-file-system \
   --cron '30 1 * * *' \
   --disabled \
   --config-dir ~/.config/timelocker
@@ -90,7 +99,8 @@ tl schedule generate-scripts nightly-config \
 Before installation:
 
 1. Confirm the generated backup command contains `backup create`, the intended
-   repository, all sources or the selection, and the intended `--config-dir`.
+   repository, all sources or the selection, the intended `--config-dir`, and
+   every reviewed tag, exclusion, compression, and traversal option.
 2. Confirm it contains no password or other credential value.
 3. Run the generated wrapper manually in the intended user or root context.
 4. Complete a backup and a digest-verified TimeLocker restore.
@@ -126,6 +136,11 @@ systemd-analyze verify \
   ~/.local/share/timelocker/staged-schedules/timelocker-nightly-config.service \
   ~/.local/share/timelocker/staged-schedules/timelocker-nightly-config.timer
 ```
+
+`schedule list`, `schedule show`, and `schedule test` expose or validate the
+stored execution options without reading the referenced environment file.
+Cron, systemd, and Windows assets are rendered from the same argument-safe
+command builder, so spaces and shell metacharacters remain single arguments.
 
 If the command reports a missing repository, selection, or source, recreate or
 edit the schedule so the execution target is explicit. If access fails only in

@@ -321,6 +321,25 @@ class ResticRepository(BackupRepository):
         for target in targets:
             target.validate()
 
+        compression_values = {
+            target.compression for target in targets if target.compression is not None
+        }
+        if not compression_values.issubset({'auto', 'off', 'max'}):
+            invalid = sorted(compression_values - {'auto', 'off', 'max'})
+            raise RepositoryError(
+                f"Unsupported Restic compression mode: {', '.join(invalid)}"
+            )
+        if len(compression_values) > 1:
+            raise RepositoryError(
+                "Backup targets specify conflicting Restic compression modes"
+            )
+
+        filesystem_values = {target.one_file_system for target in targets}
+        if len(filesystem_values) > 1:
+            raise RepositoryError(
+                "Backup targets specify conflicting filesystem traversal modes"
+            )
+
         # Collect all paths to backup and build command arguments
         all_paths = []
         all_tags = set(tags or [])
@@ -336,6 +355,10 @@ class ResticRepository(BackupRepository):
 
         # Build backup command using the existing command builder pattern
         backup_command = self._command.command("backup")
+        if compression_values:
+            backup_command.param("compression", next(iter(compression_values)))
+        if filesystem_values == {True}:
+            backup_command.param("one-file-system")
 
         # Add exclude patterns from all targets
         for target in targets:

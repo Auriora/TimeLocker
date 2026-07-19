@@ -139,6 +139,23 @@ class TestBackupOrchestratorJobExecution:
         
         assert '/tmp/test-data' in backup_job.source_paths
         assert '*.tmp' in backup_job.exclude_patterns
+
+    def test_job_target_carries_selection_cli_execution_options(
+            self, orchestrator, sample_job_config
+    ):
+        """Selection-job metadata reaches the concrete backup target."""
+        sample_job_config.metadata = {
+            'cli_options': {
+                'compression': 'max',
+                'one_file_system': True,
+            }
+        }
+        backup_job = orchestrator.prepare_backup_job(sample_job_config)
+
+        target = orchestrator._create_backup_targets_from_job(backup_job)[0]
+
+        assert target.compression == 'max'
+        assert target.one_file_system is True
     
     def test_queue_backup_job(self, orchestrator, sample_job_config):
         """Test queueing a backup job"""

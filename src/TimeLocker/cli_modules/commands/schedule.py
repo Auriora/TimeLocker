@@ -102,6 +102,18 @@ def _build_backup_command(schedule: Dict[str, Any], config_dir: Optional[Path] =
         argv.extend(str(source) for source in sources)
     argv.extend(['--repository', str(repository)])
 
+    for tag in schedule.get('tags') or []:
+        argv.extend(['--tags', str(tag)])
+    for pattern in schedule.get('exclude_patterns') or []:
+        argv.extend(['--exclude', str(pattern)])
+    compression = schedule.get('compression')
+    if compression:
+        if compression not in {'auto', 'off', 'max'}:
+            raise ValueError(f"Unsupported Restic compression mode: {compression}")
+        argv.extend(['--compression', str(compression)])
+    if schedule.get('one_file_system', False):
+        argv.append('--one-file-system')
+
     effective_config_dir = schedule.get('config_dir') or config_dir
     if effective_config_dir:
         argv.extend(['--config-dir', str(Path(effective_config_dir).resolve())])
@@ -126,14 +138,24 @@ def _format_schedule_table(schedules: Dict[str, Dict[str, Any]]) -> Table:
     table.add_column("Frequency", style="yellow")
     table.add_column("Next Run", style="white")
     table.add_column("Enabled", style="magenta")
+    table.add_column("Backup Options", style="blue")
     
     for name, schedule in schedules.items():
         enabled = "✓" if schedule.get('enabled', False) else "✗"
         next_run = schedule.get('next_run', 'N/A')
         frequency = schedule.get('frequency', 'N/A')
         repository = schedule.get('repository', 'N/A')
-        
-        table.add_row(name, repository, frequency, next_run, enabled)
+        options = []
+        if schedule.get('compression'):
+            options.append(f"compression={schedule['compression']}")
+        if schedule.get('one_file_system', False):
+            options.append("one-filesystem")
+        if schedule.get('tags'):
+            options.append(f"tags={len(schedule['tags'])}")
+        if schedule.get('exclude_patterns'):
+            options.append(f"excludes={len(schedule['exclude_patterns'])}")
+
+        table.add_row(name, repository, frequency, next_run, enabled, ", ".join(options) or "default")
     
     return table
 
@@ -204,6 +226,10 @@ def _interactive_schedule_configuration(config_dir: Optional[Path] = None) -> Di
         "sources": sources,
         "environment_file": None,
         "system": False,
+        "tags": [],
+        "exclude_patterns": [],
+        "compression": None,
+        "one_file_system": False,
         "config_dir": str(config_dir.expanduser().resolve()) if config_dir else None,
         "frequency": frequency,
         "cron_expression": cron_expression,
@@ -350,6 +376,17 @@ def schedule_create(
     sources: Annotated[Optional[List[Path]], typer.Option("--source", help="Source path (repeatable)")] = None,
     environment_file: Annotated[Optional[Path], typer.Option("--environment-file", help="Protected environment file to reference, not copy")] = None,
     system: Annotated[bool, typer.Option("--system/--user", help="Generate a system-level or user-level schedule")] = False,
+    tags: Annotated[Optional[List[str]], typer.Option("--tags", help="Backup tag (repeatable)")] = None,
+    exclude_patterns: Annotated[Optional[List[str]], typer.Option("--exclude", help="Backup exclusion pattern (repeatable)")] = None,
+    compression: Annotated[Optional[str], typer.Option(
+        "--compression",
+        help="Restic compression mode: auto, off, or max",
+        click_type=click.Choice(["auto", "off", "max"], case_sensitive=False),
+    )] = None,
+    one_file_system: Annotated[bool, typer.Option(
+        "--one-file-system/--cross-filesystems",
+        help="Do not cross filesystem boundaries while backing up",
+    )] = False,
     frequency: Annotated[Optional[str], typer.Option("--frequency", "-f", help="Frequency (hourly, daily, weekly, monthly)")] = None,
     cron: Annotated[Optional[str], typer.Option("--cron", help="Custom cron expression")] = None,
     enabled: Annotated[bool, typer.Option("--enabled/--disabled", help="Enable schedule immediately")] = True,
@@ -408,6 +445,10 @@ def schedule_create(
                 "sources": [str(source.expanduser().resolve()) for source in (sources or [])],
                 "environment_file": str(environment_file.expanduser().resolve()) if environment_file else None,
                 "system": system,
+                "tags": tags or [],
+                "exclude_patterns": exclude_patterns or [],
+                "compression": compression,
+                "one_file_system": one_file_system,
                 "config_dir": str(config_dir.expanduser().resolve()) if config_dir else None,
                 "frequency": frequency or "custom",
                 "cron_expression": cron_expression,
@@ -490,6 +531,10 @@ def schedule_show(
                 f"[bold]Repository:[/bold] {schedule.get('repository', 'N/A')}\n"
                 f"[bold]Selection:[/bold] {schedule.get('selection', 'N/A')}\n"
                 f"[bold]Sources:[/bold] {', '.join(schedule.get('sources', [])) or 'N/A'}\n"
+                f"[bold]Tags:[/bold] {', '.join(schedule.get('tags', [])) or 'N/A'}\n"
+                f"[bold]Exclusions:[/bold] {', '.join(schedule.get('exclude_patterns', [])) or 'N/A'}\n"
+                f"[bold]Compression:[/bold] {schedule.get('compression') or 'default'}\n"
+                f"[bold]One Filesystem:[/bold] {'Yes' if schedule.get('one_file_system', False) else 'No'}\n"
                 f"[bold]Frequency:[/bold] {schedule.get('frequency', 'N/A')}\n"
                 f"[bold]Cron Expression:[/bold] {schedule.get('cron_expression', 'N/A')}\n"
                 f"[bold]Status:[/bold] {enabled_status}\n"
@@ -513,6 +558,17 @@ def schedule_edit(
     sources: Annotated[Optional[List[Path]], typer.Option("--source", help="Replace selection with source path(s)")] = None,
     environment_file: Annotated[Optional[Path], typer.Option("--environment-file", help="New protected environment-file reference")] = None,
     system: Annotated[Optional[bool], typer.Option("--system/--user", help="Generate a system-level or user-level schedule")] = None,
+    tags: Annotated[Optional[List[str]], typer.Option("--tags", help="Replace backup tags (repeatable)")] = None,
+    exclude_patterns: Annotated[Optional[List[str]], typer.Option("--exclude", help="Replace exclusion patterns (repeatable)")] = None,
+    compression: Annotated[Optional[str], typer.Option(
+        "--compression",
+        help="Replace Restic compression mode",
+        click_type=click.Choice(["auto", "off", "max"], case_sensitive=False),
+    )] = None,
+    one_file_system: Annotated[Optional[bool], typer.Option(
+        "--one-file-system/--cross-filesystems",
+        help="Set filesystem traversal behavior",
+    )] = None,
     frequency: Annotated[Optional[str], typer.Option("--frequency", "-f", help="New frequency")] = None,
     cron: Annotated[Optional[str], typer.Option("--cron", help="New cron expression")] = None,
     enabled: Annotated[Optional[bool], typer.Option("--enabled/--disabled", help="Enable/disable schedule")] = None,
@@ -544,6 +600,14 @@ def schedule_edit(
             schedule['environment_file'] = str(environment_file.expanduser().resolve())
         if system is not None:
             schedule['system'] = system
+        if tags is not None:
+            schedule['tags'] = tags
+        if exclude_patterns is not None:
+            schedule['exclude_patterns'] = exclude_patterns
+        if compression is not None:
+            schedule['compression'] = compression
+        if one_file_system is not None:
+            schedule['one_file_system'] = one_file_system
         if frequency is not None:
             schedule['frequency'] = frequency
         if cron is not None:

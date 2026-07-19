@@ -4,16 +4,19 @@ Unit tests for TimeLocker CLI schedule command group.
 Tests schedule command parsing, parameter validation, help output, and error handling.
 """
 
-import pytest
+import json
 import shlex
 from pathlib import Path
 from unittest.mock import Mock, patch
+
+import pytest
 
 from TimeLocker.cli import app
 from TimeLocker.cli_modules.commands.schedule import (
     _build_backup_command,
     _generate_cron_script,
     _generate_systemd_script,
+    _generate_windows_script,
 )
 from tests.TimeLocker.cli.test_utils import (
     get_cli_runner, combined_output, assert_success, assert_exit_code, assert_help_quality
@@ -111,6 +114,103 @@ class TestScheduleCommands:
         assert "--policy" not in argv
         assert "--non-interactive" not in argv
         assert argv[-2:] == ["--config-dir", str((tmp_path / "config").resolve())]
+
+    @pytest.mark.unit
+    def test_generated_backup_command_preserves_migration_parity_fields(self, tmp_path):
+        schedule = {
+            "repository": "pilot repo",
+            "sources": [str(tmp_path / "source with spaces")],
+            "selection": None,
+            "tags": ["Bruce-5560", "tag with spaces"],
+            "exclude_patterns": ["cache/*", "name;still-an-argument"],
+            "compression": "max",
+            "one_file_system": True,
+        }
+
+        command = _build_backup_command(schedule)
+        argv = shlex.split(command)
+
+        assert argv.count("--tags") == 2
+        assert argv.count("--exclude") == 2
+        assert argv[argv.index("--compression") + 1] == "max"
+        assert argv.count("--one-file-system") == 1
+        assert "tag with spaces" in argv
+        assert "name;still-an-argument" in argv
+
+        cron = _generate_cron_script("pilot", schedule)
+        service, _ = _generate_systemd_script("pilot", {
+            **schedule,
+            "cron_expression": "0 2 * * *",
+        })
+        windows = _generate_windows_script("pilot", {
+            **schedule,
+            "cron_expression": "0 2 * * *",
+        })
+        for rendered in (cron, service, windows):
+            assert "--compression max" in rendered
+            assert "--one-file-system" in rendered
+
+    @pytest.mark.unit
+    def test_generated_backup_command_preserves_legacy_defaults(self, tmp_path):
+        argv = shlex.split(_build_backup_command({
+            "repository": "pilot-repo",
+            "sources": [str(tmp_path)],
+            "selection": None,
+        }))
+
+        assert "--compression" not in argv
+        assert "--one-file-system" not in argv
+        assert "--tags" not in argv
+        assert "--exclude" not in argv
+
+    @pytest.mark.unit
+    @patch('TimeLocker.cli_modules.commands.schedule._get_schedule_storage_dir')
+    def test_schedule_create_edit_show_and_list_parity_fields(
+            self, mock_storage_dir: Mock, tmp_path
+    ):
+        """Stored schedule commands expose and update all migration fields."""
+        mock_storage_dir.return_value = tmp_path
+        source = tmp_path / "source"
+        source.mkdir()
+
+        create = runner.invoke(app, [
+            "schedule", "create", "migration",
+            "--repository", "pilot-repo",
+            "--source", str(source),
+            "--frequency", "daily",
+            "--tags", "Bruce-5560",
+            "--exclude", "cache/*",
+            "--compression", "max",
+            "--one-file-system",
+        ])
+        assert_success(create)
+
+        stored = json.loads((tmp_path / "schedules.json").read_text())['migration']
+        assert stored['tags'] == ['Bruce-5560']
+        assert stored['exclude_patterns'] == ['cache/*']
+        assert stored['compression'] == 'max'
+        assert stored['one_file_system'] is True
+
+        edit = runner.invoke(app, [
+            "schedule", "edit", "migration",
+            "--tags", "replacement",
+            "--exclude", "*.tmp",
+            "--compression", "off",
+            "--cross-filesystems",
+        ])
+        assert_success(edit)
+        stored = json.loads((tmp_path / "schedules.json").read_text())['migration']
+        assert stored['tags'] == ['replacement']
+        assert stored['exclude_patterns'] == ['*.tmp']
+        assert stored['compression'] == 'off'
+        assert stored['one_file_system'] is False
+
+        shown = runner.invoke(app, ["schedule", "show", "migration"])
+        listed = runner.invoke(app, ["schedule", "list"])
+        assert_success(shown)
+        assert_success(listed)
+        assert "Compression:" in combined_output(shown)
+        assert "compression=off" in combined_output(listed)
 
     @pytest.mark.unit
     def test_linux_renderers_reference_environment_without_secret_values(self, tmp_path):

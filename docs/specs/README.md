@@ -19,14 +19,18 @@ accepted content has been promoted and the package is closed.
   — active package for restoring trustworthy CI, stabilizing release signals,
   validating `v0.9.1` artifacts, rehearsing release operations, and promoting
   durable release guidance.
+- [`008-npbackup-migration-parity`](./008-npbackup-migration-parity/requirements.md)
+  — active package for preserving the existing root-owned NPBackup job's
+  backup semantics before a staged TimeLocker installation and cutover.
 
 ## Active-Package Sequencing
 
-Spec 007 is the only active package. GitHub milestone `v0.9.1` and issue #68
-provide external scheduling and stress-test evidence; the spec remains
-authoritative for implementation sequencing, acceptance, validation, and
-promotion. Closed package identity and recovery commits remain recorded in
-`docs/history/` rather than kept in this active documentation path.
+Spec 007 owns release readiness and remains at the separate human release and
+closure gate. Spec 008 depends on Spec 007 implementation commit `433c0aa` and
+owns only NPBackup migration parity and operator staging. The packages may run
+concurrently because Spec 008 does not approve a release, publication, service
+installation, or NPBackup cutover. Closed package identity and recovery commits
+remain recorded in `docs/history/` rather than kept in this active path.
 
 ## When a Spec Is Needed
 

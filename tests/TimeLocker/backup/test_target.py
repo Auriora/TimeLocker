@@ -41,6 +41,21 @@ def test_create_backup_target_with_tags(selection):
     target = BackupTarget(selection, tags=tags)
     assert target.tags == tags
 
+
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
+def test_backup_target_carries_restic_execution_options(selection):
+    """Execution options remain typed metadata until the Restic boundary."""
+    target = BackupTarget(
+        selection,
+        compression="max",
+        one_file_system=True,
+    )
+
+    assert target.compression == "max"
+    assert target.one_file_system is True
+
 @pytest.mark.backup
 @pytest.mark.filesystem
 @pytest.mark.unit

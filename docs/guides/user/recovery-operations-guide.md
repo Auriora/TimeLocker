@@ -85,6 +85,26 @@ tl backup create ~/Documents/report.odt \
   --config-dir ~/.config/timelocker
 ```
 
+When migrating an existing Restic job, preserve its reviewed execution
+semantics explicitly. Compression accepts `auto`, `off`, or `max`;
+`--one-file-system` prevents traversal into other mounted filesystems and
+subvolumes. Both options work with direct paths and selection templates:
+
+```bash
+tl backup create /home /etc /var /srv /root /nix/var \
+  --repository primary \
+  --tags Bruce-5560 \
+  --exclude 'cache/*' \
+  --compression max \
+  --one-file-system \
+  --dry-run \
+  --config-dir ~/.config/timelocker
+```
+
+Omitting these options preserves the existing defaults: TimeLocker does not
+add a Restic compression argument and permits cross-filesystem traversal.
+Unsupported compression values fail CLI validation before repository access.
+
 Record the full snapshot ID from the result or JSON listing. Reported file and
 byte counts come from Restic's summary.
 

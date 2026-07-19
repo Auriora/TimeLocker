@@ -35,6 +35,8 @@ class BackupTarget:
                  name: str = None,
                  template_id: Optional[str] = None,
                  template_overrides: Optional[Dict[str, Any]] = None,
+                 compression: Optional[str] = None,
+                 one_file_system: bool = False,
                  **kwargs):
         """
         Initialize a backup target
@@ -45,6 +47,8 @@ class BackupTarget:
             name: Optional name for the backup target (for backward compatibility)
             template_id: Optional selection template ID to use
             template_overrides: Optional overrides for template configuration
+            compression: Optional Restic compression mode (auto, off, or max)
+            one_file_system: Whether backup traversal must stay on one filesystem
             **kwargs: Additional parameters for backward compatibility
         """
         # Handle backward compatibility for old API
@@ -84,6 +88,8 @@ class BackupTarget:
         self.selection = selection
         self.tags = tags or []
         self.name = name
+        self.compression = compression
+        self.one_file_system = one_file_system
         
         # New selection management integration
         self.template_id = template_id
@@ -167,4 +173,3 @@ class BackupTarget:
             info['exclude_pattern_count'] = len(getattr(self.selection, 'exclude_patterns', []))
         
         return info
-

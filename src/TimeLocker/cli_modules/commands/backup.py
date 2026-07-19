@@ -105,6 +105,15 @@ def backup_create(
         exclude: Annotated[Optional[List[str]], typer.Option("--exclude", "-e", help="Exclude pattern")] = None,
         include: Annotated[Optional[List[str]], typer.Option("--include", "-i", help="Include pattern")] = None,
         tags: Annotated[Optional[List[str]], typer.Option("--tags", help="Backup tags")] = None,
+        compression: Annotated[Optional[str], typer.Option(
+            "--compression",
+            help="Restic compression mode: auto, off, or max",
+            click_type=click.Choice(["auto", "off", "max"], case_sensitive=False),
+        )] = None,
+        one_file_system: Annotated[bool, typer.Option(
+            "--one-file-system/--cross-filesystems",
+            help="Do not cross filesystem boundaries while backing up",
+        )] = False,
         dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be backed up without actually performing backup")] = False,
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
@@ -236,7 +245,9 @@ def backup_create(
                 'notify_on_success': True,
                 'notify_on_failure': True,
                 'notifications_enabled': True,
-                'priority': 0
+                'priority': 0,
+                'compression': compression,
+                'one_file_system': one_file_system,
             }
             
             try:
@@ -410,6 +421,8 @@ def backup_create(
                     tags=tags or [],
                     include_patterns=include or [],
                     exclude_patterns=exclude or [],
+                    compression=compression,
+                    one_file_system=one_file_system,
                     dry_run=dry_run
             )
             logger.debug("CLIBackupRequest created successfully")

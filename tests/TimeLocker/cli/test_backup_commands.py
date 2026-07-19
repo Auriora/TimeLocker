@@ -238,6 +238,51 @@ class TestBackupCommands:
             assert result.exit_code in [0, 1]
 
     @pytest.mark.unit
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    def test_backup_create_propagates_execution_options(
+            self, mock_get_manager: Mock
+    ) -> None:
+        """Direct backup requests retain reviewed Restic execution options."""
+        manager = Mock()
+        manager.execute_backup.return_value = Mock(
+            is_successful=True,
+            files_processed=1,
+            bytes_processed=1,
+            duration=0.1,
+            snapshot_id="snapshot123",
+            warnings=[],
+        )
+        mock_get_manager.return_value = manager
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            result = runner.invoke(app, [
+                "backup", "create", temp_dir,
+                "--compression", "max",
+                "--one-file-system",
+                "--dry-run",
+            ])
+
+        assert result.exit_code == 0, (combined_output(result), result.exception)
+        request = manager.execute_backup.call_args.args[0]
+        assert request.compression == "max"
+        assert request.one_file_system is True
+
+    @pytest.mark.unit
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    def test_backup_create_rejects_invalid_compression_before_services(
+            self, mock_get_manager: Mock
+    ) -> None:
+        """CLI validation prevents invalid compression reaching repositories."""
+        result = runner.invoke(app, [
+            "backup", "create", ".",
+            "--compression", "gzip",
+            "--dry-run",
+        ])
+
+        assert result.exit_code == 2
+        mock_get_manager.assert_not_called()
+
+    @pytest.mark.unit
     def test_backup_create_parameter_validation(self) -> None:
         """Test backup create parameter validation."""
         # Test with invalid repository format
