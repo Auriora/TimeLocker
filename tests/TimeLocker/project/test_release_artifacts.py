@@ -9,6 +9,9 @@ import tomllib
 from pathlib import Path
 
 import pytest
+from typer.testing import CliRunner
+
+from TimeLocker.cli import app
 
 ROOT = Path(__file__).parents[3]
 
@@ -60,6 +63,14 @@ def test_smoke_workflow_is_non_publishing_read_only_and_covers_support_matrix():
     assert "artifact: [wheel, sdist]" in workflow
     for forbidden in ("gh release", "git tag", "twine upload"):
         assert forbidden not in workflow
+
+
+@pytest.mark.platform
+@pytest.mark.unit
+def test_root_help_is_compatible_with_windows_default_encoding():
+    result = CliRunner().invoke(app, ["--help"])
+    assert result.exit_code == 0
+    result.output.encode("cp1252")
 
 
 @pytest.mark.config

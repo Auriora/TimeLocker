@@ -339,7 +339,7 @@ def create_typer_app(
         no_args_is_help=no_args_is_help,
         context_settings=CLI_CONTEXT_SETTINGS
     )
-    app.info.options_metavar = "⟨OPTIONS⟩"
+    app.info.options_metavar = "[OPTIONS]"
     return app
 
 

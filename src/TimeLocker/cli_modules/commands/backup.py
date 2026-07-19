@@ -51,7 +51,7 @@ backup_app = typer.Typer(
     no_args_is_help=True,
     context_settings=CLI_CONTEXT_SETTINGS
 )
-backup_app.info.options_metavar = "⟨OPTIONS⟩"
+backup_app.info.options_metavar = "[OPTIONS]"
 
 BackupDisplayValue: TypeAlias = str | int | float | bool | list[object] | dict[str, object] | tuple[object, ...]
 

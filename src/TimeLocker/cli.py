@@ -400,12 +400,12 @@ app = typer.Typer(
                 "  tl snapshots restore <id|latest> /restore/path --repository <name>\n\n"
                 "Note: Local repository paths must use the file:// prefix (e.g., file:///path/to/repo).\n"
         ),
-        epilog="Made with ❤️  by Bruce Cherrington",
+        epilog="Made by Bruce Cherrington",
         rich_markup_mode=None,
         no_args_is_help=True,
         context_settings=CLI_CONTEXT_SETTINGS,
 )
-app.info.options_metavar = "⟨OPTIONS⟩"
+app.info.options_metavar = "[OPTIONS]"
 
 
 def _merge_typer_app(target_app: typer.Typer, source_app: typer.Typer) -> None:
@@ -416,20 +416,20 @@ def _merge_typer_app(target_app: typer.Typer, source_app: typer.Typer) -> None:
 
 # Create sub-apps for new hierarchy
 backup_app = typer.Typer(help="Backup operations", no_args_is_help=True, context_settings=CLI_CONTEXT_SETTINGS)
-backup_app.info.options_metavar = "⟨OPTIONS⟩"
+backup_app.info.options_metavar = "[OPTIONS]"
 
 snapshots_app = typer.Typer(help="Snapshot operations", context_settings=CLI_CONTEXT_SETTINGS)
-snapshots_app.info.options_metavar = "⟨OPTIONS⟩"
+snapshots_app.info.options_metavar = "[OPTIONS]"
 repos_app = typer.Typer(help="Repository operations", context_settings=CLI_CONTEXT_SETTINGS)
-repos_app.info.options_metavar = "⟨OPTIONS⟩"
+repos_app.info.options_metavar = "[OPTIONS]"
 config_app = typer.Typer(help="Configuration management commands", context_settings=CLI_CONTEXT_SETTINGS)
-config_app.info.options_metavar = "⟨OPTIONS⟩"
+config_app.info.options_metavar = "[OPTIONS]"
 credentials_app = typer.Typer(help="Credential management commands", context_settings=CLI_CONTEXT_SETTINGS)
-credentials_app.info.options_metavar = "⟨OPTIONS⟩"
+credentials_app.info.options_metavar = "[OPTIONS]"
 
 # Create security sub-app
 security_app = typer.Typer(help="Security management commands", context_settings=CLI_CONTEXT_SETTINGS)
-security_app.info.options_metavar = "⟨OPTIONS⟩"
+security_app.info.options_metavar = "[OPTIONS]"
 
 # Add sub-apps to main app
 app.add_typer(backup_app, name="backup")
@@ -443,14 +443,14 @@ app.add_typer(security_app, name="security")
 
 # Create config sub-apps
 config_import_app = typer.Typer(help="Import configuration commands", context_settings=CLI_CONTEXT_SETTINGS)
-config_import_app.info.options_metavar = "⟨OPTIONS⟩"
+config_import_app.info.options_metavar = "[OPTIONS]"
 
 config_export_app = typer.Typer(help="Export configuration commands", context_settings=CLI_CONTEXT_SETTINGS)
-config_export_app.info.options_metavar = "⟨OPTIONS⟩"
+config_export_app.info.options_metavar = "[OPTIONS]"
 
 # Create migrate app for configuration migration and validation
 migrate_app = typer.Typer(help="Configuration migration and validation commands", context_settings=CLI_CONTEXT_SETTINGS)
-migrate_app.info.options_metavar = "⟨OPTIONS⟩"
+migrate_app.info.options_metavar = "[OPTIONS]"
 
 # Add config sub-apps
 config_app.add_typer(config_import_app, name="import")
@@ -461,7 +461,7 @@ app.add_typer(migrate_app, name="migrate")
 
 # Create repos sub-apps
 repos_credentials_app = typer.Typer(help="Repository credential management", context_settings=CLI_CONTEXT_SETTINGS)
-repos_credentials_app.info.options_metavar = "⟨OPTIONS⟩"
+repos_credentials_app.info.options_metavar = "[OPTIONS]"
 
 # Add repos sub-apps
 repos_app.add_typer(repos_credentials_app, name="credentials")

@@ -54,7 +54,7 @@ restore_app = typer.Typer(
     no_args_is_help=True,
     context_settings=CLI_CONTEXT_SETTINGS
 )
-restore_app.info.options_metavar = "⟨OPTIONS⟩"
+restore_app.info.options_metavar = "[OPTIONS]"
 
 
 def _get_repository(repository_input: str, config_dir: Optional[Path] = None):
