@@ -58,13 +58,30 @@ class TestSystemTrayIntegration:
     @pytest.mark.monitoring
     @pytest.mark.unit
     @patch('TimeLocker.monitoring.system_tray_integration.sys.platform', 'linux')
-    def test_initialization(self):
+    def test_initialization(self, monkeypatch):
         """Test SystemTrayIntegration initialization"""
-        with patch('TimeLocker.monitoring.system_tray_integration.LinuxSystemTray'):
+        monkeypatch.setenv('DISPLAY', ':0')
+        with patch('TimeLocker.monitoring.system_tray_integration.LinuxSystemTray') as linux_tray:
             tray = SystemTrayIntegration(app_name="TestApp")
             
             assert tray.app_name == "TestApp"
             assert tray.current_status == TrayStatus.IDLE
+            assert tray.is_available() is True
+            linux_tray.assert_called_once_with("TestApp")
+
+    @pytest.mark.monitoring
+    @pytest.mark.unit
+    @patch('TimeLocker.monitoring.system_tray_integration.sys.platform', 'linux')
+    def test_headless_linux_skips_native_tray_initialization(self, monkeypatch):
+        """A service without a display must not enter GTK/AppIndicator code."""
+        monkeypatch.delenv('DISPLAY', raising=False)
+        monkeypatch.delenv('WAYLAND_DISPLAY', raising=False)
+
+        with patch('TimeLocker.monitoring.system_tray_integration.LinuxSystemTray') as linux_tray:
+            tray = SystemTrayIntegration(app_name="HeadlessService")
+
+        assert tray.is_available() is False
+        linux_tray.assert_not_called()
 
     @pytest.mark.monitoring
     @pytest.mark.unit

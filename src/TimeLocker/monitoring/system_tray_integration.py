@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import logging
 import importlib
+import os
 import sys
 import threading
 from datetime import datetime
@@ -26,6 +27,11 @@ from typing import Optional, Callable, Dict, Any
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+
+
+def _linux_graphical_session_available() -> bool:
+    """Return whether a Linux process has a desktop display connection."""
+    return bool(os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY"))
 
 
 def _load_linux_tray_modules():
@@ -124,6 +130,11 @@ class SystemTrayIntegration:
         """Initialize platform-specific system tray implementation"""
         try:
             if sys.platform == "linux":
+                if not _linux_graphical_session_available():
+                    logger.info(
+                        "System tray disabled because no Linux graphical session is available"
+                    )
+                    return
                 self._tray_impl = LinuxSystemTray(self.app_name)
             elif sys.platform == "darwin":
                 self._tray_impl = MacOSSystemTray(self.app_name)
