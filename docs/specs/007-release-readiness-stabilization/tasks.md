@@ -91,7 +91,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
     - Evidence: A disposable local container served all four `minio` nodes;
       pytest reported four passed and 2,812 deselected.
 
-- [~] T003 Checkpoint - CI profile validation.
+- [x] T003 Checkpoint - CI profile validation.
   - Depends on: T002
   - Requirement: Requirement 1
   - Acceptance Criteria: Requirement 1 AC1, AC2, AC3, AC4, AC5, AC6
@@ -99,9 +99,13 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
     partitioned or intentionally shared, mocked contracts remain normal,
     coverage remains at least 50 percent, and no unrelated test is excluded.
   - Validation: GitHub Actions evidence, pytest collection partition, coverage report.
-  - Evidence: Local partition, normal-profile, and provisioned-MinIO evidence
-    pass; hosted GitHub Actions evidence remains before checkpoint completion.
-  - Status: Awaiting the hosted workflow run.
+  - Evidence: GitHub Actions run `29676747955` passed at commit `8a7e1c1`:
+    the normal job completed 2,760 selected nodes with 2,759 successes and
+    52.15% coverage; 57 nodes were outside its selector. The provisioned MinIO
+    job passed all four live nodes, and the coverage quality gate and final
+    notification also passed. Full collection contains 2,817 nodes: 2,760
+    normal, 53 performance/stress, and four MinIO.
+  - Status: Complete on 2026-07-19; Phase 1 is complete and T004 is next.
   - Evidence mode: validation
 
 ## Phase 2: Stabilize the Extended Signal
