@@ -170,7 +170,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
 
 ## Phase 3: Build and Install v0.9.1
 
-- [ ] T006 Prepare version `0.9.1` safely and build reproducible artifacts.
+- [~] T006 Prepare version `0.9.1` safely and build reproducible artifacts.
   - Depends on: T005
   - Requirement: Requirement 3
   - Acceptance Criteria: Requirement 3 AC1, AC2, AC3, AC4, AC5
@@ -184,7 +184,9 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
   - Validation: Pre/post Git and release-state comparison,
     `python scripts/bump_version.py bump patch --no-commit --no-tag`, version
     guard, `python -m build`, artifact inspection.
-  - Evidence: Pending.
+  - Evidence: Implementation started from clean commit `6572f65`; charter, metadata, version helper/configuration, release workflow, installation guide, and version process were reviewed directly. The missing canonical-context artifact is an advisory with no concrete authority ambiguity, so no duplicate context file is needed.
+  - Status: Capturing a clean pre-change external-state snapshot before the non-publishing version bump.
+  - Evidence mode: implementation
   - [ ] T006.1 Record pre-change commit, tag, tag-triggered release-workflow run, and GitHub-release identity.
   - [ ] T006.2 Run the version helper with both commit and tag side effects disabled.
   - [ ] T006.3 Update `requires-python` to `>=3.12,<3.14`, remove `OS Independent`, and reconcile Python and OS classifiers.
