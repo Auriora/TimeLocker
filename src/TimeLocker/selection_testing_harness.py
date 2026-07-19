@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 import logging
+import math
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -34,6 +35,37 @@ from .selection_models import (
 from .selection_validation_service import SelectionValidationService
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True)
+class PerformanceBaseline:
+    """A named performance baseline with an explicit regression tolerance."""
+
+    name: str
+    seconds_per_operation: float
+    tolerance_multiplier: float
+
+    def __post_init__(self) -> None:
+        """Reject baselines that cannot define a meaningful threshold."""
+        if not self.name.strip():
+            raise ValueError("Performance baseline name must not be empty")
+        if not math.isfinite(self.seconds_per_operation) or self.seconds_per_operation <= 0:
+            raise ValueError("Baseline seconds per operation must be positive and finite")
+        if not math.isfinite(self.tolerance_multiplier) or self.tolerance_multiplier < 1:
+            raise ValueError("Performance tolerance multiplier must be finite and at least 1")
+
+    @property
+    def maximum_seconds_per_operation(self) -> float:
+        """Return the slowest observation accepted by this baseline."""
+        return self.seconds_per_operation * self.tolerance_multiplier
+
+    def accepts(self, observed_seconds_per_operation: float) -> bool:
+        """Return whether an observed duration is valid and within tolerance."""
+        return (
+            math.isfinite(observed_seconds_per_operation)
+            and observed_seconds_per_operation >= 0
+            and observed_seconds_per_operation <= self.maximum_seconds_per_operation
+        )
 
 
 @dataclass
@@ -291,7 +323,7 @@ class SelectionTestingHarness:
         total_times = []
         
         for i in range(iterations):
-            start_time = time.time()
+            start_time = time.perf_counter()
             
             for test_path in scenario.test_paths:
                 self.debugger.test_path_selection(
@@ -299,7 +331,7 @@ class SelectionTestingHarness:
                     scenario.selection_config
                 )
             
-            iteration_time_ms = (time.time() - start_time) * 1000
+            iteration_time_ms = (time.perf_counter() - start_time) * 1000
             total_times.append(iteration_time_ms)
         
         # Calculate statistics

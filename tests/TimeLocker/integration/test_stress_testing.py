@@ -12,6 +12,7 @@ import threading
 import time
 import psutil
 import gc
+import statistics
 from pathlib import Path
 from unittest.mock import Mock, patch
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -20,6 +21,14 @@ from TimeLocker.file_selections import FileSelection, SelectionType
 from TimeLocker.backup_manager import BackupManager
 from TimeLocker.backup_target import BackupTarget
 from TimeLocker.security import CredentialManager, SecurityService
+from TimeLocker.selection_testing_harness import PerformanceBaseline
+
+
+SELECTION_OPERATION_BASELINE = PerformanceBaseline(
+    name="selection traversal and size estimation",
+    seconds_per_operation=1.0,
+    tolerance_multiplier=2.0,
+)
 
 
 class TestStressTesting:
@@ -349,38 +358,64 @@ class TestStressTesting:
         assert len(effective_paths['included']) > 0
         print(f"Complex pattern matching: {len(effective_paths['included'])} files matched")
 
+    def test_repeated_operations_preserve_selection_correctness(self):
+        """Verify repeated selection operations independently of elapsed time."""
+        self._create_stress_dataset(num_files=300, num_dirs=30)
+
+        file_selection = FileSelection()
+        file_selection.add_path(self.stress_data_dir, SelectionType.INCLUDE)
+        file_selection.add_pattern("*.dat", SelectionType.INCLUDE)
+
+        observations = []
+        for _ in range(3):
+            effective_paths = file_selection.get_effective_paths()
+            size_stats = file_selection.estimate_backup_size()
+            observations.append(
+                (len(effective_paths['included']), size_stats['file_count'])
+            )
+
+        assert observations[0][0] > 0
+        assert observations[0][1] > 0
+        assert observations == [observations[0]] * 3
+
     @pytest.mark.stress
-    def test_long_running_operations(self):
-        """Test stability during long-running operations"""
-        # Create dataset for long-running test
+    def test_sustained_selection_performance(self, record_property):
+        """Detect sustained-operation regressions against a calibrated baseline."""
         self._create_stress_dataset(num_files=1500, num_dirs=150)
 
         file_selection = FileSelection()
         file_selection.add_path(self.stress_data_dir, SelectionType.INCLUDE)
         file_selection.add_pattern("*.dat", SelectionType.INCLUDE)
 
-        # Perform operations repeatedly for extended period
-        start_time = time.time()
-        max_duration = 60  # 1 minute of continuous operations
-        iteration_count = 0
+        # Warm caches before measuring a fixed amount of work. Correctness is
+        # covered separately so this test has one environment-sensitive signal.
+        file_selection.get_effective_paths()
+        file_selection.estimate_backup_size()
 
-        while (time.time() - start_time) < max_duration:
-            # Perform file operations
-            effective_paths = file_selection.get_effective_paths()
-            size_stats = file_selection.estimate_backup_size()
+        durations = []
+        for _ in range(12):
+            start_time = time.perf_counter()
+            file_selection.get_effective_paths()
+            file_selection.estimate_backup_size()
+            durations.append(time.perf_counter() - start_time)
 
-            # Validate each iteration
-            assert len(effective_paths['included']) > 0
-            assert size_stats['file_count'] > 0
+        observed_seconds = statistics.median(durations)
+        maximum_seconds = SELECTION_OPERATION_BASELINE.maximum_seconds_per_operation
+        record_property("selection_baseline_seconds", 1.0)
+        record_property("selection_tolerance_multiplier", 2.0)
+        record_property("selection_observed_median_seconds", observed_seconds)
 
-            iteration_count += 1
-
-            # Brief pause to prevent overwhelming the system
-            time.sleep(0.1)
-
-        # Validate long-running stability
-        assert iteration_count > 100, f"Only {iteration_count} iterations completed"
-        print(f"Long-running test: {iteration_count} iterations in {max_duration}s")
+        assert SELECTION_OPERATION_BASELINE.accepts(observed_seconds), (
+            f"Median selection operation took {observed_seconds:.3f}s; "
+            f"maximum is {maximum_seconds:.3f}s "
+            f"({SELECTION_OPERATION_BASELINE.seconds_per_operation:.3f}s baseline x "
+            f"{SELECTION_OPERATION_BASELINE.tolerance_multiplier:.1f} tolerance)"
+        )
+        print(
+            f"Selection performance: median={observed_seconds:.3f}s, "
+            f"baseline={SELECTION_OPERATION_BASELINE.seconds_per_operation:.3f}s, "
+            f"maximum={maximum_seconds:.3f}s, iterations={len(durations)}"
+        )
 
     @pytest.mark.stress
     def test_resource_cleanup_stress(self):

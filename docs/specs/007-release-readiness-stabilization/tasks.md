@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: tasks
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-18
+last_reviewed: 2026-07-19
 ---
 
 # Tasks
@@ -110,7 +110,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
 
 ## Phase 2: Stabilize the Extended Signal
 
-- [ ] T004 Implement and validate the selection stress-threshold contract.
+- [x] T004 Implement and validate the selection stress-threshold contract.
   - Depends on: T003
   - Requirement: Requirement 2
   - Acceptance Criteria: Requirement 2 AC1, AC2, AC3, AC4
@@ -122,21 +122,51 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
     tolerance are implemented; the repeatable extended profile passes or a
     release-blocking disposition is recorded.
   - Evidence mode: implementation
-  - Destination: <https://github.com/Auriora/TimeLocker/issues/68>
-  - Evidence: Pending.
-  - [ ] T004.1 Capture representative host timings and environment context in issue #68.
-  - [ ] T004.2 Separate deterministic correctness assertions from environment-sensitive timing assertions.
-  - [ ] T004.3 Implement the evidence-backed baseline and tolerance strategy.
-  - [ ] T004.4 Run a repeatable extended profile and link results from issue #68.
-
-- [ ] T005 Checkpoint - Release validation prerequisites.
+  - Destination: https://github.com/Auriora/TimeLocker/issues/68#issuecomment-5014886293
+  - Evidence: Implemented `PerformanceBaseline`, split deterministic correctness from opt-in timing, replaced the 60-second iteration-count gate with a warmed 12-operation median check using a 1.0s baseline and 2.0x tolerance, and documented reproduction. Three targeted runs passed at 0.160s/0.176s/0.173s; the extended profile passed 53 tests in 45.60s; the normal profile passed 2,765 tests with one skip and 52.14% coverage. Evidence: https://github.com/Auriora/TimeLocker/issues/68#issuecomment-5014886293.
+  - Status: Complete on 2026-07-19; immutable post-change hosted evidence follows the explicitly requested commit.
+  - [x] T004.1 Capture representative host timings and environment context in issue #68.
+    - Evidence: Issue #68 records Linux/Python/CPU/load context, the
+      209-iteration legacy result, historical 57/70-iteration observations,
+      and the calibrated strategy.
+    - Status: Complete on 2026-07-19.
+    - Evidence mode: validation
+    - Destination: https://github.com/Auriora/TimeLocker/issues/68#issuecomment-5014886293
+  - [x] T004.2 Separate deterministic correctness assertions from environment-sensitive timing assertions.
+    - Evidence: `test_repeated_operations_preserve_selection_correctness` owns
+      deterministic stability assertions; `test_sustained_selection_performance`
+      owns only the opt-in timing signal.
+    - Status: Complete on 2026-07-19.
+    - Evidence mode: validation
+    - Destination: https://github.com/Auriora/TimeLocker/issues/68#issuecomment-5014886293
+  - [x] T004.3 Implement the evidence-backed baseline and tolerance strategy.
+    - Evidence: `PerformanceBaseline` validates a named 1.0-second reference
+      with a 2.0x tolerance; the stress test warms caches, measures 12 fixed
+      operations with a monotonic clock, and evaluates the median.
+    - Status: Complete on 2026-07-19.
+    - Evidence mode: validation
+    - Destination: https://github.com/Auriora/TimeLocker/issues/68#issuecomment-5014886293
+  - [x] T004.4 Run a repeatable extended profile and link results from issue #68.
+    - Evidence: Three targeted runs passed at 0.160s, 0.176s, and 0.173s
+      median; the complete extended profile passed 53 tests in 45.60s.
+    - Status: Complete on 2026-07-19.
+    - Evidence mode: validation
+    - Destination: https://github.com/Auriora/TimeLocker/issues/68#issuecomment-5014886293
+- [x] T005 Checkpoint - Release validation prerequisites.
   - Depends on: T004
-  - Requirements: Requirements 1 and 2
+  - Requirements: Requirement 1, Requirement 2
   - Acceptance: Normal CI is green, explicit external-service coverage is
     green, Spec 007 stress acceptance is met, and issue #68 contains linked
     evidence or an explicit release-blocking disposition.
   - Validation: Review T003 and T004 evidence and the linked issue history.
-  - Evidence: Pending.
+  - Evidence: Phase 2 prerequisites are met: hosted run 29676747955 passed
+    normal CI, provisioned MinIO, the coverage quality gate, and notification;
+    the post-change local normal profile passed 2,765 tests with one skip and
+    52.14% coverage; the extended profile passed 53 tests; and issue #68
+    contains environment, calibration, and repeat evidence.
+  - Status: Complete on 2026-07-19; Phase 2 checkpoint passed and T006 is next.
+  - Evidence mode: validation
+  - Destination: https://github.com/Auriora/TimeLocker/issues/68#issuecomment-5014886293
 
 ## Phase 3: Build and Install v0.9.1
 

@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: verification
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-18
+last_reviewed: 2026-07-19
 ---
 
 # Verification
@@ -21,9 +21,9 @@ separate explicit approval.
 |------|-----------|--------|----------|
 | Acceptance traceability complete | yes | passed | Lifecycle stage readiness reports zero acceptance, property, context, downstream-review, or blocking gaps after reconciliation. |
 | Substantive requirements and design review | yes | passed | Review on 2026-07-18 produced TLR-001 through TLR-006; all six findings were reconciled into the package before implementation. |
-| Task evidence complete | yes | pending | T001-T003 passed; T004-T013 pending. |
+| Task evidence complete | yes | pending | T001-T005 passed; T006-T013 pending. |
 | Normal and dependency-owning test profiles pass | yes | passed | GitHub Actions run `29676747955` passed normal, MinIO, coverage quality-gate, and notification jobs. |
-| Stress implementation and disposition recorded | yes | pending | T004 and GitHub issue #68. |
+| Stress implementation and disposition recorded | yes | passed | T004 implementation and repeat evidence are recorded in GitHub issue #68. |
 | Artifacts and six-combination clean installs validate | yes | pending | T006-T008. |
 | Release interface and rehearsal prove no publication side effect | yes | pending | T009-T010. |
 | Durable documentation and communications promoted | yes | pending | T011-T012 and promotion table below. |
@@ -36,7 +36,7 @@ separate explicit approval.
 | `python -m pytest -m "not performance and not stress and not minio"` | Normal correctness and coverage profile | passed | Hosted run `29676747955`: 2,759 passed, one skipped, 57 deselected; 52.15% coverage. |
 | complete collection compared with normal, `minio`, performance, and stress selections | Prove collection safety and node ownership | passed | 2,817 total nodes partition into 2,760 normal, 53 performance/stress, and four live MinIO nodes. |
 | `python -m pytest -m minio` with provisioned service | Validate live S3 integration and dependency preflight | passed | Four local live nodes passed in 20.39 seconds; the provisioned job also passed in run `29676747955`. |
-| `python -m pytest -m "performance or stress" --no-cov` | Extended performance and stress profile | pending | T004 and issue #68; final evidence must explain the coverage exception for this opt-in profile. |
+| `python -m pytest -m "performance or stress" --no-cov` | Extended performance and stress profile | passed | 53 passed, 2,770 deselected in 45.60 seconds; issue #68 records three repeated targeted medians and the no-coverage rationale. |
 | `python scripts/bump_version.py bump patch --no-commit --no-tag` plus pre/post commit, tag, tag-triggered release-workflow run, and release identity | Prepare `0.9.1` without publication side effects | pending | T006. |
 | `python -m build`, version guard, metadata inspection, and SHA-256 generation | Build and prove artifact identity | pending | T006. |
 | wheel and sdist smoke installs on Linux, macOS, and Windows for Python 3.12 and 3.13 | Prove CP-003 and all declared support claims | pending | T007 six-combination matrix. |
@@ -48,7 +48,7 @@ separate explicit approval.
 | Requirement | Acceptance Criteria Covered | Evidence | Residual Risk |
 |-------------|------------------------------|----------|---------------|
 | R1 | AC1-AC6 | T001-T003 passed; GitHub Actions run `29676747955` | Marker and workflow contract tests guard future profile drift. |
-| R2 | AC1-AC4 | Spec-owned T004-T005 and issue #68 pending | Host variance. |
+| R2 | AC1-AC4 | T004-T005 passed; issue #68 records environment, baseline, tolerance, and repeat evidence | Post-change hosted evidence follows the explicitly requested commit. |
 | R3 | AC1-AC5 | T006 and T008 pending | Side-effecting defaults must remain disabled. |
 | R4 | AC1-AC5 | T007-T008 and T011 pending | Unavailable runner blocks the associated support claim. |
 | R5 | AC1-AC6 | T009-T013 pending | Human operator error at first actual tag. |
@@ -82,8 +82,8 @@ separate explicit approval.
 | T001 | passed | Exact node partition, focused contract tests, and normal-profile run passed | Four live nodes are `minio`; mocked/configuration tests remain normal. |
 | T002 | passed | Pinned disposable MinIO, readiness preflight, negative dependency contract, and four live nodes passed | Hosted execution belongs to T003. |
 | T003 | passed | Actions run `29676747955`: normal, MinIO, quality-gate, and notification jobs passed | Phase 1 checkpoint complete. |
-| T004 | pending | GitHub issue #68 created and assigned | Spec owns implementation; issue tracks state and evidence. |
-| T005 | pending | | Prerequisite checkpoint pending. |
+| T004 | passed | Correctness/timing split, 1.0-second baseline, 2.0x tolerance, three repeat runs, and 53-test extended profile | Issue #68 contains the environment and chronological evidence. |
+| T005 | passed | T003 hosted run plus T004 local normal/extended profiles and issue evidence | Phase 2 checkpoint complete. |
 | T006 | pending | Side-effecting helper defaults identified | Safe bump, artifact, and external-state evidence pending. |
 | T007 | pending | Six-combination contract defined | Artifact matrix pending. |
 | T008 | pending | | Artifact checkpoint pending. |
@@ -113,6 +113,10 @@ separate explicit approval.
 | 2026-07-18 | T002 provisioned MinIO profile | passed | Disposable loopback MinIO served all four live nodes; 2,812 nodes were deselected and cleanup succeeded. |
 | 2026-07-18 | Phase 1 exact normal profile | passed | 2,758 passed, one skipped, 57 deselected, 19 warnings, and 52.13% coverage in 571.62 seconds. |
 | 2026-07-19 | Hosted Phase 1 checkpoint, run `29676747955` | passed | Commit `8a7e1c1`; 2,759 normal tests passed, one skipped, 57 deselected, 52.15% coverage, four live MinIO tests passed, and the quality gate and notification completed successfully. |
+| 2026-07-19 | Legacy selection stress baseline | passed but unstable contract | The fixed 60-second gate completed 209 iterations on Linux/Python 3.12.6; historical observations of 57 and 70 demonstrated host sensitivity. |
+| 2026-07-19 | Repeated calibrated selection stress contract | passed | Three `--no-cov` runs reported 0.160, 0.176, and 0.173 second medians against a 1.0-second baseline and 2.0x tolerance. |
+| 2026-07-19 | Phase 2 extended profile | passed | 53 passed and 2,770 deselected in 45.60 seconds without coverage instrumentation. |
+| 2026-07-19 | Phase 2 normal profile | passed | 2,765 passed, one skipped, 57 deselected, and 52.14% coverage in 726.60 seconds. |
 
 ## Manual Or External Verification
 

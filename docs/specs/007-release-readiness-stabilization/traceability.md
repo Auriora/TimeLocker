@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: traceability
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-18
+last_reviewed: 2026-07-19
 ---
 
 # Traceability Matrix
@@ -17,7 +17,7 @@ last_reviewed: 2026-07-18
 | T002 | Requirement 1 | AC2, AC3, AC6 | CI Profile Logic; Error Handling; Security | Provisioned MinIO profile | MinIO profile and negative preflight | workflow, testing guide | none |
 | T003 | Requirement 1 | AC1, AC2, AC3, AC4, AC5, AC6 | Validation Strategy | CI profile readiness | CI quality gate, coverage, partition proof | testing guide | none |
 | T004 | Requirement 2 | AC1, AC2, AC3, AC4 | Components; Validation Strategy | Spec-owned stress bug fix | representative timings, tests, issue #68, extended profile | tests, testing guide | none |
-| T005 | Requirements 1 and 2 | all | Downstream Task Guidance | CI and stress readiness | prerequisite checkpoint | none | none |
+| T005 | Requirement 1, Requirement 2 | all | Downstream Task Guidance | CI and stress readiness | prerequisite checkpoint | none | none |
 | T006 | Requirement 3 | AC1, AC2, AC3, AC4, AC5 | Version and Artifact Guard; Security | Side-effect-safe version and artifact changes | Git/release-state comparison, build, metadata, version guard | metadata, version process, changelog | none |
 | T007 | Requirement 4 | AC1, AC2, AC3, AC4, AC5 | Clean-Install Matrix | Exact support matrix and install validation | six-combination wheel and sdist smoke matrix | metadata, installation guide | none |
 | T008 | Requirements 3 and 4 | all | Validation Strategy | Artifact and install readiness | artifact checkpoint and side-effect proof | installation guide | none |

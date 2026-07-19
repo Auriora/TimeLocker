@@ -5,7 +5,7 @@ id: "RM-006"
 type: [ readme ]
 status: active
 owner: "Auriora Team"
-last_reviewed: 2026-07-18
+last_reviewed: 2026-07-19
 tags: [ readme, testing ]
 links:
     tooling: [ ]
@@ -56,7 +56,34 @@ python -m pytest -m "performance or stress" --no-cov
 ```
 
 This opt-in profile is intended for representative performance environments;
-it does not own the correctness coverage gate.
+it does not own the correctness coverage gate. Run it without coverage because
+instrumentation changes timing enough to invalidate performance comparisons.
+
+Selection stress testing separates two signals:
+
+- deterministic repeated-operation correctness runs in the normal profile;
+- sustained timing runs in the opt-in profile against a 1.0-second-per-operation
+  representative baseline and a 2.0x regression tolerance.
+
+The timing test warms the selection caches, measures 12 fixed operations with a
+monotonic clock, and gates on the median. This avoids the previous contract,
+which required an absolute iteration count inside a fixed one-minute window and
+therefore changed outcome with host load. The baseline represents the slower
+supported development observations captured in issue 68; the tolerance absorbs
+normal shared-runner variance while still failing a material sustained slowdown.
+The observed median, baseline, and tolerance are emitted as test properties.
+
+To reproduce only this contract, run:
+
+```bash
+python -m pytest \
+  tests/TimeLocker/integration/test_stress_testing.py::TestStressTesting::test_sustained_selection_performance \
+  --no-cov -q -s
+```
+
+Repeat the command at least three times on a representative host when changing
+selection traversal, size estimation, pattern handling, or the threshold. Record
+the environment and results in the owning issue rather than this durable guide.
 
 ## Local MinIO
 
