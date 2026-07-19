@@ -1,6 +1,7 @@
 name: Release Artifact Smoke
 
 on:
+  pull_request:
   workflow_dispatch:
 
 permissions:

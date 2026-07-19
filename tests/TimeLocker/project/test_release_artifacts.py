@@ -49,8 +49,9 @@ def test_version_guard_rejects_a_mismatch(tmp_path):
 
 @pytest.mark.config
 @pytest.mark.unit
-def test_smoke_workflow_is_manual_read_only_and_covers_support_matrix():
+def test_smoke_workflow_is_non_publishing_read_only_and_covers_support_matrix():
     workflow = (ROOT / ".github/workflows/artifact-smoke.yml").read_text()
+    assert "pull_request:" in workflow
     assert "workflow_dispatch:" in workflow
     assert "push:" not in workflow
     assert "contents: read" in workflow
