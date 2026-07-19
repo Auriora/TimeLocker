@@ -19,7 +19,12 @@ def executable(environment: Path, name: str) -> Path:
 
 
 def run(command: list[str], *, expected: str | None = None) -> None:
-    result = subprocess.run(command, check=True, capture_output=True, text=True)
+    result = subprocess.run(command, capture_output=True, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"{' '.join(command)} exited {result.returncode}\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
     if expected is not None and result.stdout.strip() != expected:
         raise RuntimeError(f"{' '.join(command)} returned {result.stdout.strip()!r}, expected {expected!r}")
 
