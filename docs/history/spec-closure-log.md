@@ -20,7 +20,7 @@ final spec commit preserves the complete package.
 - **Spec:** removed; recover from Git
 - **Title:** Release readiness stabilization requirements
 - **Final spec commit:** `7fd11f9aa1cbc670d5e8b429aede4a7c01e185a4`
-- **Closure cleanup commit:** `pending-cleanup-commit`
+- **Closure cleanup commit:** `6334af0690b5b9e8b6575042269e5b73914a9295`
 - **Closure action:** removed
 - **Durable docs updated:**
   - `README.md`
