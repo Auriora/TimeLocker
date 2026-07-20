@@ -328,7 +328,6 @@ SyslogIdentifier=timelocker-{schedule_name}
     
     timer = f"""[Unit]
 Description=TimeLocker Backup Timer - {schedule_name}
-Requires=timelocker-{schedule_name}.service
 
 [Timer]
 OnCalendar={oncalendar}

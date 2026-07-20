@@ -257,6 +257,7 @@ class TestScheduleCommands:
         assert "User=root" in service
         assert "backup create --selection protected-files" in cron
         assert "--repository pilot-repo" in service
+        assert "Requires=timelocker-pilot.service" not in timer
         assert "RESTIC_PASSWORD=" not in cron + service + timer
 
     @pytest.mark.unit

@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: verification
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-19
+last_reviewed: 2026-07-20
 ---
 
 # Verification
@@ -20,7 +20,8 @@ last_reviewed: 2026-07-19
 | Phase 1 host state unchanged | passed | Root cron still contains the 17:30 NPBackup job; no TimeLocker unit installed. |
 | Durable guidance promoted | passed | Both current guides pass bounded Markdown checks with zero findings. |
 | Production attachment and restore | passed | Root-owned release `6896c8d` listed snapshot `8958659e` and restored `/etc/hostname` selectively with a byte-for-byte match. |
-| Scheduled observation and cutover | blocked | T007-T008 explicit operator gates required. |
+| Scheduled production observation | passed | Controlled snapshot `f7417b35`, the normal 03:30 snapshot `ffafd15e`, and a subsequent byte-matched bounded restore passed. |
+| NPBackup cutover | blocked | T008 remains a separate explicit operator decision; NPBackup is unchanged. |
 
 ## Baseline Evidence
 
@@ -35,9 +36,9 @@ last_reviewed: 2026-07-19
 
 | Requirement | Acceptance criteria covered | Evidence | Residual risk |
 |-------------|-----------------------------|----------|---------------|
-| Requirement 1 | AC1-AC4 | T002 focused tests and 2,796-test normal profile | none for Phase 1 |
+| Requirement 1 | AC1-AC5 | T002 focused tests, normal-profile coverage, and live production-equivalent Restic command evidence | none |
 | Requirement 2 | AC1-AC4 | T003 stored schedule and renderer tests | none for Phase 1 |
-| Requirement 3 | AC1-AC3 | Phase 1 host comparison, protected credential source, committed root-owned release, repository listing, and bounded restore | AC4 remains gated in T007-T008. |
+| Requirement 3 | AC1-AC4 | Protected credential source, committed root-owned release, repository listing, non-overlapping scheduled runs, bounded restore, and unchanged NPBackup fallback | Cutover remains a separate T008 decision. |
 
 ## Evidence Log
 
@@ -66,19 +67,25 @@ last_reviewed: 2026-07-19
 | 2026-07-19 | T007 committed artifact and timer staging | pass | Commit `3a4572c`, wheel SHA-256 `90c45af99b3e6c913757fcc9539afe91ae5c6c735556ee252a015637c9dbbbf8`, generated-unit parity, installation, and active-timer checks passed. The first observation trigger was set for 19:30, safely after NPBackup. |
 | 2026-07-19 | T007 first scheduler observation | fail-safe | The 19:30 timer and non-overlap condition ran, but the service exited by `SIGTRAP` during GTK tray initialization before Restic started. No backup, retention, or cutover operation completed. |
 | 2026-07-19 | T007 headless-service repair | pass | Commit `2eb9928` skips native Linux tray startup without `DISPLAY` or `WAYLAND_DISPLAY`. Seven focused tests passed; the full normal profile passed 2,798 tests with one skipped, 57 deselected, and 52.55% coverage. Replacement wheel SHA-256: `c6998f9af68068185d80ad6261086fdc0dd8092cc38d97565a529bce1ab421e5`. Privileged installation and live retry remain pending. |
+| 2026-07-19 | T007 native S3 URI repair | pass | Commit `daaad53` preserves Restic-native repository URIs during the CLI service manager's second resolution pass. The exact root-owned wheel SHA-256 is `5c3106e573d3805b3e9962007c20d5e47cd88faccb1ac8d20c0c1f315f212867`; 84 focused/adjacent tests passed. The full configured suite reached 52.89% coverage with 2,857 passed, one skipped, and one unrelated timing-threshold miss that passed three immediate reruns. |
+| 2026-07-19 | T007 controlled production backup | pass | The NPBackup overlap condition passed. Restic received the native S3 URI and all production parity options. Snapshot `f7417b35ab2e497052e33894d5b084a16260bc71e5c76780c7405cbf4454551f` completed with 659,639 files and 455,495,193 bytes; no retention or cutover ran. |
+| 2026-07-20 | T007 normal scheduled backup | pass | The enabled 03:30 timer completed snapshot `ffafd15e6948ba278101463f85ac192176e83f8e423d109b5c06254859197de9` with 659,639 files and 16,771,834 bytes. |
+| 2026-07-20 | T007 post-backup bounded restore | pass | `tl restore files` restored `/etc/hostname` from `f7417b35...` into root-only verification storage; the restored file matched the live file byte-for-byte. |
+| 2026-07-20 | T007 timer dependency repair | pass | The invalid generated `Requires=...service` dependency was removed on-host and from the renderer. One persistent catch-up run completed safely as `a57f037d...`; 43 focused schedule/integration tests passed. The service is inactive and the enabled timer is waiting for 2026-07-21 03:30. |
 
 ## Residual Risks
 
-- NPBackup and TimeLocker pattern semantics may differ; the effective expanded
-  exclusion set needs bounded comparison before production backup.
 - Credential values now exist in a second protected location and must be
   rotated when the source Restic service-account environment changes.
 - Same-repository overlap can lock or duplicate work; timers must not overlap.
+- A manual restart of a persistent timer after a missed calendar event can
+  legitimately trigger one catch-up run; operators must observe service state
+  when changing installed timer configuration.
 - Retention enforcement can delete snapshots and remains simulation-only until
   separately reviewed.
 - The first installed T006 artifact is retained for rollback; the accepted
-  `current` release is the repaired `6896c8d` artifact.
-- Timer installation and cutover remain external mutations requiring approval.
+  `current` release is the repaired `daaad53` artifact.
+- NPBackup cutover remains an external mutation requiring separate approval.
 
 ## Readiness Decision
 
@@ -86,5 +93,7 @@ last_reviewed: 2026-07-19
 - **Credential source ready for production attachment:** yes; T005 passed.
 - **Ready for production repository attachment:** yes; T006 passed listing and
   bounded restore from the committed root-owned artifact.
-- **Ready for timer installation or NPBackup cutover:** no; T007-T008 and
-  their explicit approvals remain pending.
+- **Ready for scheduled TimeLocker backups:** yes; T007 passed controlled and
+  normal timer runs plus a subsequent bounded restore.
+- **Ready for NPBackup cutover:** no; T008 and explicit operator approval remain
+  pending.

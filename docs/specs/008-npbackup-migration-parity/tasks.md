@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: tasks
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-19
+last_reviewed: 2026-07-20
 ---
 
 # Tasks
@@ -87,7 +87,7 @@ last_reviewed: 2026-07-19
     bounded paths through the restore interfaces to repeated Restic arguments;
     64 focused recovery and adapter tests pass.
   - Status: T006 complete. T007 remains separately gated by explicit timer-install approval.
-- [~] T007 Stage, install, and observe a non-overlapping TimeLocker timer.
+- [x] T007 Stage, install, and observe a non-overlapping TimeLocker timer.
   - Depends on: T006 and explicit timer-install approval
   - Requirements: Requirement 1, Requirement 3
   - Acceptance Criteria: Requirement 1 AC5; Requirement 3 AC3-AC4
@@ -96,7 +96,7 @@ last_reviewed: 2026-07-19
     scheduler and a subsequent restore passes; no retention deletion runs.
   - Evidence mode: validation
 
-  - Evidence: Committed parity artifact `3a4572c` (wheel SHA-256 `90c45af99b3e6c913757fcc9539afe91ae5c6c735556ee252a015637c9dbbbf8`) is installed root-owned and reports 0.9.1. The stored disabled schedule and generated systemd assets match six sources, three direct patterns, three exclusion files, cache exclusion, tag `Bruce-5560`, maximum compression, single-filesystem traversal, and allowlisted `s3.storage-class=INTELLIGENT_TIERING`; systemd verification passed and no credentials are embedded. The timer was enabled for daily 03:30 with a one-time 2026-07-19 19:30 observation trigger, after the 17:30 NPBackup job and its recent maximum 2,867-second event span. A service condition skips TimeLocker if NPBackup remains active. Retention and cutover remain prohibited.
+  - Evidence: Root-owned release from commit `daaad53` (wheel SHA-256 `5c3106e573d3805b3e9962007c20d5e47cd88faccb1ac8d20c0c1f315f212867`) was installed under `/opt/timelocker/releases/daaad538f7adb02e27e86b744af43ead79f07408`. The NPBackup overlap condition passed and the controlled systemd run used the native repository URI `s3:s3.af-south-1.amazonaws.com/5560-restic` with six production sources, tag `Bruce-5560`, three direct exclusions, three exclusion files, cache exclusion, `s3.storage-class=INTELLIGENT_TIERING`, compression `max`, and one-filesystem traversal. It completed successfully on 2026-07-19 as snapshot `f7417b35ab2e497052e33894d5b084a16260bc71e5c76780c7405cbf4454551f` (659,639 files; 455,495,193 bytes). The normal 2026-07-20 03:30 timer run also completed successfully as snapshot `ffafd15e6948ba278101463f85ac192176e83f8e423d109b5c06254859197de9`. A bounded `tl restore files` of `/etc/hostname` from `f7417b35...` to `/var/lib/timelocker/verification/restore-f7417b35` completed and matched `/etc/hostname` byte-for-byte. The timer's invalid service dependency was removed on-host and from the generator; 43 focused schedule/integration tests passed. After one harmless persistent catch-up snapshot (`a57f037d...`), the service is inactive and the enabled timer is waiting for 2026-07-21 03:30. NPBackup remains active; no retention, prune, or cutover action ran.
   - Evidence: Masked NPBackup reconciliation found three exclusion files with
     252 unique patterns, cache-directory exclusion enabled, and reviewed
     `s3.storage-class=INTELLIGENT_TIERING` intent. These must be carried by the
@@ -109,8 +109,7 @@ last_reviewed: 2026-07-19
     tests and the full normal profile passed: 2,798 passed, one skipped, 57
     deselected, and 52.55% coverage. The replacement wheel SHA-256 is
     `c6998f9af68068185d80ad6261086fdc0dd8092cc38d97565a529bce1ab421e5`.
-  - Status: Awaiting privileged installation of `2eb9928`, a controlled
-    scheduler retry, and a subsequent bounded restore; T007 is not complete.
+  - Status: Complete: production-equivalent scheduled backup and subsequent bounded restore passed; NPBackup remains the active fallback pending separate cutover approval.
 - [ ] T008 Checkpoint - Separate NPBackup cutover decision.
   - Depends on: T007
   - Requirement: Requirement 3
@@ -123,6 +122,7 @@ last_reviewed: 2026-07-19
 
 Coding Standards (100), General Preferences (50), Operational Best Practices
 (40), Planning Protocol (30), Testing Conventions (25), Documentation
-Conventions (20), and Git Conventions (15). User approval on 2026-07-19 covers
-Phase 1 implementation and the separate T005 credential copy. T006-T008
-privileged installation, scheduling, and cutover gates remain separate.
+Conventions (20), and Git Conventions (15). User approvals covered Phase 1,
+the T005 credential copy, T006 installation, and T007 timer observation. T008
+remains a separate explicit operator decision; NPBackup and retention are
+unchanged.

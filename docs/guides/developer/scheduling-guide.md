@@ -4,7 +4,7 @@ id: "dev-guide-scheduling"
 type: [ guide ]
 status: [ approved ]
 owner: "Operations Team"
-last_reviewed: "19-07-2026"
+last_reviewed: "20-07-2026"
 tags: [guide, developer, operator, scheduling]
 links:
   tooling: []
@@ -117,6 +117,13 @@ Before installation:
 For systemd assets, `EnvironmentFile=` references the protected file. The cron
 wrapper sources the same file with fail-fast shell settings. A missing environment file causes the
 backup to fail instead of silently switching credentials.
+
+The generated timer does not declare a `Requires=` dependency on its service.
+Systemd starts the same-named service when the timer elapses; coupling the
+service to timer activation would also start a backup whenever the timer unit is
+started or restarted. Because generated timers use `Persistent=true`, starting
+one after a missed calendar event can legitimately trigger one catch-up run.
+Check the service state after installing or changing a timer.
 
 ## Staged NPBackup replacement
 
