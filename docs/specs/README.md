@@ -3,7 +3,7 @@ title: "Active Specification Packages"
 doc_type: reference
 status: active
 owner: "Auriora Team"
-last_reviewed: 2026-07-18
+last_reviewed: 2026-07-20
 ---
 
 # Active Specification Packages
@@ -19,17 +19,19 @@ accepted content has been promoted and the package is closed.
   — active package for restoring trustworthy CI, stabilizing release signals,
   validating `v0.9.1` artifacts, rehearsing release operations, and promoting
   durable release guidance.
-- [`008-npbackup-migration-parity`](./008-npbackup-migration-parity/requirements.md)
-  — active package for preserving the existing root-owned NPBackup job's
-  backup semantics before a staged TimeLocker installation and cutover.
+- [`009-system-cli-tray-retention`](./009-system-cli-tray-retention/requirements.md)
+  — requirements-stage package for a stable system command, contextual
+  elevation, an independent tray/backend boundary, durable run visibility, and
+  automatic retention.
 
 ## Active-Package Sequencing
 
-Spec 007 owns release readiness and remains at the separate human release and
-closure gate. Spec 008 depends on Spec 007 implementation commit `433c0aa` and
-owns only NPBackup migration parity and operator staging. The packages may run
-concurrently because Spec 008 does not approve a release, publication, service
-installation, or NPBackup cutover. Closed package identity and recovery commits
+Spec 007 owns release readiness. All of its implementation tasks are complete;
+its remaining work is evidence-quality reconciliation and lifecycle closure.
+Spec 009 may author requirements and design concurrently because it does not
+alter Spec 007 evidence or authorize a release. Spec 009 implementation must
+preserve Spec 007's release gates and receive separate approval after its
+design and tasks are complete. Closed package identity and recovery commits
 remain recorded in `docs/history/` rather than kept in this active path.
 
 ## When a Spec Is Needed
