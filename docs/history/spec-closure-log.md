@@ -3,7 +3,7 @@ title: Spec closure log
 doc_type: history
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-18
+last_reviewed: 2026-07-20
 ---
 
 # Spec Closure Log
@@ -17,26 +17,23 @@ final spec commit preserves the complete package.
 
 ### 2026-07-20 - 008-npbackup-migration-parity
 
-- **Spec:** `docs/specs/008-npbackup-migration-parity/`
+- **Spec:** removed; recover from Git
 - **Title:** NPBackup migration parity requirements
 - **Final spec commit:** `5830194`
-- **Closure cleanup commit:** `pending-cleanup-commit`
+- **Closure cleanup commit:** `1bfea08`
 - **Closure action:** removed
 - **Durable docs updated:**
   - `docs/guides/user/recovery-operations-guide.md`
   - `docs/guides/developer/scheduling-guide.md`
-  - `spec package`
-  - `backup operations guide`
-  - `scheduling guide`
-  - `both guides`
-  - `installation guidance`
-  - `installation and recovery guides`
-  - `backup and scheduling guides`
-  - `T005-T008 or explicit follow-up spec`
-- **Verification summary:** Closure validation not yet executed.
+- **Verification summary:** Spec lint reported zero diagnostics; closure check
+  was ready; closure risk was low with all 37 evidence records concrete; the
+  cutover left the TimeLocker timer active and preserved a root-only NPBackup
+  crontab rollback artifact.
 - **Residual risks:**
-  - none
-- **Follow-up:** none
+  - Automatic retention is not configured; keep 5 daily, 4 weekly, 12 monthly,
+    and 3 yearly snapshots without prune remains a manual operation.
+- **Follow-up:** Define system CLI elevation, independent tray/backend control,
+  run visibility, and automatic retention in a separate active specification.
 ### 2026-07-18 - 001-cli-consolidation-stabilization
 
 - **Spec:** removed; recover from Git
