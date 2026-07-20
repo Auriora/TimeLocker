@@ -15,6 +15,28 @@ final spec commit preserves the complete package.
 
 ## Entries
 
+### 2026-07-20 - 008-npbackup-migration-parity
+
+- **Spec:** `docs/specs/008-npbackup-migration-parity/`
+- **Title:** NPBackup migration parity requirements
+- **Final spec commit:** `5830194`
+- **Closure cleanup commit:** `pending-cleanup-commit`
+- **Closure action:** removed
+- **Durable docs updated:**
+  - `docs/guides/user/recovery-operations-guide.md`
+  - `docs/guides/developer/scheduling-guide.md`
+  - `spec package`
+  - `backup operations guide`
+  - `scheduling guide`
+  - `both guides`
+  - `installation guidance`
+  - `installation and recovery guides`
+  - `backup and scheduling guides`
+  - `T005-T008 or explicit follow-up spec`
+- **Verification summary:** Closure validation not yet executed.
+- **Residual risks:**
+  - none
+- **Follow-up:** none
 ### 2026-07-18 - 001-cli-consolidation-stabilization
 
 - **Spec:** removed; recover from Git
