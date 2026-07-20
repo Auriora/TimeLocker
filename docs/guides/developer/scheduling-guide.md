@@ -141,6 +141,13 @@ Keep the NPBackup job enabled while TimeLocker is staged:
 Do not extract masked NPBackup secrets, install a privileged timer, or disable
 NPBackup as part of schedule generation.
 
+TimeLocker backup schedules currently run `tl backup create` only. They do not
+automatically run `tl repos forget` or `tl repos prune`. After a cutover,
+continue the reviewed manual retention procedure until a separate maintenance
+schedule has been designed, dry-run, and explicitly approved. Do not append
+retention or prune to the backup service without failure isolation and rollback
+handling; backup success must not imply approval for snapshot deletion.
+
 ## Validation and troubleshooting
 
 ```bash

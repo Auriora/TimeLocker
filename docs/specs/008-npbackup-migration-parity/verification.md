@@ -21,7 +21,7 @@ last_reviewed: 2026-07-20
 | Durable guidance promoted | passed | Both current guides pass bounded Markdown checks with zero findings. |
 | Production attachment and restore | passed | Root-owned release `6896c8d` listed snapshot `8958659e` and restored `/etc/hostname` selectively with a byte-for-byte match. |
 | Scheduled production observation | passed | Controlled snapshot `f7417b35`, the normal 03:30 snapshot `ffafd15e`, and a subsequent byte-matched bounded restore passed. |
-| NPBackup cutover | blocked | T008 remains a separate explicit operator decision; NPBackup is unchanged. |
+| NPBackup cutover | passed | T008 option 2 disabled the single NPBackup cron entry after saving a root-only rollback copy; the TimeLocker timer remains active. |
 
 ## Baseline Evidence
 
@@ -38,7 +38,7 @@ last_reviewed: 2026-07-20
 |-------------|-----------------------------|----------|---------------|
 | Requirement 1 | AC1-AC5 | T002 focused tests, normal-profile coverage, and live production-equivalent Restic command evidence | none |
 | Requirement 2 | AC1-AC4 | T003 stored schedule and renderer tests | none for Phase 1 |
-| Requirement 3 | AC1-AC4 | Protected credential source, committed root-owned release, repository listing, non-overlapping scheduled runs, bounded restore, and unchanged NPBackup fallback | Cutover remains a separate T008 decision. |
+| Requirement 3 | AC1-AC4 | Protected credential source, committed root-owned release, repository listing, non-overlapping scheduled runs, bounded restore, and guarded option-2 cutover | Automatic retention is separate follow-on work, not a migration acceptance criterion. |
 
 ## Evidence Log
 
@@ -72,6 +72,7 @@ last_reviewed: 2026-07-20
 | 2026-07-20 | T007 normal scheduled backup | pass | The enabled 03:30 timer completed snapshot `ffafd15e6948ba278101463f85ac192176e83f8e423d109b5c06254859197de9` with 659,639 files and 16,771,834 bytes. |
 | 2026-07-20 | T007 post-backup bounded restore | pass | `tl restore files` restored `/etc/hostname` from `f7417b35...` into root-only verification storage; the restored file matched the live file byte-for-byte. |
 | 2026-07-20 | T007 timer dependency repair | pass | The invalid generated `Requires=...service` dependency was removed on-host and from the renderer. One persistent catch-up run completed safely as `a57f037d...`; 43 focused schedule/integration tests passed. The service is inactive and the enabled timer is waiting for 2026-07-21 03:30. |
+| 2026-07-20 | T008 option-2 cutover | pass | The guarded root cutover verified the TimeLocker timer active, backed up root's crontab to `/var/lib/timelocker/migration-backup/root-crontab-before-cutover-20260720T054308Z`, and disabled the single active NPBackup cron entry. The next TimeLocker run remains 2026-07-21 03:30. No retention or prune operation ran. |
 
 ## Residual Risks
 
@@ -81,11 +82,14 @@ last_reviewed: 2026-07-20
 - A manual restart of a persistent timer after a missed calendar event can
   legitimately trigger one catch-up run; operators must observe service state
   when changing installed timer configuration.
-- Retention enforcement can delete snapshots and remains simulation-only until
-  separately reviewed.
+- Retention is not part of the backup timer and remains a manual operation until
+  a separate destructive-operation schedule is designed and reviewed. The
+  operator's current policy is keep 5 daily, 4 weekly, 12 monthly, and 3 yearly
+  snapshots without prune; TimeLocker must preserve those explicit values.
 - The first installed T006 artifact is retained for rollback; the accepted
   `current` release is the repaired `daaad53` artifact.
-- NPBackup cutover remains an external mutation requiring separate approval.
+- Rollback requires restoring the saved root crontab if the TimeLocker schedule
+  is withdrawn.
 
 ## Readiness Decision
 
@@ -95,5 +99,7 @@ last_reviewed: 2026-07-20
   bounded restore from the committed root-owned artifact.
 - **Ready for scheduled TimeLocker backups:** yes; T007 passed controlled and
   normal timer runs plus a subsequent bounded restore.
-- **Ready for NPBackup cutover:** no; T008 and explicit operator approval remain
-  pending.
+- **NPBackup cutover complete:** yes; T008 option 2 was explicitly approved and
+  executed with a root-only rollback artifact.
+- **Automatic retention ready:** no; the backup timer does not run forget or
+  prune, so the existing manual cleanup remains required.

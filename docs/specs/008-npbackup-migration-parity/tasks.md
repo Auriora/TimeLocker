@@ -109,8 +109,10 @@ last_reviewed: 2026-07-20
     tests and the full normal profile passed: 2,798 passed, one skipped, 57
     deselected, and 52.55% coverage. The replacement wheel SHA-256 is
     `c6998f9af68068185d80ad6261086fdc0dd8092cc38d97565a529bce1ab421e5`.
-  - Status: Complete: production-equivalent scheduled backup and subsequent bounded restore passed; NPBackup remains the active fallback pending separate cutover approval.
-- [ ] T008 Checkpoint - Separate NPBackup cutover decision.
+  - Status: Complete: production-equivalent scheduled backup and subsequent
+    bounded restore passed. T008 subsequently completed the separately approved
+    option-2 cutover.
+- [x] T008 Checkpoint - Separate NPBackup cutover decision.
   - Depends on: T007
   - Requirement: Requirement 3
   - Acceptance: Evidence supports a deliberate decision to retain, disable, or
@@ -118,11 +120,13 @@ last_reviewed: 2026-07-20
   - Decision owner: operator
   - Evidence mode: manual
 
+  - Evidence: On 2026-07-20 the operator selected cutover option 2. The guarded root cutover verified the TimeLocker timer enabled and active, refused overlap with a running service, saved root's prior crontab at /var/lib/timelocker/migration-backup/root-crontab-before-cutover-20260720T054308Z, and disabled the single active NPBackup cron entry. The TimeLocker timer remained active with next run Tue 2026-07-21 03:30:00 IST. Retention automation is not configured; the existing manual forget process remains required.
+  - Status: Complete: TimeLocker retained as the scheduled backup and the NPBackup cron entry disabled with an explicit rollback artifact; retention remains manual.
 ## Rules Consulted
 
 Coding Standards (100), General Preferences (50), Operational Best Practices
 (40), Planning Protocol (30), Testing Conventions (25), Documentation
 Conventions (20), and Git Conventions (15). User approvals covered Phase 1,
-the T005 credential copy, T006 installation, and T007 timer observation. T008
-remains a separate explicit operator decision; NPBackup and retention are
-unchanged.
+the T005 credential copy, T006 installation, T007 timer observation, and the
+T008 option-2 cutover. The NPBackup cron entry is disabled with a root-only
+rollback artifact. Retention is unchanged and remains manual.
