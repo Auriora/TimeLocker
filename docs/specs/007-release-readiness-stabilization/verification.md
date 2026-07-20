@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: verification
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-19
+last_reviewed: 2026-07-20
 ---
 
 # Verification
@@ -24,7 +24,7 @@ requires separate explicit approval.
 | Substantive requirements and design review | yes | passed | Review on 2026-07-18 produced TLR-001 through TLR-006; all six findings were reconciled into the package before implementation. |
 | Task evidence complete | yes | passed | T001-T019 have implementation and validation evidence. |
 | Normal and dependency-owning test profiles pass | yes | passed | GitHub Actions run `29676747955` passed normal, MinIO, coverage quality-gate, and notification jobs. |
-| Stress implementation and disposition recorded | yes | passed | T004 implementation and repeat evidence are recorded in GitHub issue #68. |
+| Stress implementation and disposition recorded | yes | passed | T004 implementation and repeat evidence are recorded in closed GitHub issue #68. |
 | Artifacts and six-combination clean installs validate | yes | passed | Run `29679083454` passed one build and all 12 artifact/OS/Python jobs. |
 | Release interface and rehearsal prove no publication side effect | yes | passed | T009-T010: reusable read-only validation, local rehearsal, three negative paths, and unchanged external state. |
 | Durable documentation and communications promoted | yes | passed | Phase 4 targets and Phase 5 installation, recovery, and scheduling guidance are complete. |
@@ -207,47 +207,66 @@ release artifacts must be linked here before release readiness can be approved.
 | Version contents and release communications | `CHANGELOG.md`; GitHub release body derived from its `v0.9.1` section | complete | T012 preview passed. |
 | Front-door support and version claims | `README.md` | complete | T011 aligned version and Python support. |
 | PyPI and `1.0.0` deferral | GitHub issue #22, milestone description, version process | complete | External and durable boundaries agree. |
-| Follow-up work | GitHub issues outside milestone or an approved successor spec | complete | Existing issue #68 retains stress history; no new Phase 4 finding requires routing. |
+| Follow-up work | GitHub issues outside milestone or an approved successor spec | complete | Closed issue #68 retains stress history; Spec 009 owns the newly approved system-operations UX requirements. |
 | Backup/recovery runtime contract | `docs/guides/user/recovery-operations-guide.md` | complete | T015-T016 machine acceptance and T019 review passed. |
 | Linux tray prerequisites | `docs/guides/user/installation.md` | complete | T017 Mint and headless validation passed. |
 | Schedule and staged NPBackup cutover boundary | `docs/guides/developer/scheduling-guide.md` | complete | T018 staging and T019 handoff review passed. |
 
 ### Spec Cleanup Decision
 
-- **Cleanup action:** keep active
-- **Reason:** Phase 5 is complete, but release approval, operator migration, and
-  lifecycle closure are separately human-controlled decisions.
+- **Cleanup action:** remove after the final spec commit
+- **Reason:** All 53 task records are complete, durable behavior is promoted,
+  issue #68 is closed, and the operator has now approved lifecycle closure.
 - **Final spec commit:** pending
 - **Closure log path:** `docs/history/spec-closure-log.md`
 - **Closure log entry updated:** no
 - **Closure cleanup commit:** pending
-- **Active indexes updated:** yes for package creation
+- **Active indexes updated:** pending closure cleanup
 - **Durable docs linked back to evidence where useful:** yes
-- **Residual spec-only content:** release decision and machine-pilot evidence
+- **Residual spec-only content:** none; release publication remains a separate
+  human action governed by the durable version-management process.
 
 ## Ship Or Closure Risk
 
-- **Risk level:** medium
+- **Risk level:** low for closure; release publication remains separately gated
 - **Breaking change:** no
 - **Blast radius checked:** complete for the approved Phase 5 implementation boundary
 - **Rollback path:** corrected and validated in `docs/processes/version-management.md`
-- **Requires human review:** yes
+- **Requires human review:** satisfied by the 2026-07-20 closure request
 - **Release notes needed:** yes, in `CHANGELOG.md`
 - **Follow-up issue or spec needed:** issue #68 already tracks stress evidence
 
 ### Risk Rationale
 
-Normal, provisioned MinIO, extended, artifact, cross-platform install, rehearsal,
-documentation, expert-review, and Linux Mint machine-acceptance gates pass.
-Remaining risk is operational: the actual NPBackup job has not been reconciled,
-the privileged TimeLocker schedule has not been installed or observed, and no
-publication or cutover authority has been granted.
+Normal, provisioned MinIO, extended, artifact, cross-platform install,
+rehearsal, documentation, expert-review, and Linux Mint machine-acceptance
+gates pass. Closed Spec 008 subsequently reconciled and cut over NPBackup.
+TimeLocker remains unpublished; closing this implementation package does not
+grant tag, GitHub release, PyPI, or other publication authority.
+
+### Accepted Evidence-Quality Residual
+
+The lifecycle evidence classifier reports 99 records: 73 concrete and 26
+advisory weak, vague, or `not_run` classifications. These advisories are
+accepted for closure because they describe intermediate negative controls,
+no-mutation observations, or subordinate task summaries whose terminal parent
+tasks and quality gates contain concrete commits, workflow-run IDs, snapshot
+IDs, hashes, test counts, or coverage. The five `not_run` classifications do
+not represent missing final validation; for example, the final normal profile
+record itself reports 2,787 passed, one skipped, 57 deselected, and 52.38%
+coverage. Chronological failed and unchanged-state rows are retained rather
+than rewritten as successes.
+
+The optional canonical-context advisory is also accepted: requirements and
+promotion already cite the durable charter, front door, installation guide,
+release process, changelog, and history authorities directly, and no ambiguity
+remains that would justify adding another copied context artifact at closure.
 
 ## Readiness Decision
 
-- **Ready for promotion:** no, Phase 5 durable guidance is pending
+- **Ready for promotion:** yes; all named durable targets are current
 - **Ready for release:** no
-- **Ready for closure:** no
+- **Ready for closure:** yes; release remains a separate human decision
 
 ## Related Artifacts
 

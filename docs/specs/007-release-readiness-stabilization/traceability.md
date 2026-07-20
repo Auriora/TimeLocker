@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: traceability
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-19
+last_reviewed: 2026-07-20
 ---
 
 # Traceability Matrix
@@ -35,17 +35,17 @@ last_reviewed: 2026-07-19
 
 ## Requirement To Delivery Matrix
 
-| Requirement | Acceptance Criteria | Design Sections | Tasks | Verification | Durable Targets |
-|-------------|---------------------|-----------------|-------|--------------|-----------------|
-| Requirement 1 | AC1-AC6 | CI Profile Logic; Error Handling | T001-T003 | normal and MinIO profiles, coverage, complete collection partition | workflow, `docs/4-testing/README.md` |
-| Requirement 2 | AC1-AC4 | Components; Validation Strategy | T004-T005 | stress tests, issue #68 evidence, extended profile | tests and testing guide |
-| Requirement 3 | AC1-AC5 | Version and Artifact Guard | T006, T008 | side-effect proof, build, metadata, hashes, version guard | metadata, version process, changelog |
-| Requirement 4 | AC1-AC5 | Clean-Install Matrix | T007-T008, T011 | six-combination artifact install matrix and support-claim review | metadata, installation guide |
-| Requirement 5 | AC1-AC6 | Release Rehearsal; Operational Considerations | T009-T013 | interface tests, rehearsal, docs, communications, expert review | version process, process index, changelog, README if needed |
-| Requirement 6 | AC1-AC4 | Repository and Credential Boundary; Error Handling | T014-T015, T019 | focused tests and isolated init/dry-run/backup | backup and recovery guidance |
-| Requirement 7 | AC1-AC4 | Snapshot and Restore Boundary; Error Handling | T014, T016, T019 | list/latest/exact restore and digest proof | backup and recovery guidance |
-| Requirement 8 | AC1-AC3 | Components and Changes; Error Handling | T014, T017, T019 | Ayatana/legacy/headless tests and Mint smoke | installation/troubleshooting guidance |
-| Requirement 9 | AC1-AC4 | Schedule Rendering Boundary; Migration and Compatibility | T014, T018-T019 | parser round trip, redacted asset review, cutover gate review | scheduling/operator guidance |
+| Requirement | Acceptance Criteria | Design Sections | Tasks | Verification | Durable Targets | Coverage State | Residual Destination |
+|-------------|---------------------|-----------------|-------|--------------|-----------------|----------------|----------------------|
+| Requirement 1 | AC1-AC6 | CI Profile Logic; Error Handling | T001-T003 | normal and MinIO profiles, coverage, complete collection partition | workflow, `docs/4-testing/README.md` | complete | none |
+| Requirement 2 | AC1-AC4 | Components; Validation Strategy | T004-T005 | stress tests, issue #68 evidence, extended profile | tests and testing guide | complete | none |
+| Requirement 3 | AC1-AC5 | Version and Artifact Guard | T006, T008 | side-effect proof, build, metadata, hashes, version guard | metadata, version process, changelog | complete | none |
+| Requirement 4 | AC1-AC5 | Clean-Install Matrix | T007-T008, T011 | six-combination artifact install matrix and support-claim review | metadata, installation guide | complete | none |
+| Requirement 5 | AC1-AC6 | Release Rehearsal; Operational Considerations | T009-T013 | interface tests, rehearsal, docs, communications, expert review | version process, process index, changelog, README if needed | complete | none |
+| Requirement 6 | AC1-AC4 | Repository and Credential Boundary; Error Handling | T014-T015, T019 | focused tests and isolated init/dry-run/backup | backup and recovery guidance | complete | none |
+| Requirement 7 | AC1-AC4 | Snapshot and Restore Boundary; Error Handling | T014, T016, T019 | list/latest/exact restore and digest proof | backup and recovery guidance | complete | none |
+| Requirement 8 | AC1-AC3 | Components and Changes; Error Handling | T014, T017, T019 | Ayatana/legacy/headless tests and Mint smoke | installation/troubleshooting guidance | complete | none |
+| Requirement 9 | AC1-AC4 | Schedule Rendering Boundary; Migration and Compatibility | T014, T018-T019 | parser round trip, redacted asset review, cutover gate review | scheduling/operator guidance | complete | none |
 
 ## Correctness Property Coverage
 
@@ -80,8 +80,9 @@ last_reviewed: 2026-07-19
 
 There are no unresolved decisions blocking isolated implementation. Repository
 credential selection, sudo installation for protected sources, discovery of the
-actual NPBackup scheduler, observed scheduled runs, and cutover are explicit
-operator gates that block migration, not T015-T018 implementation.
+  actual NPBackup scheduler, observed scheduled runs, and cutover were explicit
+  operator gates outside T015-T018 implementation and were completed later by
+  closed Spec 008.
 
 ## Maintenance Notes
 
@@ -90,5 +91,5 @@ operator gates that block migration, not T015-T018 implementation.
 - Requirements and design, including the changelog-derived communications
   decision, were re-reviewed against this matrix after the TLR-001 through
   TLR-006 remediation; all acceptance mappings are explicit.
-- Spec 007 owns stress implementation and acceptance; issue #68 is the linked
-  assignment, state, and chronological-evidence record.
+- Spec 007 owns stress implementation and acceptance; issue #68 preserves the
+  chronological evidence and was closed on 2026-07-20.

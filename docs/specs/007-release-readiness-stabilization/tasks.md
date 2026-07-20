@@ -123,36 +123,32 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
     tolerance are implemented; the repeatable extended profile passes or a
     release-blocking disposition is recorded.
   - Evidence mode: implementation
-  - Destination: https://github.com/Auriora/TimeLocker/issues/68#issuecomment-5014886293
   - Evidence: Implemented `PerformanceBaseline`, split deterministic correctness from opt-in timing, replaced the 60-second iteration-count gate with a warmed 12-operation median check using a 1.0s baseline and 2.0x tolerance, and documented reproduction. Three targeted runs passed at 0.160s/0.176s/0.173s; the extended profile passed 53 tests in 45.60s; the normal profile passed 2,765 tests with one skip and 52.14% coverage. Evidence: https://github.com/Auriora/TimeLocker/issues/68#issuecomment-5014886293.
-  - Status: Complete on 2026-07-19; immutable post-change hosted evidence follows the explicitly requested commit.
+  - Status: Complete on 2026-07-19; issue #68 was closed with final evidence
+    on 2026-07-20.
   - [x] T004.1 Capture representative host timings and environment context in issue #68.
     - Evidence: Issue #68 records Linux/Python/CPU/load context, the
       209-iteration legacy result, historical 57/70-iteration observations,
       and the calibrated strategy.
     - Status: Complete on 2026-07-19.
     - Evidence mode: validation
-    - Destination: https://github.com/Auriora/TimeLocker/issues/68#issuecomment-5014886293
   - [x] T004.2 Separate deterministic correctness assertions from environment-sensitive timing assertions.
     - Evidence: `test_repeated_operations_preserve_selection_correctness` owns
       deterministic stability assertions; `test_sustained_selection_performance`
       owns only the opt-in timing signal.
     - Status: Complete on 2026-07-19.
     - Evidence mode: validation
-    - Destination: https://github.com/Auriora/TimeLocker/issues/68#issuecomment-5014886293
   - [x] T004.3 Implement the evidence-backed baseline and tolerance strategy.
     - Evidence: `PerformanceBaseline` validates a named 1.0-second reference
       with a 2.0x tolerance; the stress test warms caches, measures 12 fixed
       operations with a monotonic clock, and evaluates the median.
     - Status: Complete on 2026-07-19.
     - Evidence mode: validation
-    - Destination: https://github.com/Auriora/TimeLocker/issues/68#issuecomment-5014886293
   - [x] T004.4 Run a repeatable extended profile and link results from issue #68.
     - Evidence: Three targeted runs passed at 0.160s, 0.176s, and 0.173s
       median; the complete extended profile passed 53 tests in 45.60s.
     - Status: Complete on 2026-07-19.
     - Evidence mode: validation
-    - Destination: https://github.com/Auriora/TimeLocker/issues/68#issuecomment-5014886293
 - [x] T005 Checkpoint - Release validation prerequisites.
   - Depends on: T004
   - Requirements: Requirement 1, Requirement 2
@@ -167,7 +163,6 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
     contains environment, calibration, and repeat evidence.
   - Status: Complete on 2026-07-19; Phase 2 checkpoint passed and T006 is next.
   - Evidence mode: validation
-  - Destination: https://github.com/Auriora/TimeLocker/issues/68#issuecomment-5014886293
 
 ## Phase 3: Build and Install v0.9.1
 
@@ -255,7 +250,10 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
   - Evidence: Added reusable `.github/workflows/release-validation.yml`, extracted release-intent, release-note, and workflow-boundary validators, and refactored `.github/workflows/release.yml` so validation is read-only and only the dependent publish job has `contents: write`. Focused release-contract tests: 9 passed. `actionlint` passed both workflows. Boundary validator passed and negative permission/mismatch/missing-artifact paths propagate failure.
   - Status: Complete on 2026-07-19; no publication action executed.
   - [x] T009.1 Identify and isolate every pre-publication release step.
-  - Evidence: Separated checkout, prerequisites, intent, tests, build, artifact inspection, both smoke installs, notes derivation, and uploads into the reusable validation workflow; GitHub release creation remains outside it.
+  - Evidence: `.github/workflows/release-validation.yml` owns checkout,
+    prerequisites, intent, tests, build, artifact inspection, both smoke
+    installs, notes derivation, and uploads; `.github/workflows/release.yml`
+    retains GitHub release creation in its dependent publish job.
   - Status: Complete on 2026-07-19.
   - Evidence mode: validation
   - [x] T009.2 Implement a manual or local validation entry point with read-only permissions.
@@ -264,7 +262,9 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
   - Evidence mode: validation
   - [x] T009.3 Add regression coverage for the publication boundary and failure propagation.
 
-  - Evidence: Added focused positive and negative tests for intent, derivation, missing artifacts, rehearsal permission, and the isolated publish job.
+  - Evidence: Nine focused release-contract tests passed for intent,
+    derivation, missing artifacts, rehearsal permission, and the isolated
+    publish job; `actionlint` also passed both release workflows.
   - Status: Complete on 2026-07-19.
   - Evidence mode: validation
 - [x] T010 Execute and record a non-publishing release rehearsal.
@@ -285,7 +285,11 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
   - Status: Complete on 2026-07-19.
   - Evidence mode: validation
   - [x] T010.2 Exercise successful build, smoke, artifact, and release-note inputs.
-  - Evidence: Built and validated both distributions, hashes, both clean-install smokes, upload configuration, and the changelog-derived release-body input.
+  - Evidence: Built and validated wheel SHA-256
+    `a3d5eb9f423cbb38a829387f286c261c93e6bedd2a9cc1413069981d6a268bc5`
+    and sdist SHA-256
+    `75c5fc42a3a2909094d9d1ed52466ecdd05266160f36ae1eb04cb23e9236b843`;
+    both clean-install smokes passed through `timelocker` and `tl`.
   - Status: Complete on 2026-07-19.
   - Evidence mode: validation
   - [x] T010.3 Exercise version mismatch, missing prerequisite, and permission failure paths.
@@ -312,11 +316,14 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
   - Evidence: Corrected `docs/processes/version-management.md` in place with preparation, rehearsal, approval, publication, verification, failure, rollback, and PyPI/1.0 deferral boundaries; indexed it from `docs/processes/README.md`; aligned README and installation claims to Python 3.12-3.13, version 0.9.1 prepared/not published, and the normal test selector. Agent Workbench checked all five durable documents with zero Markdown or link findings.
   - Status: Complete on 2026-07-19; durable procedure and front-door claims are current.
   - [x] T011.1 Correct `version-management.md` in place; do not create a duplicate release procedure.
-  - Evidence: Rewrote the existing version-management process in place with preparation, authorization, validation, recovery, and deferral boundaries.
+  - Evidence: `docs/processes/version-management.md` now contains preparation,
+    authorization, validation, recovery, and PyPI/1.0 deferral boundaries.
   - Status: Complete on 2026-07-19.
   - Evidence mode: validation
   - [x] T011.2 Link the procedure from `docs/processes/README.md`.
-  - Evidence: Linked the corrected release procedure from the current processes index.
+  - Evidence: `docs/processes/README.md` links
+    `./version-management.md`; the bounded Markdown/link check reported zero
+    findings.
   - Status: Complete on 2026-07-19.
   - Evidence mode: validation
   - [x] T011.3 Update installation and front-door claims from T007 evidence.
@@ -338,7 +345,8 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
   - Evidence: Added canonical `CHANGELOG.md` section `[0.9.1] - Prepared 2026-07-19` using verified CI, stress, artifact, cross-platform, encoding, version, and publication-boundary evidence plus four explicit limitations. `scripts/extract_release_notes.py` derived the complete GitHub release-body preview from that exact section; focused extraction tests passed.
   - Status: Complete on 2026-07-19; communications are prepared but unpublished.
   - [x] T012.1 Draft the changelog section from verified changes and limitations.
-  - Evidence: Drafted the canonical 0.9.1 changelog section from verified changes and explicit limitations.
+  - Evidence: `CHANGELOG.md` contains `[0.9.1] - Prepared 2026-07-19` with
+    verified changes and four explicit limitations.
   - Status: Complete on 2026-07-19.
   - Evidence mode: validation
   - [x] T012.2 Map each public claim to verification, commits, specs, or issues.
@@ -347,7 +355,9 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008
   - Evidence mode: validation
   - [x] T012.3 Preview the GitHub release body without creating a release.
 
-  - Evidence: Derived and inspected the complete GitHub release-body preview without creating a release.
+  - Evidence: `scripts/extract_release_notes.py` derived the complete 0.9.1
+    GitHub release-body preview; focused extraction tests passed and GitHub
+    releases remained zero.
   - Status: Complete on 2026-07-19.
   - Evidence mode: validation
 - [x] T013 Checkpoint - Human release decision and spec closure readiness.
