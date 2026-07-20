@@ -15,6 +15,39 @@ final spec commit preserves the complete package.
 
 ## Entries
 
+### 2026-07-20 - 007-release-readiness-stabilization
+
+- **Spec:** removed; recover from Git
+- **Title:** Release readiness stabilization requirements
+- **Final spec commit:** `7fd11f9aa1cbc670d5e8b429aede4a7c01e185a4`
+- **Closure cleanup commit:** `pending-cleanup-commit`
+- **Closure action:** removed
+- **Durable docs updated:**
+  - `README.md`
+  - `CHANGELOG.md`
+  - `.github/workflows/test-suite.yml`
+  - `.github/workflows/artifact-smoke.yml`
+  - `.github/workflows/release-validation.yml`
+  - `.github/workflows/release.yml`
+  - `docs/4-testing/README.md`
+  - `docs/guides/user/installation.md`
+  - `docs/guides/user/recovery-operations-guide.md`
+  - `docs/guides/developer/scheduling-guide.md`
+  - `docs/processes/version-management.md`
+  - `docs/processes/README.md`
+- **Verification summary:** All nine requirements and 53 task records are
+  complete. Lifecycle closure reported no blockers or open decisions; the
+  final normal profile passed 2,787 tests with one skip and 52.38% coverage,
+  and Spec 008 later completed the NPBackup cutover gates.
+- **Residual risks:**
+  - Release publication remains a separate human decision. Intermediate
+    negative-control evidence retains accepted classifier advisories, while
+    terminal validation records contain concrete run IDs, hashes, counts, and
+    coverage.
+- **Follow-up:** Spec 009 owns system-path elevation, independent tray/backend
+  control, durable run visibility, and automatic retention. It remains at the
+  requirements stage pending approval.
+
 ### 2026-07-20 - 008-npbackup-migration-parity
 
 - **Spec:** removed; recover from Git

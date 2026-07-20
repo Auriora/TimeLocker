@@ -15,10 +15,6 @@ accepted content has been promoted and the package is closed.
 
 ## Current Packages
 
-- [`007-release-readiness-stabilization`](./007-release-readiness-stabilization/requirements.md)
-  — active package for restoring trustworthy CI, stabilizing release signals,
-  validating `v0.9.1` artifacts, rehearsing release operations, and promoting
-  durable release guidance.
 - [`009-system-cli-tray-retention`](./009-system-cli-tray-retention/requirements.md)
   — requirements-stage package for a stable system command, contextual
   elevation, an independent tray/backend boundary, durable run visibility, and
@@ -26,12 +22,10 @@ accepted content has been promoted and the package is closed.
 
 ## Active-Package Sequencing
 
-Spec 007 owns release readiness. All of its implementation tasks are complete;
-its remaining work is evidence-quality reconciliation and lifecycle closure.
-Spec 009 may author requirements and design concurrently because it does not
-alter Spec 007 evidence or authorize a release. Spec 009 implementation must
-preserve Spec 007's release gates and receive separate approval after its
-design and tasks are complete. Closed package identity and recovery commits
+Spec 007 is closed; its release-readiness evidence and recovery commits are
+recorded in `docs/history/`. Spec 009 is the only active package and remains at
+the requirements stage. Its requirements require approval before design and
+implementation, and its work does not authorize a release. Closed packages
 remain recorded in `docs/history/` rather than kept in this active path.
 
 ## When a Spec Is Needed
