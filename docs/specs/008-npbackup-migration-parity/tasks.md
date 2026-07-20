@@ -120,7 +120,7 @@ last_reviewed: 2026-07-20
   - Decision owner: operator
   - Evidence mode: manual
 
-  - Evidence: On 2026-07-20 the operator selected cutover option 2. The guarded root cutover verified the TimeLocker timer enabled and active, refused overlap with a running service, saved root's prior crontab at /var/lib/timelocker/migration-backup/root-crontab-before-cutover-20260720T054308Z, and disabled the single active NPBackup cron entry. The TimeLocker timer remained active with next run Tue 2026-07-21 03:30:00 IST. Retention automation is not configured; the existing manual forget process remains required.
+  - Evidence: On 2026-07-20 the operator selected option 2 and ran `sudo bash /tmp/timelocker-cutover-option-2.sh`; it exited 0. The command reported `NPBackup cron entry disabled`, saved `/var/lib/timelocker/migration-backup/root-crontab-before-cutover-20260720T054308Z`, reported the TimeLocker timer `active`, and reported its next run as `Tue 2026-07-21 03:30:00 IST`. The guarded script had first verified the timer enabled/active, the backup service inactive with a successful prior result, and exactly one active NPBackup cron entry. Retention automation is not configured; the existing manual forget process remains required.
   - Status: Complete: TimeLocker retained as the scheduled backup and the NPBackup cron entry disabled with an explicit rollback artifact; retention remains manual.
 ## Rules Consulted
 
