@@ -35,8 +35,13 @@ separately scheduled retention with visible outcomes.
   session.
 - Let the tray observe current work, last backup, last retention run, and next
   scheduled runs, and safely request an on-demand backup.
+- Restrict system-backup status and control to members of a root-controlled
+  operator group whose identity is verified by the operating system.
 - Automate the accepted production retention policy independently of backup:
-  keep 5 daily, 4 weekly, 12 monthly, and 3 yearly snapshots without prune.
+  keep 5 daily, 4 weekly, 12 monthly, and 3 yearly snapshots, grouped by host
+  and paths, without prune.
+- Keep shared tray, control/status, and run-state contracts platform-neutral,
+  with replaceable Linux and Windows adapters.
 - Preserve safe rollback, headless operation, secret isolation, and failure
   independence between backup, retention, CLI, and tray processes.
 
@@ -56,6 +61,10 @@ separately scheduled retention with visible outcomes.
 - Implementing user-scoped management of the user's accessible subset of the
   system backup. That capability belongs in the product backlog and must later
   receive its own access-control and restore-boundary specification.
+- Completing every Linux desktop and Windows adapter in the initial delivery.
+  The initial implementation may validate one Linux environment first, but it
+  must not embed Linux, GTK, systemd, Unix-socket, or filesystem-layout
+  assumptions in shared contracts and domain services.
 
 ## Glossary
 
@@ -65,7 +74,9 @@ separately scheduled retention with visible outcomes.
 | System backend | The privileged, headless execution boundary that owns machine-level configuration and scheduled operations. It does not imply a network service. |
 | Tray client | An unprivileged process running in a user's graphical session and communicating through the approved local control/status boundary. |
 | Elevation broker | The narrow operating-system authorization path used to request a privileged operation without making the whole desktop or CLI session privileged. |
+| System operator group | A root-controlled operating-system group whose members may inspect system-backup status and request allowlisted system-backup actions. |
 | Run record | Durable, secret-free status for one backup or retention attempt, including type, target, timestamps, state, result, and safe error summary. |
+| Access domain | The files, metadata, snapshots, and restore destinations a user is authorized to inspect or modify; future user partitions may never expand this boundary. |
 
 ## Durable Source Baseline
 
@@ -104,10 +115,10 @@ separately scheduled retention with visible outcomes.
   `open-decisions.md`
 - **Downstream review needed:** design, security, operations, desktop
   integration, testing, traceability, and verification
-- **Concurrent package sequencing:** Spec 007 has no incomplete task but still
-  needs evidence-quality reconciliation and closure. Spec 009 may author
-  requirements and design concurrently; implementation must not reuse Spec
-  007 release evidence as proof and must preserve its release-readiness gates.
+- **Package sequencing:** Spec 007 is closed and its durable release-readiness
+  gates remain applicable independently. Spec 009 is the only active package;
+  it must produce new implementation and validation evidence rather than reuse
+  Spec 007 evidence as proof.
 
 ## Requirements
 
@@ -179,8 +190,17 @@ pollutes headless operations.
    or unavailable state without presenting stale success as current.
 5. Starting more than one tray instance for the same user SHALL be prevented or
    resolved deterministically.
-6. The tray lifecycle SHALL support Linux Mint's GNOME-based session first and
-   retain explicit portability boundaries for other supported platforms.
+6. The tray lifecycle SHALL support the declared Linux reference environment
+   first and retain explicit capability boundaries for other Linux desktop
+   environments and Windows.
+7. Shared tray lifecycle, status, action, and run-state logic SHALL be
+   independent of Linux, GTK, systemd, Unix sockets, Windows services, and
+   Windows notification-area APIs; platform behavior SHALL be supplied through
+   replaceable adapters.
+8. Initial live acceptance SHALL target Linux Mint Cinnamon/X11. The design
+   SHALL define capability-based adapter contracts for common Linux desktop
+   environments and supported Windows versions, with unsupported capabilities
+   reported explicitly instead of inferred from operating-system name alone.
 
 ### Requirement 4: Local control and status contract
 
@@ -210,34 +230,54 @@ machine backup without handling protected credentials.
 7. The contract SHALL reserve a future UI-launch action without claiming that
    a UI exists; until implemented, the tray action SHALL be hidden or clearly
    unavailable.
+8. Only members of the configured system operator group SHALL be allowed to
+   inspect system-backup status or request an on-demand system backup. Group
+   configuration and membership SHALL be controlled outside the unprivileged
+   client and SHALL require system authority to change.
+9. The local contract SHALL bind authorization to operating-system peer
+   identity and current group membership. It SHALL reject self-asserted
+   identities, unauthorized local users, stale authorization, arbitrary
+   executable paths, and arguments outside the allowlisted action schema
+   without disclosing protected status or selection metadata.
 
 ### Requirement 5: Automatic retention as an independent operation
 
 **User Story:** As an operator, I want TimeLocker to apply my retention policy
-automatically after backups, so that snapshot cleanup is consistent without
-coupling deletion to backup success.
+on an independent schedule, so that snapshot cleanup is consistent and does
+not depend on the outcome or freshness of a backup run.
 
 **Priority:** must-have
 
 #### Acceptance Criteria
 
 1. THE production policy SHALL explicitly keep 5 daily, 4 weekly, 12 monthly,
-   and 3 yearly snapshots and SHALL leave prune disabled.
+   and 3 yearly snapshots, SHALL explicitly group by `host,paths`, and SHALL
+   leave prune disabled.
 2. BEFORE first enablement or any policy change, THE SYSTEM SHALL support a dry
-   run using the same repository, credentials, grouping semantics, and policy
-   values as the eventual mutation.
+   run using the same repository identity, credential source, snapshot filters,
+   explicit grouping, policy values, and prune setting as the eventual
+   mutation, and SHALL record those inputs as one reviewable policy fingerprint.
 3. Retention SHALL use a separately identifiable service and schedule from the
    backup service and schedule.
 4. Retention SHALL NOT run while a backup or another repository mutation is
    active, and a skipped conflict SHALL be visible as a run result rather than
    silently lost.
-5. A retention failure SHALL NOT rewrite the preceding backup result, and a
-   backup failure SHALL NOT implicitly authorize retention.
+5. A retention result SHALL NOT rewrite a backup result, and backup success or
+   failure SHALL NOT change the eligibility of an independently approved
+   retention run.
 6. Each retention attempt SHALL produce a durable run record visible through
    the CLI and tray, including whether it was a dry run and how many snapshots
-   were selected or removed.
+   were selected or removed, together with the applied policy fingerprint.
 7. Disabling automatic retention SHALL be reversible without disabling
    backups, and rollback guidance SHALL preserve the manual forget command.
+8. First enablement and every change to the repository, credential source,
+   snapshot filters, grouping, retention values, or prune setting SHALL require
+   explicit operator approval of a successful dry run with the identical policy
+   fingerprint. A dry run alone SHALL NOT enable mutation.
+9. Retention eligibility SHALL be independent of backup success, failure,
+   absence, age, or freshness. Retention MAY run at any scheduled or explicitly
+   requested time when its policy is approved and no conflicting repository
+   mutation is active.
 
 ### Requirement 6: Installation, upgrade, and recovery safety
 
@@ -259,6 +299,14 @@ silently select the wrong code or privilege boundary.
    assets without deleting run records or changing retention policy.
 4. Headless installations SHALL remain supported without GUI dependencies or
    tray warnings.
+5. Shared protocol and domain components SHALL support Linux and Windows
+   adapters without changing their public schema or authorization semantics.
+   Platform support claims SHALL identify the validated adapter capabilities
+   and environments rather than assuming all environments behave alike.
+6. On startup after a process crash or system restart, THE SYSTEM SHALL
+   reconcile every non-terminal run and lock against its owning process or
+   lease, mark abandoned attempts with a durable `interrupted` result, and make
+   stale locks safely recoverable without creating duplicate terminal records.
 
 ## Correctness Properties
 
@@ -272,17 +320,29 @@ silently select the wrong code or privilege boundary.
 - **CP-004:** Every completed or failed backup and retention attempt yields one
   durable terminal run record without secret material.
 - **CP-005:** The enabled production retention invocation always carries the
-  explicit tuple `(5, 4, 12, 3, prune=false)`; no CLI default may change it.
+  explicit tuple `(group-by=host,paths, 5, 4, 12, 3, prune=false)` and a matching
+  approved dry-run fingerprint; no CLI or Restic default may change it.
 - **CP-006:** A denied elevation or incompatible client/backend contract causes
   no privileged mutation.
+- **CP-007:** A caller can inspect system-backup status or request a system
+  backup if and only if its operating-system peer identity is currently a
+  member of the configured system operator group.
+- **CP-008:** Every non-terminal run left by a dead process or expired lease is
+  reconciled exactly once to an interrupted terminal record before its lock can
+  be reused.
+- **CP-009:** Replacing a Linux or Windows platform adapter cannot change the
+  shared status, action, authorization, locking, or run-record contracts.
 
 ## Technical Context
 
 - **Language/Version:** Python 3.12-3.13
-- **Primary Dependencies:** Typer, systemd on Linux, Restic, existing
-  monitoring and scheduling services, optional PyGObject tray support
-- **Target Platform:** Linux Mint GNOME first; preserve documented macOS and
-  Windows compatibility boundaries
+- **Primary Dependencies:** Typer, Restic, existing monitoring and scheduling
+  services, platform adapters such as systemd/desktop integration on Linux and
+  native service/session integration on Windows, and optional tray dependencies
+- **Target Platform:** Linux Mint Cinnamon/X11 for initial live acceptance;
+  architecture for common Linux desktop environments and supported Windows
+  versions through capability-based adapters; preserve an explicit macOS
+  compatibility boundary
 - **Constraints:** local-first, least privilege, root-owned production
   configuration, no secret-bearing IPC, immutable release selection, no
   unsafe backup/retention overlap
@@ -305,7 +365,17 @@ silently select the wrong code or privilege boundary.
 - **SC-005:** An approved on-demand tray backup follows the same lock,
   credentials, configuration, and run-record paths as a scheduled backup.
 - **SC-006:** A dry run and one controlled automatic retention run prove the
-  explicit 5/4/12/3, no-prune policy and appear in both CLI and tray status.
+  explicit `host,paths`, 5/4/12/3, no-prune policy and matching approval
+  fingerprint, and appear in both CLI and tray status.
+- **SC-007:** An authorized system-operator-group member can inspect status and
+  request one allowlisted backup, while an otherwise valid local user receives
+  no protected status, selection metadata, or control capability.
+- **SC-008:** Killing a backup or retention process and restarting the backend
+  produces one interrupted terminal record, releases or recovers its stale lock,
+  and lets the tray reconnect without showing the attempt as still running.
+- **SC-009:** Shared contract tests pass unchanged against the Linux adapter and
+  a Windows adapter test double, while Linux Mint Cinnamon/X11 live acceptance
+  proves the first supported desktop environment.
 
 ## Open Questions For Design
 
@@ -315,19 +385,24 @@ silently select the wrong code or privilege boundary.
   cleanest systemd integration without creating a general application server?
 - Should the tray read durable run state directly through a read-only library
   or exclusively through the backend contract?
-- What exact timer offset and missed-run policy should automatic retention use
-  relative to the 03:30 backup? The initial recommendation is daily at 04:30.
+- What exact cadence and missed-run policy should automatic retention use? The
+  initial recommendation remains daily at 04:30, but eligibility is explicitly
+  independent of backup outcome, absence, age, or freshness.
 - Which existing history implementation should become authoritative, and what
   migration is required for old or in-memory records?
 
 ## Routed Future Work
 
 - [GitHub issue #70](https://github.com/Auriora/TimeLocker/issues/70) tracks
-  user-scoped backup and restore management: a signed-in user may manage only
-  files they can access within the overall system backup. That future work must
-  define selection ownership, snapshot visibility, restore destinations,
-  symlink and ACL behavior, privilege boundaries, and defenses against using
-  the system service to read or write inaccessible paths.
+  partitioned user views and user-scoped selection/restore management. A
+  signed-in user may define selection sets only within their access domain,
+  inspect only the corresponding partition of snapshot content and metadata,
+  and restore only to authorized destinations without learning about or
+  controlling the system selection set. That future work must define selection
+  ownership, partition identity, snapshot filtering, restore destinations,
+  symlink, hard-link, ACL, ownership, and special-file behavior, privilege
+  boundaries, and defenses against using the system service to read or write
+  inaccessible paths.
 
 ## Related Artifacts
 
