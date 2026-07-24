@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: requirements
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-20
+last_reviewed: 2026-07-24
 ---
 
 # Requirements
@@ -21,7 +21,8 @@ operation history is not yet a single durable cross-process contract.
 This package defines a coherent system-operations experience: a stable
 system-path command that requests elevation only when required, an independent
 per-user tray process, a local authenticated control/status boundary, and
-separately scheduled retention with visible outcomes.
+independently runnable retention with backup-success, scheduled, and explicit
+triggers plus visible outcomes.
 
 ## Goals
 
@@ -37,9 +38,11 @@ separately scheduled retention with visible outcomes.
   scheduled runs, and safely request an on-demand backup.
 - Restrict system-backup status and control to members of a root-controlled
   operator group whose identity is verified by the operating system.
-- Automate the accepted production retention policy independently of backup:
-  keep 5 daily, 4 weekly, 12 monthly, and 3 yearly snapshots, grouped by host
-  and paths, without prune.
+- Automate the accepted production retention policy as an independently
+  runnable operation that can be triggered immediately after a successful
+  scheduled backup, by its own schedule, or by an explicit request: keep 5
+  daily, 4 weekly, 12 monthly, and 3 yearly snapshots, grouped by host and
+  paths, without prune.
 - Keep shared tray, control/status, and run-state contracts platform-neutral,
   with replaceable Linux and Windows adapters.
 - Preserve safe rollback, headless operation, secret isolation, and failure
@@ -97,7 +100,7 @@ separately scheduled retention with visible outcomes.
 |--------------|--------|--------|-------|
 | requirements | add | `docs/1-requirements/system-operations.md` | Promote privilege, status, retention, and process-boundary invariants. |
 | architecture | modify | `docs/2-architecture/system-architecture.md` | Document CLI, backend, tray, local control/status, and durable run-state boundaries after implementation. |
-| architecture | modify | `docs/2-architecture/scheduling-system.md` | Document independent backup and retention scheduling and overlap control. |
+| architecture | modify | `docs/2-architecture/scheduling-system.md` | Document backup-success, independent-schedule, and explicit retention triggers plus overlap control. |
 | implementation | modify | `docs/3-implementation/service-layer-integration.md` | Identify the owning services and prohibit UI initialization in headless execution. |
 | runbook | modify | `docs/guides/developer/scheduling-guide.md` | Document installation, retention staging, rollback, and validation. |
 | user guide | modify | `docs/guides/user/installation.md` | Document system-path command and supported elevation behavior. |
@@ -243,8 +246,9 @@ machine backup without handling protected credentials.
 ### Requirement 5: Automatic retention as an independent operation
 
 **User Story:** As an operator, I want TimeLocker to apply my retention policy
-on an independent schedule, so that snapshot cleanup is consistent and does
-not depend on the outcome or freshness of a backup run.
+automatically after a successful scheduled backup while remaining independently
+runnable, so that snapshot cleanup is consistent without making backup success
+a general prerequisite for retention.
 
 **Priority:** must-have
 
@@ -257,8 +261,10 @@ not depend on the outcome or freshness of a backup run.
    run using the same repository identity, credential source, snapshot filters,
    explicit grouping, policy values, and prune setting as the eventual
    mutation, and SHALL record those inputs as one reviewable policy fingerprint.
-3. Retention SHALL use a separately identifiable service and schedule from the
-   backup service and schedule.
+3. Retention SHALL use a separately identifiable operation and service from
+   backup. It SHALL support three trigger modes without merging backup and
+   retention results: successful scheduled-backup completion, an independent
+   schedule, and an explicit operator request.
 4. Retention SHALL NOT run while a backup or another repository mutation is
    active, and a skipped conflict SHALL be visible as a run result rather than
    silently lost.
@@ -278,6 +284,15 @@ not depend on the outcome or freshness of a backup run.
    absence, age, or freshness. Retention MAY run at any scheduled or explicitly
    requested time when its policy is approved and no conflicting repository
    mutation is active.
+10. In the production automation profile, each successful scheduled backup
+    SHALL trigger at most one retention attempt immediately after the backup has
+    recorded terminal success and released its repository lock. A failed,
+    cancelled, skipped, or interrupted backup SHALL NOT emit that success
+    trigger; this SHALL NOT prevent a later independent or explicit retention
+    run.
+11. A backup-triggered retention attempt SHALL acquire the normal repository
+    mutation lock and SHALL create its own run record. Its success, failure, or
+    conflict result SHALL NOT alter the preceding backup's terminal result.
 
 ### Requirement 6: Installation, upgrade, and recovery safety
 
@@ -332,6 +347,9 @@ silently select the wrong code or privilege boundary.
   be reused.
 - **CP-009:** Replacing a Linux or Windows platform adapter cannot change the
   shared status, action, authorization, locking, or run-record contracts.
+- **CP-010:** One successful scheduled backup emits at most one
+  backup-success retention trigger after terminal success and lock release;
+  every resulting retention attempt remains independently locked and recorded.
 
 ## Technical Context
 
@@ -376,6 +394,10 @@ silently select the wrong code or privilege boundary.
 - **SC-009:** Shared contract tests pass unchanged against the Linux adapter and
   a Windows adapter test double, while Linux Mint Cinnamon/X11 live acceptance
   proves the first supported desktop environment.
+- **SC-010:** One controlled successful scheduled backup produces a distinct
+  subsequent retention run, while controlled failed and interrupted backups do
+  not emit the success trigger and a later explicit retention run remains
+  possible.
 
 ## Open Questions For Design
 
@@ -385,9 +407,10 @@ silently select the wrong code or privilege boundary.
   cleanest systemd integration without creating a general application server?
 - Should the tray read durable run state directly through a read-only library
   or exclusively through the backend contract?
-- What exact cadence and missed-run policy should automatic retention use? The
-  initial recommendation remains daily at 04:30, but eligibility is explicitly
-  independent of backup outcome, absence, age, or freshness.
+- Should the production profile also enable an independent retention schedule
+  as a catch-up path in addition to the required successful-backup trigger? If
+  so, what cadence and missed-run policy should it use while preventing a
+  duplicate attempt for the same policy window?
 - Which existing history implementation should become authoritative, and what
   migration is required for old or in-memory records?
 
