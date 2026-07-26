@@ -296,6 +296,7 @@ def _atomic_write_json(path: Path, value: Mapping[str, object]) -> None:
             stream.write("\n")
             stream.flush()
             os.fsync(stream.fileno())
+            os.fchmod(stream.fileno(), 0o644)
         os.replace(temporary, path)
         directory = os.open(path.parent, os.O_RDONLY)
         try:

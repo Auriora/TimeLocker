@@ -97,6 +97,22 @@ def test_release_switch_and_rollback_are_atomic_and_symmetric(tmp_path: Path) ->
 
 
 @pytest.mark.unit
+def test_release_selector_mode_ignores_restrictive_process_umask(
+    tmp_path: Path,
+) -> None:
+    _stage_release(tmp_path, RELEASE_A)
+    resolver = _resolver(tmp_path)
+    previous_umask = os.umask(0o027)
+    try:
+        resolver.select(RELEASE_A)
+    finally:
+        os.umask(previous_umask)
+
+    assert resolver.selector_path.stat().st_mode & 0o777 == 0o644
+    assert resolver.resolve({}).name == "timelocker"
+
+
+@pytest.mark.unit
 def test_missing_selected_release_never_falls_back_to_user_environment(
     tmp_path: Path,
 ) -> None:

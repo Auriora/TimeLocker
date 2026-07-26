@@ -257,7 +257,7 @@ T009 -> T010 -> T011 -> T012
       loading tray integration, and confirmed `pystray` was absent.
     - Evidence mode: validation
 
-- [ ] T010 Run controlled Linux Mint live acceptance and rollback rehearsal.
+- [~] T010 Run controlled Linux Mint live acceptance and rollback rehearsal.
   - Depends on: T009
   - Requirements: Requirements 1-6; SC-001-SC-011
   - Files: `verification.md`, external system assets only after explicit rollout
@@ -265,8 +265,9 @@ T009 -> T010 -> T011 -> T012
   - Acceptance: Authorized and denied system views, system launcher, scheduled
     backup, restore, post-success retention, independent retention, tray
     reconnect, interrupted-run recovery, upgrade, and rollback are evidenced.
-  - Evidence mode: validation
-  - Evidence: Pending.
+  - Evidence mode: external
+  - Evidence: Operator approved T010 rollout on 2026-07-26. Scope: create the operator group, install root-owned committed-release launchers/assets, enable the control socket, install tray autostart, stage retention units disabled, and rehearse upgrade/rollback while preserving the existing 03:30 backup timer. Retention mutation remains gated on separate approval of a successful identical dry-run fingerprint. Rules consulted and applied: Coding Standards (100), General Preferences (50), Operational Best Practices (40), Planning Protocol (30), Testing Conventions (25), Documentation Conventions (20), Git Conventions (15).
+  - Status: Live Linux Mint rollout and acceptance in progress; retention mutation not approved.
   - [ ] T010.1 Stage without changing the working 03:30 backup.
   - [ ] T010.2 Obtain explicit approval before group membership, service,
     launcher, timer, or live-retention mutations.
