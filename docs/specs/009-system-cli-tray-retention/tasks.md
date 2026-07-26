@@ -112,7 +112,7 @@ T009 -> T010 -> T011 -> T012
   - Status: Phase 1 complete. Real socket activation, installed permissions, live NSS, host restart, and Windows implementation remain assigned to later tasks.
 ## Phase 2: System CLI and authorized visibility
 
-- [ ] T005 Implement the root-owned system launcher and centralized action
+- [x] T005 Implement the root-owned system launcher and centralized action
   classification.
   - Depends on: T004
   - Requirements: Requirement 1 AC1-AC4; Requirement 2 AC1-AC6;
@@ -122,13 +122,24 @@ T009 -> T010 -> T011 -> T012
   - Acceptance: `timelocker` and `tl` resolve one immutable release; user-local
     actions remain unprivileged; protected actions use the backend; invalid
     release or unknown action fails closed without pyenv/checkout fallback.
-  - Evidence: Pending.
-  - [ ] T005.1 Add launcher resolution, rollback, recursion, and routing tests.
-  - [ ] T005.2 Implement immutable release launcher and action classifier.
-  - [ ] T005.3 Add staged install/rollback assets without changing the live
+  - Evidence: The 22-test launcher/action-policy subset passed inside the 177-test Phase 2 run. `release_launcher.py` and `action_policy.py` enforce exact routing, immutable release resolution, and fail-closed unknown actions; the built wheel inventory contains the staged selector plus both command launcher assets. Ruff and `git diff --check` passed; no host state changed.
+  - Status: Phase 2 launcher/classification contract complete; live artifact integration and authorization-agent acceptance remain T009/T010.
+  - Evidence mode: validation
+  - [x] T005.1 Add launcher resolution, rollback, recursion, and routing tests.
+  - Evidence: 22 focused launcher/action-policy tests passed in the Phase 2 integrated test run; coverage includes resolution, switch/rollback, recursion, invalid ownership/modes/symlinks, alias compatibility, protected routing, and unknown-action denial.
+  - Status: Verified without changing the live selected release.
+  - Evidence mode: validation
+  - [x] T005.2 Implement immutable release launcher and action classifier.
+  - Evidence: `src/TimeLocker/system_control/release_launcher.py` contains `ImmutableReleaseResolver`, strict selector/manifest validation, recursion protection, and atomic selection/rollback; `src/TimeLocker/system_control/action_policy.py` contains the exact fail-closed registry. The 22-test launcher/action-policy subset and Ruff checks passed.
+  - Status: Repository implementation verified; live launcher installation remains T009/T010.
+  - Evidence mode: implementation
+  - [x] T005.3 Add staged install/rollback assets without changing the live
     selected release.
 
-- [ ] T006 Add structured system run and diagnostic CLI views.
+  - Evidence: The no-isolation wheel build passed and its inventory contains `timelocker-launcher`, `tl-launcher`, and `timelocker-release-select` plus their module entry points. `test_release_entrypoints.py` and `test_release_launcher.py` prove the assets do not use pyenv, a checkout, or `/root` overlay fallback.
+  - Status: Assets are staged only; `/opt`, `/usr/local/bin`, systemd, and the host selector were not modified.
+  - Evidence mode: validation
+- [x] T006 Add structured system run and diagnostic CLI views.
   - Depends on: T005
   - Requirements: Requirement 4 AC1-AC3, AC6, AC8-AC11
   - Properties: CP-004, CP-006, CP-007, CP-011
@@ -137,12 +148,23 @@ T009 -> T010 -> T011 -> T012
   - Acceptance: `runs list`, `runs show`, and
     `logs view --scope local|system` clearly distinguish local and system data;
     only current operator-group members receive protected structured records.
-  - Evidence: Pending.
-  - [ ] T006.1 Add CLI contract, compatibility, denial, and redaction tests.
-  - [ ] T006.2 Implement focused `SystemControlClient` integration.
-  - [ ] T006.3 Preserve local log behavior and correct `--config-dir`/scope
+  - Evidence: Completed structured system run and diagnostic CLI views plus the bounded system-control client. The integrated system-control/CLI/help suite passed 177 tests; scoped system-control coverage is 88.2%. Ruff check and format, compileall, wheel build and asset inventory, and git diff --check passed. Review findings TLR-006 through TLR-009 were fixed. No host state changed.
+  - Status: Phase 2 complete. Live socket, installed launcher, current NSS membership, and authorized/denied host acceptance remain T009/T010.
+  - Evidence mode: validation
+  - [x] T006.1 Add CLI contract, compatibility, denial, and redaction tests.
+  - Evidence: Added CLI contract, compatibility, denial, redaction, bounded-filter, scope-validation, and protected-metadata tests. The integrated Phase 2 suite passed 177 tests; denied requests expose only safe result codes and summaries.
+  - Status: Verified in the integrated Phase 2 suite; live authorized and denied host acceptance remains T010.
+  - Evidence mode: validation
+  - [x] T006.2 Implement focused `SystemControlClient` integration.
+  - Evidence: `src/TimeLocker/system_control/client.py` provides bounded versioned Unix-socket requests, request-ID correlation, timeouts, strict line framing, safe errors, run list/show, diagnostics, and backup/retention requests. `tests/TimeLocker/system_control/test_client.py` passed within the 177-test Phase 2 run.
+  - Status: Repository client boundary verified; real AF_UNIX socket activation remains T009/T010.
+  - Evidence mode: validation
+  - [x] T006.3 Preserve local log behavior and correct `--config-dir`/scope
     resolution without reading protected files directly.
 
+  - Evidence: `src/TimeLocker/cli_modules/commands/monitoring.py` now provides `runs list`, `runs show`, and `logs view --scope local|system`; local logs resolve from the explicit config directory while system scope requests only backend records. `tests/TimeLocker/cli/test_monitoring_commands.py` passed within the 177-test run, including default/local compatibility, invalid scope/limits, and no direct protected-read cases.
+  - Status: No protected system file or journal is read directly by the user CLI.
+  - Evidence mode: validation
 ## Phase 3: Independent tray and retention
 
 - [ ] T007 Remove tray ownership from CLI/headless services and add the

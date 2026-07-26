@@ -9,6 +9,16 @@ from .interfaces import (
     SystemControlClient,
 )
 from .dispatcher import AuditEvent, AuditSink, LocalControlDispatcher
+from .action_policy import (
+    ActionClass,
+    ActionRoute,
+    UnknownPublicActionError,
+    classify_public_action,
+)
+from .client import (
+    SystemControlClientError,
+    UnixSocketSystemControlClient,
+)
 from .models import (
     ActionReceipt,
     BackupActionRequest,
@@ -50,6 +60,8 @@ from .types import (
 
 __all__ = [
     "ActionReceipt",
+    "ActionClass",
+    "ActionRoute",
     "AuditEvent",
     "AuditSink",
     "AtomicRecordStore",
@@ -89,7 +101,11 @@ __all__ = [
     "RunState",
     "SystemAction",
     "SystemControlClient",
+    "SystemControlClientError",
     "SystemPolicy",
+    "UnixSocketSystemControlClient",
+    "UnknownPublicActionError",
+    "classify_public_action",
     "project_response",
     "reconcile_abandoned_runs",
 ]

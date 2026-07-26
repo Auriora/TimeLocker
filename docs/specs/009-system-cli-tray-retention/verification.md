@@ -21,9 +21,9 @@ review, durable promotion, and closure.
 |------|-----------|--------|----------|
 | Requirements acceptance criteria reviewed | yes | pending | Requirements amended through 2026-07-26 |
 | Design and traceability approved | yes | passed | Owner approved implementation; lifecycle context reports no Phase 1 gaps |
-| Task evidence complete | yes | partial | T001-T004 complete; T005-T012 pending |
-| Automated tests pass or alternate verification recorded | yes | partial | Phase 1 focused suite: 98 passed, 88.4% coverage |
-| Security and operations expert review complete | yes | partial | T004 checkpoint complete; final T012 review pending |
+| Task evidence complete | yes | partial | T001-T006 complete; T007-T012 pending |
+| Automated tests pass or alternate verification recorded | yes | partial | Phase 2 focused suite: 177 passed; system-control package 88.2% branch-aware coverage |
+| Security and operations expert review complete | yes | partial | T004 and Phase 2 checkpoints complete; final T012 review pending |
 | Linux Mint live acceptance and rollback rehearsal complete | yes | pending | |
 | Durable documentation promoted | yes | pending | |
 | Governance or policy conflicts resolved | yes | pending | |
@@ -66,10 +66,10 @@ Commands are refined through Agent Workbench before execution.
 
 | Requirement | Acceptance criteria covered | Evidence | Residual risk |
 |-------------|-----------------------------|----------|---------------|
-| Requirement 1 | AC1-AC4 | V5, V9, V10 pending | Live launcher/rollback |
+| Requirement 1 | AC1-AC4 | V5 repository validation passed; V9-V10 pending | Live launcher/rollback |
 | Requirement 2 | AC1-AC6 | V2, V4-V5, V10 pending | Platform authorization UX |
 | Requirement 3 | AC1-AC8 | V7, V9-V10 pending | Desktop diversity |
-| Requirement 4 | AC1-AC11 | V1-V4, V6, V10 pending | Redaction and NSS variance |
+| Requirement 4 | AC1-AC11 | V1-V3 and V6 repository validation passed; V4 and V10 live evidence pending | Redaction and NSS variance |
 | Requirement 5 | AC1-AC11 | V1, V3, V8, V10 pending | Live repository timing |
 | Requirement 6 | AC1-AC6 | V3, V5, V7, V9-V10 pending | Cross-platform rollout |
 
@@ -77,24 +77,24 @@ Commands are refined through Agent Workbench before execution.
 
 | Property | Covered by | Evidence | Residual risk |
 |----------|------------|----------|---------------|
-| CP-001 | V2, V5 | pending | |
+| CP-001 | V2, V5 | repository validation passed | Live platform authorization remains V10 |
 | CP-002 | V7, V10 | pending | |
 | CP-003 | V3, V8, V10 | pending | |
-| CP-004 | V1, V3, V6, V8 | pending | |
+| CP-004 | V1, V3, V6, V8 | V1, V3, and V6 repository validation passed | Retention coverage remains V8 |
 | CP-005 | V1, V8, V10 | pending | |
-| CP-006 | V1-V2, V4-V6 | pending | |
-| CP-007 | V2, V4, V10 | pending | |
+| CP-006 | V1-V2, V4-V6 | V1-V3 and V5-V6 repository validation passed | Live IPC remains V4/V10 |
+| CP-007 | V2, V4, V10 | repository authorization and denial validation passed | Live NSS/session behavior remains V4/V10 |
 | CP-008 | V3, V9-V10 | pending | |
 | CP-009 | V1, V7, V9 | pending | Live Windows remains follow-up |
 | CP-010 | V3, V8, V10 | pending | |
-| CP-011 | V1-V2, V4, V6, V10 | pending | |
+| CP-011 | V1-V2, V4, V6, V10 | repository projection and CLI validation passed | Live metadata-leak acceptance remains V10 |
 
 ## Scope Reconciliation Before Closure
 
 | Broad requirement, design target, or review finding | Implemented in this spec | Coverage state | Deferred or rejected work | Destination | Blocks closure? | Evidence |
 |-----------------------------------------------------|--------------------------|----------------|---------------------------|-------------|-----------------|----------|
-| Linux system command/control plane | none | not-covered | Implementation pending | T001-T006, T009-T010 | yes | pending |
-| Group-authorized system records | none | not-covered | Implementation pending | T001-T004, T006 | yes | pending |
+| Linux system command/control plane | Shared contracts, store, dispatcher, staged launcher, and CLI client/views | partial | Live artifact integration and host acceptance | T009-T010 | yes | T001-T006 evidence |
+| Group-authorized system records | Current-membership dispatcher and structured CLI projection | partial | Live NSS/socket acceptance | T009-T010 | yes | T003, T004, T006 evidence |
 | Independent tray | none | not-covered | Implementation pending | T007, T009-T010 | yes | pending |
 | Retention automation | none | not-covered | Implementation pending | T008-T010 | yes | pending |
 | Windows shared architecture | none | not-covered | Live Windows adapter/acceptance | T001, T009 then roadmap | yes for contracts; no for live Windows | pending |
@@ -121,7 +121,9 @@ Commands are refined through Agent Workbench before execution.
 | T002 | complete | Atomic storage, bounded diagnostics, `flock` mutation leases, and startup reconciliation; focused T002 suite passed | No live state directory or production repository used |
 | T003 | complete | Linux peer credentials, current NSS membership, strict dispatcher/audit, policy loader, and staged unit assets; focused T003 suite passed | No group, socket, service, or policy installed |
 | T004 | complete | Phase 1 suite passed 98 tests at 88.4% coverage; Ruff, compileall, wheel asset, patch, lifecycle, and expert-panel checks passed | Real systemd/AF_UNIX host acceptance remains V4/T010 |
-| T005-T012 | pending | No implementation evidence | Later implementation phases |
+| T005 | complete | 22 focused launcher/action-policy tests; staged alias, selector, and launcher assets; wheel inventory; Ruff and patch checks passed | No live launcher or selector changed |
+| T006 | complete | Integrated system-control/CLI/help suite passed 177 tests; system-control package measured 88.2% branch-aware coverage; Ruff, format, compile, wheel, and patch checks passed | Live socket and operator-group acceptance remain T009/T010 |
+| T007-T012 | pending | No implementation evidence | Later implementation phases |
 
 ## Evidence Log
 
@@ -141,6 +143,10 @@ Commands are refined through Agent Workbench before execution.
 | 2026-07-26 | `PYENV_VERSION=3.12.4 python -m build --wheel --no-isolation ...` plus wheel inventory | passed; 3/3 assets present | Policy, socket unit, and service unit are packaged; isolated build could not resolve build dependencies because network access was unavailable |
 | 2026-07-26 | Agent Workbench verification planning and diagnostics | planning returned; diagnostics unavailable | No Python diagnostics provider was configured, so direct review and executed checks remain the proof |
 | 2026-07-26 | Rules consulted and applied | recorded | Coding Standards (100), General Preferences (50), Operational Best Practices (40), Planning Protocol (30), Testing Conventions (25), Documentation Conventions, and Git Conventions; no overrides |
+| 2026-07-26 | `PYENV_VERSION=3.12.6 python -m pytest tests/TimeLocker/system_control tests/TimeLocker/cli/test_monitoring_commands.py tests/TimeLocker/cli/test_cli_help_system.py -q --no-cov` | 177 passed | Phase 2 launcher, action routing, client, authorization, structured run/log views, compatibility, denial, and redaction |
+| 2026-07-26 | `coverage report --include='src/TimeLocker/system_control/*' --skip-empty --fail-under=0` | 88.2% branch-aware coverage | Scoped report for the system-control package; a pytest coverage attempt inherited repository-wide `source=src` and failed the global 50% threshold at 17.3%, so it is not presented as a focused coverage result |
+| 2026-07-26 | Ruff check/format, compileall, wheel build/inventory, and `git diff --check` | passed | Wheel contains the Phase 2 modules and all six system-control assets, including distinct `timelocker` and `tl` launcher assets; isolated build dependency resolution was unavailable, and the Python 3.12.4 no-isolation build passed |
+| 2026-07-26 | Agent Workbench verification planning | partial routing only | Its index had not incorporated newly created files and proposed unrelated tests; direct source review, the focused suite, and package inventory are the proof |
 
 ## T004 Review Finding Dispositions
 
@@ -156,6 +162,20 @@ No actionable Phase 1 findings remain after these dispositions. The review was
 bounded to Spec 009 Phase 1 source, focused tests, packaged assets, and lifecycle
 artifacts. It did not install or execute the staged service, inspect real NSS
 membership, or claim live Windows support.
+
+## Phase 2 Review Finding Dispositions
+
+| Finding | Severity / confidence | Roles | Disposition | Validation |
+|---------|-----------------------|-------|-------------|------------|
+| TLR-006: the staged launcher assets did not provide a distinct `tl` compatibility alias | medium / high | Project Steward; Operations and Portability | fixed: packaged `tl-launcher` delegates through the same immutable launcher module as `timelocker-launcher` | wheel inventory and launcher-entrypoint tests |
+| TLR-007: rollback selection trusted a selector file without revalidating its parent directory | high / high | Security and Privacy; Operations and Portability | fixed: every selector read validates the root-owned, non-writable selector directory before parsing | release-launcher ownership, mode, symlink, selection, and rollback tests |
+| TLR-008: CLI record and diagnostic limits were not bounded at argument parsing | medium / high | Security and Privacy; Python CLI Architecture | fixed: run and log limits are constrained to 1-1,000 before transport requests are built | CLI invalid-limit and request-shape tests |
+| TLR-009: client framing, safe errors, entrypoint delegation, and scope rejection lacked focused regression coverage | medium / high | Reliability and Testing; Python CLI Architecture | fixed: added client, release-entrypoint, invalid-scope, request-correlation, timeout, framing, and safe-error tests | integrated 177-test Phase 2 suite |
+
+No actionable Phase 2 findings remain after these dispositions. The review was
+bounded to T005-T006 source, tests, packaged assets, and lifecycle artifacts.
+It did not install the launcher, select a live release, activate the socket,
+inspect real group membership, or prove platform authorization prompts.
 
 ## Manual Or External Verification
 
@@ -228,8 +248,8 @@ protected metadata, widen privilege, interrupt backups, or delete snapshots.
 - **Ready for promotion:** no
 - **Ready for release:** no
 - **Ready for closure:** no
-- **Ready for implementation:** yes for the next dependency-ordered task after
-  the Phase 1 lifecycle audit; later live-host mutations still require T010
+- **Ready for implementation:** yes for Phase 3 tasks T007 and T008; later
+  live-host mutations still require T010
   approval
 
 ## Related Artifacts
@@ -243,8 +263,8 @@ protected metadata, widen privilege, interrupt backups, or delete snapshots.
 
 ## Reconciliation
 
-Reviewed against the 2026-07-26 requirements and design revisions. T001-T004
-now provide executed Phase 1 evidence for V1-V3 and repository-local portions
-of V4/V11. Real socket activation, installed ownership/modes, live NSS behavior,
-and host restart remain pending under T010; later tasks and durable promotion
-remain incomplete.
+Reviewed against the 2026-07-26 requirements and design revisions. T001-T006
+now provide executed Phase 1-2 evidence for V1-V3, V5-V6, and repository-local
+portions of V4/V11. Real socket activation, installed ownership/modes, live NSS
+behavior, authorization prompts, and host restart remain pending under
+T009-T010; Phase 3, durable promotion, and closure remain incomplete.

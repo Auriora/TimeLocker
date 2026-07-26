@@ -1,0 +1,7 @@
+#!/bin/sh
+set -eu
+
+# Stable, root-owned bootstrap. The bootstrap environment contains only the
+# launcher implementation; it resolves the immutable application release.
+exec /opt/timelocker/launcher/venv/bin/python \
+  -m TimeLocker.system_control.launcher_entry "$@"

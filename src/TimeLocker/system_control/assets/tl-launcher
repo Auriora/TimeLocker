@@ -1,0 +1,6 @@
+#!/bin/sh
+set -eu
+
+# Alias bootstrap. It deliberately uses the same resolver as `timelocker`.
+exec /opt/timelocker/launcher/venv/bin/python \
+  -m TimeLocker.system_control.launcher_entry "$@"

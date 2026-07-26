@@ -114,6 +114,8 @@ TimeLocker = [
     "system_control/assets/*.json",
     "system_control/assets/*.service",
     "system_control/assets/*.socket",
+    "system_control/assets/timelocker-*",
+    "system_control/assets/tl-launcher",
 ]
 
 [tool.pytest.ini_options]
