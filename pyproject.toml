@@ -111,6 +111,9 @@ TimeLocker = [
     "cli_modules/validation/*.md",
     "policy/*.md",
     "services/plugins/*.md",
+    "system_control/assets/*.json",
+    "system_control/assets/*.service",
+    "system_control/assets/*.socket",
 ]
 
 [tool.pytest.ini_options]

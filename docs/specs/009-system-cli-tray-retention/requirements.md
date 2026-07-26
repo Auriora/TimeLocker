@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: requirements
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-24
+last_reviewed: 2026-07-26
 ---
 
 # Requirements
@@ -108,16 +108,17 @@ triggers plus visible outcomes.
 
 ## Staged Readiness
 
-- **Current stage:** requirements
-- **Next stage:** design
-- **Ready to design when:** elevation and tray trust boundaries, operation
-  status semantics, retention policy, failure isolation, compatibility, and
-  roadmap exclusions are accepted.
+- **Current stage:** design and task-plan review
+- **Next stage:** implementation
+- **Ready to implement when:** the design, task plan, traceability, and
+  verification package pass lifecycle validation, the security and operations
+  review has no unresolved blocking finding, and the project owner explicitly
+  approves implementation.
 - **Design-first exception:** no
-- **Optional artifacts recommended:** `research.md`, `change-impact.md`, and
-  `open-decisions.md`
-- **Downstream review needed:** design, security, operations, desktop
-  integration, testing, traceability, and verification
+- **Optional artifacts recommended:** none currently; create
+  `canonical-context.md` only if a concrete authority conflict is found.
+- **Downstream review needed:** implementation-slice security and architecture
+  review at T004, then full expert review before closure.
 - **Package sequencing:** Spec 007 is closed and its durable release-readiness
   gates remain applicable independently. Spec 009 is the only active package;
   it must produce new implementation and validation evidence rather than reuse
@@ -242,6 +243,14 @@ machine backup without handling protected credentials.
    identities, unauthorized local users, stale authorization, arbitrary
    executable paths, and arguments outside the allowlisted action schema
    without disclosing protected status or selection metadata.
+10. System-scope run history and diagnostic-log views SHALL require current
+    membership in the configured system operator group. Responses SHALL contain
+    only allowlisted, secret-free fields and SHALL NOT disclose raw environment
+    values, repository credentials, protected source paths, or unrestricted
+    journal content.
+11. User-local application logs SHALL remain distinct from system-scope run and
+    diagnostic records. An authorization failure SHALL NOT disclose whether a
+    protected run, repository, selection, schedule, or diagnostic record exists.
 
 ### Requirement 5: Automatic retention as an independent operation
 
@@ -350,6 +359,10 @@ silently select the wrong code or privilege boundary.
 - **CP-010:** One successful scheduled backup emits at most one
   backup-success retention trigger after terminal success and lock release;
   every resulting retention attempt remains independently locked and recorded.
+- **CP-011:** A system-scope run or diagnostic record is returned if and only
+  if the server derives the caller's operating-system identity and confirms
+  current membership in the configured system operator group; returned fields
+  are a strict subset of the allowlisted response schema.
 
 ## Technical Context
 
@@ -398,21 +411,23 @@ silently select the wrong code or privilege boundary.
   subsequent retention run, while controlled failed and interrupted backups do
   not emit the success trigger and a later explicit retention run remains
   possible.
+- **SC-011:** An authorized operator can view system backup and retention runs
+  through the CLI and tray, while an unauthorized local user and a user removed
+  from the operator group receive the same metadata-free denial and cannot read
+  protected system log files or raw journal records through TimeLocker.
 
-## Open Questions For Design
+## Resolved Design Questions
 
-- Which Linux elevation split best serves terminal and graphical callers:
-  `sudo`, polkit/`pkexec`, a narrow privileged helper, or a combination?
-- Which local IPC mechanism provides the smallest authenticated interface and
-  cleanest systemd integration without creating a general application server?
-- Should the tray read durable run state directly through a read-only library
-  or exclusively through the backend contract?
-- Should the production profile also enable an independent retention schedule
-  as a catch-up path in addition to the required successful-backup trigger? If
-  so, what cadence and missed-run policy should it use while preventing a
-  duplicate attempt for the same policy window?
-- Which existing history implementation should become authoritative, and what
-  migration is required for old or in-memory records?
+- System reads and allowlisted actions use the privileged local backend;
+  administrator maintenance continues through the platform elevation adapter.
+- Linux uses a systemd-managed Unix-domain socket with kernel peer credentials;
+  shared contracts retain a Windows named-pipe adapter boundary.
+- The tray reads structured state exclusively through the backend contract.
+- Successful scheduled backups trigger retention after terminal success and
+  lock release. The independent schedule remains supported but initially
+  disabled until an operator approves its cadence.
+- A new atomic run store under root-owned system state becomes authoritative
+  for system operations; legacy user-local logs remain a separate local scope.
 
 ## Routed Future Work
 
@@ -429,7 +444,9 @@ silently select the wrong code or privilege boundary.
 
 ## Related Artifacts
 
-- Change Impact: pending
-- Design: pending
-- Tasks: pending
-- Verification: pending
+- Canonical context: `canonical-context.md`
+- Change impact: `change-impact.md`
+- Design: `design.md`
+- Tasks: `tasks.md`
+- Traceability: `traceability.md`
+- Verification: `verification.md`

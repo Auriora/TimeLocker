@@ -3,7 +3,7 @@ title: "Active Specification Packages"
 doc_type: reference
 status: active
 owner: "Auriora Team"
-last_reviewed: 2026-07-20
+last_reviewed: 2026-07-26
 ---
 
 # Active Specification Packages
@@ -16,17 +16,20 @@ accepted content has been promoted and the package is closed.
 ## Current Packages
 
 - [`009-system-cli-tray-retention`](./009-system-cli-tray-retention/requirements.md)
-  — requirements-stage package for a stable system command, contextual
-  elevation, an independent tray/backend boundary, durable run visibility, and
-  automatic retention.
+  — active implementation package; Phase 1 contracts, storage, Linux
+  authorization boundary, and security checkpoint are complete, with the
+  system launcher and action classifier selected next.
 
 ## Active-Package Sequencing
 
 Spec 007 is closed; its release-readiness evidence and recovery commits are
-recorded in `docs/history/`. Spec 009 is the only active package and remains at
-the requirements stage. Its requirements require approval before design and
-implementation, and its work does not authorize a release. Closed packages
-remain recorded in `docs/history/` rather than kept in this active path.
+recorded in `docs/history/`. Spec 009 is the only active package. Its design,
+tasks, traceability, canonical context, and verification plan were approved,
+and Phase 1 is complete. Implementation continues in dependency order from
+T005. Repository implementation approval does not authorize live-system
+mutation, rollout, or release; T010 retains the explicit host-mutation gate.
+Closed packages remain recorded in `docs/history/` rather than kept in this
+active path.
 
 ## When a Spec Is Needed
 
@@ -65,6 +68,8 @@ corrections may proceed directly when their scope and validation are clear.
   readiness.
 - `traceability.md` maps requirements, design, tasks, verification, and durable
   destinations for larger packages.
+- `canonical-context.md` distinguishes current durable authority from
+  spec-local future behavior when both must be consulted during implementation.
 
 Tasks use `[ ]` pending, `[~]` in progress, `[/]` partial, `[>]` routed,
 `[-]` deferred/no-op, `[?]` decision needed, `[!]` attention needed, and `[x]`
