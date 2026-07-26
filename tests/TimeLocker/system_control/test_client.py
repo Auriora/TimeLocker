@@ -218,6 +218,28 @@ def test_action_requests_preserve_only_allowlisted_parameters() -> None:
 
 
 @pytest.mark.unit
+def test_schedule_summary_parses_only_utc_projected_timestamps() -> None:
+    next_backup = datetime(2026, 7, 27, 2, 30, tzinfo=UTC)
+
+    def exchange(request: bytes) -> bytes:
+        parsed = json.loads(request)
+        response = ResponseEnvelope.success(
+            UUID(parsed["request_id"]),
+            SystemAction.SCHEDULE_SUMMARY,
+            {
+                "next_backup_at": next_backup.isoformat(),
+                "next_retention_at": None,
+            },
+        )
+        return json.dumps(response.to_wire()).encode()
+
+    summary = UnixSocketSystemControlClient(exchange=exchange).get_schedule_summary()
+
+    assert summary.next_backup_at == next_backup
+    assert summary.next_retention_at is None
+
+
+@pytest.mark.unit
 def test_invalid_or_oversized_response_fails_closed() -> None:
     invalid = UnixSocketSystemControlClient(exchange=lambda _request: b"{")
     with pytest.raises(SystemControlClientError) as invalid_error:

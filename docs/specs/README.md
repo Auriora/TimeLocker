@@ -18,16 +18,17 @@ accepted content has been promoted and the package is closed.
 - [`009-system-cli-tray-retention`](./009-system-cli-tray-retention/requirements.md)
   — active implementation package; Phases 1 and 2 are complete, including
   contracts, storage, Linux authorization, immutable launcher/routing, and
-  structured system run and diagnostic CLI views. The independent tray and
-  retention work in Phase 3 is next.
+  structured system run and diagnostic CLI views. Phase 3 is complete in the
+  repository, covering the independent tray and retention domain work; Phase 4
+  installation and live acceptance work is next.
 
 ## Active-Package Sequencing
 
 Spec 007 is closed; its release-readiness evidence and recovery commits are
 recorded in `docs/history/`. Spec 009 is the only active package. Its design,
 tasks, traceability, canonical context, and verification plan were approved,
-and Phases 1 and 2 are complete. Implementation continues with the independent
-Phase 3 tasks T007 and T008 before integration in T009. Repository
+and Phases 1 through 3 are complete in the repository. Implementation
+continues with Phase 4 task T009 before live-host acceptance in T010. Repository
 implementation approval does not authorize live-system mutation, rollout, or
 release; T010 retains the explicit host-mutation gate.
 Closed packages remain recorded in `docs/history/` rather than kept in this

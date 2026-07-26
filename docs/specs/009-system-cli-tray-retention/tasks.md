@@ -167,7 +167,7 @@ T009 -> T010 -> T011 -> T012
   - Evidence mode: validation
 ## Phase 3: Independent tray and retention
 
-- [ ] T007 Remove tray ownership from CLI/headless services and add the
+- [x] T007 Remove tray ownership from CLI/headless services and add the
   independent tray client.
   - Depends on: T004
   - Requirements: Requirement 3 AC1-AC8; Requirement 4 AC1, AC4-AC9;
@@ -179,15 +179,23 @@ T009 -> T010 -> T011 -> T012
     tray platform code and emit no tray warning; the user-session tray connects,
     reconnects, displays authorized state, and requests only allowlisted
     actions.
-  - Evidence: Pending.
-  - [ ] T007.1 Add import-boundary, headless, absence, crash, singleton, and
+  - Evidence: Removed platform tray ownership and exports from NotificationService/headless monitoring; added standalone timelocker-tray entry point, safe tray IPC projection, schedule status, strict action allowlist, backend absence/denial display, bounded reconnect, and singleton locking. Integrated Phase 3 repository slice passed 190 tests including import-boundary, headless, reconnect, authorization projection, singleton, and monitoring compatibility cases; no host state changed.
+  - Status: Repository behavior verified. Installed desktop-session and live IPC acceptance remains T009/T010.
+  - Evidence mode: validation
+  - [x] T007.1 Add import-boundary, headless, absence, crash, singleton, and
     reconnect tests.
-  - [ ] T007.2 Refactor notification delivery to publish structured state
+  - Evidence: Added direct import-boundary, headless availability, backend absence/denial, reconnect, strict allowlist, and singleton-lock tests; all passed in the 190-test integrated slice.
+  - Evidence mode: validation
+  - [x] T007.2 Refactor notification delivery to publish structured state
     without constructing `SystemTrayIntegration`.
-  - [ ] T007.3 Add standalone tray entry point and Linux Mint Cinnamon/X11
+  - Evidence: `tests/TimeLocker/system_control/test_tray_process_boundary.py` verifies that `NotificationService`, CLI imports, and the monitoring package do not import or construct the platform tray; the integrated 190-test slice passed.
+  - Evidence mode: code
+  - [x] T007.3 Add standalone tray entry point and Linux Mint Cinnamon/X11
     adapter.
 
-- [ ] T008 Implement approved retention execution and all three trigger modes.
+  - Evidence: `pyproject.toml` packages the `timelocker-tray` entry point; wheel inventory confirmed that entry point plus `tray_entry.py` and `tray_client.py`, and tray/process tests passed. Live desktop installation remains T009/T010.
+  - Evidence mode: code
+- [x] T008 Implement approved retention execution and all three trigger modes.
   - Depends on: T004
   - Requirements: Requirement 5 AC1-AC11; Requirement 6 AC1-AC3, AC6
   - Properties: CP-003, CP-004, CP-005, CP-008, CP-010
@@ -196,14 +204,24 @@ T009 -> T010 -> T011 -> T012
   - Acceptance: Dry-run approval fingerprints the complete policy; backup
     success, independent schedule, and explicit request create separate locked
     retention runs; failure or conflict never changes the backup result.
-  - Evidence: Pending.
-  - [ ] T008.1 Add policy fingerprint, approval, conflict, idempotency, and
+  - Evidence: Implemented approved retention execution and all three trigger modes in the repository slice. Evidence: `src/TimeLocker/system_control/retention.py` adds exact retention-plan fingerprinting, approval-gated mutation, durable trigger claims, explicit protected request handling, and independently gated scheduling. Focused validation passed with `python3 -m pytest tests/TimeLocker/system_control/test_retention.py tests/TimeLocker/system_control/test_tray_client.py tests/TimeLocker/system_control/test_tray_process_boundary.py tests/TimeLocker/monitoring/test_system_tray_integration.py tests/TimeLocker/system_control/test_client.py --cov-reset --cov=src/TimeLocker/system_control --cov-fail-under=50` (32 passed, 58.7% coverage). `git diff --check` passed. No host state changed.
+  - Status: Repository implementation complete; live asset integration and host acceptance remain T009-T010.
+  - Evidence mode: validation
+  - [x] T008.1 Add policy fingerprint, approval, conflict, idempotency, and
     failure-isolation tests.
-  - [ ] T008.2 Implement retention executor and protected explicit request.
-  - [ ] T008.3 Implement post-backup success trigger after terminal record and
+  - Evidence: Added nine focused tests covering complete fingerprint sensitivity, dry-run non-approval, exact approval, lock conflict, safe failure, durable idempotency, non-success rejection, independent schedule configuration, and protected request projection. The system-control suite passed 149 tests at 83.09% branch-aware coverage.
+  - Evidence mode: validation
+  - [x] T008.2 Implement retention executor and protected explicit request.
+  - Evidence: `src/TimeLocker/system_control/retention.py` implements canonical fingerprinting, separate durable runs, shared repository locking, exact mutation approval, dry-run behavior, safe adapter projection, and the protected request handler; the nine retention tests passed.
+  - Evidence mode: code
+  - [x] T008.3 Implement post-backup success trigger after terminal record and
     lock release.
-  - [ ] T008.4 Implement independently configurable schedule, disabled in the
+  - Evidence: `test_success_trigger_is_durable_and_idempotent_across_restart` and `test_success_trigger_rejects_non_successful_backup` passed, proving durable at-most-once claiming and rejection of non-success terminal records.
+  - Evidence mode: validation
+  - [x] T008.4 Implement independently configurable schedule, disabled in the
     initial production profile.
+  - Evidence: `test_independent_schedule_is_disabled_by_default_and_configurable` passed; the coordinator defaults the independent trigger off and creates a separate scheduled retention run only when enabled. Initial production activation remains T009/T010.
+  - Evidence mode: validation
 
 ## Phase 4: Installation, portability, and live acceptance
 

@@ -21,8 +21,8 @@ review, durable promotion, and closure.
 |------|-----------|--------|----------|
 | Requirements acceptance criteria reviewed | yes | pending | Requirements amended through 2026-07-26 |
 | Design and traceability approved | yes | passed | Owner approved implementation; lifecycle context reports no Phase 1 gaps |
-| Task evidence complete | yes | partial | T001-T006 complete; T007-T012 pending |
-| Automated tests pass or alternate verification recorded | yes | partial | Phase 2 focused suite: 177 passed; system-control package 88.2% branch-aware coverage |
+| Task evidence complete | yes | partial | T001-T008 complete; T009-T012 pending |
+| Automated tests pass or alternate verification recorded | yes | partial | Phase 2 focused suite: 177 passed; Phase 3 system-control suite: 149 passed with 83.09% branch-aware coverage |
 | Security and operations expert review complete | yes | partial | T004 and Phase 2 checkpoints complete; final T012 review pending |
 | Linux Mint live acceptance and rollback rehearsal complete | yes | pending | |
 | Durable documentation promoted | yes | pending | |
@@ -68,25 +68,25 @@ Commands are refined through Agent Workbench before execution.
 |-------------|-----------------------------|----------|---------------|
 | Requirement 1 | AC1-AC4 | V5 repository validation passed; V9-V10 pending | Live launcher/rollback |
 | Requirement 2 | AC1-AC6 | V2, V4-V5, V10 pending | Platform authorization UX |
-| Requirement 3 | AC1-AC8 | V7, V9-V10 pending | Desktop diversity |
+| Requirement 3 | AC1-AC8 | V7 repository validation passed; V9-V10 pending | Desktop diversity and live session behavior |
 | Requirement 4 | AC1-AC11 | V1-V3 and V6 repository validation passed; V4 and V10 live evidence pending | Redaction and NSS variance |
-| Requirement 5 | AC1-AC11 | V1, V3, V8, V10 pending | Live repository timing |
-| Requirement 6 | AC1-AC6 | V3, V5, V7, V9-V10 pending | Cross-platform rollout |
+| Requirement 5 | AC1-AC11 | V1, V3, and V8 repository validation passed; V10 pending | Live repository timing |
+| Requirement 6 | AC1-AC6 | V3, V5, and V7 repository validation passed; V9-V10 pending | Cross-platform rollout |
 
 ## Correctness Property Coverage
 
 | Property | Covered by | Evidence | Residual risk |
 |----------|------------|----------|---------------|
 | CP-001 | V2, V5 | repository validation passed | Live platform authorization remains V10 |
-| CP-002 | V7, V10 | pending | |
-| CP-003 | V3, V8, V10 | pending | |
-| CP-004 | V1, V3, V6, V8 | V1, V3, and V6 repository validation passed | Retention coverage remains V8 |
-| CP-005 | V1, V8, V10 | pending | |
+| CP-002 | V7, V10 | V7 repository validation passed | Live desktop acceptance remains V10 |
+| CP-003 | V3, V8, V10 | V3 and V8 repository validation passed | Live repository coordination remains V10 |
+| CP-004 | V1, V3, V6, V8 | repository validation passed | Live integration remains V10 |
+| CP-005 | V1, V8, V10 | V1 and V8 repository validation passed | Live retention acceptance remains V10 |
 | CP-006 | V1-V2, V4-V6 | V1-V3 and V5-V6 repository validation passed | Live IPC remains V4/V10 |
 | CP-007 | V2, V4, V10 | repository authorization and denial validation passed | Live NSS/session behavior remains V4/V10 |
-| CP-008 | V3, V9-V10 | pending | |
-| CP-009 | V1, V7, V9 | pending | Live Windows remains follow-up |
-| CP-010 | V3, V8, V10 | pending | |
+| CP-008 | V3, V9-V10 | V3 repository validation passed | Installed coordination and restart remain V9-V10 |
+| CP-009 | V1, V7, V9 | V1 and V7 repository validation passed | Live Windows remains follow-up |
+| CP-010 | V3, V8, V10 | V3 and V8 repository validation passed | Live retention failure isolation remains V10 |
 | CP-011 | V1-V2, V4, V6, V10 | repository projection and CLI validation passed | Live metadata-leak acceptance remains V10 |
 
 ## Scope Reconciliation Before Closure
@@ -95,8 +95,8 @@ Commands are refined through Agent Workbench before execution.
 |-----------------------------------------------------|--------------------------|----------------|---------------------------|-------------|-----------------|----------|
 | Linux system command/control plane | Shared contracts, store, dispatcher, staged launcher, and CLI client/views | partial | Live artifact integration and host acceptance | T009-T010 | yes | T001-T006 evidence |
 | Group-authorized system records | Current-membership dispatcher and structured CLI projection | partial | Live NSS/socket acceptance | T009-T010 | yes | T003, T004, T006 evidence |
-| Independent tray | none | not-covered | Implementation pending | T007, T009-T010 | yes | pending |
-| Retention automation | none | not-covered | Implementation pending | T008-T010 | yes | pending |
+| Independent tray | Standalone tray entry point, bounded tray IPC client, strict menu allowlist, singleton lock, and headless-safe monitoring imports | partial | Installed desktop-session, launcher integration, and live IPC acceptance | T009-T010 | yes | T007 evidence |
+| Retention automation | Approved retention executor, exact policy fingerprinting, durable backup-success trigger claiming, explicit request handler, and independently gated schedule | partial | Live backend composition, installed schedule assets, and production-host timing acceptance | T009-T010 | yes | T008 evidence |
 | Windows shared architecture | none | not-covered | Live Windows adapter/acceptance | T001, T009 then roadmap | yes for contracts; no for live Windows | pending |
 | Raw journald delegation | rejected | out-of-scope | Rejected because it exposes unrelated/protected records | none | no | Design D002 |
 | User-scoped backup partitions | none | out-of-scope | Separate authorization model | GitHub issue #70 | no | Requirements non-goal |
@@ -123,7 +123,9 @@ Commands are refined through Agent Workbench before execution.
 | T004 | complete | Phase 1 suite passed 98 tests at 88.4% coverage; Ruff, compileall, wheel asset, patch, lifecycle, and expert-panel checks passed | Real systemd/AF_UNIX host acceptance remains V4/T010 |
 | T005 | complete | 22 focused launcher/action-policy tests; staged alias, selector, and launcher assets; wheel inventory; Ruff and patch checks passed | No live launcher or selector changed |
 | T006 | complete | Integrated system-control/CLI/help suite passed 177 tests; system-control package measured 88.2% branch-aware coverage; Ruff, format, compile, wheel, and patch checks passed | Live socket and operator-group acceptance remain T009/T010 |
-| T007-T012 | pending | No implementation evidence | Later implementation phases |
+| T007 | complete | Independent tray entry point, strict tray allowlist, backend-unavailable/denied projection, and headless-safe monitoring imports; 190-test repository slice passed | Installed desktop-session and live IPC acceptance remain T009-T010 |
+| T008 | complete | Approved retention executor, trigger claiming, protected request handler, and independent schedule gate; system-control suite passed 149 tests with 83.09% branch-aware coverage | Live backend composition and host scheduling acceptance remain T009-T010 |
+| T009-T012 | pending | No implementation evidence | Later implementation, promotion, and closure phases |
 
 ## Evidence Log
 
@@ -147,6 +149,11 @@ Commands are refined through Agent Workbench before execution.
 | 2026-07-26 | `coverage report --include='src/TimeLocker/system_control/*' --skip-empty --fail-under=0` | 88.2% branch-aware coverage | Scoped report for the system-control package; a pytest coverage attempt inherited repository-wide `source=src` and failed the global 50% threshold at 17.3%, so it is not presented as a focused coverage result |
 | 2026-07-26 | Ruff check/format, compileall, wheel build/inventory, and `git diff --check` | passed | Wheel contains the Phase 2 modules and all six system-control assets, including distinct `timelocker` and `tl` launcher assets; isolated build dependency resolution was unavailable, and the Python 3.12.4 no-isolation build passed |
 | 2026-07-26 | Agent Workbench verification planning | partial routing only | Its index had not incorporated newly created files and proposed unrelated tests; direct source review, the focused suite, and package inventory are the proof |
+| 2026-07-26 | `python3 -m pytest tests/TimeLocker/system_control/test_retention.py tests/TimeLocker/system_control/test_tray_client.py tests/TimeLocker/system_control/test_tray_process_boundary.py tests/TimeLocker/monitoring/test_system_tray_integration.py tests/TimeLocker/system_control/test_client.py` | 32 passed; repository-wide coverage gate failed at 12.2% | Narrow slice inherited repository-wide `--cov=src/TimeLocker`; tests passed and exposed a coverage-accounting mismatch rather than a functional regression |
+| 2026-07-26 | `PYENV_VERSION=3.12.4 PYTHONPATH=src python -m pytest -o addopts='' tests/TimeLocker/system_control --cov-config=/dev/null --cov=TimeLocker.system_control --cov-branch --cov-report=term --cov-fail-under=80 -q` | 149 passed; 83.09% branch-aware coverage | Complete system-control regression and focused Phase 3 coverage without inheriting the repository-wide coverage source |
+| 2026-07-26 | System-control, monitoring, and integration regression slice | 190 passed | Tray/process boundaries, retention execution, monitoring compatibility, reconnect, authorization projection, and schedule summaries |
+| 2026-07-26 | Ruff check/format, compileall, wheel build/inventory, and `git diff --check` | passed | Wheel contains `timelocker-tray` and all new Phase 3 modules; no host state changed |
+| 2026-07-26 | Expanded `system_control`, `monitoring`, and `integration` pytest run | 733 passed, 1 skipped, 2 failed, 4 setup errors | The failures are confined to repository credential integration paths outside this diff: five expect a legacy credential-file location and one cannot register S3 because optional `b2sdk` is absent. They do not invalidate the bounded Phase 3 suites but remain repository test debt. |
 
 ## T004 Review Finding Dispositions
 
@@ -176,6 +183,19 @@ No actionable Phase 2 findings remain after these dispositions. The review was
 bounded to T005-T006 source, tests, packaged assets, and lifecycle artifacts.
 It did not install the launcher, select a live release, activate the socket,
 inspect real group membership, or prove platform authorization prompts.
+
+## Phase 3 Review Finding Dispositions
+
+| Finding | Severity / confidence | Roles | Disposition | Validation |
+|---------|-----------------------|-------|-------------|------------|
+| TLR-010: the standalone tray used a predictable shared `/tmp` singleton path and did not drain GTK events | high / high | Security and Privacy; Operations and Portability; Reliability and Testing | fixed: the lock now lives in a private XDG runtime/cache directory, rejects symlinks, and the tray loop drains platform UI events | singleton, process-boundary, and tray adapter tests |
+| TLR-011: the retention IPC handler returned an `ActionReceipt` object instead of the dispatcher contract's wire mapping | high / high | Python CLI Architecture; Reliability and Testing | fixed: the protected handler projects the receipt through `to_wire()` | protected request projection test |
+| TLR-012: backend loss or access denial could leave stale successful state visible in the tray | medium / high | Project Steward; Security and Privacy; Operations and Portability | fixed: bounded retry/reset now replaces stale state with explicit unavailable or denied projections | backend absence, denial, reconnect, and safe-projection tests |
+
+No actionable Phase 3 findings remain after these dispositions. The review was
+bounded to T007-T008 source, tests, packaging, and lifecycle artifacts. It did
+not install a desktop-session process, connect to the live system backend,
+activate production retention, or mutate host state.
 
 ## Manual Or External Verification
 
@@ -217,7 +237,7 @@ package.
 ### Spec Cleanup Decision
 
 - **Cleanup action:** keep active until implementation, promotion, and closure
-- **Reason:** no implementation evidence exists
+- **Reason:** repository implementation evidence exists through T008, but live integration, durable promotion, and closure evidence remain incomplete
 - **Final spec commit:** pending
 - **Closure log path:** `docs/history/spec-closure-log.md`
 - **Closure log entry updated:** no
@@ -248,7 +268,7 @@ protected metadata, widen privilege, interrupt backups, or delete snapshots.
 - **Ready for promotion:** no
 - **Ready for release:** no
 - **Ready for closure:** no
-- **Ready for implementation:** yes for Phase 3 tasks T007 and T008; later
+- **Ready for implementation:** yes for Phase 4 task T009; later
   live-host mutations still require T010
   approval
 
@@ -263,8 +283,9 @@ protected metadata, widen privilege, interrupt backups, or delete snapshots.
 
 ## Reconciliation
 
-Reviewed against the 2026-07-26 requirements and design revisions. T001-T006
-now provide executed Phase 1-2 evidence for V1-V3, V5-V6, and repository-local
+Reviewed against the 2026-07-26 requirements and design revisions. T001-T008
+now provide executed Phase 1-3 evidence for V1-V3, V5-V8, and repository-local
 portions of V4/V11. Real socket activation, installed ownership/modes, live NSS
-behavior, authorization prompts, and host restart remain pending under
-T009-T010; Phase 3, durable promotion, and closure remain incomplete.
+behavior, backend composition on the host, authorization prompts, and host
+restart remain pending under T009-T010; durable promotion and closure remain
+incomplete.

@@ -1,0 +1,196 @@
+"""Focused tests for the stand-alone tray service client."""
+
+from datetime import UTC, datetime, timedelta
+from uuid import uuid4
+
+from pytest import mark
+import pytest
+
+from TimeLocker.system_control.client import (
+    ProtocolErrorCode,
+    ResponseStatus,
+    SystemControlClientError,
+)
+from TimeLocker.system_control.models import (
+    BackupActionRequest,
+    RunQuery,
+    RunRecord,
+    RunRecordView,
+    RetentionActionRequest,
+    ScheduleSummary,
+)
+from TimeLocker.system_control.models import OperationTrigger
+from TimeLocker.system_control.types import (
+    OperationType as BackendOperationType,
+    ResultCode,
+    RunState,
+)
+from TimeLocker.system_control.tray_client import TrayControlClient
+
+
+class FakeBackend:
+    def __init__(
+        self, runs, summary, status_error=None, backup_error=None, retention_error=None
+    ):
+        self.runs = runs
+        self.summary = summary
+        self.status_error = status_error
+        self.backup_error = backup_error
+        self.retention_error = retention_error
+        self.requests = []
+
+    def list_runs(self, query: RunQuery):
+        self.requests.append(("list_runs", query))
+        if self.status_error:
+            raise self.status_error
+        return self.runs
+
+    def list_diagnostics(self, query):
+        raise AssertionError("not expected")
+
+    def get_run(self, run_id):
+        raise AssertionError("not expected")
+
+    def get_schedule_summary(self):
+        self.requests.append(("get_schedule_summary", None))
+        if self.status_error:
+            raise self.status_error
+        return self.summary
+
+    def request_backup(self, request: BackupActionRequest):
+        self.requests.append(("request_backup", request))
+        if self.backup_error:
+            raise self.backup_error
+        return None
+
+    def request_retention(self, request: RetentionActionRequest):
+        self.requests.append(("request_retention", request))
+        if self.retention_error:
+            raise self.retention_error
+        return None
+
+
+@mark.unit
+def test_refresh_status_orders_runs_by_newest_and_projects_summary() -> None:
+    base_time = datetime(2026, 7, 26, 12, 0, tzinfo=UTC)
+    runs = [
+        RunRecordView.from_record(
+            RunRecord(
+                run_id=uuid4(),
+                operation=BackendOperationType.BACKUP,
+                started_at=base_time - timedelta(minutes=60),
+                completed_at=base_time - timedelta(minutes=55),
+                state=RunState.SUCCEEDED,
+                target_id="prod",
+                trigger=OperationTrigger.EXPLICIT,
+                result_code=ResultCode.BACKUP_SUCCEEDED,
+                policy_fingerprint=None,
+                counters={},
+                schema_version=1,
+            )
+        ),
+        RunRecordView.from_record(
+            RunRecord(
+                run_id=uuid4(),
+                operation=BackendOperationType.RETENTION,
+                started_at=base_time - timedelta(minutes=10),
+                completed_at=base_time - timedelta(minutes=5),
+                state=RunState.FAILED,
+                target_id="prod",
+                trigger=OperationTrigger.EXPLICIT,
+                result_code=ResultCode.OPERATION_FAILED,
+                policy_fingerprint="a" * 64,
+                counters={},
+                schema_version=1,
+            )
+        ),
+    ]
+
+    summary = ScheduleSummary(
+        next_backup_at=base_time + timedelta(hours=1),
+        next_retention_at=base_time + timedelta(hours=2),
+    )
+    client = TrayControlClient(
+        client_factory=lambda: FakeBackend(runs, summary),
+    )
+
+    state = client.refresh_status()
+
+    assert state.status == "error"
+    assert "Next backup" in state.tooltip
+    assert state.repository_count == 1
+    assert state.last_retention_status == "Operation failed."
+    assert state.last_backup_status == "Backup completed successfully."
+    assert state.next_backup_at == base_time + timedelta(hours=1)
+
+
+@mark.unit
+def test_retention_action_requires_fingerprint() -> None:
+    client = TrayControlClient(
+        client_factory=lambda: FakeBackend([], ScheduleSummary(None, None)),
+        retention_policy_fingerprint=None,
+    )
+    try:
+        client.perform_action("retention_now")
+    except ValueError as exc:
+        assert "retention policy fingerprint is required" in str(exc)
+    else:
+        raise AssertionError("expected a ValueError")
+
+
+@mark.unit
+def test_unavailable_backend_errors_are_retriable() -> None:
+    backend_error = SystemControlClientError(
+        ProtocolErrorCode.SYSTEM_BACKEND_UNAVAILABLE,
+        "backend unavailable",
+        status=ResponseStatus.UNAVAILABLE,
+    )
+    client = TrayControlClient(
+        client_factory=lambda: FakeBackend(
+            [], ScheduleSummary(None, None), status_error=backend_error
+        ),
+    )
+
+    unavailable = client.refresh_status()
+
+    assert unavailable.backend_available is False
+    assert unavailable.status == "warning"
+    assert "backend unavailable" in unavailable.tooltip.lower()
+
+    backend = client._client
+    backend.status_error = None
+    client._retry_at = 0.0
+    recovered = client.refresh_status()
+
+    assert recovered.backend_available is True
+    assert recovered.status == "idle"
+
+
+@mark.unit
+def test_denied_backend_is_rendered_without_protected_detail() -> None:
+    denied = SystemControlClientError(
+        ProtocolErrorCode.SYSTEM_ACCESS_DENIED,
+        "detail that must not be rendered",
+        status=ResponseStatus.DENIED,
+    )
+    client = TrayControlClient(
+        client_factory=lambda: FakeBackend(
+            [], ScheduleSummary(None, None), status_error=denied
+        ),
+    )
+
+    state = client.refresh_status()
+
+    assert state.backend_available is True
+    assert state.tooltip == "TimeLocker - Access denied"
+    assert "detail" not in state.tooltip
+
+
+@mark.unit
+def test_tray_rejects_actions_outside_strict_allowlist() -> None:
+    client = TrayControlClient(
+        client_factory=lambda: FakeBackend([], ScheduleSummary(None, None)),
+    )
+
+    with pytest.raises(ValueError, match="unsupported tray action"):
+        client.perform_action("shell")

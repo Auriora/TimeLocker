@@ -9,6 +9,7 @@ from .models import (
     BackupActionRequest,
     DiagnosticQuery,
     DiagnosticView,
+    ScheduleSummary,
     RetentionActionRequest,
     RunQuery,
     RunRecordView,
@@ -92,3 +93,6 @@ class SystemControlClient(Protocol):
 
     def request_retention(self, request: RetentionActionRequest) -> ActionReceipt:
         """Request an approved retention operation."""
+
+    def get_schedule_summary(self) -> ScheduleSummary:
+        """Return next scheduled backup and retention run timestamps."""

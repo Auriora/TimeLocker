@@ -410,6 +410,51 @@ class DiagnosticRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class ScheduleSummary:
+    """Projected schedule timing used by user-facing status views."""
+
+    next_backup_at: datetime | None
+    next_retention_at: datetime | None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "next_backup_at",
+            require_optional_utc_datetime(
+                self.next_backup_at,
+                field="next_backup_at",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "next_retention_at",
+            require_optional_utc_datetime(
+                self.next_retention_at,
+                field="next_retention_at",
+            ),
+        )
+
+    @classmethod
+    def from_mapping(cls, value: object) -> "ScheduleSummary":
+        """Parse the strict wire projection returned by the protected backend."""
+        mapping = require_exact_mapping(
+            value,
+            field="schedule_summary",
+            required=frozenset({"next_backup_at", "next_retention_at"}),
+        )
+        return cls(
+            next_backup_at=require_optional_wire_utc_datetime(
+                mapping["next_backup_at"],
+                field="next_backup_at",
+            ),
+            next_retention_at=require_optional_wire_utc_datetime(
+                mapping["next_retention_at"],
+                field="next_retention_at",
+            ),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class RunQuery:
     """Bounded filters for listing system runs."""
 

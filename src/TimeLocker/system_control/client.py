@@ -12,6 +12,7 @@ from .models import (
     BackupActionRequest,
     DiagnosticQuery,
     DiagnosticView,
+    ScheduleSummary,
     RetentionActionRequest,
     RunQuery,
     RunRecordView,
@@ -100,6 +101,10 @@ class UnixSocketSystemControlClient:
             },
         )
         return _receipt_from_mapping(result)
+
+    def get_schedule_summary(self) -> ScheduleSummary:
+        result = self._request(SystemAction.SCHEDULE_SUMMARY, {})
+        return ScheduleSummary.from_mapping(result)
 
     def _request(
         self,

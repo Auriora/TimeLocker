@@ -27,6 +27,7 @@ from .models import (
     DiagnosticView,
     RetentionActionRequest,
     RetentionPolicy,
+    ScheduleSummary,
     RunQuery,
     RunRecord,
     RunRecordView,
@@ -34,6 +35,15 @@ from .models import (
     SystemPolicy,
 )
 from .protocol import RequestEnvelope, ResponseEnvelope, project_response
+from .retention import (
+    RetentionAdapter,
+    RetentionExecutionResult,
+    RetentionExecutor,
+    RetentionPlan,
+    RetentionRequestHandler,
+    RetentionTriggerCoordinator,
+    RetentionTriggerStore,
+)
 from .storage import (
     AtomicRecordStore,
     InvalidTransitionError,
@@ -91,7 +101,15 @@ __all__ = [
     "ResponseStatus",
     "ResultCode",
     "RetentionActionRequest",
+    "RetentionAdapter",
+    "RetentionExecutionResult",
+    "RetentionExecutor",
+    "RetentionPlan",
     "RetentionPolicy",
+    "RetentionRequestHandler",
+    "RetentionTriggerCoordinator",
+    "RetentionTriggerStore",
+    "ScheduleSummary",
     "RepositoryMutationLease",
     "RepositoryMutationLock",
     "RunQuery",

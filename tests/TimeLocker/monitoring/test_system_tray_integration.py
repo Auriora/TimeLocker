@@ -19,14 +19,11 @@ import pytest
 from datetime import datetime
 from unittest.mock import Mock, patch
 
-from TimeLocker.monitoring import (
+from TimeLocker.monitoring.system_tray_integration import (
+    SystemTrayError,
     SystemTrayIntegration,
     TrayStatus,
     TrayStatusInfo,
-    SystemTrayError
-)
-from TimeLocker.monitoring.system_tray_integration import (
-    LinuxSystemTray,
     _load_linux_tray_modules,
 )
 
@@ -44,7 +41,7 @@ class TestTrayStatusInfo:
             last_backup_time=datetime.now(),
             last_backup_status="success",
             repository_count=3,
-            active_operations=0
+            active_operations=0,
         )
 
         assert info.status == TrayStatus.SUCCESS
@@ -57,13 +54,15 @@ class TestSystemTrayIntegration:
 
     @pytest.mark.monitoring
     @pytest.mark.unit
-    @patch('TimeLocker.monitoring.system_tray_integration.sys.platform', 'linux')
+    @patch("TimeLocker.monitoring.system_tray_integration.sys.platform", "linux")
     def test_initialization(self, monkeypatch):
         """Test SystemTrayIntegration initialization"""
-        monkeypatch.setenv('DISPLAY', ':0')
-        with patch('TimeLocker.monitoring.system_tray_integration.LinuxSystemTray') as linux_tray:
+        monkeypatch.setenv("DISPLAY", ":0")
+        with patch(
+            "TimeLocker.monitoring.system_tray_integration.LinuxSystemTray"
+        ) as linux_tray:
             tray = SystemTrayIntegration(app_name="TestApp")
-            
+
             assert tray.app_name == "TestApp"
             assert tray.current_status == TrayStatus.IDLE
             assert tray.is_available() is True
@@ -71,13 +70,15 @@ class TestSystemTrayIntegration:
 
     @pytest.mark.monitoring
     @pytest.mark.unit
-    @patch('TimeLocker.monitoring.system_tray_integration.sys.platform', 'linux')
+    @patch("TimeLocker.monitoring.system_tray_integration.sys.platform", "linux")
     def test_headless_linux_skips_native_tray_initialization(self, monkeypatch):
         """A service without a display must not enter GTK/AppIndicator code."""
-        monkeypatch.delenv('DISPLAY', raising=False)
-        monkeypatch.delenv('WAYLAND_DISPLAY', raising=False)
+        monkeypatch.delenv("DISPLAY", raising=False)
+        monkeypatch.delenv("WAYLAND_DISPLAY", raising=False)
 
-        with patch('TimeLocker.monitoring.system_tray_integration.LinuxSystemTray') as linux_tray:
+        with patch(
+            "TimeLocker.monitoring.system_tray_integration.LinuxSystemTray"
+        ) as linux_tray:
             tray = SystemTrayIntegration(app_name="HeadlessService")
 
         assert tray.is_available() is False
@@ -104,15 +105,15 @@ class TestLinuxSystemTray:
         gtk = Mock()
         ayatana = Mock()
 
-        with patch.dict('sys.modules', {'gi': gi}):
+        with patch.dict("sys.modules", {"gi": gi}):
             with patch(
-                'TimeLocker.monitoring.system_tray_integration.importlib.import_module',
+                "TimeLocker.monitoring.system_tray_integration.importlib.import_module",
                 side_effect=[gtk, ayatana],
             ):
                 modules = _load_linux_tray_modules()
 
-        assert modules == (gtk, ayatana, 'AyatanaAppIndicator3')
-        gi.require_version.assert_any_call('AyatanaAppIndicator3', '0.1')
+        assert modules == (gtk, ayatana, "AyatanaAppIndicator3")
+        gi.require_version.assert_any_call("AyatanaAppIndicator3", "0.1")
 
     @pytest.mark.monitoring
     @pytest.mark.unit
@@ -122,27 +123,27 @@ class TestLinuxSystemTray:
         legacy = Mock()
 
         def require_version(namespace, version):
-            if namespace == 'AyatanaAppIndicator3':
-                raise ValueError('namespace unavailable')
+            if namespace == "AyatanaAppIndicator3":
+                raise ValueError("namespace unavailable")
 
         gi.require_version.side_effect = require_version
-        with patch.dict('sys.modules', {'gi': gi}):
+        with patch.dict("sys.modules", {"gi": gi}):
             with patch(
-                'TimeLocker.monitoring.system_tray_integration.importlib.import_module',
+                "TimeLocker.monitoring.system_tray_integration.importlib.import_module",
                 side_effect=[gtk, legacy],
             ):
                 modules = _load_linux_tray_modules()
 
-        assert modules == (gtk, legacy, 'AppIndicator3')
-        gi.require_version.assert_any_call('AppIndicator3', '0.1')
+        assert modules == (gtk, legacy, "AppIndicator3")
+        gi.require_version.assert_any_call("AppIndicator3", "0.1")
 
     @pytest.mark.monitoring
     @pytest.mark.unit
     def test_missing_indicator_namespaces_is_non_fatal_to_facade(self):
         with patch(
-            'TimeLocker.monitoring.system_tray_integration._load_linux_tray_modules',
-            side_effect=SystemTrayError('no indicator'),
+            "TimeLocker.monitoring.system_tray_integration._load_linux_tray_modules",
+            side_effect=SystemTrayError("no indicator"),
         ):
-            tray = SystemTrayIntegration('TestApp')
+            tray = SystemTrayIntegration("TestApp")
 
         assert tray.is_available() is False

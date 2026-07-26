@@ -1837,10 +1837,6 @@ class CLILogHandler(RichHandler):
             # Format the message
             message = self.format(record)
 
-            # Skip system tray warnings - these are expected in CLI-only environments
-            if record.levelno == logging.WARNING and "system tray" in message.lower():
-                return
-
             # Determine panel style based on log level
             if record.levelno >= logging.CRITICAL:
                 title = "Critical Error"
