@@ -125,6 +125,89 @@ def test_refresh_status_orders_runs_by_newest_and_projects_summary() -> None:
 
 
 @mark.unit
+def test_queued_backup_is_active_and_overrides_stale_interruption() -> None:
+    base_time = datetime(2026, 7, 26, 12, 0, tzinfo=UTC)
+    runs = [
+        RunRecordView.from_record(
+            RunRecord(
+                run_id=uuid4(),
+                operation=BackendOperationType.BACKUP,
+                started_at=base_time,
+                state=RunState.QUEUED,
+                target_id="prod",
+                trigger=OperationTrigger.EXPLICIT,
+                result_code=ResultCode.OPERATION_QUEUED,
+            )
+        ),
+        RunRecordView.from_record(
+            RunRecord(
+                run_id=uuid4(),
+                operation=BackendOperationType.BACKUP,
+                started_at=base_time - timedelta(hours=1),
+                completed_at=base_time - timedelta(minutes=55),
+                state=RunState.INTERRUPTED,
+                target_id="prod",
+                trigger=OperationTrigger.SCHEDULED,
+                result_code=ResultCode.OPERATION_INTERRUPTED,
+            )
+        ),
+    ]
+    client = TrayControlClient(
+        client_factory=lambda: FakeBackend(
+            runs,
+            ScheduleSummary(None, None),
+        ),
+    )
+
+    state = client.refresh_status()
+
+    assert state.status == "running"
+    assert state.active_operations == 1
+
+
+@mark.unit
+def test_new_success_supersedes_stale_interruption() -> None:
+    base_time = datetime(2026, 7, 26, 12, 0, tzinfo=UTC)
+    runs = [
+        RunRecordView.from_record(
+            RunRecord(
+                run_id=uuid4(),
+                operation=BackendOperationType.BACKUP,
+                started_at=base_time,
+                completed_at=base_time + timedelta(minutes=5),
+                state=RunState.SUCCEEDED,
+                target_id="prod",
+                trigger=OperationTrigger.EXPLICIT,
+                result_code=ResultCode.BACKUP_SUCCEEDED,
+            )
+        ),
+        RunRecordView.from_record(
+            RunRecord(
+                run_id=uuid4(),
+                operation=BackendOperationType.BACKUP,
+                started_at=base_time - timedelta(hours=1),
+                completed_at=base_time - timedelta(minutes=55),
+                state=RunState.INTERRUPTED,
+                target_id="prod",
+                trigger=OperationTrigger.SCHEDULED,
+                result_code=ResultCode.OPERATION_INTERRUPTED,
+            )
+        ),
+    ]
+    client = TrayControlClient(
+        client_factory=lambda: FakeBackend(
+            runs,
+            ScheduleSummary(None, None),
+        ),
+    )
+
+    state = client.refresh_status()
+
+    assert state.status == "success"
+    assert state.last_backup_status == "Backup completed successfully."
+
+
+@mark.unit
 def test_retention_action_requires_fingerprint() -> None:
     client = TrayControlClient(
         client_factory=lambda: FakeBackend([], ScheduleSummary(None, None)),

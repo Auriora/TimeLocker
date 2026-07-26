@@ -215,7 +215,11 @@ class TrayControlClient:
         )
 
     def _count_active_runs(self, runs: list[RunRecordView]) -> int:
-        return sum(1 for run in runs if run.state is RunState.RUNNING)
+        return sum(
+            1
+            for run in runs
+            if run.state in {RunState.QUEUED, RunState.RUNNING}
+        )
 
     def _latest_run(self, runs: list[RunRecordView]) -> RunRecordView | None:
         if not runs:
@@ -223,15 +227,29 @@ class TrayControlClient:
         return sorted(runs, key=lambda run: run.started_at, reverse=True)[0]
 
     def _status_from_runs(self, runs: list[RunRecordView]) -> str:
-        if any(run.state is RunState.RUNNING for run in runs):
+        if any(
+            run.state in {RunState.QUEUED, RunState.RUNNING}
+            for run in runs
+        ):
             return "running"
-        if any(run.state is RunState.FAILED for run in runs):
+        latest_runs = [
+            latest
+            for operation in (OperationType.BACKUP, OperationType.RETENTION)
+            if (
+                latest := self._latest_run(
+                    [run for run in runs if run.operation is operation]
+                )
+            )
+            is not None
+        ]
+        if any(
+            run.state in {RunState.FAILED, RunState.INTERRUPTED}
+            for run in latest_runs
+        ):
             return "error"
-        if any(run.state is RunState.INTERRUPTED for run in runs):
-            return "error"
-        if any(run.state is RunState.SKIPPED for run in runs):
+        if any(run.state is RunState.SKIPPED for run in latest_runs):
             return "warning"
-        if any(run.state is RunState.SUCCEEDED for run in runs):
+        if any(run.state is RunState.SUCCEEDED for run in latest_runs):
             return "success"
         return "idle"
 
