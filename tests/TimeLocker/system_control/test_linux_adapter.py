@@ -218,11 +218,12 @@ class TestSystemPolicyAndAssets:
         service_unit = (ASSET_DIRECTORY / "timelocker-control.service").read_text()
 
         assert "ListenStream=/run/timelocker/control.sock" in socket_unit
+        assert "DirectoryMode=0755" in socket_unit
         assert "SocketGroup=timelocker-operators" in socket_unit
         assert "SocketMode=0660" in socket_unit
         assert "User=root" in service_unit
         assert "UMask=0077" in service_unit
-        assert "RuntimeDirectoryMode=0755" in service_unit
+        assert "RuntimeDirectory=" not in service_unit
         assert "StateDirectoryMode=0750" in service_unit
         assert "NoNewPrivileges=yes" in service_unit
         assert "ProtectSystem=strict" in service_unit

@@ -3,6 +3,7 @@ Description=TimeLocker local system-control socket
 
 [Socket]
 ListenStream=/run/timelocker/control.sock
+DirectoryMode=0755
 SocketUser=root
 SocketGroup=timelocker-operators
 SocketMode=0660
