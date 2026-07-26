@@ -8,7 +8,7 @@ import sys
 import pytest
 
 from TimeLocker.system_control import tray_entry
-from TimeLocker.system_control.tray_entry import _single_instance
+from TimeLocker.system_control.tray_entry import _single_instance, _tray_menu_actions
 
 
 @pytest.mark.unit
@@ -75,3 +75,9 @@ def test_one_shot_action_does_not_construct_desktop_tray(monkeypatch) -> None:
     )
 
     tray_entry.main()
+
+
+@pytest.mark.unit
+def test_retention_menu_requires_configured_fingerprint() -> None:
+    assert "retention_now" not in _tray_menu_actions(None)
+    assert "retention_now" in _tray_menu_actions("a" * 64)

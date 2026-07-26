@@ -73,7 +73,46 @@ def test_rejects_writable_production_target(tmp_path: Path) -> None:
     path.write_text("{}\n", encoding="utf-8")
     path.chmod(0o666)
 
-    with pytest.raises(PermissionError, match="must not be group/world writable"):
+    with pytest.raises(PermissionError, match="must be owner-only"):
+        ProductionRetentionTarget.load(path, expected_owner=os.getuid())
+
+
+@pytest.mark.unit
+def test_rejects_world_readable_production_target(tmp_path: Path) -> None:
+    path = tmp_path / "production-target.json"
+    path.write_text("{}\n", encoding="utf-8")
+    path.chmod(0o644)
+
+    with pytest.raises(PermissionError, match="must be owner-only"):
+        ProductionRetentionTarget.load(path, expected_owner=os.getuid())
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("protected_name", ["repository_config", "credential_source"])
+def test_rejects_world_readable_protected_reference(
+    tmp_path: Path,
+    protected_name: str,
+) -> None:
+    target = _target(tmp_path)
+    path = tmp_path / "production-target.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "target_id": target.target_id,
+                "repository_name": target.repository_name,
+                "config_directory": str(target.config_directory),
+                "repository_config": str(target.repository_config),
+                "credential_source": str(target.credential_source),
+                "snapshot_filters": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    path.chmod(0o600)
+    getattr(target, protected_name).chmod(0o644)
+
+    with pytest.raises(PermissionError, match="must be owner-only"):
         ProductionRetentionTarget.load(path, expected_owner=os.getuid())
 
 
@@ -85,7 +124,7 @@ def test_retention_enable_marker_must_be_protected(tmp_path: Path) -> None:
     require_retention_enable_marker(marker, expected_owner=os.getuid())
 
     marker.chmod(0o666)
-    with pytest.raises(PermissionError, match="must not be group/world writable"):
+    with pytest.raises(PermissionError, match="must be owner-only"):
         require_retention_enable_marker(marker, expected_owner=os.getuid())
 
 
@@ -96,7 +135,9 @@ def test_adapter_runs_only_fixed_retention_command_and_counts_candidates(
     target = _target(tmp_path)
     calls: list[list[str]] = []
 
-    def runner(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+    def runner(
+        command: list[str], **_kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
         calls.append(command)
         return subprocess.CompletedProcess(
             command,

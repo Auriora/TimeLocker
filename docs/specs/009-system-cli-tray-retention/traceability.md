@@ -22,7 +22,7 @@ targets. Reconcile this matrix whenever any linked artifact changes.
 | T002 | Requirement 4, Requirement 5, Requirement 6 | Requirement 4 AC2; Requirement 4 AC3; Requirement 4 AC5; Requirement 4 AC6; Requirement 4 AC10; Requirement 4 AC11; Requirement 5 AC4; Requirement 5 AC5; Requirement 5 AC6; Requirement 5 AC11; Requirement 6 AC6 | Run store; Atomic transition; Error Handling | Run records and recovery | V1, V3 | System and scheduling architecture | none |
 | T003 | Requirement 2, Requirement 4 | Requirement 2 AC2; Requirement 2 AC3; Requirement 2 AC4; Requirement 2 AC5; Requirement 2 AC6; Requirement 4 AC1; Requirement 4 AC4; Requirement 4 AC5; Requirement 4 AC6; Requirement 4 AC7; Requirement 4 AC8; Requirement 4 AC9; Requirement 4 AC10; Requirement 4 AC11 | D001-D004; Authorization; Security | Operator authorization | V2, V4 | Requirements, architecture, installation | none |
 | T004 | Requirement 2, Requirement 4, Requirement 5, Requirement 6 | Requirement 2 AC4; Requirement 4 AC8; Requirement 4 AC9; Requirement 4 AC10; Requirement 4 AC11; Requirement 5 AC8; Requirement 6 AC5 | Downstream Task Guidance | All security-sensitive deltas | V1-V4, V11 | none | none |
-| T005 | Requirement 1, Requirement 2, Requirement 6 | Requirement 1 AC1; Requirement 1 AC2; Requirement 1 AC3; Requirement 1 AC4; Requirement 2 AC1; Requirement 2 AC2; Requirement 2 AC3; Requirement 2 AC4; Requirement 2 AC5; Requirement 2 AC6; Requirement 6 AC1; Requirement 6 AC2; Requirement 6 AC3 | D004; Launcher; Migration | System launcher/elevation | V5, V9 | Installation, version management | none |
+| T005 | Requirement 1, Requirement 2, Requirement 6 | Requirement 1 AC1; Requirement 1 AC2; Requirement 1 AC3; Requirement 1 AC4; Requirement 2 AC1; Requirement 2 AC2; Requirement 2 AC3; Requirement 2 AC4; Requirement 2 AC5; Requirement 2 AC6; Requirement 6 AC1; Requirement 6 AC2; Requirement 6 AC3 | D004; Launcher; Migration | System launcher/authorization | V5, V9 | Installation, version management | none |
 | T006 | Requirement 4 | Requirement 4 AC1; Requirement 4 AC2; Requirement 4 AC3; Requirement 4 AC6; Requirement 4 AC8; Requirement 4 AC9; Requirement 4 AC10; Requirement 4 AC11 | D002, D003, D005; Protected read | Local/system log split | V2, V6 | Requirements, CLI reference, troubleshooting | none |
 | T007 | Requirement 3, Requirement 4, Requirement 6 | Requirement 3 AC1; Requirement 3 AC2; Requirement 3 AC3; Requirement 3 AC4; Requirement 3 AC5; Requirement 3 AC6; Requirement 3 AC7; Requirement 3 AC8; Requirement 4 AC1; Requirement 4 AC4; Requirement 4 AC5; Requirement 4 AC6; Requirement 4 AC7; Requirement 4 AC8; Requirement 4 AC9; Requirement 6 AC1; Requirement 6 AC2; Requirement 6 AC3; Requirement 6 AC4; Requirement 6 AC5 | D006; Tray status; Migration | Independent tray | V7, V9 | Architecture, tray setup, installation | none |
 | T008 | Requirement 5, Requirement 6 | Requirement 5 AC1; Requirement 5 AC2; Requirement 5 AC3; Requirement 5 AC4; Requirement 5 AC5; Requirement 5 AC6; Requirement 5 AC7; Requirement 5 AC8; Requirement 5 AC9; Requirement 5 AC10; Requirement 5 AC11; Requirement 6 AC1; Requirement 6 AC2; Requirement 6 AC3; Requirement 6 AC6 | D007; Backup-triggered retention | Retention automation | V3, V8 | Scheduling architecture and guide | none |
@@ -46,7 +46,7 @@ targets. Reconcile this matrix whenever any linked artifact changes.
 
 | Property | Requirements | Design Sections | Tasks | Tests Or Verification | Residual Risk |
 |----------|--------------|-----------------|-------|-----------------------|---------------|
-| CP-001 | R2 | D004; Action classifier | T001, T003, T005 | V2, V5 | Live platform authorization |
+| CP-001 | R2 | D004; Action classifier | T001, T003, T005, T012 | V2, V5, V11 | Other platform authorization |
 | CP-002 | R3 | D006; Independent tray | T007 | V7, V10 | Desktop diversity |
 | CP-003 | R4, R5 | Run store and lock | T002, T008 | V3, V8 | Production timing |
 | CP-004 | R4, R5 | RunRecord state machine | T001-T002, T006, T008 | V1, V3, V6, V8 | none after evidence |
@@ -66,7 +66,7 @@ targets. Reconcile this matrix whenever any linked artifact changes.
 | Decision D006 and independent tray | R3, R4 | T007, T009-T010 | monitoring/tray/platform modules | V7, V9-V10 | live-validated and promoted for Linux Mint | Windows live follow-up |
 | Decision D007 and retention flow | R5 | T002, T008, T010 | retention/scheduling modules | V3, V8, V10 | live-validated and promoted | none |
 | Migration and compatibility | R1-R6 | T005, T007-T010 | install/release/system assets | V9-V10 | live-validated and promoted for Linux Mint | Windows live follow-up |
-| Durable promotion | R1-R6 | T011-T012 | `docs/` targets | V12 | promoted; final closure review pending | T012 |
+| Durable promotion | R1-R6 | T011-T012 | `docs/` targets | V12 | promoted; final review corrections implemented | none |
 
 ## Open Decision Impact
 
@@ -83,8 +83,8 @@ targets. Reconcile this matrix whenever any linked artifact changes.
   has an explicit design, task, verification, and durable-target mapping. It
   does not claim implementation completion.
 - Phase 4 repository and Linux Mint live evidence exists in `tasks.md` and
-  `verification.md`; T011 durable promotion is complete and T012 closure review
-  remains pending.
+  `verification.md`; T011 durable promotion is complete and T012 owns the final
+  review corrections and closure validation.
 
 ## Reconciliation
 
@@ -93,4 +93,6 @@ Requirement 1-6 acceptance criterion has an explicit task mapping, including
 Requirement 4 AC10-AC11 and the tightened security constraints. Phase 3
 repository implementation evidence now covers Decisions D006-D007 and
 packaging/portability. T010 live integration and T011 durable promotion are
-complete; T012 remains the final-review and closure path.
+complete. T012 reconciled operator-group authorization, added the missing
+public protected-action commands, tightened protected-file modes, and hid
+unconfigured tray retention; final closure validation remains.

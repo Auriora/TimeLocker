@@ -171,12 +171,16 @@ Verify an installed host without reading secrets:
 /usr/local/bin/timelocker version --short
 /usr/local/bin/timelocker runs list --limit 5
 /usr/local/bin/timelocker logs view --scope system --lines 20
+/usr/local/bin/timelocker system backup --help
+/usr/local/bin/timelocker system retention --help
 systemctl status timelocker-control.socket
 systemctl status timelocker-retention.timer
 /usr/local/bin/timelocker-tray status --once
 ```
 
-Protected reads require current membership in `timelocker-operators`.
+Protected reads and `system backup`/`system retention` requests require current
+membership in `timelocker-operators`. These commands use the privileged backend
+without elevating the caller process.
 Installation, group changes, policy approval, service changes, release
 selection, and rollback require root.
 

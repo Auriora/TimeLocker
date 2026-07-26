@@ -42,14 +42,14 @@ T009 -> T010 -> T011 -> T012
   - Evidence: T001 complete: 70 focused tests passed with 92.7% branch-aware coverage; compileall and git diff --check passed; focused review-timelocker implementation review found no remaining actionable findings. No transport, store, CLI, or live-host behavior was changed.
   - Evidence mode: validation
   - [x] T001.1 Add failing contract and model tests.
-  - Evidence: Added focused contract, model, transition, response-projection, security-boundary, and portability tests under tests/TimeLocker/system_control; final focused run: 70 passed.
+  - Evidence: `python3 -m pytest tests/TimeLocker/system_control ... --cov-fail-under=90` passed 70 tests at 92.7% branch-aware coverage, including contract, transition, response-projection, security-boundary, and portability cases.
   - Evidence mode: validation
   - [x] T001.2 Implement schemas, enums, validation, and response projection.
-  - Evidence: Implemented strict frozen enums, request/response envelopes, run/transition/diagnostic/policy/action models, validation helpers, immutable projections, and code-owned safe summaries under src/TimeLocker/system_control.
+  - Evidence: `src/TimeLocker/system_control/models.py`, `protocol.py`, and `validation.py` contain the strict frozen models, envelopes, validation helpers, immutable projections, and code-owned safe summaries exercised by the 70-test T001 run.
   - Evidence mode: implementation
   - [x] T001.3 Add Linux and Windows adapter protocol test doubles.
 
-  - Evidence: Added platform-neutral peer identity, membership, transport, handler, and client protocols with Linux UID and Windows SID adapter test doubles; platform tests passed.
+  - Evidence: `src/TimeLocker/system_control/interfaces.py` and `tests/TimeLocker/system_control/test_interfaces.py` define and exercise platform-neutral identity, membership, transport, handler, and client protocols; the final T001 command passed all 70 tests.
   - Evidence mode: validation
 - [x] T002 Implement atomic run/diagnostic storage, repository mutation
   locking, and interrupted-run reconciliation.
@@ -68,11 +68,11 @@ T009 -> T010 -> T011 -> T012
   - Evidence: Added transition, concurrency, corruption, persistence, bounded-stream, process-exit, and restart-reconciliation tests in tests/TimeLocker/system_control/test_storage.py; focused run passed 11 tests.
   - Evidence mode: command
   - [x] T002.2 Implement atomic record store and bounded diagnostic stream.
-  - Evidence: Implemented AtomicRecordStore with strict schema parsing, per-run atomic JSON replacement, fsync of files and directories, process-safe transition locking, bounded immutable diagnostic records, filtering, and mode enforcement.
+  - Evidence: `src/TimeLocker/system_control/storage.py` implements `AtomicRecordStore`; `python3 -m pytest tests/TimeLocker/system_control/test_storage.py` passed 11 schema, atomic-replacement, fsync, transition, bounded-stream, filtering, and mode cases.
   - Evidence mode: artifact
   - [x] T002.3 Implement repository lock leases and startup reconciliation.
 
-  - Evidence: Implemented nonblocking flock repository leases with safe run ownership metadata, conflict behavior, process-exit release, stale metadata clearing, and idempotent startup reconciliation of abandoned queued/running records.
+  - Evidence: `src/TimeLocker/system_control/storage.py` implements nonblocking `flock` leases and startup reconciliation; the 11-test storage run passed conflict, process-exit release, stale metadata, and abandoned-run cases.
   - Evidence mode: artifact
 - [x] T003 Implement Linux local transport and current operator-group
   authorization.
@@ -92,12 +92,12 @@ T009 -> T010 -> T011 -> T012
   - Evidence mode: command
   - [x] T003.2 Implement `SO_PEERCRED`, NSS group resolver, dispatcher, audit,
     and redaction.
-  - Evidence: Implemented SO_PEERCRED parsing, per-request primary/supplementary NSS lookup, strict JSON dispatcher, metadata-free denial/error responses, secret-free audit events, and systemd-activated AF_UNIX transport adapter.
+  - Evidence: `src/TimeLocker/system_control/linux_adapter.py` and `dispatcher.py` implement `SO_PEERCRED`, current NSS lookup, strict dispatch, safe denial, and audit projection; the focused T003 command passed 15 tests.
   - Evidence mode: artifact
   - [x] T003.3 Add root-owned policy, runtime directory, socket, and service
     templates with least-privilege modes.
 
-  - Evidence: Added packaged policy JSON plus staged socket/service templates with root ownership intent, timelocker-operators 0660 socket access, restrictive umask, AF_UNIX-only address family, filesystem protections, and no GUI/session or credential environment forwarding.
+  - Evidence: Wheel inventory found all 3 Phase 1 assets: `system-control-policy.json`, `timelocker-control.socket`, and `timelocker-control.service`; focused policy/unit tests verified `0660` group socket access, restrictive umask, AF_UNIX-only networking, and filesystem protections.
   - Evidence mode: artifact
 - [x] T004 Checkpoint - Foundation security and agent-readiness review.
   - Depends on: T003
@@ -275,7 +275,7 @@ T009 -> T010 -> T011 -> T012
   - Evidence mode: external
   - [x] T010.2 Obtain explicit approval before group membership, service,
     launcher, timer, or live-retention mutations.
-  - Evidence: The operator explicitly approved T010 rollout, credential-free migration, retention dry-run, exact fingerprint e62033fd33259af14b68305e6d1179f840697f4a89f0c0df8cb95a5d69e81d94, and live retention activation before each protected mutation class.
+  - Evidence: The operator explicitly approved each T010 mutation class on 2026-07-26 before selecting release `32ab1fefd8fd9334fe37b68b1f2262565f32bebd`; accepted retention fingerprint `e62033fd33259af14b68305e6d1179f840697f4a89f0c0df8cb95a5d69e81d94` produced successful run `b3e5baff-56a7-4437-9295-9611a0c56156`.
   - Status: All required live-mutation approvals recorded.
   - Evidence mode: external
   - [x] T010.3 Execute acceptance and record secret-free evidence.
@@ -299,7 +299,7 @@ T009 -> T010 -> T011 -> T012
 
   - Status: T011 complete. T012 remains the final expert review, residual disposition, and closure task.
   - Evidence mode: validation
-- [ ] T012 Complete expert review, full validation, residual disposition, and
+- [x] T012 Complete expert review, full validation, residual disposition, and
   closure preparation.
   - Depends on: T011
   - Files: Spec verification/traceability, durable docs, closure records
@@ -308,8 +308,9 @@ T009 -> T010 -> T011 -> T012
     requirements, ACs, and properties have evidence; closure and archive checks
     pass.
   - Evidence mode: validation
-  - Evidence: Pending.
+  - Evidence: Final seven-lens review completed with findings TLR-013 through TLR-018 resolved. Focused system-command, protected-file, and tray validation passed 22 tests. The configured non-performance/non-stress/non-MinIO profile passed 2,998 tests with 1 skip, 57 deselections, and 53.79% coverage against the 50% gate. Ruff lint and format checks, compileall, documentation link validation, and git diff integrity passed. Durable documentation promotion was committed as 3f009a8; Windows live acceptance and publication/deployment of the final repository corrections remain explicit post-spec follow-up work.
 
+  - Status: T012 complete; package is ready for lifecycle closure checks and removal after its final spec commit.
 ## Execution Rules
 
 - Do not implement from this file alone. Load the linked requirement, design,

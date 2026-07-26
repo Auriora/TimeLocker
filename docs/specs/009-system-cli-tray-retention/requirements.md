@@ -19,8 +19,8 @@ notification integration rather than an independent desktop client, and
 operation history is not yet a single durable cross-process contract.
 
 This package defines a coherent system-operations experience: a stable
-system-path command that requests elevation only when required, an independent
-per-user tray process, a local authenticated control/status boundary, and
+system-path command, an independent per-user tray process, a local authenticated
+control/status boundary with group-authorized privileged execution, and
 independently runnable retention with backup-success, scheduled, and explicit
 triggers plus visible outcomes.
 
@@ -28,8 +28,9 @@ triggers plus visible outcomes.
 
 - Install a stable `timelocker` command on the system path and retain `tl` as a
   compatible alias.
-- Let unprivileged commands remain unprivileged while privileged system actions
-  request elevation through an explicit, reviewable boundary.
+- Let user-local commands remain in the caller's context while protected system
+  actions cross an explicit, reviewable backend boundary authorized by current
+  operating-system group membership.
 - Remove all tray initialization from normal CLI, scheduler, and backend
   execution paths.
 - Run the tray as an independent process in the signed-in user's graphical
@@ -146,11 +147,11 @@ release or virtual-environment path.
    without falling back to a mutable checkout, user environment, or legacy
    root configuration overlay.
 
-### Requirement 2: Contextual privilege elevation
+### Requirement 2: Contextual privilege and authorization
 
-**User Story:** As an operator, I want TimeLocker to request elevation only for
-operations that require system authority, so that routine inspection remains
-convenient without widening privilege unnecessarily.
+**User Story:** As an operator, I want TimeLocker to use system authority only
+through a narrow authorized backend, so routine inspection remains convenient
+without widening the caller process's privilege.
 
 **Priority:** must-have
 
@@ -158,19 +159,20 @@ convenient without widening privilege unnecessarily.
 
 1. GIVEN a read-only operation whose data is accessible to the caller, WHEN it
    runs, THEN TimeLocker SHALL remain in the caller's security context.
-2. GIVEN an allowlisted machine-level operation that requires elevated access,
-   WHEN an interactive caller invokes it, THEN TimeLocker SHALL request
-   authorization through the supported operating-system elevation mechanism
-   and preserve the intended command arguments.
-3. IF no interactive authorization agent or terminal is available, THEN the
-   command SHALL fail promptly with the exact manual or automation-safe next
-   action; it SHALL NOT wait indefinitely.
-4. ELEVATION SHALL NOT forward repository passwords, unrestricted environment
-   variables, display/session credentials, or arbitrary executable paths.
-5. THE SYSTEM SHALL prevent recursive elevation and SHALL record a secret-free
-   audit event identifying the requested operation, caller, decision, and
-   result.
-6. A denied or failed elevation SHALL leave configuration, schedules,
+2. GIVEN an allowlisted protected operation, WHEN a caller invokes it, THEN
+   TimeLocker SHALL keep the caller process unprivileged, send the bounded
+   request to the privileged local backend, and authorize it from current
+   operating-system identity and operator-group membership.
+3. IF the backend is unavailable or the caller is not currently authorized,
+   THEN the command SHALL fail promptly with an exact safe next action; it
+   SHALL NOT wait indefinitely or fall back to direct elevated execution.
+4. THE PRIVILEGED BOUNDARY SHALL NOT forward repository passwords, unrestricted
+   environment variables, display/session credentials, or arbitrary executable
+   paths.
+5. THE SYSTEM SHALL prevent recursive launcher execution and SHALL record a
+   secret-free audit event identifying the requested operation, caller,
+   decision, and result.
+6. A denied or failed authorization SHALL leave configuration, schedules,
    repositories, and run state unchanged.
 
 ### Requirement 3: Independent tray process
@@ -386,9 +388,10 @@ silently select the wrong code or privilege boundary.
 - **SC-001:** `command -v timelocker` and `command -v tl` resolve the selected
   system release without a project checkout or virtual-environment path in the
   caller's command.
-- **SC-002:** A representative read-only command runs without elevation, while
-  a representative privileged command requests authorization once and records
-  its result without exposing secrets.
+- **SC-002:** A representative read-only command runs in the caller's context,
+  while a representative protected command crosses the privileged backend,
+  checks current operator-group authorization once, and records its result
+  without exposing secrets.
 - **SC-003:** CLI and systemd retention runs produce no tray initialization
   attempt or tray warning.
 - **SC-004:** Restarting or terminating the tray leaves scheduled operations
@@ -418,8 +421,9 @@ silently select the wrong code or privilege boundary.
 
 ## Resolved Design Questions
 
-- System reads and allowlisted actions use the privileged local backend;
-  administrator maintenance continues through the platform elevation adapter.
+- System reads and allowlisted actions use the privileged local backend and
+  current operator-group authorization; administrator maintenance continues
+  through the platform's normal explicit elevation mechanism.
 - Linux uses a systemd-managed Unix-domain socket with kernel peer credentials;
   shared contracts retain a Windows named-pipe adapter boundary.
 - The tray reads structured state exclusively through the backend contract.

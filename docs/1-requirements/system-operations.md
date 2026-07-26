@@ -57,6 +57,8 @@ backup, retention, status, diagnostics, and tray operations.
 - The protected interface must not disclose repository passwords, cloud
   credentials, environment-file contents, raw backend output, raw journald
   content, or unnecessary protected filesystem paths.
+- Root-owned target, repository-configuration, credential-source, and retention
+  enable-marker files accepted by the backend must be owner-only.
 - Run records must use bounded states, result codes, counters, and safe
   summaries.
 

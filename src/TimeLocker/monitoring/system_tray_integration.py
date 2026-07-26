@@ -102,7 +102,11 @@ class SystemTrayIntegration:
     - Click-to-open main interface
     """
 
-    def __init__(self, app_name: str = "TimeLocker"):
+    def __init__(
+        self,
+        app_name: str = "TimeLocker",
+        menu_actions: set[str] | frozenset[str] | None = None,
+    ):
         """
         Initialize system tray integration
 
@@ -110,6 +114,11 @@ class SystemTrayIntegration:
             app_name: Application name for tray icon
         """
         self.app_name = app_name
+        self.menu_actions = frozenset(
+            menu_actions
+            if menu_actions is not None
+            else {"status", "backup_now", "retention_now", "open_ui", "quit"}
+        )
         self.current_status = TrayStatus.IDLE
         self.status_info = TrayStatusInfo(
             status=TrayStatus.IDLE, tooltip="TimeLocker - No recent activity"
@@ -136,11 +145,11 @@ class SystemTrayIntegration:
                         "System tray disabled because no Linux graphical session is available"
                     )
                     return
-                self._tray_impl = LinuxSystemTray(self.app_name)
+                self._tray_impl = LinuxSystemTray(self.app_name, self.menu_actions)
             elif sys.platform == "darwin":
-                self._tray_impl = MacOSSystemTray(self.app_name)
+                self._tray_impl = MacOSSystemTray(self.app_name, self.menu_actions)
             elif sys.platform == "win32":
-                self._tray_impl = WindowsSystemTray(self.app_name)
+                self._tray_impl = WindowsSystemTray(self.app_name, self.menu_actions)
             else:
                 logger.warning(f"System tray not supported on {sys.platform}")
                 return
@@ -287,7 +296,11 @@ class SystemTrayIntegration:
 class LinuxSystemTray:
     """Linux system tray implementation using GTK or Qt"""
 
-    def __init__(self, app_name: str):
+    def __init__(
+        self,
+        app_name: str,
+        menu_actions: frozenset[str] | None = None,
+    ):
         """
         Initialize Linux system tray
 
@@ -295,6 +308,11 @@ class LinuxSystemTray:
             app_name: Application name
         """
         self.app_name = app_name
+        self.menu_actions = (
+            menu_actions
+            if menu_actions is not None
+            else frozenset({"status", "backup_now", "retention_now", "open_ui", "quit"})
+        )
         self._icon = None
         self._menu = None
         self._on_click_callback = None
@@ -357,11 +375,12 @@ class LinuxSystemTray:
             self._menu.append(backup_item)
 
             # Retention now item
-            retention_item = Gtk.MenuItem(label="Run Retention")
-            retention_item.connect(
-                "activate", lambda x: self._trigger_menu_action("retention_now")
-            )
-            self._menu.append(retention_item)
+            if "retention_now" in self.menu_actions:
+                retention_item = Gtk.MenuItem(label="Run Retention")
+                retention_item.connect(
+                    "activate", lambda x: self._trigger_menu_action("retention_now")
+                )
+                self._menu.append(retention_item)
 
             # Separator
             self._menu.append(Gtk.SeparatorMenuItem())
@@ -444,7 +463,11 @@ class LinuxSystemTray:
 class MacOSSystemTray:
     """macOS system tray implementation using rumps"""
 
-    def __init__(self, app_name: str):
+    def __init__(
+        self,
+        app_name: str,
+        menu_actions: frozenset[str] | None = None,
+    ):
         """
         Initialize macOS system tray
 
@@ -452,6 +475,11 @@ class MacOSSystemTray:
             app_name: Application name
         """
         self.app_name = app_name
+        self.menu_actions = (
+            menu_actions
+            if menu_actions is not None
+            else frozenset({"status", "backup_now", "retention_now", "open_ui", "quit"})
+        )
         self._app = None
         self._on_click_callback = None
         self._on_menu_action_callback = None
@@ -478,7 +506,7 @@ class MacOSSystemTray:
             import rumps
 
             # Create menu items
-            self._app.menu = [
+            menu = [
                 rumps.MenuItem("Open TimeLocker", callback=self._on_open_clicked),
                 None,  # Separator
                 rumps.MenuItem(
@@ -489,15 +517,23 @@ class MacOSSystemTray:
                     "Backup Now",
                     callback=lambda _: self._trigger_menu_action("backup_now"),
                 ),
-                rumps.MenuItem(
-                    "Run Retention",
-                    callback=lambda _: self._trigger_menu_action("retention_now"),
-                ),
-                None,  # Separator
-                rumps.MenuItem(
-                    "Quit", callback=lambda _: self._trigger_menu_action("quit")
-                ),
             ]
+            if "retention_now" in self.menu_actions:
+                menu.append(
+                    rumps.MenuItem(
+                        "Run Retention",
+                        callback=lambda _: self._trigger_menu_action("retention_now"),
+                    )
+                )
+            menu.extend(
+                [
+                    None,
+                    rumps.MenuItem(
+                        "Quit", callback=lambda _: self._trigger_menu_action("quit")
+                    ),
+                ]
+            )
+            self._app.menu = menu
         except Exception as e:
             logger.error(f"Failed to create macOS menu: {e}")
 
@@ -565,7 +601,11 @@ class MacOSSystemTray:
 class WindowsSystemTray:
     """Windows system tray implementation using pystray"""
 
-    def __init__(self, app_name: str):
+    def __init__(
+        self,
+        app_name: str,
+        menu_actions: frozenset[str] | None = None,
+    ):
         """
         Initialize Windows system tray
 
@@ -573,6 +613,11 @@ class WindowsSystemTray:
             app_name: Application name
         """
         self.app_name = app_name
+        self.menu_actions = (
+            menu_actions
+            if menu_actions is not None
+            else frozenset({"status", "backup_now", "retention_now", "open_ui", "quit"})
+        )
         self._icon = None
         self._on_click_callback = None
         self._on_menu_action_callback = None
@@ -619,15 +664,20 @@ class WindowsSystemTray:
             import pystray
             from pystray import MenuItem as Item
 
-            return pystray.Menu(
+            items = [
                 Item("Open TimeLocker", self._on_open_clicked),
                 Item("View Status", lambda: self._trigger_menu_action("status")),
                 Item("Backup Now", lambda: self._trigger_menu_action("backup_now")),
-                Item(
-                    "Run Retention", lambda: self._trigger_menu_action("retention_now")
-                ),
-                Item("Quit", lambda: self._trigger_menu_action("quit")),
-            )
+            ]
+            if "retention_now" in self.menu_actions:
+                items.append(
+                    Item(
+                        "Run Retention",
+                        lambda: self._trigger_menu_action("retention_now"),
+                    )
+                )
+            items.append(Item("Quit", lambda: self._trigger_menu_action("quit")))
+            return pystray.Menu(*items)
         except Exception as e:
             logger.error(f"Failed to create Windows menu: {e}")
             return None

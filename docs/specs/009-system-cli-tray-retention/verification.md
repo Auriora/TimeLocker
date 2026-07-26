@@ -19,15 +19,15 @@ review, durable promotion, and closure.
 
 | Gate | Required? | Status | Evidence |
 |------|-----------|--------|----------|
-| Requirements acceptance criteria reviewed | yes | pending | Requirements amended through 2026-07-26 |
+| Requirements acceptance criteria reviewed | yes | passed | Final T012 review reconciled later owner-approved operator-group authorization with Requirement 2 |
 | Design and traceability approved | yes | passed | Owner approved implementation; lifecycle context reports no Phase 1 gaps |
-| Task evidence complete | yes | partial | T001-T011 complete; T012 pending |
-| Automated tests pass or alternate verification recorded | yes | passed for Phase 4 | System-control suite: 176 passed before live rollout; 22 focused backup/backend/tray tests passed after live defect fixes |
-| Security and operations expert review complete | yes | partial | T004 and Phase 2 checkpoints complete; final T012 review pending |
+| Task evidence complete | yes | passed | T001-T012 complete with validation or external acceptance evidence |
+| Automated tests pass or alternate verification recorded | yes | passed | Final configured profile: 2,998 passed, 1 skipped, 57 deselected, 53.79% coverage against the 50% gate |
+| Security and operations expert review complete | yes | passed | Final seven-lens review findings TLR-013 through TLR-018 were corrected |
 | Linux Mint live acceptance and rollback rehearsal complete | yes | passed | V10 completed on 2026-07-26; selected release `32ab1fefd8fd9334fe37b68b1f2262565f32bebd` |
 | Durable documentation promoted | yes | passed | T011 promotion targets and front doors updated; link and patch checks passed |
-| Governance or policy conflicts resolved | yes | pending | |
-| Spec cleanup decision recorded | yes | pending | |
+| Governance or policy conflicts resolved | yes | passed | Group authorization is the operational boundary; administrator maintenance remains explicitly elevated |
+| Spec cleanup decision recorded | yes | passed | Remove the active package after the final spec commit; preserve recovery metadata in `docs/history/` |
 
 ## Verification Gates
 
@@ -53,11 +53,11 @@ Commands are refined through Agent Workbench before execution.
 | Command | Purpose | Result | Evidence |
 |---------|---------|--------|----------|
 | `python3 -m pytest tests/TimeLocker/system_control -q` | Protocol, auth, storage, IPC, locks | passed in expanded suite | V1-V4, V9 |
-| `python3 -m pytest tests/TimeLocker/cli/test_monitoring_commands.py -q` | CLI local/system log and run behavior | pending | V6 |
+| `python3 -m pytest tests/TimeLocker/cli/test_monitoring_commands.py -q` | CLI local/system log and run behavior | passed in configured profile | V6 |
 | `python3 -m pytest tests/TimeLocker/monitoring -q` | Notification/tray/headless regression | passed in expanded suite | V7, V9 |
-| `python3 -m pytest tests/TimeLocker/scheduling -q` | Retention and scheduler regression where present | pending | V8 |
-| `python3 -m pytest tests/TimeLocker/platform -q` | Platform adapters and portability | pending | V4, V7, V9 |
-| `python3 -m pytest -m "not performance and not stress and not minio"` | Full configured non-live regression suite | pending | V1-V9 |
+| `python3 -m pytest tests/TimeLocker/scheduling -q` | Retention and scheduler regression where present | passed in configured profile | V8 |
+| `python3 -m pytest tests/TimeLocker/platform -q` | Platform adapters and portability | passed in configured profile | V4, V7, V9 |
+| `python3 -m pytest -m "not performance and not stress and not minio"` | Full configured non-live regression suite | 2,998 passed, 1 skipped, 57 deselected; 53.79% coverage | V1-V9 |
 | `systemd-analyze verify <staged units>` | Linux unit and socket validation | passed in isolated root | V4, V9 |
 | `python3 scripts/link_checker.py` | Durable/spec link validation | passed | V12; existing style suggestions only, no broken links |
 | `git diff --check` | Patch integrity | passed | Every implementation slice |
@@ -128,16 +128,12 @@ Commands are refined through Agent Workbench before execution.
 | T009 | complete | 178-test focused Phase 4 suite; 753-test expanded regression; validated wheel/sdist, entrypoints, assets, headless import, staged units, upgrade, and rollback | No host state changed; live installation and production adapter activation remain T010 |
 | T010 | complete | Selected immutable release, authorized/denied system views, launcher/socket/tray acceptance, successful backup and restore, approved post-success and independent retention, interrupted recovery, upgrade, and rollback | Linux Mint reference acceptance only; no live Windows claim |
 | T011 | complete | Requirements, architecture, implementation, installation, scheduling, tray, CLI, troubleshooting, version, and front-door docs promoted; link and patch checks passed | Bounded review found no remaining actionable documentation drift |
-| T012 | pending | No completion evidence | Final expert review and closure |
+| T012 | complete | Seven-lens review findings TLR-013 through TLR-018 resolved; 22 focused tests and the 2,998-test configured profile passed; Ruff, compile, links, patch, and lifecycle checks passed | Windows live acceptance and publication/deployment remain separate follow-up work |
 
 ## Evidence Log
 
 | Date | Evidence | Result | Notes |
 |------|----------|--------|-------|
-| 2026-07-26 | Live CLI/user-log and systemd-journal diagnosis | confirmed gap | User log scope differs from root system backup journal |
-| 2026-07-26 | Repository context and direct source reads | confirmed design seams | No OS peer/group auth or local IPC exists; tray is constructed in notification services |
-| 2026-07-26 | Spec artifacts created | pending validation | Design/tasks do not constitute implementation |
-| 2026-07-26 | Canonical context reconciliation | current/future authority split recorded | Durable docs remain current until verified promotion |
 | 2026-07-26 | Focused `review-timelocker` design/security review | blocking design findings addressed | Explicit AC mappings, fail-closed NSS, root-only audit, safe summaries, storage hardening, and transport bounds added |
 | 2026-07-26 | `python3 -m pytest tests/TimeLocker/system_control ... --cov-fail-under=90` | 70 passed; 92.7% coverage | T001 strict models, envelopes, projection, transition, portability, and negative security cases |
 | 2026-07-26 | `python3 -m compileall -q src/TimeLocker/system_control tests/TimeLocker/system_control` and `git diff --check` | passed | T001 syntax and patch integrity |
@@ -148,17 +144,19 @@ Commands are refined through Agent Workbench before execution.
 | 2026-07-26 | `PYENV_VERSION=3.12.4 python -m build --wheel --no-isolation ...` plus wheel inventory | passed; 3/3 assets present | Policy, socket unit, and service unit are packaged; isolated build could not resolve build dependencies because network access was unavailable |
 | 2026-07-26 | Agent Workbench verification planning and diagnostics | planning returned; diagnostics unavailable | No Python diagnostics provider was configured, so direct review and executed checks remain the proof |
 | 2026-07-26 | Rules consulted and applied | recorded | Coding Standards (100), General Preferences (50), Operational Best Practices (40), Planning Protocol (30), Testing Conventions (25), Documentation Conventions, and Git Conventions; no overrides |
+| 2026-07-26 | `PYENV_VERSION=3.12.6 python -m pytest -m "not performance and not stress and not minio"` | 2,998 passed, 1 skipped, 57 deselected; 53.79% coverage | Final configured repository profile; 50% coverage gate passed |
+| 2026-07-26 | `PYENV_VERSION=3.12.6 python -m pytest` over `test_system_commands.py`, `test_production_retention.py`, tray integration, and tray process-boundary tests | 22 passed | Public system commands, owner-only protected files, and fingerprint-aware tray actions |
+| 2026-07-26 | Ruff lint/format, `compileall`, link checker, and `git diff --check` | passed | Link checker retained 22 pre-existing canonical-style suggestions and reported no broken links |
 | 2026-07-26 | `PYENV_VERSION=3.12.6 python -m pytest tests/TimeLocker/system_control tests/TimeLocker/cli/test_monitoring_commands.py tests/TimeLocker/cli/test_cli_help_system.py -q --no-cov` | 177 passed | Phase 2 launcher, action routing, client, authorization, structured run/log views, compatibility, denial, and redaction |
 | 2026-07-26 | `coverage report --include='src/TimeLocker/system_control/*' --skip-empty --fail-under=0` | 88.2% branch-aware coverage | Scoped report for the system-control package; a pytest coverage attempt inherited repository-wide `source=src` and failed the global 50% threshold at 17.3%, so it is not presented as a focused coverage result |
 | 2026-07-26 | Ruff check/format, compileall, wheel build/inventory, and `git diff --check` | passed | Wheel contains the Phase 2 modules and all six system-control assets, including distinct `timelocker` and `tl` launcher assets; isolated build dependency resolution was unavailable, and the Python 3.12.4 no-isolation build passed |
-| 2026-07-26 | Agent Workbench verification planning | partial routing only | Its index had not incorporated newly created files and proposed unrelated tests; direct source review, the focused suite, and package inventory are the proof |
 | 2026-07-26 | `python3 -m pytest tests/TimeLocker/system_control/test_retention.py tests/TimeLocker/system_control/test_tray_client.py tests/TimeLocker/system_control/test_tray_process_boundary.py tests/TimeLocker/monitoring/test_system_tray_integration.py tests/TimeLocker/system_control/test_client.py` | 32 passed; repository-wide coverage gate failed at 12.2% | Narrow slice inherited repository-wide `--cov=src/TimeLocker`; tests passed and exposed a coverage-accounting mismatch rather than a functional regression |
 | 2026-07-26 | `PYENV_VERSION=3.12.4 PYTHONPATH=src python -m pytest -o addopts='' tests/TimeLocker/system_control --cov-config=/dev/null --cov=TimeLocker.system_control --cov-branch --cov-report=term --cov-fail-under=80 -q` | 149 passed; 83.09% branch-aware coverage | Complete system-control regression and focused Phase 3 coverage without inheriting the repository-wide coverage source |
-| 2026-07-26 | System-control, monitoring, and integration regression slice | 190 passed | Tray/process boundaries, retention execution, monitoring compatibility, reconnect, authorization projection, and schedule summaries |
+| 2026-07-26 | `PYENV_VERSION=3.12.6 python -m pytest` over the Phase 3 system-control, monitoring, and integration slice | 190 passed | Tray/process boundaries, retention execution, monitoring compatibility, reconnect, authorization projection, and schedule summaries |
 | 2026-07-26 | Ruff check/format, compileall, wheel build/inventory, and `git diff --check` | passed | Wheel contains `timelocker-tray` and all new Phase 3 modules; no host state changed |
 | 2026-07-26 | Expanded `system_control`, `monitoring`, and `integration` pytest run | 733 passed, 1 skipped, 2 failed, 4 setup errors | The failures are confined to repository credential integration paths outside this diff: five expect a legacy credential-file location and one cannot register S3 because optional `b2sdk` is absent. They do not invalidate the bounded Phase 3 suites but remain repository test debt. |
 | 2026-07-26 | Credential-path and backend-registration reconciliation | 6 focused tests passed | `--config-dir` consistently treats the argument as the configuration root and stores credentials under `credentials/credentials.enc`; missing B2 registration no longer prevents S3 registration. No credential contents or live stores were read, copied, or deleted. |
-| 2026-07-26 | Phase 4 focused system-control, credential, and artifact suite | 178 passed | Backend/release entrypoints, exact asset manifest, permissions, Windows adapter seam, upgrade, rollback, credential paths, and release metadata passed. |
+| 2026-07-26 | `PYENV_VERSION=3.12.6 python -m pytest` over the Phase 4 system-control, credential, and artifact suite | 178 passed | Backend/release entrypoints, exact asset manifest, permissions, Windows adapter seam, upgrade, rollback, credential paths, and release metadata passed. |
 | 2026-07-26 | Expanded `system_control`, `monitoring`, and `integration` pytest run | 753 passed, 1 skipped | Previous six credential/backend-registration failures are resolved; existing warnings remain non-blocking. |
 | 2026-07-26 | Wheel/sdist validation and installed headless smoke | passed | Four console entrypoints and 20 package-data files validated; CLI import did not load tray code and the environment had no `pystray` dependency. |
 | 2026-07-26 | Staged `systemd-analyze verify --recursive-errors=no --root=...` | passed | Backend socket/service and disabled retention service/timer parsed successfully against an isolated staged executable. |
@@ -210,6 +208,21 @@ bounded to T007-T008 source, tests, packaging, and lifecycle artifacts. It did
 not install a desktop-session process, connect to the live system backend,
 activate production retention, or mutate host state.
 
+## T012 Final Review Finding Dispositions
+
+| Finding | Severity / confidence | Roles | Disposition | Validation |
+|---------|-----------------------|-------|-------------|------------|
+| TLR-013: Requirement 2 retained an older per-invocation elevation prompt after the owner required current operator-group authorization | high / high | Security and Privacy; Project Steward; Documentation and Lifecycle | fixed: requirements, design, traceability, and durable docs now define the privileged backend plus current OS group membership as the operational boundary; administrator maintenance remains explicitly elevated | direct requirements/design reconciliation and authorization tests |
+| TLR-014: protected retention files could be group/world readable | high / high | Security and Privacy; Restic and Recovery; Reliability and Testing | fixed: target, repository configuration, credential source, and enable marker must be owner-only | focused `0644` rejection tests |
+| TLR-015: the public CLI classified protected actions but exposed no `system backup` or `system retention` commands | high / high | Project Steward; Python CLI; Operations and Portability | fixed: a focused `system` command group sends bounded requests through `UnixSocketSystemControlClient` and never falls back to direct elevation | CLI help, request-shape, routing, and help-tree tests |
+| TLR-016: the default tray autostart exposed retention without a configured policy fingerprint | medium / high | Project Steward; Reliability and Testing; Operations and Portability | fixed: tray menus omit retention unless the process has a configured fingerprint | tray menu configuration and process-boundary tests |
+| TLR-017: the active-spec front door still described T011 as in progress | medium / high | Documentation and Lifecycle | fixed: `docs/specs/README.md` now identifies T011 as complete and T012 as the only active work | direct documentation review |
+| TLR-018: the verification gate understated requirements-review completion | low / medium | Documentation and Lifecycle | fixed: the gate records the final Requirement 2 reconciliation and review disposition | package lint and lifecycle checks |
+
+The final panel also exposed a pre-existing `timelocker help runs` omission
+during the normal profile. The help topic and new `system` topic were added and
+the complete help-tree test now passes. No final-review finding remains open.
+
 ## Manual Or External Verification
 
 Live T010 evidence must record the reviewer, timestamp, exact non-secret command,
@@ -249,21 +262,23 @@ package.
 
 ### Spec Cleanup Decision
 
-- **Cleanup action:** keep active until implementation, promotion, and closure
-- **Reason:** implementation, live integration, and durable promotion are complete; final expert review and closure evidence remain T012
-- **Final spec commit:** pending
+- **Cleanup action:** remove after the final spec commit
+- **Reason:** implementation, Linux live acceptance, durable promotion, final
+  expert review, and repository validation are complete
+- **Final spec commit:** pending until this complete package is committed
 - **Closure log path:** `docs/history/spec-closure-log.md`
-- **Closure log entry updated:** no
+- **Closure log entry updated:** after the final spec commit
 - **Closure cleanup commit:** pending
-- **Active indexes updated:** no
+- **Active indexes updated:** with the closure cleanup commit
 - **Durable docs linked back to evidence where useful:** yes
-- **Residual spec-only content:** design, detailed task evidence, and live acceptance remain temporary until T012 closure
+- **Residual spec-only content:** none requires durable promotion; detailed
+  design, task evidence, and live acceptance remain recoverable from Git
 
 ## Ship Or Closure Risk
 
 - **Risk level:** high
 - **Breaking change:** no intended public-command break
-- **Blast radius checked:** partially
+- **Blast radius checked:** yes
 - **Rollback path:** implemented and rehearsed on the Linux reference host
 - **Requires human review:** yes
 - **Release notes needed:** yes
@@ -280,8 +295,8 @@ protected metadata, widen privilege, interrupt backups, or delete snapshots.
 
 - **Ready for promotion:** complete
 - **Ready for release:** no
-- **Ready for closure:** no
-- **Ready for implementation:** T012 only
+- **Ready for closure:** yes
+- **Ready for implementation:** complete
 
 ## Related Artifacts
 
@@ -295,9 +310,10 @@ protected metadata, widen privilege, interrupt backups, or delete snapshots.
 ## Reconciliation
 
 Reviewed against the 2026-07-26 requirements and design revisions. T001-T010
-now provide repository and Linux Mint live evidence for V1-V10 and
-repository-local portions of V11. Real socket activation, installed
-ownership/modes, live NSS behavior, protected backup/restore, post-success and
-independent retention, tray reconnect/status, interrupted recovery, upgrade,
-and rollback passed. T011 durable promotion passed; final expert review and
-closure remain T012.
+provide repository and Linux Mint live evidence for V1-V10. Real socket
+activation, installed ownership/modes, live NSS behavior, protected
+backup/restore, post-success and independent retention, tray reconnect/status,
+interrupted recovery, upgrade, and rollback passed. T011 durable promotion and
+T012 final expert review, correction, full validation, and residual disposition
+passed. Windows live acceptance and publication/deployment of the final
+repository corrections remain explicit post-spec work.

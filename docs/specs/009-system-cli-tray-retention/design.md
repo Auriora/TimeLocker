@@ -60,10 +60,11 @@ groups became stale after the account was removed from the operator group.
 
 The system launcher does not elevate the entire CLI process. User-scope
 commands run locally. Allowlisted machine operations are sent to the privileged
-backend, which authenticates, authorizes, validates, locks, audits, and executes
-them. Installation, upgrade, rollback, group management, and service-file
-changes remain explicit administrator operations through the platform's normal
-system authorization mechanism.
+backend, which authenticates current operating-system identity and group
+membership, validates, locks, audits, and executes them. Installation, upgrade,
+rollback, group management, and service-file changes remain explicit
+administrator operations through the platform's normal system authorization
+mechanism.
 
 ### D005: Explicit local and system log scopes
 

@@ -155,6 +155,13 @@ def _build_client(
     )
 
 
+def _tray_menu_actions(retention_policy_fingerprint: str | None) -> frozenset[str]:
+    actions = {"status", "backup_now", "open_ui", "quit"}
+    if retention_policy_fingerprint:
+        actions.add("retention_now")
+    return frozenset(actions)
+
+
 def _handle_action(
     action: str,
     client: TrayControlClient,
@@ -232,7 +239,10 @@ def main() -> None:
         return
 
     try:
-        tray = SystemTrayIntegration(app_name="TimeLocker")
+        tray = SystemTrayIntegration(
+            app_name="TimeLocker",
+            menu_actions=_tray_menu_actions(arguments.retention_policy_fingerprint),
+        )
     except SystemTrayError:
         tray = None
 

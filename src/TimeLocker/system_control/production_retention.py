@@ -274,8 +274,8 @@ def _require_protected_file(path: Path, *, expected_owner: int) -> None:
         raise ValueError("protected path must be a regular file")
     if metadata.st_uid != expected_owner:
         raise PermissionError("protected file has an unexpected owner")
-    if stat.S_IMODE(metadata.st_mode) & 0o022:
-        raise PermissionError("protected file must not be group/world writable")
+    if stat.S_IMODE(metadata.st_mode) & 0o077:
+        raise PermissionError("protected file must be owner-only")
 
 
 __all__: Sequence[str] = (

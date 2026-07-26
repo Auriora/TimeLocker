@@ -55,7 +55,8 @@ user CLI                         user-session tray
 - **CLI boundary** — `src/TimeLocker/cli.py` owns the installed entry point;
   `src/TimeLocker/cli_modules/commands/` owns modular command groups and input/
   output handling. User-local commands remain in-process. `runs` and
-  `logs view --scope system` use the protected client.
+  `logs view --scope system` use the protected client, as do the bounded
+  `system backup` and `system retention` request commands.
 - **Release boundary** — root-owned launchers resolve the selected immutable
   release from `/opt/timelocker/selected-release.json`. They do not consult
   pyenv, a source checkout, the caller's home, or current working directory.

@@ -40,6 +40,7 @@ timelocker (alias: tl)
 ├── logs
 ├── reports
 ├── runs
+├── system
 └── restore
 ```
 
@@ -73,6 +74,21 @@ Without `--scope system`, `logs view` reads only the invoking user's local CLI
 log. Scheduled system backups and retention runs are intentionally absent from
 that file.
 
+## Protected System Actions
+
+```text
+timelocker system backup [--target TARGET]
+
+timelocker system retention
+  --policy-fingerprint FINGERPRINT
+  [--dry-run]
+```
+
+These commands keep the caller process unprivileged and send only the bounded
+request to the protected backend. The backend derives the caller identity from
+the local transport and rechecks current operator-group membership. Denial or
+backend unavailability never falls back to direct elevated execution.
+
 ## Independent Tray Command
 
 `timelocker-tray` is a separate executable, not a CLI command group:
@@ -88,8 +104,9 @@ timelocker-tray
 ```
 
 `open_ui` is currently a reserved no-op. `retention_now` requires the exact
-approved policy fingerprint. The tray communicates with the protected backend
-and does not own backup execution.
+approved policy fingerprint and is hidden from the graphical menu when the
+tray was not configured with one. The tray communicates with the protected
+backend and does not own backup execution.
 
 ## Administrator Release Tool
 

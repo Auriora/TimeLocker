@@ -19,7 +19,10 @@ The tray can:
   denied.
 
 `open_ui` is a reserved no-op. TimeLocker does not currently provide a full
-desktop UI.
+desktop UI. The default system autostart does not contain the approved
+retention fingerprint, so it hides `Run Retention`; operators can still request
+retention with `timelocker system retention --policy-fingerprint ...`, and a
+future managed tray configuration may enable the same action.
 
 ## Authorization
 

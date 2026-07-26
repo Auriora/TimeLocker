@@ -596,6 +596,12 @@ def cli_help(
         console.print("  [cyan]logs[/cyan]        - Log viewing and maintenance")
         console.print("  [cyan]reports[/cyan]     - Generate usage and health reports")
         console.print(
+            "  [cyan]runs[/cyan]        - Authorized system backup and retention records"
+        )
+        console.print(
+            "  [cyan]system[/cyan]      - Authorized machine-level backup and retention"
+        )
+        console.print(
             "  [cyan]migrate[/cyan]     - Validate and migrate configuration files\n"
         )
 
@@ -629,6 +635,8 @@ def cli_help(
         console.print("  timelocker help monitor      # Monitoring dashboard help")
         console.print("  timelocker help logs         # Log management help")
         console.print("  timelocker help reports      # Reporting help")
+        console.print("  timelocker help runs         # System run records help")
+        console.print("  timelocker help system       # System action help")
         console.print("  timelocker help migrate      # Configuration migration help\n")
 
         console.print("[bold]Command Help:[/bold]")
@@ -1065,6 +1073,29 @@ def cli_help(
         )
         console.print("  timelocker reports generate storage-usage --format json\n")
 
+    elif topic == "runs":
+        console.print("\n[bold cyan]System Run Records Help[/bold cyan]\n")
+        console.print(
+            "Current operator-group members can inspect structured system backup "
+            "and retention records.\n"
+        )
+        console.print("  [cyan]runs list[/cyan]              - List system runs")
+        console.print("  [cyan]runs show[/cyan] <run-id>     - Show one system run\n")
+
+    elif topic == "system":
+        console.print("\n[bold cyan]System Actions Help[/bold cyan]\n")
+        console.print(
+            "Current operator-group members can request allowlisted actions "
+            "through the protected backend.\n"
+        )
+        console.print(
+            "  [cyan]system backup[/cyan] [--target production] - Request a system backup"
+        )
+        console.print(
+            "  [cyan]system retention[/cyan] --policy-fingerprint <sha256> "
+            "[--dry-run] - Request retention\n"
+        )
+
     elif topic == "migrate":
         console.print("\n[bold cyan]Configuration Migration Help[/bold cyan]\n")
         console.print(
@@ -1086,7 +1117,8 @@ def cli_help(
     else:
         available_topics = (
             "repos, backup, snapshots, restore, policy, schedule, selections, "
-            "config, credentials, security, monitor, logs, reports, migrate"
+            "config, credentials, security, monitor, logs, reports, runs, system, "
+            "migrate"
         )
         unknown_topic_message = (
             f"Unknown help topic: {topic}\n\n" + f"Available topics: {available_topics}"
@@ -3200,6 +3232,13 @@ try:
     app.add_typer(_runs_commands_app, name="runs")
 except ImportError as e:
     logging.getLogger(__name__).debug(f"Could not import monitoring commands: {e}")
+
+try:
+    from .cli_modules.commands.system import system_app as _system_commands_app
+
+    app.add_typer(_system_commands_app, name="system")
+except ImportError as e:
+    logging.getLogger(__name__).debug(f"Could not import system commands: {e}")
 
 try:
     from .cli_modules.commands.restore import restore_app as _restore_commands_app

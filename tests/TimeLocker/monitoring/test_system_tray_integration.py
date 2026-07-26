@@ -66,7 +66,18 @@ class TestSystemTrayIntegration:
             assert tray.app_name == "TestApp"
             assert tray.current_status == TrayStatus.IDLE
             assert tray.is_available() is True
-            linux_tray.assert_called_once_with("TestApp")
+            linux_tray.assert_called_once_with(
+                "TestApp",
+                frozenset(
+                    {
+                        "status",
+                        "backup_now",
+                        "retention_now",
+                        "open_ui",
+                        "quit",
+                    }
+                ),
+            )
 
     @pytest.mark.monitoring
     @pytest.mark.unit
