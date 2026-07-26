@@ -63,9 +63,9 @@ targets. Reconcile this matrix whenever any linked artifact changes.
 | Design Section | Requirements | Tasks | Interfaces Or Files | Verification | Coverage State | Residual Destination |
 |----------------|--------------|-------|---------------------|--------------|----------------|----------------------|
 | Decisions D001-D005 | R1, R2, R4 | T001, T003, T005-T006 | `system_control`, CLI, install assets | V1-V6 | not-covered | T001 |
-| Decision D006 and independent tray | R3, R4 | T007, T009 | monitoring/tray/platform modules | V7, V9-V10 | repository-validated | T010 |
-| Decision D007 and retention flow | R5 | T002, T008 | retention/scheduling modules | V3, V8, V10 | repository-validated | T010 |
-| Migration and compatibility | R1-R6 | T005, T007-T010 | install/release/system assets | V9-V10 | repository-validated | T010 |
+| Decision D006 and independent tray | R3, R4 | T007, T009-T010 | monitoring/tray/platform modules | V7, V9-V10 | live-validated on Linux Mint | T011 promotion |
+| Decision D007 and retention flow | R5 | T002, T008, T010 | retention/scheduling modules | V3, V8, V10 | live-validated | T011 promotion |
+| Migration and compatibility | R1-R6 | T005, T007-T010 | install/release/system assets | V9-V10 | live-validated on Linux Mint | T011 promotion |
 | Durable promotion | R1-R6 | T011-T012 | `docs/` targets | V12 | not-covered | T011 |
 
 ## Open Decision Impact
@@ -82,8 +82,8 @@ targets. Reconcile this matrix whenever any linked artifact changes.
 - `complete` in the requirement-delivery matrix means every accepted criterion
   has an explicit design, task, verification, and durable-target mapping. It
   does not claim implementation completion.
-- Phase 4 repository implementation evidence now exists in `tasks.md` and
-  `verification.md`; live integration and promotion evidence remain pending.
+- Phase 4 repository and Linux Mint live evidence now exists in `tasks.md` and
+  `verification.md`; durable promotion and closure evidence remain pending.
 
 ## Reconciliation
 
@@ -91,5 +91,5 @@ Reviewed against the 2026-07-26 requirements and design revisions. Every
 Requirement 1-6 acceptance criterion has an explicit task mapping, including
 Requirement 4 AC10-AC11 and the tightened security constraints. Phase 3
 repository implementation evidence now covers Decisions D006-D007 and
-packaging/portability. T010-T012 remain the open live-integration, promotion,
-and closure path.
+packaging/portability. T010 live integration is complete; T011-T012 remain the
+open promotion, final-review, and closure path.

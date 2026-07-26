@@ -21,10 +21,10 @@ review, durable promotion, and closure.
 |------|-----------|--------|----------|
 | Requirements acceptance criteria reviewed | yes | pending | Requirements amended through 2026-07-26 |
 | Design and traceability approved | yes | passed | Owner approved implementation; lifecycle context reports no Phase 1 gaps |
-| Task evidence complete | yes | partial | T001-T009 complete; T010-T012 pending |
-| Automated tests pass or alternate verification recorded | yes | partial | Phase 4 focused suite: 178 passed; expanded suite: 753 passed, 1 skipped |
+| Task evidence complete | yes | partial | T001-T010 complete; T011-T012 pending |
+| Automated tests pass or alternate verification recorded | yes | passed for Phase 4 | System-control suite: 176 passed before live rollout; 22 focused backup/backend/tray tests passed after live defect fixes |
 | Security and operations expert review complete | yes | partial | T004 and Phase 2 checkpoints complete; final T012 review pending |
-| Linux Mint live acceptance and rollback rehearsal complete | yes | pending | |
+| Linux Mint live acceptance and rollback rehearsal complete | yes | passed | V10 completed on 2026-07-26; selected release `32ab1fefd8fd9334fe37b68b1f2262565f32bebd` |
 | Durable documentation promoted | yes | pending | |
 | Governance or policy conflicts resolved | yes | pending | |
 | Spec cleanup decision recorded | yes | pending | |
@@ -66,37 +66,37 @@ Commands are refined through Agent Workbench before execution.
 
 | Requirement | Acceptance criteria covered | Evidence | Residual risk |
 |-------------|-----------------------------|----------|---------------|
-| Requirement 1 | AC1-AC4 | V5 and V9 repository validation passed; V10 pending | Live launcher/rollback |
-| Requirement 2 | AC1-AC6 | V2, V4-V5, V10 pending | Platform authorization UX |
-| Requirement 3 | AC1-AC8 | V7 and V9 repository validation passed; V10 pending | Desktop diversity and live session behavior |
-| Requirement 4 | AC1-AC11 | V1-V3 and V6 repository validation passed; V4 and V10 live evidence pending | Redaction and NSS variance |
-| Requirement 5 | AC1-AC11 | V1, V3, and V8 repository validation passed; V10 pending | Live repository timing |
-| Requirement 6 | AC1-AC6 | V3, V5, V7, and V9 repository validation passed; V10 pending | Cross-platform rollout |
+| Requirement 1 | AC1-AC4 | V5, V9, and V10 passed | Durable promotion remains T011 |
+| Requirement 2 | AC1-AC6 | V2, V4-V5, and V10 passed on Linux Mint | Other platform authorization remains roadmap work |
+| Requirement 3 | AC1-AC8 | V7, V9, and V10 passed for the Linux reference desktop | Desktop diversity remains a portability risk |
+| Requirement 4 | AC1-AC11 | V1-V4, V6, and V10 passed | NSS variance remains a residual portability risk |
+| Requirement 5 | AC1-AC11 | V1, V3, V8, and V10 passed | Production timing remains observable through durable runs |
+| Requirement 6 | AC1-AC6 | V3, V5, V7, V9, and V10 passed for Linux | Live Windows support remains follow-up work |
 
 ## Correctness Property Coverage
 
 | Property | Covered by | Evidence | Residual risk |
 |----------|------------|----------|---------------|
-| CP-001 | V2, V5 | repository validation passed | Live platform authorization remains V10 |
-| CP-002 | V7, V10 | V7 repository validation passed | Live desktop acceptance remains V10 |
-| CP-003 | V3, V8, V10 | V3 and V8 repository validation passed | Live repository coordination remains V10 |
-| CP-004 | V1, V3, V6, V8 | repository validation passed | Live integration remains V10 |
-| CP-005 | V1, V8, V10 | V1 and V8 repository validation passed | Live retention acceptance remains V10 |
-| CP-006 | V1-V2, V4-V6 | V1-V3 and V5-V6 repository validation passed | Live IPC remains V4/V10 |
-| CP-007 | V2, V4, V10 | repository authorization and denial validation passed | Live NSS/session behavior remains V4/V10 |
-| CP-008 | V3, V9-V10 | V3 and V9 repository validation passed | Installed coordination and restart remain V10 |
+| CP-001 | V2, V5 | repository and Linux live authorization passed | Other platform authorization remains follow-up |
+| CP-002 | V7, V10 | repository and Linux Mint live tray acceptance passed | Desktop diversity |
+| CP-003 | V3, V8, V10 | repository locking and live backup/retention coordination passed | Production timing variance |
+| CP-004 | V1, V3, V6, V8 | repository and live terminal-state projection passed | none after T010 evidence |
+| CP-005 | V1, V8, V10 | exact-fingerprint dry-run and live retention passed | Operator policy accuracy |
+| CP-006 | V1-V2, V4-V6 | repository and live local IPC authorization passed | Other platform IPC |
+| CP-007 | V2, V4, V10 | authorized, denied, and live NSS behavior passed | NSS variance across Linux distributions |
+| CP-008 | V3, V9-V10 | interrupted recovery, installed coordination, upgrade, and rollback passed | Crash timing remains observable |
 | CP-009 | V1, V7, V9 | V1, V7, and V9 repository validation passed | Live Windows remains follow-up |
-| CP-010 | V3, V8, V10 | V3 and V8 repository validation passed | Live retention failure isolation remains V10 |
-| CP-011 | V1-V2, V4, V6, V10 | repository projection and CLI validation passed | Live metadata-leak acceptance remains V10 |
+| CP-010 | V3, V8, V10 | repository idempotency and both live retention trigger modes passed | none after T010 evidence |
+| CP-011 | V1-V2, V4, V6, V10 | repository and live safe projection passed | Continue canary tests during promotion |
 
 ## Scope Reconciliation Before Closure
 
 | Broad requirement, design target, or review finding | Implemented in this spec | Coverage state | Deferred or rejected work | Destination | Blocks closure? | Evidence |
 |-----------------------------------------------------|--------------------------|----------------|---------------------------|-------------|-----------------|----------|
-| Linux system command/control plane | Shared contracts, store, dispatcher, backend entrypoint, compatible assets, staged launcher, and CLI client/views | partial | Live artifact integration and host acceptance | T010 | yes | T001-T006, T009 evidence |
-| Group-authorized system records | Current-membership dispatcher and structured CLI projection | partial | Live NSS/socket acceptance | T010 | yes | T003, T004, T006, T009 evidence |
-| Independent tray | Standalone tray entry point, bounded tray IPC client, strict menu allowlist, singleton lock, headless-safe imports, launcher, and autostart asset | partial | Installed desktop-session and live IPC acceptance | T010 | yes | T007, T009 evidence |
-| Retention automation | Approved executor, exact fingerprinting, durable triggers, request handler, and disabled independent schedule asset | partial | Production adapter activation and live timing acceptance | T010 | yes | T008-T009 evidence |
+| Linux system command/control plane | Shared contracts, store, dispatcher, backend, immutable launcher, CLI views, installed socket, and live acceptance | live-validated | Durable documentation promotion | T011 | yes | T001-T010 evidence |
+| Group-authorized system records | Current-membership dispatcher, structured projection, and authorized/denied live acceptance | live-validated | Durable documentation promotion | T011 | yes | T003, T004, T006, T009-T010 evidence |
+| Independent tray | Standalone process, bounded IPC client, strict menu allowlist, singleton lock, launcher/autostart, reconnect, and live status | live-validated | Durable documentation promotion | T011 | yes | T007, T009-T010 evidence |
+| Retention automation | Exact-fingerprint approval, protected adapter, post-success trigger, independent timer, shared lock, and durable runs | live-validated | Durable documentation promotion | T011 | yes | T008-T010 evidence |
 | Windows shared architecture | Token-derived identity, current-group resolver, and named-pipe transport seam with Linux-hosted contract tests | repository-validated | Live Windows service/pipe implementation and acceptance | Platform roadmap | no for this Linux reference closure | T009 evidence |
 | Raw journald delegation | rejected | out-of-scope | Rejected because it exposes unrelated/protected records | none | no | Design D002 |
 | User-scoped backup partitions | none | out-of-scope | Separate authorization model | GitHub issue #70 | no | Requirements non-goal |
@@ -126,7 +126,8 @@ Commands are refined through Agent Workbench before execution.
 | T007 | complete | Independent tray entry point, strict tray allowlist, backend-unavailable/denied projection, and headless-safe monitoring imports; 190-test repository slice passed | Installed desktop-session and live IPC acceptance remain T009-T010 |
 | T008 | complete | Approved retention executor, trigger claiming, protected request handler, and independent schedule gate; system-control suite passed 149 tests with 83.09% branch-aware coverage | Live backend composition and host scheduling acceptance remain T009-T010 |
 | T009 | complete | 178-test focused Phase 4 suite; 753-test expanded regression; validated wheel/sdist, entrypoints, assets, headless import, staged units, upgrade, and rollback | No host state changed; live installation and production adapter activation remain T010 |
-| T010-T012 | pending | No completion evidence | Live acceptance, promotion, final review, and closure |
+| T010 | complete | Selected immutable release, authorized/denied system views, launcher/socket/tray acceptance, successful backup and restore, approved post-success and independent retention, interrupted recovery, upgrade, and rollback | Linux Mint reference acceptance only; no live Windows claim |
+| T011-T012 | pending | No completion evidence | Durable promotion, final review, and closure |
 
 ## Evidence Log
 
@@ -160,6 +161,10 @@ Commands are refined through Agent Workbench before execution.
 | 2026-07-26 | Expanded `system_control`, `monitoring`, and `integration` pytest run | 753 passed, 1 skipped | Previous six credential/backend-registration failures are resolved; existing warnings remain non-blocking. |
 | 2026-07-26 | Wheel/sdist validation and installed headless smoke | passed | Four console entrypoints and 20 package-data files validated; CLI import did not load tray code and the environment had no `pystray` dependency. |
 | 2026-07-26 | Staged `systemd-analyze verify --recursive-errors=no --root=...` | passed | Backend socket/service and disabled retention service/timer parsed successfully against an isolated staged executable. |
+| 2026-07-26 | Controlled Linux Mint T010 rollout and immutable-release rehearsal | passed | Root-owned launchers/backend, current operator-group authorization and denial, socket activation, tray disconnect/reconnect, interrupted-run recovery, upgrade, and rollback passed; selected release is `32ab1fefd8fd9334fe37b68b1f2262565f32bebd`. |
+| 2026-07-26 | Production backup and restore acceptance | passed | Scheduled backup remained healthy; explicit backup run `287f480c-283f-45c0-85ed-2eb8b6392596` succeeded and a one-file restore completed. Evidence contains no credentials, repository URI, or protected source inventory. |
+| 2026-07-26 | Exact-fingerprint retention activation | passed | Operator accepted fingerprint `e62033fd33259af14b68305e6d1179f840697f4a89f0c0df8cb95a5d69e81d94`; independent retention and post-backup retention run `b3e5baff-56a7-4437-9295-9611a0c56156` succeeded without pruning. Both timers remain enabled and waiting. |
+| 2026-07-26 | Live tray queued/history regression | fixed and passed | Initial accepted request displayed stale `error` while queued; commits `2388e1d` and `32ab1fe` added durable backup coordination and made queued/latest operation state authoritative. Focused regression: 22 passed; live tray reports `success`, zero active operations, and backend available. |
 
 ## T004 Review Finding Dispositions
 
@@ -271,11 +276,10 @@ protected metadata, widen privilege, interrupt backups, or delete snapshots.
 
 ## Readiness Decision
 
-- **Ready for promotion:** no
+- **Ready for promotion:** yes
 - **Ready for release:** no
 - **Ready for closure:** no
-- **Ready for implementation:** yes for Phase 4 task T010; live-host
-  mutations require explicit approval
+- **Ready for implementation:** yes for Phase 5 task T011
 
 ## Related Artifacts
 
@@ -288,9 +292,10 @@ protected metadata, widen privilege, interrupt backups, or delete snapshots.
 
 ## Reconciliation
 
-Reviewed against the 2026-07-26 requirements and design revisions. T001-T009
-now provide executed repository evidence for V1-V9 and repository-local
-portions of V4/V11. Real socket activation, installed ownership/modes, live NSS
-behavior, production adapter activation, authorization prompts, and host
-restart remain pending under T010; durable promotion and closure remain
-incomplete.
+Reviewed against the 2026-07-26 requirements and design revisions. T001-T010
+now provide repository and Linux Mint live evidence for V1-V10 and
+repository-local portions of V11. Real socket activation, installed
+ownership/modes, live NSS behavior, protected backup/restore, post-success and
+independent retention, tray reconnect/status, interrupted recovery, upgrade,
+and rollback passed. Durable promotion, final expert review, and closure remain
+T011-T012.

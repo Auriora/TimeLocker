@@ -257,7 +257,7 @@ T009 -> T010 -> T011 -> T012
       loading tray integration, and confirmed `pystray` was absent.
     - Evidence mode: validation
 
-- [~] T010 Run controlled Linux Mint live acceptance and rollback rehearsal.
+- [x] T010 Run controlled Linux Mint live acceptance and rollback rehearsal.
   - Depends on: T009
   - Requirements: Requirements 1-6; SC-001-SC-011
   - Files: `verification.md`, external system assets only after explicit rollout
@@ -266,14 +266,26 @@ T009 -> T010 -> T011 -> T012
     backup, restore, post-success retention, independent retention, tray
     reconnect, interrupted-run recovery, upgrade, and rollback are evidenced.
   - Evidence mode: external
-  - Evidence: Operator approved T010 rollout on 2026-07-26. Scope: create the operator group, install root-owned committed-release launchers/assets, enable the control socket, install tray autostart, stage retention units disabled, and rehearse upgrade/rollback while preserving the existing 03:30 backup timer. Retention mutation remains gated on separate approval of a successful identical dry-run fingerprint. Rules consulted and applied: Coding Standards (100), General Preferences (50), Operational Best Practices (40), Planning Protocol (30), Testing Conventions (25), Documentation Conventions (20), Git Conventions (15).
-  - Status: Live Linux Mint rollout and acceptance in progress; retention mutation not approved.
-  - [ ] T010.1 Stage without changing the working 03:30 backup.
-  - [ ] T010.2 Obtain explicit approval before group membership, service,
+  - Evidence: Controlled Linux Mint live acceptance completed on 2026-07-26. Release 32ab1fefd8fd9334fe37b68b1f2262565f32bebd is selected; authorized/denied views, root-owned launcher and backend, tray reconnect/status, interrupted-run recovery, upgrade/rollback, scheduled and explicit backup paths, one-file restore, exact-fingerprint retention approval, post-success retention, and independent retention were evidenced without copying secrets. Backup run 287f480c-283f-45c0-85ed-2eb8b6392596 and post-success retention run b3e5baff-56a7-4437-9295-9611a0c56156 succeeded. Both timers remain enabled and waiting.
+  - Status: Phase 4 live acceptance complete; T011 durable documentation promotion is next.
+  - [x] T010.1 Stage without changing the working 03:30 backup.
+  - Evidence: Staged and installed immutable release assets without changing the existing 03:30 backup cadence. The selected release is 32ab1fefd8fd9334fe37b68b1f2262565f32bebd; the backup timer remains enabled and waiting for 03:30.
+  - Status: Live staging complete and schedule preserved.
+  - Evidence mode: external
+  - [x] T010.2 Obtain explicit approval before group membership, service,
     launcher, timer, or live-retention mutations.
-  - [ ] T010.3 Execute acceptance and record secret-free evidence.
-  - [ ] T010.4 Rehearse rollback and confirm backup scheduling remains healthy.
+  - Evidence: The operator explicitly approved T010 rollout, credential-free migration, retention dry-run, exact fingerprint e62033fd33259af14b68305e6d1179f840697f4a89f0c0df8cb95a5d69e81d94, and live retention activation before each protected mutation class.
+  - Status: All required live-mutation approvals recorded.
+  - Evidence mode: external
+  - [x] T010.3 Execute acceptance and record secret-free evidence.
+  - Evidence: Secret-free live acceptance passed on Linux Mint: authorized and denied system views, stable launcher from /, socket activation, standalone tray disconnect/reconnect and status, scheduled and on-demand backup, one-file restore, successful dry-run and approved retention, post-backup retention, independent retention, and interrupted-run recovery. The on-demand backup run 287f480c-283f-45c0-85ed-2eb8b6392596 succeeded, followed by retention run b3e5baff-56a7-4437-9295-9611a0c56156; tray status is success with zero active operations.
+  - Status: V10 live acceptance passed; protected values remain outside the spec.
+  - Evidence mode: external
+  - [x] T010.4 Rehearse rollback and confirm backup scheduling remains healthy.
 
+  - Evidence: Upgrade and rollback were rehearsed across immutable releases while preserving root-owned policy and durable run records. The final selected release is 32ab1fefd8fd9334fe37b68b1f2262565f32bebd. The backup timer and independent retention timer are both enabled and waiting; their next runs are 03:30 and 00:00 respectively.
+  - Status: Rollback rehearsal passed and both production schedules are healthy.
+  - Evidence mode: external
 ## Phase 5: Promotion, review, and closure
 
 - [ ] T011 Promote accepted behavior into durable documentation.
