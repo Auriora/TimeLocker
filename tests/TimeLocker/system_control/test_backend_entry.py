@@ -64,6 +64,42 @@ def test_main_maps_backup_success_retention_trigger(
 
 
 @pytest.mark.unit
+def test_main_maps_systemd_exit_status_for_backup_finish(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def finish(**kwargs: object) -> None:
+        captured.update(kwargs)
+
+    monkeypatch.setattr(backend_entry, "run_backup_record_finish", finish)
+    monkeypatch.setenv("EXIT_STATUS", "75")
+
+    backend_entry.main(["--backup-run-finish", "--backup-result", "exit-code"])
+
+    assert captured["result"] == "exit-code"
+    assert captured["exit_status"] == 75
+
+
+@pytest.mark.unit
+def test_main_ignores_non_numeric_systemd_exit_status(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def finish(**kwargs: object) -> None:
+        captured.update(kwargs)
+
+    monkeypatch.setattr(backend_entry, "run_backup_record_finish", finish)
+    monkeypatch.setenv("EXIT_STATUS", "KILL")
+
+    backend_entry.main(["--backup-run-finish", "--backup-result", "signal"])
+
+    assert captured["result"] == "signal"
+    assert captured["exit_status"] is None
+
+
+@pytest.mark.unit
 def test_main_composes_only_explicit_system_paths(monkeypatch, tmp_path: Path) -> None:
     captured: dict[str, object] = {}
     policy = tmp_path / "policy.json"

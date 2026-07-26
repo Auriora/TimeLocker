@@ -34,9 +34,15 @@ from .models import (
     SystemPolicy,
 )
 from .policy_loader import load_system_policy
+from .production_backup import (
+    SystemBackupRunCoordinator,
+    SystemdBackupMutationAdapter,
+)
 from .production_retention import (
     DEFAULT_PRODUCTION_TARGET_PATH,
     DEFAULT_RETENTION_ENABLE_MARKER,
+    ProductionRetentionTarget,
+    TimeLockerCliRetentionAdapter,
     load_production_retention_components,
     require_retention_enable_marker,
 )
@@ -357,7 +363,6 @@ def build_linux_backend(
         schedule_summary_provider or StaticScheduleSummaryProvider()
     )
     membership_resolver = membership_resolver or LinuxNssGroupMembershipResolver()
-    backup_adapter = backup_adapter or FailClosedBackupMutationAdapter()
     if (
         retention_adapter is None
         and retention_plan_provider is None
@@ -369,6 +374,16 @@ def build_linux_backend(
                 expected_owner=paths.expected_owner,
             )
         )
+    if backup_adapter is None and isinstance(
+        retention_adapter,
+        TimeLockerCliRetentionAdapter,
+    ):
+        backup_adapter = SystemdBackupMutationAdapter(
+            store=store,
+            target_id=retention_adapter.target.target_id,
+            worker_root=paths.record_root.parent / "backup-worker",
+        )
+    backup_adapter = backup_adapter or FailClosedBackupMutationAdapter()
     retention_adapter = retention_adapter or FailClosedRetentionAdapter()
     retention_plan_provider = (
         retention_plan_provider or FailClosedRetentionPlanProvider()
@@ -462,6 +477,50 @@ def run_scheduled_retention(
         raise RuntimeError("scheduled retention failed safely")
 
 
+def run_backup_record_start(
+    *,
+    paths: LinuxBackendPaths,
+    production_target_path: Path,
+) -> None:
+    """Create or claim the run record for one systemd backup invocation."""
+    target = ProductionRetentionTarget.load(
+        production_target_path,
+        expected_owner=paths.expected_owner,
+    )
+    SystemBackupRunCoordinator(
+        store=AtomicRecordStore(paths.record_root),
+        target_id=target.target_id,
+        worker_root=paths.record_root.parent / "backup-worker",
+    ).start()
+
+
+def run_backup_record_finish(
+    *,
+    paths: LinuxBackendPaths,
+    production_target_path: Path,
+    result: str,
+    exit_status: int | None,
+) -> None:
+    """Finish the active systemd backup record exactly once."""
+    target = ProductionRetentionTarget.load(
+        production_target_path,
+        expected_owner=paths.expected_owner,
+    )
+    SystemBackupRunCoordinator(
+        store=AtomicRecordStore(paths.record_root),
+        target_id=target.target_id,
+        worker_root=paths.record_root.parent / "backup-worker",
+    ).finish(result=result, exit_status=exit_status)
+
+
+def _systemd_exit_status(value: str | None) -> int | None:
+    """Return systemd's numeric process status without trusting free-form input."""
+    if value is None or not value.isascii() or not value.isdecimal():
+        return None
+    parsed = int(value)
+    return parsed if 0 <= parsed <= 255 else None
+
+
 def main(argv: list[str] | None = None) -> None:
     """Run one allowlisted privileged system-control process mode."""
     parser = argparse.ArgumentParser(prog="timelocker-system-control")
@@ -473,6 +532,16 @@ def main(argv: list[str] | None = None) -> None:
     )
     modes.add_argument(
         "--scheduled-retention",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    modes.add_argument(
+        "--backup-run-start",
+        action="store_true",
+        help=argparse.SUPPRESS,
+    )
+    modes.add_argument(
+        "--backup-run-finish",
         action="store_true",
         help=argparse.SUPPRESS,
     )
@@ -500,6 +569,22 @@ def main(argv: list[str] | None = None) -> None:
         default="scheduled",
         help=argparse.SUPPRESS,
     )
+    parser.add_argument(
+        "--backup-result",
+        choices=(
+            "success",
+            "protocol",
+            "timeout",
+            "exit-code",
+            "signal",
+            "core-dump",
+            "watchdog",
+            "start-limit-hit",
+            "resources",
+        ),
+        default="failure",
+        help=argparse.SUPPRESS,
+    )
     arguments = parser.parse_args(argv)
     try:
         paths = LinuxBackendPaths.from_state_root(
@@ -515,6 +600,18 @@ def main(argv: list[str] | None = None) -> None:
                     if arguments.retention_trigger == "backup-success"
                     else OperationTrigger.SCHEDULED
                 ),
+            )
+        elif arguments.backup_run_start:
+            run_backup_record_start(
+                paths=paths,
+                production_target_path=arguments.production_target,
+            )
+        elif arguments.backup_run_finish:
+            run_backup_record_finish(
+                paths=paths,
+                production_target_path=arguments.production_target,
+                result=arguments.backup_result,
+                exit_status=_systemd_exit_status(os.environ.get("EXIT_STATUS")),
             )
         else:
             run_linux_backend(
@@ -745,6 +842,8 @@ __all__ = [
     "main",
     "run_linux_backend",
     "run_scheduled_retention",
+    "run_backup_record_finish",
+    "run_backup_record_start",
 ]
 
 
