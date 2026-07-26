@@ -38,7 +38,14 @@ The protected installer places:
 ```text
 /usr/local/bin/timelocker-tray
 /etc/xdg/autostart/timelocker-tray.desktop
+/usr/local/share/icons/hicolor/1024x1024/apps/timelocker.png
 ```
+
+The packaged TimeLocker logo is the tray and desktop-entry icon. Backup,
+retention, and backend state remain available through the tray menu and status
+text rather than replacing the application identity with unrelated theme
+icons. On Linux, the tray menu includes the latest backup date and time in the
+desktop session's local timezone.
 
 On Linux Mint/Ubuntu with Cinnamon or GNOME-compatible panels, install the GTK
 and AppIndicator runtime:

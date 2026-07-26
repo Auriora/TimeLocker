@@ -3,6 +3,7 @@ Type=Application
 Name=TimeLocker
 Comment=Backup status and approved actions
 Exec=/usr/local/bin/timelocker-tray
+Icon=timelocker
 Terminal=false
 NoDisplay=true
 X-GNOME-Autostart-enabled=true

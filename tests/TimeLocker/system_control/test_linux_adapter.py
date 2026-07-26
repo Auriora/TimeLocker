@@ -241,7 +241,12 @@ class TestSystemPolicyAndAssets:
             ASSET_DIRECTORY / "timelocker-retention.service"
         ).read_text()
         retention_timer = (ASSET_DIRECTORY / "timelocker-retention.timer").read_text()
-        assert "ConditionPathExists=/etc/timelocker/retention-enabled" in retention_service
+        tray_desktop = (ASSET_DIRECTORY / "timelocker-tray.desktop").read_text()
+        assert (
+            "ConditionPathExists=/etc/timelocker/retention-enabled" in retention_service
+        )
         assert "EnvironmentFile=-/etc/timelocker/retention.env" in retention_service
+        assert "Icon=timelocker" in tray_desktop
+        assert (ASSET_DIRECTORY / "timelocker-icon.png").is_file()
         assert "--scheduled-retention" in retention_service
         assert "Persistent=false" in retention_timer

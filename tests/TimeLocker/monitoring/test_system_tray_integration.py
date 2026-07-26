@@ -16,10 +16,12 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 import pytest
-from datetime import datetime
+from datetime import UTC, datetime
 from unittest.mock import Mock, patch
 
 from TimeLocker.monitoring.system_tray_integration import (
+    PACKAGED_TRAY_ICON_PATH,
+    LinuxSystemTray,
     SystemTrayError,
     SystemTrayIntegration,
     TrayStatus,
@@ -147,6 +149,62 @@ class TestLinuxSystemTray:
 
         assert modules == (gtk, legacy, "AppIndicator3")
         gi.require_version.assert_any_call("AppIndicator3", "0.1")
+
+    @pytest.mark.monitoring
+    @pytest.mark.unit
+    def test_uses_packaged_timelocker_icon_for_initial_and_updated_status(self):
+        gtk = Mock()
+        indicator_module = Mock()
+        indicator = indicator_module.Indicator.new.return_value
+
+        with patch(
+            "TimeLocker.monitoring.system_tray_integration._load_linux_tray_modules",
+            return_value=(gtk, indicator_module, "AyatanaAppIndicator3"),
+        ):
+            tray = LinuxSystemTray("TimeLocker")
+            tray.update_icon(TrayStatus.ERROR)
+
+        indicator_module.Indicator.new.assert_called_once_with(
+            "TimeLocker",
+            str(PACKAGED_TRAY_ICON_PATH),
+            indicator_module.IndicatorCategory.APPLICATION_STATUS,
+        )
+        indicator.set_icon.assert_called_once_with(str(PACKAGED_TRAY_ICON_PATH))
+
+    @pytest.mark.monitoring
+    @pytest.mark.unit
+    def test_linux_menu_shows_last_backup_in_local_time(self):
+        gtk = Mock()
+        indicator_module = Mock()
+        open_item = Mock()
+        last_backup_item = Mock()
+        status_item = Mock()
+        backup_item = Mock()
+        quit_item = Mock()
+        gtk.MenuItem.side_effect = [
+            open_item,
+            last_backup_item,
+            status_item,
+            backup_item,
+            quit_item,
+        ]
+
+        with patch(
+            "TimeLocker.monitoring.system_tray_integration._load_linux_tray_modules",
+            return_value=(gtk, indicator_module, "AyatanaAppIndicator3"),
+        ):
+            backup_time = datetime(2026, 7, 26, 12, 34, tzinfo=UTC)
+            tray = LinuxSystemTray(
+                "TimeLocker",
+                frozenset({"status", "backup_now", "open_ui", "quit"}),
+            )
+            tray.update_last_backup_time(backup_time)
+
+        last_backup_item.set_sensitive.assert_called_once_with(False)
+        expected_time = backup_time.astimezone().strftime("%Y-%m-%d %H:%M %Z")
+        last_backup_item.set_label.assert_called_once_with(
+            f"Last backup: {expected_time}".rstrip()
+        )
 
     @pytest.mark.monitoring
     @pytest.mark.unit

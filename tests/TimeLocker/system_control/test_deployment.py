@@ -145,6 +145,7 @@ def test_linux_asset_set_covers_launchers_backend_tray_and_schedules(
         unit_root=tmp_path / "units",
         config_root=tmp_path / "etc",
         autostart_root=tmp_path / "autostart",
+        icon_root=tmp_path / "icons",
     )
     sources = {target.source_name for target in targets}
 
@@ -158,6 +159,7 @@ def test_linux_asset_set_covers_launchers_backend_tray_and_schedules(
         "timelocker-retention.service",
         "timelocker-retention.timer",
         "timelocker-tray.desktop",
+        "timelocker-icon.png",
     } <= sources
     policy = next(
         target
@@ -165,3 +167,8 @@ def test_linux_asset_set_covers_launchers_backend_tray_and_schedules(
         if target.source_name == "system-control-policy.json"
     )
     assert policy.preserve_existing
+    icon = next(
+        target for target in targets if target.source_name == "timelocker-icon.png"
+    )
+    assert icon.destination == tmp_path / "icons" / "timelocker.png"
+    assert icon.mode == 0o644

@@ -166,6 +166,7 @@ def linux_asset_targets(
     unit_root: Path = Path("/etc/systemd/system"),
     config_root: Path = Path("/etc/timelocker"),
     autostart_root: Path = Path("/etc/xdg/autostart"),
+    icon_root: Path = Path("/usr/local/share/icons/hicolor/1024x1024/apps"),
 ) -> tuple[AssetTarget, ...]:
     """Return the complete Linux launcher, backend, tray, and schedule asset set."""
     return (
@@ -215,6 +216,11 @@ def linux_asset_targets(
         AssetTarget(
             "timelocker-tray.desktop",
             autostart_root / "timelocker-tray.desktop",
+            0o644,
+        ),
+        AssetTarget(
+            "timelocker-icon.png",
+            icon_root / "timelocker.png",
             0o644,
         ),
     )

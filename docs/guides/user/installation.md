@@ -148,6 +148,7 @@ is distinct from a user/source installation. It provides:
 /usr/local/bin/tl
 /usr/local/bin/timelocker-tray
 /usr/local/libexec/timelocker-system-control
+/usr/local/share/icons/hicolor/1024x1024/apps/timelocker.png
 /opt/timelocker/releases/RELEASE_ID/
 /opt/timelocker/selected-release.json
 /etc/timelocker/

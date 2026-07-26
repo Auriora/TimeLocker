@@ -142,6 +142,7 @@ def _apply_state(
     if not tray.is_available():
         return
     tray.update_status(_status_to_tray(state.status), tooltip=state.tooltip)
+    tray.update_last_backup_time(state.last_backup_started_at)
 
 
 def _build_client(

@@ -21,11 +21,19 @@ import os
 import sys
 import threading
 from datetime import datetime
+from pathlib import Path
 from enum import Enum
 from typing import Optional, Callable, Any
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
+
+PACKAGED_TRAY_ICON_PATH = (
+    Path(__file__).resolve().parents[1]
+    / "system_control"
+    / "assets"
+    / "timelocker-icon.png"
+)
 
 
 def _linux_graphical_session_available() -> bool:
@@ -96,7 +104,7 @@ class SystemTrayIntegration:
     Provides always-visible status information and quick actions
 
     Features:
-    - Status indicator icons (idle, running, success, error)
+    - Application icon with status details
     - Tooltip with last backup status
     - Context menu with quick actions
     - Click-to-open main interface
@@ -253,6 +261,19 @@ class SystemTrayIntegration:
         if self.is_available():
             self._tray_impl.set_on_click(callback)
 
+    def update_last_backup_time(self, backup_time: datetime | None) -> None:
+        """Update the platform-specific last-backup presentation when supported."""
+        if not self.is_available():
+            return
+
+        update_last_backup = getattr(
+            self._tray_impl,
+            "update_last_backup_time",
+            None,
+        )
+        if update_last_backup is not None:
+            update_last_backup(backup_time)
+
     def set_on_menu_action_callback(self, callback: Callable[[str], None]):
         """
         Set callback for menu actions
@@ -330,7 +351,11 @@ class LinuxSystemTray:
             self._use_gtk = True
             self._indicator = self._indicator_module.Indicator.new(
                 self.app_name,
-                "dialog-information",
+                (
+                    str(PACKAGED_TRAY_ICON_PATH)
+                    if PACKAGED_TRAY_ICON_PATH.is_file()
+                    else "dialog-information"
+                ),
                 self._indicator_module.IndicatorCategory.APPLICATION_STATUS,
             )
             self._indicator.set_status(self._indicator_module.IndicatorStatus.ACTIVE)
@@ -359,6 +384,11 @@ class LinuxSystemTray:
 
             # Separator
             self._menu.append(Gtk.SeparatorMenuItem())
+
+            # AppIndicator tooltips are not consistently available on Linux.
+            self._last_backup_item = Gtk.MenuItem(label="Last backup: Unknown")
+            self._last_backup_item.set_sensitive(False)
+            self._menu.append(self._last_backup_item)
 
             # Status item
             status_item = Gtk.MenuItem(label="View Status")
@@ -411,17 +441,14 @@ class LinuxSystemTray:
         if not hasattr(self, "_indicator"):
             return
 
-        icon_map = {
-            TrayStatus.IDLE: "dialog-information",
-            TrayStatus.RUNNING: "system-run",
-            TrayStatus.SUCCESS: "emblem-default",
-            TrayStatus.WARNING: "dialog-warning",
-            TrayStatus.ERROR: "dialog-error",
-        }
-
-        icon_name = icon_map.get(status, "dialog-information")
         try:
-            self._indicator.set_icon(icon_name)
+            self._indicator.set_icon(
+                (
+                    str(PACKAGED_TRAY_ICON_PATH)
+                    if PACKAGED_TRAY_ICON_PATH.is_file()
+                    else "dialog-information"
+                )
+            )
         except Exception as e:
             logger.error(f"Failed to update icon: {e}")
 
@@ -430,6 +457,21 @@ class LinuxSystemTray:
         # GTK AppIndicator doesn't support tooltips directly
         # Tooltip is shown through the menu
         pass
+
+    def update_last_backup_time(self, backup_time: datetime | None) -> None:
+        """Show the latest backup start time in the Linux tray menu."""
+        if not hasattr(self, "_last_backup_item"):
+            return
+
+        label = "Last backup: Unknown"
+        if backup_time is not None:
+            local_time = backup_time.astimezone() if backup_time.tzinfo else backup_time
+            label = f"Last backup: {local_time.strftime('%Y-%m-%d %H:%M %Z')}".rstrip()
+
+        try:
+            self._last_backup_item.set_label(label)
+        except Exception as e:
+            logger.error(f"Failed to update last backup time: {e}")
 
     def set_on_click(self, callback: Callable):
         """Set click callback"""
