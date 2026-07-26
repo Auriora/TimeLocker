@@ -3,7 +3,7 @@ title: Version management and GitHub releases
 doc_type: process
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-19
+last_reviewed: 2026-07-26
 ---
 
 # Version Management And GitHub Releases
@@ -128,6 +128,25 @@ The practical rollback before publication is to discard the uncommitted
 preparation changes or revert the reviewed preparation commit. After
 publication, prefer a new corrective patch release so consumers retain an
 immutable history.
+
+## Protected Host Activation And Rollback
+
+Publishing a GitHub release and selecting a protected host release are separate
+boundaries. A protected host stages an immutable release under
+`/opt/timelocker/releases/RELEASE_ID/` with a manifest that binds its release
+identity, package version, protocol version, and entrypoint.
+
+Before activation, the deployment probes the staged CLI, backend, and tray
+entrypoints. Only then may the root-only selector atomically update
+`/opt/timelocker/selected-release.json`, preserving the prior release identifier
+for rollback. Stable launchers resolve that selector and fail closed on missing,
+untrusted, incompatible, recursively invoked, or non-allowlisted state.
+
+Rollback probes the previous release before swapping selected and previous
+identifiers. It does not delete protected configuration, credential references,
+retention policy, or durable run records. Service/timer rollback is coordinated
+separately so operators retain evidence and can restore the previous scheduler
+when required.
 
 ## Current Deferrals
 

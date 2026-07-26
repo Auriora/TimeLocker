@@ -4,7 +4,7 @@ id: "user-guide-installation"
 type: [ guide ]
 status: [ approved ]
 owner: "Documentation Team"
-last_reviewed: "19-07-2026"
+last_reviewed: "2026-07-26"
 tags: [guide, user, installation]
 links:
   tooling: []
@@ -15,12 +15,13 @@ links:
 - **Owner**: Documentation Team
 - **Status**: Approved
 - **Created Date**: 19-12-2024
-- **Last Updated**: 19-07-2026
+- **Last Updated**: 2026-07-26
 - **Audience**: End Users, Administrators
 
 ## 1. Purpose
 
-Provide comprehensive steps for installing TimeLocker, its dependencies, and verifying the setup across Linux, macOS, and Windows.
+Provide steps for a user/source installation across supported Python platforms
+and explain the separately administered protected Linux deployment.
 
 ## 2. Goal
 
@@ -60,8 +61,8 @@ sudo apt install python3.12 python3-pip git  # Ubuntu/Debian; Python 3.13 is als
 # sudo pacman -S python python-pip git         # Arch
 ```
 
-The system tray is optional and does not affect backup, restore, or other CLI
-commands. On Linux Mint/Ubuntu, install GTK 3, PyGObject, and the Ayatana
+The independent system tray is optional and does not affect backup, restore, or
+other CLI commands. On Linux Mint/Ubuntu, install GTK 3, PyGObject, and the Ayatana
 AppIndicator typelib when you want tray support:
 
 ```bash
@@ -137,7 +138,49 @@ normal suite passes and enforces coverage of at least 50%. Live MinIO tests are
 owned by the separately provisioned profile documented in
 [`docs/4-testing/README.md`](../../4-testing/README.md).
 
-### 4.7 Validated Platform Matrix
+### 4.7 Protected Linux Deployment
+
+Host-level backup and retention use an administrator-installed deployment that
+is distinct from a user/source installation. It provides:
+
+```text
+/usr/local/bin/timelocker
+/usr/local/bin/tl
+/usr/local/bin/timelocker-tray
+/usr/local/libexec/timelocker-system-control
+/opt/timelocker/releases/RELEASE_ID/
+/opt/timelocker/selected-release.json
+/etc/timelocker/
+/var/lib/timelocker/
+```
+
+The stable launchers ignore the caller's pyenv, checkout, home directory, and
+current working directory. A staged release is selected only after its CLI,
+backend, and tray entrypoints pass compatibility probes. System control is
+exposed through `/run/timelocker/control.sock`.
+
+The repository contains validated deployment primitives and packaged assets;
+it does not currently expose a general end-user installer command. An
+administrator must stage the release, install the root-owned assets, configure
+the protected target and credentials by reference, approve retention, and
+enable the required systemd units.
+
+Verify an installed host without reading secrets:
+
+```bash
+/usr/local/bin/timelocker version --short
+/usr/local/bin/timelocker runs list --limit 5
+/usr/local/bin/timelocker logs view --scope system --lines 20
+systemctl status timelocker-control.socket
+systemctl status timelocker-retention.timer
+/usr/local/bin/timelocker-tray status --once
+```
+
+Protected reads require current membership in `timelocker-operators`.
+Installation, group changes, policy approval, service changes, release
+selection, and rollback require root.
+
+### 4.8 Validated Platform Matrix
 
 The `0.9.1` wheel and source distribution are clean-install tested on every
 combination below. Each test runs `version --short` and root help through both
@@ -149,19 +192,24 @@ the `timelocker` and `tl` entry points.
 | macOS | wheel and sdist | wheel and sdist |
 | Windows | wheel and sdist | wheel and sdist |
 
-This validates installation and safe CLI startup. Backup and restore operations
+This validates wheel/source installation and safe CLI startup. Backup and restore operations
 still require a compatible Restic executable and any backend-specific
 credentials. No PyPI distribution is currently published; use the source path
 above until an authorized release provides downloadable artifacts.
 
-### 4.8 Understand Modern Packaging Features
+The protected immutable-release, local-backend, systemd scheduling, and
+independent-tray deployment has live acceptance evidence on Linux Mint. The
+portable architecture includes a Windows adapter, but a protected Windows
+deployment is not yet claimed as live-accepted.
+
+### 4.9 Understand Modern Packaging Features
 
 - `pyproject.toml` for modern builds (PEP 517/518).
 - Optional dependency groups (`dev`, `gui`). S3 and B2 runtime dependencies are
   included in the base installation.
 - Entry points install both `timelocker` and `tl` commands.
 
-### 4.9 Configure Environment
+### 4.10 Configure Environment
 
 Basic configuration focuses on setting up repositories and targets. For cloud backends, export credentials:
 
@@ -176,10 +224,6 @@ export B2_ACCOUNT_ID=your_account_id
 export B2_ACCOUNT_KEY=your_account_key
 ```
 
-### 4.10 Optional: Manual Vacuum / Additional Sections
-
-(If applicable, include other configuration tasks; original document contains extended instructions you may retain here.)
-
 ## 5. Troubleshooting
 
 - **CLI command not found**: Ensure the Python scripts directory is on `PATH` or reinstall with pip.
@@ -187,6 +231,11 @@ export B2_ACCOUNT_KEY=your_account_key
   contributor dependencies with `python -m pip install -e '.[dev]'`.
 - **`pip install timelocker` fails**: No PyPI distribution is currently
   supported; install from a source checkout as shown above.
+- **Protected CLI uses the wrong checkout or pyenv**: use
+  `/usr/local/bin/timelocker`. A protected deployment must fail closed rather
+  than fall back to user state.
+- **System runs are not visible**: confirm the backend socket is active and the
+  user has current `timelocker-operators` membership.
 
 ## 6. Frequently Asked Questions (FAQ)
 
@@ -198,3 +247,6 @@ export B2_ACCOUNT_KEY=your_account_key
 - Restic installation docs: <https://restic.readthedocs.io>
 - Python downloads: <https://www.python.org/downloads/>
 - TimeLocker repository: <https://github.com/Auriora/TimeLocker>
+- [Independent tray setup](../../SYSTEM-TRAY-SETUP.md)
+- [Scheduling guide](../developer/scheduling-guide.md)
+- [Backup operations troubleshooting](./backup-operations-troubleshooting.md)

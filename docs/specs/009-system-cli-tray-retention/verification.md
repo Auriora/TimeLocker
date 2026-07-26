@@ -21,11 +21,11 @@ review, durable promotion, and closure.
 |------|-----------|--------|----------|
 | Requirements acceptance criteria reviewed | yes | pending | Requirements amended through 2026-07-26 |
 | Design and traceability approved | yes | passed | Owner approved implementation; lifecycle context reports no Phase 1 gaps |
-| Task evidence complete | yes | partial | T001-T010 complete; T011-T012 pending |
+| Task evidence complete | yes | partial | T001-T011 complete; T012 pending |
 | Automated tests pass or alternate verification recorded | yes | passed for Phase 4 | System-control suite: 176 passed before live rollout; 22 focused backup/backend/tray tests passed after live defect fixes |
 | Security and operations expert review complete | yes | partial | T004 and Phase 2 checkpoints complete; final T012 review pending |
 | Linux Mint live acceptance and rollback rehearsal complete | yes | passed | V10 completed on 2026-07-26; selected release `32ab1fefd8fd9334fe37b68b1f2262565f32bebd` |
-| Durable documentation promoted | yes | pending | |
+| Durable documentation promoted | yes | passed | T011 promotion targets and front doors updated; link and patch checks passed |
 | Governance or policy conflicts resolved | yes | pending | |
 | Spec cleanup decision recorded | yes | pending | |
 
@@ -59,14 +59,14 @@ Commands are refined through Agent Workbench before execution.
 | `python3 -m pytest tests/TimeLocker/platform -q` | Platform adapters and portability | pending | V4, V7, V9 |
 | `python3 -m pytest -m "not performance and not stress and not minio"` | Full configured non-live regression suite | pending | V1-V9 |
 | `systemd-analyze verify <staged units>` | Linux unit and socket validation | passed in isolated root | V4, V9 |
-| `python3 scripts/link_checker.py` | Durable/spec link validation | pending | V12 |
+| `python3 scripts/link_checker.py` | Durable/spec link validation | passed | V12; existing style suggestions only, no broken links |
 | `git diff --check` | Patch integrity | passed | Every implementation slice |
 
 ## Requirement Coverage
 
 | Requirement | Acceptance criteria covered | Evidence | Residual risk |
 |-------------|-----------------------------|----------|---------------|
-| Requirement 1 | AC1-AC4 | V5, V9, and V10 passed | Durable promotion remains T011 |
+| Requirement 1 | AC1-AC4 | V5, V9, V10, and T011 promotion passed | none for Linux reference |
 | Requirement 2 | AC1-AC6 | V2, V4-V5, and V10 passed on Linux Mint | Other platform authorization remains roadmap work |
 | Requirement 3 | AC1-AC8 | V7, V9, and V10 passed for the Linux reference desktop | Desktop diversity remains a portability risk |
 | Requirement 4 | AC1-AC11 | V1-V4, V6, and V10 passed | NSS variance remains a residual portability risk |
@@ -93,10 +93,10 @@ Commands are refined through Agent Workbench before execution.
 
 | Broad requirement, design target, or review finding | Implemented in this spec | Coverage state | Deferred or rejected work | Destination | Blocks closure? | Evidence |
 |-----------------------------------------------------|--------------------------|----------------|---------------------------|-------------|-----------------|----------|
-| Linux system command/control plane | Shared contracts, store, dispatcher, backend, immutable launcher, CLI views, installed socket, and live acceptance | live-validated | Durable documentation promotion | T011 | yes | T001-T010 evidence |
-| Group-authorized system records | Current-membership dispatcher, structured projection, and authorized/denied live acceptance | live-validated | Durable documentation promotion | T011 | yes | T003, T004, T006, T009-T010 evidence |
-| Independent tray | Standalone process, bounded IPC client, strict menu allowlist, singleton lock, launcher/autostart, reconnect, and live status | live-validated | Durable documentation promotion | T011 | yes | T007, T009-T010 evidence |
-| Retention automation | Exact-fingerprint approval, protected adapter, post-success trigger, independent timer, shared lock, and durable runs | live-validated | Durable documentation promotion | T011 | yes | T008-T010 evidence |
+| Linux system command/control plane | Shared contracts, store, dispatcher, backend, immutable launcher, CLI views, installed socket, live acceptance, and durable docs | promoted | none | none | no | T001-T011 evidence |
+| Group-authorized system records | Current-membership dispatcher, structured projection, authorized/denied live acceptance, and durable docs | promoted | none | none | no | T003, T004, T006, T009-T011 evidence |
+| Independent tray | Standalone process, bounded IPC client, strict menu allowlist, singleton lock, launcher/autostart, reconnect, live status, and durable setup | promoted | none for Linux reference | none | no | T007, T009-T011 evidence |
+| Retention automation | Exact-fingerprint approval, protected adapter, post-success trigger, independent timer, shared lock, durable runs, and operator docs | promoted | none | none | no | T008-T011 evidence |
 | Windows shared architecture | Token-derived identity, current-group resolver, and named-pipe transport seam with Linux-hosted contract tests | repository-validated | Live Windows service/pipe implementation and acceptance | Platform roadmap | no for this Linux reference closure | T009 evidence |
 | Raw journald delegation | rejected | out-of-scope | Rejected because it exposes unrelated/protected records | none | no | Design D002 |
 | User-scoped backup partitions | none | out-of-scope | Separate authorization model | GitHub issue #70 | no | Requirements non-goal |
@@ -110,7 +110,7 @@ Commands are refined through Agent Workbench before execution.
 | Permissions and approval points | T010 requires explicit host-mutation approval | No live mutation before approval |
 | Validation commands and expected signals | V1-V12 and planned commands | Commands must be refreshed after files exist |
 | Review needs | Security/architecture at T004; full expert panel at T012 | Findings may change design/tasks |
-| Durable-doc or closure impact | `change-impact.md` promotion table | Promotion remains pending |
+| Durable-doc or closure impact | `change-impact.md` promotion table | Promotion complete; T012 closure records remain |
 | Optional repo-evidence provider caveats | Agent Workbench evidence is routing/planning, not executed proof | Direct reads and commands required |
 
 ## Task Evidence
@@ -127,7 +127,8 @@ Commands are refined through Agent Workbench before execution.
 | T008 | complete | Approved retention executor, trigger claiming, protected request handler, and independent schedule gate; system-control suite passed 149 tests with 83.09% branch-aware coverage | Live backend composition and host scheduling acceptance remain T009-T010 |
 | T009 | complete | 178-test focused Phase 4 suite; 753-test expanded regression; validated wheel/sdist, entrypoints, assets, headless import, staged units, upgrade, and rollback | No host state changed; live installation and production adapter activation remain T010 |
 | T010 | complete | Selected immutable release, authorized/denied system views, launcher/socket/tray acceptance, successful backup and restore, approved post-success and independent retention, interrupted recovery, upgrade, and rollback | Linux Mint reference acceptance only; no live Windows claim |
-| T011-T012 | pending | No completion evidence | Durable promotion, final review, and closure |
+| T011 | complete | Requirements, architecture, implementation, installation, scheduling, tray, CLI, troubleshooting, version, and front-door docs promoted; link and patch checks passed | Bounded review found no remaining actionable documentation drift |
+| T012 | pending | No completion evidence | Final expert review and closure |
 
 ## Evidence Log
 
@@ -165,6 +166,7 @@ Commands are refined through Agent Workbench before execution.
 | 2026-07-26 | Production backup and restore acceptance | passed | Scheduled backup remained healthy; explicit backup run `287f480c-283f-45c0-85ed-2eb8b6392596` succeeded and a one-file restore completed. Evidence contains no credentials, repository URI, or protected source inventory. |
 | 2026-07-26 | Exact-fingerprint retention activation | passed | Operator accepted fingerprint `e62033fd33259af14b68305e6d1179f840697f4a89f0c0df8cb95a5d69e81d94`; independent retention and post-backup retention run `b3e5baff-56a7-4437-9295-9611a0c56156` succeeded without pruning. Both timers remain enabled and waiting. |
 | 2026-07-26 | Live tray queued/history regression | fixed and passed | Initial accepted request displayed stale `error` while queued; commits `2388e1d` and `32ab1fe` added durable backup coordination and made queued/latest operation state authoritative. Focused regression: 22 passed; live tray reports `success`, zero active operations, and backend available. |
+| 2026-07-26 | T011 durable-document promotion and bounded TimeLocker documentation review | passed | All promotion targets plus repository documentation front doors were reconciled with source and T010 evidence. `python scripts/link_checker.py` and `git diff --check` passed; Agent Workbench diagnostics had no Markdown provider. No live host state changed. |
 
 ## T004 Review Finding Dispositions
 
@@ -235,34 +237,34 @@ package.
 
 | Spec content | Durable destination or deferral | Status | Evidence |
 |--------------|---------------------------------|--------|----------|
-| System requirements and authorization invariants | `docs/1-requirements/system-operations.md` | pending | T011 |
-| Launcher/backend/tray/run-store architecture | `docs/2-architecture/system-architecture.md` | pending | T011 |
-| Scheduling/retention behavior | `docs/2-architecture/scheduling-system.md` | pending | T011 |
-| Focused service ownership | `docs/3-implementation/service-layer-integration.md` | pending | T011 |
-| Installation/group/launcher guidance | `docs/guides/user/installation.md` | pending | T011 |
-| Scheduling rollout/rollback | `docs/guides/developer/scheduling-guide.md` | pending | T011 |
-| Independent tray setup | `docs/SYSTEM-TRAY-SETUP.md` | pending | T011 |
-| CLI commands and troubleshooting | CLI reference and backup troubleshooting guide | pending | T011 |
+| System requirements and authorization invariants | `docs/1-requirements/system-operations.md` | complete | T011 |
+| Launcher/backend/tray/run-store architecture | `docs/2-architecture/system-architecture.md` | complete | T011 |
+| Scheduling/retention behavior | `docs/2-architecture/scheduling-system.md` | complete | T011 |
+| Focused service ownership | `docs/3-implementation/service-layer-integration.md` | complete | T011 |
+| Installation/group/launcher guidance | `docs/guides/user/installation.md` | complete | T011 |
+| Scheduling rollout/rollback | `docs/guides/developer/scheduling-guide.md` | complete | T011 |
+| Independent tray setup | `docs/SYSTEM-TRAY-SETUP.md` | complete | T011 |
+| CLI commands and troubleshooting | CLI reference and backup troubleshooting guide | complete | T011 |
 | User partitions | GitHub issue #70 | routed | Existing backlog authority |
 
 ### Spec Cleanup Decision
 
 - **Cleanup action:** keep active until implementation, promotion, and closure
-- **Reason:** repository implementation evidence exists through T008, but live integration, durable promotion, and closure evidence remain incomplete
+- **Reason:** implementation, live integration, and durable promotion are complete; final expert review and closure evidence remain T012
 - **Final spec commit:** pending
 - **Closure log path:** `docs/history/spec-closure-log.md`
 - **Closure log entry updated:** no
 - **Closure cleanup commit:** pending
 - **Active indexes updated:** no
-- **Durable docs linked back to evidence where useful:** no
-- **Residual spec-only content:** all design and task content remains temporary
+- **Durable docs linked back to evidence where useful:** yes
+- **Residual spec-only content:** design, detailed task evidence, and live acceptance remain temporary until T012 closure
 
 ## Ship Or Closure Risk
 
 - **Risk level:** high
 - **Breaking change:** no intended public-command break
 - **Blast radius checked:** partially
-- **Rollback path:** designed; not yet implemented or rehearsed
+- **Rollback path:** implemented and rehearsed on the Linux reference host
 - **Requires human review:** yes
 - **Release notes needed:** yes
 - **Follow-up issue or spec needed:** Windows live adapter/acceptance
@@ -276,10 +278,10 @@ protected metadata, widen privilege, interrupt backups, or delete snapshots.
 
 ## Readiness Decision
 
-- **Ready for promotion:** yes
+- **Ready for promotion:** complete
 - **Ready for release:** no
 - **Ready for closure:** no
-- **Ready for implementation:** yes for Phase 5 task T011
+- **Ready for implementation:** T012 only
 
 ## Related Artifacts
 
@@ -297,5 +299,5 @@ now provide repository and Linux Mint live evidence for V1-V10 and
 repository-local portions of V11. Real socket activation, installed
 ownership/modes, live NSS behavior, protected backup/restore, post-success and
 independent retention, tray reconnect/status, interrupted recovery, upgrade,
-and rollback passed. Durable promotion, final expert review, and closure remain
-T011-T012.
+and rollback passed. T011 durable promotion passed; final expert review and
+closure remain T012.

@@ -1,176 +1,144 @@
 ---
-title: "Operator Guide: Scheduling Backups"
-id: "dev-guide-scheduling"
+title: "Operator Guide: Scheduling Backups And Retention"
+id: "guide-scheduling"
 type: [ guide ]
 status: [ approved ]
-owner: "Operations Team"
-last_reviewed: "20-07-2026"
-tags: [guide, developer, operator, scheduling]
+owner: "Auriora Team"
+last_reviewed: "2026-07-26"
+tags: [guide, developer, operator, scheduling, retention]
 links:
   tooling: []
 ---
 
-# Operator Guide: Scheduling Backups
+# Operator Guide: Scheduling Backups And Retention
 
-- **Owner**: Operations Team
-- **Status**: Approved
-- **Audience**: Developers and operators
+## Purpose
 
-## Purpose and boundaries
+Configure reviewable user schedules and operate the protected Linux system
+backup and retention schedules without exposing credentials.
 
-Use TimeLocker to define a recurring backup, generate reviewable cron or
-systemd assets, and stage a migration from another scheduler. Schedule
-generation does not install or enable anything. Installing a system unit,
-choosing repository credentials, and disabling an existing backup job are
-separate operator decisions.
+## User-Managed Schedules
 
-Each executable schedule must explicitly bind:
-
-- one repository name or URI;
-- either one configured selection or one or more source paths;
-- its configuration directory when it is not the default; and
-- an optional protected environment-file path, never copied secret values.
-
-Schedules may also persist repeatable `--tags` and `--exclude` values,
-`--compression auto|off|max`, and the
-`--one-file-system/--cross-filesystems` traversal choice. Missing fields retain
-the legacy defaults and emit no additional backup arguments.
-Migration schedules may additionally reference repeatable root-readable
-`--exclude-file` paths, enable `--exclude-caches`, and carry an allowlisted
-`--backend-option`. The initial backend allowlist supports only Restic
-`s3.storage-class` with its documented non-archive storage classes.
-
-## Create a disabled schedule
-
-Use a selection template:
+Create schedules disabled, then generate assets into a staging directory:
 
 ```bash
 tl schedule create nightly-documents \
-  --repository primary \
-  --selection documents \
-  --environment-file ~/.config/timelocker/backup.env \
-  --frequency daily \
-  --disabled \
-  --config-dir ~/.config/timelocker
-```
+  --repository my-repository \
+  --source "$HOME/Documents" \
+  --cron-expression "30 3 * * *" \
+  --environment-file "$HOME/.config/timelocker/backup.env"
 
-Or supply repeatable direct sources:
-
-```bash
-tl schedule create nightly-config \
-  --repository primary \
-  --source /etc \
-  --source /srv/application/config \
-  --environment-file ~/.config/timelocker/backup.env \
-  --system \
-  --tags Bruce-5560 \
-  --exclude 'cache/*' \
-  --exclude-file /etc/timelocker/excludes \
-  --exclude-caches \
-  --backend-option s3.storage-class=INTELLIGENT_TIERING \
-  --compression max \
-  --one-file-system \
-  --cron '30 1 * * *' \
-  --disabled \
-  --config-dir ~/.config/timelocker
-```
-
-`--system` preserves the privilege boundary for sources that require root
-access. It does not grant privileges or install a unit.
-
-Protect the referenced environment file and keep it outside generated assets:
-
-```bash
-chmod 600 ~/.config/timelocker/backup.env
-```
-
-See [Per-Repository Credentials](../user/per-repo-credentials.md) for the
-credential choices. Do not copy a masked credential from another backup tool.
-
-## Generate and review assets
-
-Generate both candidate formats without installing either:
-
-```bash
-mkdir -p ~/.local/share/timelocker/staged-schedules
-tl schedule generate-scripts nightly-config \
+tl schedule generate-scripts nightly-documents \
   --platform systemd \
-  --output ~/.local/share/timelocker/staged-schedules \
-  --config-dir ~/.config/timelocker
-tl schedule generate-scripts nightly-config \
-  --platform cron \
-  --output ~/.local/share/timelocker/staged-schedules \
-  --config-dir ~/.config/timelocker
+  --output "$HOME/.local/share/timelocker/staged-schedules"
 ```
 
-Before installation:
+Review generated commands, absolute executable paths, source and exclusion
+arguments, the configuration directory, environment-file permissions, and
+calendar behavior before installation. Asset generation does not install,
+enable, start, or disable a scheduler.
 
-1. Confirm the generated backup command contains `backup create`, the intended
-   repository, all sources or the selection, the intended `--config-dir`, and
-   every reviewed tag, exclusion, exclusion-file, cache, backend, compression,
-   and traversal option.
-2. Confirm it contains no password or other credential value.
-3. Run the generated wrapper manually in the intended user or root context.
-4. Complete a backup and a digest-verified TimeLocker restore.
-5. Review the displayed install commands; generation has not run them.
-
-For systemd assets, `EnvironmentFile=` references the protected file. The cron
-wrapper sources the same file with fail-fast shell settings. A missing environment file causes the
-backup to fail instead of silently switching credentials.
-
-The generated timer does not declare a `Requires=` dependency on its service.
-Systemd starts the same-named service when the timer elapses; coupling the
-service to timer activation would also start a backup whenever the timer unit is
-started or restarted. Because generated timers use `Persistent=true`, starting
-one after a missed calendar event can legitimately trigger one catch-up run.
-Check the service state after installing or changing a timer.
-
-## Staged NPBackup replacement
-
-Keep the NPBackup job enabled while TimeLocker is staged:
-
-1. Discover and record the actual NPBackup scheduling mechanism and protected
-   source list using its supported, masked interface.
-2. Create a disabled TimeLocker schedule with matching sources and an
-   independently chosen TimeLocker credential source.
-3. Generate and review the TimeLocker assets.
-4. With explicit approval, install the system-level timer or root cron entry.
-5. Observe successful scheduled TimeLocker backups and perform a restore test.
-6. Only then make a separate cutover decision to disable NPBackup.
-
-Do not extract masked NPBackup secrets, install a privileged timer, or disable
-NPBackup as part of schedule generation.
-
-TimeLocker backup schedules currently run `tl backup create` only. They do not
-automatically run `tl repos forget` or `tl repos prune`. After a cutover,
-continue the reviewed manual retention procedure until a separate maintenance
-schedule has been designed, dry-run, and explicitly approved. Do not append
-retention or prune to the backup service without failure isolation and rollback
-handling; backup success must not imply approval for snapshot deletion.
-
-## Validation and troubleshooting
+Inspect the stored definition with:
 
 ```bash
-tl schedule list --json --config-dir ~/.config/timelocker
-tl schedule show nightly-config --config-dir ~/.config/timelocker
-bash -n ~/.local/share/timelocker/staged-schedules/nightly-config_cron.sh
-systemd-analyze verify \
-  ~/.local/share/timelocker/staged-schedules/timelocker-nightly-config.service \
-  ~/.local/share/timelocker/staged-schedules/timelocker-nightly-config.timer
+tl schedule list
+tl schedule show nightly-documents
+tl schedule test nightly-documents
 ```
 
-`schedule list`, `schedule show`, and `schedule test` expose or validate the
-stored execution options without reading the referenced environment file.
-Cron, systemd, and Windows assets are rendered from the same argument-safe
-command builder, so spaces and shell metacharacters remain single arguments.
+## Protected System Schedule
 
-If the command reports a missing repository, selection, or source, recreate or
-edit the schedule so the execution target is explicit. If access fails only in
-the scheduler, compare its user, environment-file permissions, executable
-path, and configuration directory with the successful manual run.
+The protected Linux deployment is administrator-installed. It uses root-owned
+systemd units, root-owned configuration under `/etc/timelocker`, durable state
+under `/var/lib/timelocker`, and the stable launcher selected under
+`/opt/timelocker`.
+
+Inspect it without reading secret files:
+
+```bash
+systemctl status timelocker-control.socket
+systemctl status timelocker-npbackup-migration.timer
+systemctl status timelocker-retention.timer
+systemctl list-timers 'timelocker-*'
+```
+
+The backup unit records each scheduled or authorized invocation. On successful
+completion it may request retention as a separate `backup-success` run.
+Retention also has an independent timer and may be requested explicitly by an
+authorized operator. It therefore does not need a separate *dependency* on a
+backup, even when the chosen deployment also runs it after successful backups.
+
+## Retention Safety
+
+The current protected policy is:
+
+```text
+keep daily:   5
+keep weekly:  4
+keep monthly: 12
+keep yearly:  3
+group by:     host,paths
+prune:        disabled
+```
+
+Production mutation requires the root-owned enable marker and an exact approved
+policy fingerprint. Changing any repository reference, credential reference,
+filter, retention count, grouping, or prune setting changes that fingerprint
+and requires an administrator to review and approve the new policy.
+
+Backup and retention share a repository mutation lock. A conflict is recorded
+as skipped; do not bypass the lock by calling Restic directly while an operation
+is active.
+
+## Operator Visibility
+
+Current members of `timelocker-operators` can inspect protected records:
+
+```bash
+timelocker runs list --limit 20
+timelocker runs list --operation backup
+timelocker runs list --operation retention
+timelocker runs show RUN_ID
+timelocker logs view --scope system --lines 100
+```
+
+`timelocker logs view` without `--scope system` reads the invoking user's local
+CLI log and does not contain protected scheduled-run records.
+
+## Cutover From Another Scheduler
+
+1. Reproduce the existing repository, sources, exclusions, tags, traversal
+   behavior, environment reference, and calendar in a disabled TimeLocker
+   schedule.
+2. Dry-run and manually exercise the exact protected target.
+3. Complete a backup and a restore acceptance test.
+4. Approve the retention fingerprint and verify a dry run.
+5. Install and enable TimeLocker timers.
+6. Confirm `runs list` contains successful backup and retention records.
+7. Disable the legacy scheduler only after TimeLocker acceptance succeeds.
+8. Preserve the legacy scheduler configuration and crontab as rollback
+   evidence until the observation window is complete.
+
+## Rollback
+
+If scheduling or the selected release is unhealthy:
+
+1. disable the affected TimeLocker timer;
+2. inspect structured runs and diagnostics;
+3. select the previously validated immutable release with the administrator
+   release tool;
+4. restore the preserved legacy scheduler configuration if service continuity
+   requires it; and
+5. retain TimeLocker run and policy records for diagnosis.
+
+Rollback does not require deleting credentials or state. If automated retention
+is disabled during rollback, resume the previously reviewed manual
+`restic forget` procedure as the authorized restic account. Do not enable prune
+unless it has been separately reviewed.
 
 ## References
 
-- [Installation](../user/installation.md)
-- [Per-Repository Credentials](../user/per-repo-credentials.md)
 - [Scheduling Architecture](../../2-architecture/scheduling-system.md)
+- [Installation](../user/installation.md)
+- [Backup Operations Troubleshooting](../user/backup-operations-troubleshooting.md)
+- [Version Management](../../processes/version-management.md)

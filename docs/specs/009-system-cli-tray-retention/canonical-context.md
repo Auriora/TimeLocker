@@ -52,14 +52,14 @@ evidence is a reconciliation input and must not be silently overridden.
 | Source path | Reviewed | Status | Canonical scope | Promotion target |
 |-------------|----------|--------|-----------------|------------------|
 | `CHARTER.md` | 2026-07-26 | summarized | Mandate and non-goal boundaries only | `CHARTER.md` remains authoritative |
-| `docs/guides/developer/scheduling-guide.md` | 2026-07-26 | background | Current installed scheduling and manual-retention behavior | Update after T010 acceptance |
-| `docs/SYSTEM-TRAY-SETUP.md` | 2026-07-26 | background | Current in-process tray behavior and setup | Supersede after T007/T010 acceptance |
-| `docs/2-architecture/system-architecture.md` | 2026-07-26 | background | Current service and CLI architecture | Update after accepted implementation |
-| `docs/2-architecture/scheduling-system.md` | 2026-07-26 | background | Current schedule adapter architecture | Update after retention implementation |
+| `docs/guides/developer/scheduling-guide.md` | 2026-07-26 | promoted | Current user/system schedules, retention, cutover, and rollback | Durable authority after T011 |
+| `docs/SYSTEM-TRAY-SETUP.md` | 2026-07-26 | promoted | Independent tray behavior and setup | Durable authority after T011 |
+| `docs/2-architecture/system-architecture.md` | 2026-07-26 | promoted | Current CLI, launcher, backend, tray, run-store, and repository boundaries | Durable authority after T011 |
+| `docs/2-architecture/scheduling-system.md` | 2026-07-26 | promoted | Current user scheduling and protected backup/retention architecture | Durable authority after T011 |
 
-No durable document is copied into this package. The listed current-state
-documents remain authoritative for users and operators until T011 promotes
-verified behavior.
+No durable document is copied into this package. T011 promoted the accepted
+behavior into the listed current-state documents, which are now authoritative
+for users and operators.
 
 ## Non-Canonical Background Sources
 

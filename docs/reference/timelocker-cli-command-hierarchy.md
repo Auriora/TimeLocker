@@ -4,7 +4,7 @@ id: "ref-cli-hierarchy"
 type: [ reference ]
 status: [ approved ]
 owner: "CLI Team"
-last_reviewed: "01-11-2025"
+last_reviewed: "2026-07-26"
 tags: [reference, cli, command-structure]
 links:
   tooling: []
@@ -12,143 +12,105 @@ links:
 
 # Reference: TimeLocker CLI Command Hierarchy
 
-- **Owner**: CLI Team
-- **Status**: Approved
-- **Created Date**: 15-12-2024
-- **Last Updated**: 01-11-2025
-- **Audience**: Developers, Technical Writers, Support Engineers
+## Entry Points
 
-## 1. Purpose
+`timelocker` and `tl` are equivalent root commands. A user/source installation
+invokes the packaged Typer CLI. A protected system deployment installs stable
+root-owned launchers at `/usr/local/bin/timelocker` and `/usr/local/bin/tl`;
+both resolve the same selected immutable release.
 
-Document the authoritative command hierarchy for the `timelocker` (`tl`) CLI, including namespace organization, aliases, and migration notes for legacy
-commands. Use this reference to maintain CLI documentation, implement shell completions, and verify command routing.
+## Root Command Groups
 
-## 2. Specification
-
-### 2.1 Design Philosophy
-
-- Repository operations consolidated under `repos` (configuration + actions).
-- Data selection operations unified under `selections` (replaces deprecated `targets`).
-- Snapshot lifecycle management under `snapshots` (list, forget, prune).
-- Recovery operations under `restore` (browse, restore, verify) - separate from snapshot management.
-- Configuration, credentials, and version info exposed via dedicated namespaces.
-
-### 2.2 Root Command Summary
-
-- **Root**: `timelocker` (alias `tl`)
-- **Description**: TimeLocker – backup orchestration with Rich terminal output
-- **Framework**: Typer + Rich
-
-### 2.3 Command Tree
-
-```
-timelocker/ (alias: tl)
-├── backup/
-│   ├── create [paths...]           # Create backup (default action)
-│   └── verify [--snapshot]         # Verify backup integrity (defaults to latest)
-├── snapshots/
-│   ├── list|ls                     # List snapshots from configured repos
-│   ├── show <id>                   # Show snapshot details
-│   ├── forget <id>                 # Remove snapshot
-│   ├── prune                       # Apply retention policies
-│   ├── diff <id1> <id2>            # Compare snapshots
-│   └── find <pattern>              # Search across repositories
-├── restore/
-│   ├── list <repository>           # List available snapshots for restoration
-│   ├── browse <repository> <id>    # Explore snapshot contents
-│   ├── files <repository> <id> <paths> # Restore specific files
-│   ├── full <repository> <id> <target> # Restore complete snapshot
-│   ├── mount <repository> <id> <mountpoint> # Mount snapshot as filesystem
-│   ├── umount <id>                 # Unmount snapshot
-│   ├── find <repository> <query>   # Search files for recovery
-│   ├── diff <repository> <id1> <id2> # Compare snapshots for recovery
-│   └── verify <target>             # Verify restored data integrity
-├── repos/
-│   ├── list|ls                     # List repositories
-│   ├── add <name> <uri>            # Add repository configuration
-│   ├── remove|rm <name>            # Remove repository configuration
-│   ├── show <name>                 # Show repository details
-│   ├── default <name>              # Set default repository
-│   ├── init <name>                 # Initialize repository
-│   ├── check <name>                # Check repository integrity
-│   ├── stats <name>                # Repository statistics
-│   ├── unlock <name>               # Clear repository locks
-│   ├── migrate <name>              # Migrate repository format
-│   ├── forget <name>               # Apply retention policy
-│   ├── check-all                   # Check all repositories
-│   └── stats-all                   # Stats across repositories
-├── selections/
-│   ├── list|ls                     # List data selection templates
-│   ├── create <name>               # Create selection template
-│   ├── show <name>                 # Show selection details
-│   ├── edit <name>                 # Edit selection template
-│   ├── delete <name>               # Delete selection template
-│   ├── test <name> [path]          # Test selection against path
-│   ├── export <name>               # Export selection template
-│   └── import <file>               # Import selection template
-├── config/
-│   ├── show                        # Configuration info and validation
-│   ├── setup                       # Interactive setup wizard
-│   └── import/
-│       └── restic                  # Import restic environment
-├── credentials/
-│   ├── unlock                      # Unlock credential manager
-│   ├── set <repo>                  # Store repository password
-│   └── remove <repo>               # Remove repository password
-└── version                         # Show CLI version information
+```text
+timelocker (alias: tl)
+├── version
+├── help
+├── completion
+├── backup
+├── snapshots
+├── repos
+├── config
+├── credentials
+├── security
+├── migrate
+├── policy
+├── selections
+├── schedule
+├── monitor
+├── logs
+├── reports
+├── runs
+└── restore
 ```
 
-### 2.4 Command Aliases
+Run `timelocker GROUP --help` for the current leaf commands and options.
 
-- Global alias: `tl` → `timelocker`
-- Namespace aliases: `repos` ↔ `repositories`, `ls` ↔ `list`, `rm` ↔ `remove`.
+## Protected System Reads
 
-### 2.5 Migration Guide
+```text
+timelocker runs list
+  [--limit N]
+  [--operation backup|retention]
+  [--state STATE]
+  [--json]
 
-| Legacy Command                          | Current Command                     |
-|-----------------------------------------|-------------------------------------|
-| `tl repo myrepo init`                   | `tl repos init myrepo`              |
-| `tl repo myrepo check`                  | `tl repos check myrepo`             |
-| `tl config repositories add`            | `tl repos add`                      |
-| `tl snapshot abc123 show`               | `tl snapshots show abc123`          |
-| `tl snapshot abc123 forget`             | `tl snapshots forget abc123`        |
-| `tl snapshot abc123 restore /path`      | `tl restore files myrepo abc123 /path` |
-| `tl snapshot abc123 mount /mnt`         | `tl restore mount myrepo abc123 /mnt` |
-| `tl snapshots find "*.pdf"`             | `tl snapshots find "*.pdf"` OR `tl restore find myrepo "*.pdf"` |
+timelocker runs show RUN_ID [--json]
 
-### 2.6 Examples
+timelocker logs view
+  [--scope local|system]
+  [--lines N]
+  [--level LEVEL]
+  [--component COMPONENT]
+  [--since TIME]
+```
 
-- Repository list: `tl repos list`
-- Initialize repository: `tl repos init myrepo`
-- Create selection: `tl selections create documents --include '~/Documents/**' --exclude '*/temp/*'`
-- Backup create: `tl backup create --selection documents --repository myrepo`
-- List snapshots: `tl snapshots list` (all repos) or `tl restore list myrepo` (specific repo)
-- Browse snapshot: `tl restore browse myrepo abc123`
-- Restore files: `tl restore files myrepo abc123 /path/to/file1 /path/to/file2 --target ~/restored`
-- Restore full: `tl restore full myrepo abc123 ~/restored`
-- Verify restore: `tl restore verify ~/restored --repository myrepo --snapshot abc123`
-- Snapshot search: `tl snapshots find "*.pdf"` (management) or `tl restore find myrepo "*.pdf"` (recovery)
-- Credential storage: `tl credentials set myrepo`
+`runs` and `logs view --scope system` use the authenticated local backend and
+require current operator-group membership. System diagnostics are structured
+safe records, not raw journald. `--follow` is available for local logs but is
+rejected for system diagnostics.
 
-## 3. Usage Notes
+Without `--scope system`, `logs view` reads only the invoking user's local CLI
+log. Scheduled system backups and retention runs are intentionally absent from
+that file.
 
-- **Snapshot Management** (`snapshots`): Use for lifecycle operations (list, forget, prune, search).
-- **Recovery Operations** (`restore`): Use for data restoration (browse, restore, verify, mount).
-- All `restore` commands require explicit `<repository>` parameter for clarity in multi-repository environments.
-- Snapshot commands in `snapshots` namespace default to **all** repositories; use `restore list <repository>` for repository-specific listing.
-- Retention (`prune`, `forget`) respects repository-level retention policies; use `tl repos forget` for repo-specific policies.
-- Shell completion generators consume this hierarchy; update completion scripts when modifying command namespaces.
-- The `targets` command has been deprecated and replaced by `selections` for more flexible data selection patterns.
-- When migrating documentation or support scripts, map legacy `targets` commands to `selections` commands.
+## Independent Tray Command
 
-## 4. Change Log
+`timelocker-tray` is a separate executable, not a CLI command group:
 
-- 11-11-2025: **Major restructure** - Separated `restore` namespace from `snapshots` for proper separation of concerns. Removed `restore`, `mount`, `umount`, `contents`, `find-in` from `snapshots`. Added complete `restore` namespace with 9 commands per CLI Interface Requirements. Updated to align with Recovery Operations architecture.
-- 11-11-2025: Removed deprecated `targets` command; replaced with `selections` for data selection management.
-- 01-11-2025: Applied reference template; reorganized sections and clarified aliases.
-- 15-12-2024: Documented merged `repos`/`targets` namespaces and default behaviors.
+```text
+timelocker-tray
+  status
+  serve
+  backup_now
+  retention_now
+  open_ui
+  quit
+```
 
-# References
+`open_ui` is currently a reserved no-op. `retention_now` requires the exact
+approved policy fingerprint. The tray communicates with the protected backend
+and does not own backup execution.
 
-- TimeLocker user documentation (`docs/guides/user/repository-management-guide.md`)
-- Shell completion reference (`docs/guides/user/auto-completion-guide.md`)
+## Administrator Release Tool
+
+`timelocker-release-select` is a root-only deployment tool. It is deliberately
+not part of the public CLI hierarchy and is installed with restricted
+permissions. Administrators use it to select or roll back compatible immutable
+releases; ordinary operators do not gain release-management authority through
+group membership.
+
+## Routing Rules
+
+- User-local commands operate in the invoking user's configuration boundary.
+- Protected reads and allowlisted actions cross the local backend.
+- Installation, upgrade, rollback, operator membership, policy approval, and
+  service changes are administrator maintenance.
+- Unknown public actions and unsupported system log scopes fail closed.
+- The CLI does not initialize the tray or prompt through a GUI.
+
+## References
+
+- [System Operations Requirements](../1-requirements/system-operations.md)
+- [System Architecture](../2-architecture/system-architecture.md)
+- [Installation](../guides/user/installation.md)
+- [Independent System Tray Setup](../SYSTEM-TRAY-SETUP.md)

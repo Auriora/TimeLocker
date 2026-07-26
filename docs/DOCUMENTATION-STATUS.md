@@ -3,7 +3,7 @@ title: Documentation status
 doc_type: reference
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-18
+last_reviewed: 2026-07-26
 ---
 
 # Documentation Status
@@ -20,11 +20,15 @@ Git history.
 - CLI repository, backup, snapshot, restore, selection, credential, policy,
   scheduling, monitoring, and integration workflows.
 - Filesystem/XDG configuration and Restic-backed snapshot storage.
-- Optional system-tray integration.
+- Protected Linux system-control backend, immutable release launchers,
+  structured run/diagnostic visibility, backup/retention coordination, and
+  independent optional tray.
 - Pytest-based unit, integration, and environment-dependent test suites.
 
 The repository does not currently implement a REST API, database application
-store, desktop GUI, or mobile client. New future work belongs in GitHub or an
+store, full desktop GUI, or mobile client. The portable protected-host
+architecture includes a Windows adapter, but live deployment acceptance is
+currently Linux Mint/systemd only. New future work belongs in GitHub or an
 approved active spec.
 
 ## Current Work

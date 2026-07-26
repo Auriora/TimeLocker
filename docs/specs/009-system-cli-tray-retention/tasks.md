@@ -267,7 +267,8 @@ T009 -> T010 -> T011 -> T012
     reconnect, interrupted-run recovery, upgrade, and rollback are evidenced.
   - Evidence mode: external
   - Evidence: Controlled Linux Mint live acceptance completed on 2026-07-26. Release 32ab1fefd8fd9334fe37b68b1f2262565f32bebd is selected; authorized/denied views, root-owned launcher and backend, tray reconnect/status, interrupted-run recovery, upgrade/rollback, scheduled and explicit backup paths, one-file restore, exact-fingerprint retention approval, post-success retention, and independent retention were evidenced without copying secrets. Backup run 287f480c-283f-45c0-85ed-2eb8b6392596 and post-success retention run b3e5baff-56a7-4437-9295-9611a0c56156 succeeded. Both timers remain enabled and waiting.
-  - Status: Phase 4 live acceptance complete; T011 durable documentation promotion is next.
+  - Status: Phase 4 live acceptance complete; T011 durable documentation
+    promotion is complete.
   - [x] T010.1 Stage without changing the working 03:30 backup.
   - Evidence: Staged and installed immutable release assets without changing the existing 03:30 backup cadence. The selected release is 32ab1fefd8fd9334fe37b68b1f2262565f32bebd; the backup timer remains enabled and waiting for 03:30.
   - Status: Live staging complete and schedule preserved.
@@ -288,14 +289,16 @@ T009 -> T010 -> T011 -> T012
   - Evidence mode: external
 ## Phase 5: Promotion, review, and closure
 
-- [ ] T011 Promote accepted behavior into durable documentation.
+- [x] T011 Promote accepted behavior into durable documentation.
   - Depends on: T010
   - Files: all promotion targets in `change-impact.md`
   - Acceptance: Durable requirements, architecture, CLI reference,
     installation, tray, scheduling, troubleshooting, rollout, and rollback docs
     match implemented behavior and no future intent is presented as current.
-  - Evidence: Pending.
+  - Evidence: Promoted accepted Linux system-control behavior into durable requirements, architecture, service integration, installation, scheduling, tray, CLI, troubleshooting, rollout, rollback, version-management, and documentation front-door sources. Reconciled duplicate tray guidance and explicitly retained Linux-only live acceptance, Windows follow-up, no full UI, and user-partition issue #70 boundaries. Direct source/installed-help review and a bounded review-timelocker documentation panel found no remaining actionable drift. `python scripts/link_checker.py`, `git diff --check`, and spec-package lint passed; Agent Workbench reported no Markdown diagnostics provider.
 
+  - Status: T011 complete. T012 remains the final expert review, residual disposition, and closure task.
+  - Evidence mode: validation
 - [ ] T012 Complete expert review, full validation, residual disposition, and
   closure preparation.
   - Depends on: T011

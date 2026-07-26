@@ -1,70 +1,81 @@
-# System Tray Integration Setup (Optional)
+# Independent System Tray Setup
 
-TimeLocker's system tray integration is **optional**. The CLI works perfectly without it.
+The TimeLocker tray is an optional, independent user-session process. Normal
+CLI startup never initializes the tray. The tray communicates with the
+protected local backend and can disappear or restart without affecting an
+active backup or retention run.
 
-> **Note**: This is for system tray integration only, not a full desktop GUI application. TimeLocker is primarily a CLI tool with optional desktop notifications
-> and status indicators.
+## Current Capability
 
-## Quick Install
+The tray can:
 
-### Linux (Ubuntu/Debian)
+- show backend availability;
+- show active operation count;
+- show the latest backup and retention status;
+- show the next known backup and retention times;
+- request the allowlisted system backup;
+- request retention when supplied the exact approved policy fingerprint; and
+- degrade to a warning state when the backend is unavailable or access is
+  denied.
 
-```bash
-# Install system dependencies first
-sudo apt-get install -y libgirepository1.0-dev libcairo2-dev pkg-config python3-dev gir1.2-gtk-3.0 gir1.2-appindicator3-0.1
+`open_ui` is a reserved no-op. TimeLocker does not currently provide a full
+desktop UI.
 
-# Then install TimeLocker with system tray support
-pip install -e .[gui]
+## Authorization
+
+The tray runs as the signed-in desktop user, never as root. The user must be a
+current member of `timelocker-operators`; the backend rechecks group membership
+for each request. After adding a user to the group, start a new login session
+before relying on the tray.
+
+## Linux Setup
+
+The protected installer places:
+
+```text
+/usr/local/bin/timelocker-tray
+/etc/xdg/autostart/timelocker-tray.desktop
 ```
 
-### macOS
+On Linux Mint/Ubuntu with Cinnamon or GNOME-compatible panels, install the GTK
+and AppIndicator runtime:
 
 ```bash
-# No system dependencies needed
-pip install -e .[gui]
+sudo apt install python3-gi gir1.2-gtk-3.0 \
+  gir1.2-ayatanaappindicator3-0.1
 ```
 
-### Windows
+Log out and back in to load the system autostart entry. For a one-shot
+diagnostic that does not create a persistent tray icon:
 
 ```bash
-# No system dependencies needed
-pip install -e .[gui]
+timelocker-tray status --once
 ```
 
-## Do You Need This?
+To run the foreground process for troubleshooting:
 
-**NO** if you're:
+```bash
+timelocker-tray serve
+```
 
-- Using CLI only
-- Running on a headless server
-- Connecting via SSH
+## Failure Behavior
 
-**YES** if you want:
+- `Access denied` means the desktop user is not currently authorized.
+- `System backend unavailable` means the local socket/backend is unavailable;
+  the tray retries with bounded backoff.
+- A backup or retention conflict is reported by the backend and does not start
+  overlapping repository work.
+- Quitting the tray does not stop backend services, timers, or operations.
 
-- System tray notifications
-- Desktop integration
-- Visual status indicators
+## Platform Status
 
-## Full Documentation
+The process boundary is platform-neutral and the source contains a Windows
+adapter. The independently installed protected tray/backend deployment has live
+acceptance evidence on Linux Mint. This document does not claim a live-accepted
+Windows installation.
 
-See [guides/gui-dependencies.md](guides/gui-dependencies.md) for complete installation instructions and troubleshooting.
+## References
 
-## What This Provides
-
-The system tray integration includes:
-
-- **Status Indicator**: Visual indicator in system tray showing backup status
-- **Desktop Notifications**: Alerts for backup completion, errors, and warnings
-- **Quick Access**: Right-click menu for common operations
-- **Background Monitoring**: Non-intrusive status updates
-
-## What This Does NOT Provide
-
-This is **not** a full desktop GUI application. TimeLocker does not have:
-
-- Graphical backup configuration interface
-- Visual repository management
-- Interactive backup wizards
-- Dashboard or control panel
-
-For all configuration and operations, use the CLI commands. The system tray is purely for monitoring and notifications.
+- [System Architecture](./2-architecture/system-architecture.md)
+- [Installation](./guides/user/installation.md)
+- [Backup Operations Troubleshooting](./guides/user/backup-operations-troubleshooting.md)

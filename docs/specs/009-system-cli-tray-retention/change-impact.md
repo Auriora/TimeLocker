@@ -20,12 +20,12 @@ run visibility, group authorization, and automatic retention.
 | Source | Current behavior relied on | Confidence | Notes |
 |--------|----------------------------|------------|-------|
 | `CHARTER.md` | CLI-first backup orchestration, safety, stable automation, observable operation | high | Governing mandate |
-| `docs/2-architecture/system-architecture.md` | CLI and service ownership; tray is currently optional integration code | high | Must be updated after implementation |
-| `docs/2-architecture/scheduling-system.md` | Platform schedule adapters and scheduled backup model | high | Does not yet describe retention or shared run state |
+| `docs/2-architecture/system-architecture.md` | CLI, immutable launcher, protected backend, tray, run-store, and repository boundaries | high | Promoted by T011 |
+| `docs/2-architecture/scheduling-system.md` | User schedules plus protected backup/retention triggers, locking, and run state | high | Promoted by T011 |
 | `docs/3-implementation/service-layer-integration.md` | Focused services should own new behavior instead of expanding the compatibility facade | high | Guides client/service placement |
-| `docs/guides/developer/scheduling-guide.md` | Current system scheduling and manual-retention boundary | high | Promotion target for rollout and rollback |
-| `docs/guides/user/installation.md` | Package entry points provide `timelocker` and `tl` | high | Does not yet define the machine launcher |
-| `docs/SYSTEM-TRAY-SETUP.md` | Tray is an optional in-process integration | high | Must be superseded |
+| `docs/guides/developer/scheduling-guide.md` | User/system scheduling, retention safety, cutover, and rollback | high | Promoted by T011 |
+| `docs/guides/user/installation.md` | User/source install and protected Linux deployment boundaries | high | Promoted by T011 |
+| `docs/SYSTEM-TRAY-SETUP.md` | Independent unprivileged tray installation and behavior | high | Superseded by T011 |
 | `src/TimeLocker/cli_modules/commands/monitoring.py` | `logs view` reads the caller's cache log and ignores system run history | high | Bug and UX migration seam |
 | `src/TimeLocker/monitoring/notification_service.py` | Notification construction initializes the system tray | high | Headless warning root cause |
 
@@ -53,15 +53,15 @@ run visibility, group authorization, and automatic retention.
 
 | Spec content | Durable destination | Promotion status | Notes |
 |--------------|---------------------|------------------|-------|
-| System privilege, group authorization, record redaction, retention invariants | `docs/1-requirements/system-operations.md` | pending | New durable requirements document |
-| Launcher, backend, IPC, run store, tray boundaries | `docs/2-architecture/system-architecture.md` | pending | Replace current single-process diagram |
-| Backup/retention triggers, shared lock, run recording | `docs/2-architecture/scheduling-system.md` | pending | Preserve platform adapter context |
-| Focused client/backend services and removed tray coupling | `docs/3-implementation/service-layer-integration.md` | pending | Do not expand compatibility facade |
-| Installation, group management, launcher verification | `docs/guides/user/installation.md` | pending | Include Linux reference and portability limits |
-| Production staging, dry-run approval, rollout, rollback | `docs/guides/developer/scheduling-guide.md` | pending | Current manual-retention text changes only after rollout |
-| Independent tray installation and lifecycle | `docs/SYSTEM-TRAY-SETUP.md` | pending | Supersede in-process guidance |
-| Command names and scopes | `docs/reference/timelocker-cli-command-hierarchy.md` | pending | Add runs and system log scope |
-| User-facing diagnosis and permission errors | `docs/guides/user/backup-operations-troubleshooting.md` | pending | Explain local vs system records |
+| System privilege, group authorization, record redaction, retention invariants | `docs/1-requirements/system-operations.md` | complete | Added current protected-system requirements |
+| Launcher, backend, IPC, run store, tray boundaries | `docs/2-architecture/system-architecture.md` | complete | Replaced the single-process model |
+| Backup/retention triggers, shared lock, run recording | `docs/2-architecture/scheduling-system.md` | complete | Preserves user/platform schedule context |
+| Focused client/backend services and removed tray coupling | `docs/3-implementation/service-layer-integration.md` | complete | Added a separate system-control boundary |
+| Installation, group management, launcher verification | `docs/guides/user/installation.md` | complete | Linux reference and portability limits recorded |
+| Production staging, dry-run approval, rollout, rollback | `docs/guides/developer/scheduling-guide.md` | complete | Accepted retention automation replaces manual-only text |
+| Independent tray installation and lifecycle | `docs/SYSTEM-TRAY-SETUP.md` | complete | In-process guidance superseded |
+| Command names and scopes | `docs/reference/timelocker-cli-command-hierarchy.md` | complete | Added runs, system log scope, tray, and admin boundary |
+| User-facing diagnosis and permission errors | `docs/guides/user/backup-operations-troubleshooting.md` | complete | Local/system records and safe diagnosis documented |
 
 ## Unchanged Durable Areas
 
