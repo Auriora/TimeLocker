@@ -431,7 +431,8 @@ class RepositoryService(IRepositoryService, ServiceInterface):
     def apply_retention_policy(self, repository: BackupRepository,
                                keep_daily: int = 7, keep_weekly: int = 4,
                                keep_monthly: int = 12, keep_yearly: int = 3,
-                               dry_run: bool = False) -> Dict[str, Any]:
+                               dry_run: bool = False,
+                               group_by: str = "host,paths") -> Dict[str, Any]:
         """
         Apply retention policy to repository
         
@@ -442,6 +443,7 @@ class RepositoryService(IRepositoryService, ServiceInterface):
             keep_monthly: Number of monthly snapshots to keep
             keep_yearly: Number of yearly snapshots to keep
             dry_run: If True, only show what would be removed
+            group_by: Explicit Restic snapshot grouping fields
             
         Returns:
             Dictionary with policy application results
@@ -454,6 +456,14 @@ class RepositoryService(IRepositoryService, ServiceInterface):
                 cmd.extend(['--keep-weekly', str(keep_weekly)])
                 cmd.extend(['--keep-monthly', str(keep_monthly)])
                 cmd.extend(['--keep-yearly', str(keep_yearly)])
+                grouping = [item.strip() for item in group_by.split(',')]
+                if (
+                    not grouping
+                    or any(item not in {"host", "paths", "tags"} for item in grouping)
+                    or len(grouping) != len(set(grouping))
+                ):
+                    raise ValueError("group_by contains unsupported grouping fields")
+                cmd.extend(['--group-by', ','.join(grouping)])
 
                 if dry_run:
                     cmd.append('--dry-run')
@@ -484,10 +494,14 @@ class RepositoryService(IRepositoryService, ServiceInterface):
                         for line in result.stdout.strip().split('\n'):
                             if line.strip():
                                 data = json.loads(line)
-                                if 'remove' in data:
-                                    policy_results['removed_snapshots'].extend(data['remove'])
-                                if 'keep' in data:
-                                    policy_results['kept_snapshots'].extend(data['keep'])
+                                groups = data if isinstance(data, list) else [data]
+                                for group in groups:
+                                    if not isinstance(group, dict):
+                                        continue
+                                    if 'remove' in group:
+                                        policy_results['removed_snapshots'].extend(group['remove'])
+                                    if 'keep' in group:
+                                        policy_results['kept_snapshots'].extend(group['keep'])
                     except json.JSONDecodeError:
                         logger.warning("Failed to parse retention policy JSON output")
                         policy_results['output'] = result.stdout

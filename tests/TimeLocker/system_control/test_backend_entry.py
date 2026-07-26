@@ -23,7 +23,7 @@ def test_scheduled_retention_fails_closed_without_live_adapter(
     monkeypatch.setattr(
         backend_entry,
         "run_scheduled_retention",
-        lambda: (_ for _ in ()).throw(RuntimeError("protected URI")),
+        lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("protected URI")),
     )
 
     with pytest.raises(SystemExit) as caught:
@@ -59,6 +59,10 @@ def test_main_composes_only_explicit_system_paths(monkeypatch, tmp_path: Path) -
     assert paths.policy_path == policy
     assert paths.record_root == state / "records"
     assert captured["socket_mode"] == "systemd"
+    assert (
+        captured["production_target_path"]
+        == backend_entry.DEFAULT_PRODUCTION_TARGET_PATH
+    )
 
 
 @pytest.mark.unit

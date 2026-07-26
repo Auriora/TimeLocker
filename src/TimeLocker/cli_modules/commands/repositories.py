@@ -1929,6 +1929,7 @@ def repos_forget(
         keep_weekly: Annotated[int, typer.Option("--keep-weekly", help="Number of weekly snapshots to keep")] = 4,
         keep_monthly: Annotated[int, typer.Option("--keep-monthly", help="Number of monthly snapshots to keep")] = 12,
         keep_yearly: Annotated[int, typer.Option("--keep-yearly", help="Number of yearly snapshots to keep")] = 3,
+        group_by: Annotated[str, typer.Option("--group-by", help="Restic grouping fields (host,paths,tags)")] = "host,paths",
         dry_run: DryRunOption = False,
         prune: Annotated[bool, typer.Option("--prune/--no-prune", help="Prune repository after forgetting snapshots", rich_help_panel=None)] = False,
         repository: Annotated[
@@ -1956,6 +1957,7 @@ def repos_forget(
                 keep_weekly=keep_weekly,
                 keep_monthly=keep_monthly,
                 keep_yearly=keep_yearly,
+                group_by=group_by,
                 dry_run=dry_run,
                 password=password
         )

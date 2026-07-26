@@ -1025,6 +1025,7 @@ class CLIServiceManager:
                                keep_monthly: int = 12,
                                keep_yearly: int = 3,
                                dry_run: bool = False,
+                               group_by: str = "host,paths",
                                password: Optional[str] = None,
                                **_) -> Dict[str, Any]:
         """Apply forget/retention policy to repository."""
@@ -1040,7 +1041,8 @@ class CLIServiceManager:
                 keep_weekly=keep_weekly,
                 keep_monthly=keep_monthly,
                 keep_yearly=keep_yearly,
-                dry_run=dry_run
+                dry_run=dry_run,
+                group_by=group_by
         )
 
     def prune_repository(self,

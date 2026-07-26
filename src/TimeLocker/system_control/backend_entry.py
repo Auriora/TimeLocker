@@ -34,6 +34,10 @@ from .models import (
     SystemPolicy,
 )
 from .policy_loader import load_system_policy
+from .production_retention import (
+    DEFAULT_PRODUCTION_TARGET_PATH,
+    load_production_retention_components,
+)
 from .retention import (
     RetentionAdapter,
     RetentionExecutionResult,
@@ -319,6 +323,7 @@ def build_linux_backend(
     backup_adapter: BackupMutationAdapter | None = None,
     retention_adapter: RetentionAdapter | None = None,
     retention_plan_provider: RetentionPlanProvider | None = None,
+    production_target_path: Path | None = None,
     schedule_summary_provider: ScheduleSummaryProvider | None = None,
     max_diagnostics: int = 1_000,
     stop_event: Event | None = None,
@@ -350,6 +355,17 @@ def build_linux_backend(
     )
     membership_resolver = membership_resolver or LinuxNssGroupMembershipResolver()
     backup_adapter = backup_adapter or FailClosedBackupMutationAdapter()
+    if (
+        retention_adapter is None
+        and retention_plan_provider is None
+        and production_target_path is not None
+    ):
+        retention_adapter, retention_plan_provider = (
+            load_production_retention_components(
+                target_path=production_target_path,
+                expected_owner=paths.expected_owner,
+            )
+        )
     retention_adapter = retention_adapter or FailClosedRetentionAdapter()
     retention_plan_provider = (
         retention_plan_provider or FailClosedRetentionPlanProvider()
@@ -399,9 +415,38 @@ def run_linux_backend(**kwargs: object) -> None:
     service.serve_forever()
 
 
-def run_scheduled_retention() -> None:
-    """Fail closed until a protected live repository adapter is configured."""
-    raise RuntimeError("scheduled retention adapter is not configured")
+def run_scheduled_retention(
+    *,
+    paths: LinuxBackendPaths,
+    production_target_path: Path,
+) -> None:
+    """Run one approved independent retention attempt using protected config."""
+    policy = load_system_policy(
+        paths.policy_path,
+        expected_owner=paths.expected_owner,
+    )
+    store = AtomicRecordStore(paths.record_root)
+    locks = RepositoryMutationLock(paths.lock_root)
+    adapter, provider = load_production_retention_components(
+        target_path=production_target_path,
+        expected_owner=paths.expected_owner,
+    )
+    plan = _apply_policy_defaults(
+        provider.resolve_retention_plan(policy),
+        policy.retention,
+    )
+    coordinator = RetentionTriggerCoordinator(
+        executor=RetentionExecutor(
+            store=store,
+            locks=locks,
+            adapter=adapter,
+        ),
+        trigger_store=RetentionTriggerStore(paths.trigger_root),
+        independent_schedule_enabled=True,
+    )
+    run = coordinator.scheduled(plan)
+    if run is None or run.state is RunState.FAILED:
+        raise RuntimeError("scheduled retention failed safely")
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -430,16 +475,29 @@ def main(argv: list[str] | None = None) -> None:
         default=Path("/var/lib/timelocker"),
         help=argparse.SUPPRESS,
     )
+    parser.add_argument(
+        "--production-target",
+        type=Path,
+        default=DEFAULT_PRODUCTION_TARGET_PATH,
+        help=argparse.SUPPRESS,
+    )
     arguments = parser.parse_args(argv)
     try:
+        paths = LinuxBackendPaths.from_state_root(
+            policy_path=arguments.policy,
+            state_root=arguments.state_root,
+        )
         if arguments.scheduled_retention:
-            run_scheduled_retention()
-        else:
-            paths = LinuxBackendPaths.from_state_root(
-                policy_path=arguments.policy,
-                state_root=arguments.state_root,
+            run_scheduled_retention(
+                paths=paths,
+                production_target_path=arguments.production_target,
             )
-            run_linux_backend(paths=paths, socket_mode="systemd")
+        else:
+            run_linux_backend(
+                paths=paths,
+                socket_mode="systemd",
+                production_target_path=arguments.production_target,
+            )
     except (OSError, PermissionError, RuntimeError, TypeError, ValueError):
         parser.exit(78, "TimeLocker system backend failed to initialize safely.\n")
 
