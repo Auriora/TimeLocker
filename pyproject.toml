@@ -88,6 +88,7 @@ gui = [
 timelocker = "TimeLocker.cli:main"
 tl = "TimeLocker.cli:main"
 timelocker-tray = "TimeLocker.system_control.tray_entry:main"
+timelocker-system-control = "TimeLocker.system_control.backend_entry:main"
 
 [project.urls]
 Homepage = "https://github.com/Auriora/TimeLocker"
@@ -115,6 +116,7 @@ TimeLocker = [
     "system_control/assets/*.json",
     "system_control/assets/*.service",
     "system_control/assets/*.socket",
+    "system_control/assets/*.timer",
     "system_control/assets/timelocker-*",
     "system_control/assets/tl-launcher",
 ]

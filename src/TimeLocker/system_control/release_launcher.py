@@ -14,6 +14,11 @@ from .validation import require_exact_mapping, require_int, require_safe_identif
 DEFAULT_RELEASES_ROOT = Path("/opt/timelocker/releases")
 DEFAULT_SELECTOR_PATH = Path("/opt/timelocker/selected-release.json")
 LAUNCH_GUARD = "TIMELOCKER_SYSTEM_LAUNCH_ACTIVE"
+_ENTRYPOINTS = {
+    "cli": "venv/bin/timelocker",
+    "backend": "venv/bin/timelocker-system-control",
+    "tray": "venv/bin/timelocker-tray",
+}
 
 
 class ReleaseResolutionError(RuntimeError):
@@ -124,13 +129,27 @@ class ImmutableReleaseResolver:
 
     def resolve(self, environment: Mapping[str, str] | None = None) -> Path:
         """Return the selected executable or fail before any fallback."""
+        return self.resolve_entrypoint("cli", environment)
+
+    def resolve_entrypoint(
+        self,
+        target: str,
+        environment: Mapping[str, str] | None = None,
+    ) -> Path:
+        """Return an allowlisted executable from the selected release."""
         environment = os.environ if environment is None else environment
         if environment.get(LAUNCH_GUARD):
             raise ReleaseResolutionError("recursive system launcher invocation")
+        try:
+            entrypoint = _ENTRYPOINTS[target]
+        except KeyError as error:
+            raise ReleaseResolutionError(
+                "release entrypoint is not allowlisted"
+            ) from error
         self._require_trusted_directory(self.selector_path.parent)
         self._require_trusted_file(self.selector_path)
         selector = SelectedRelease.from_mapping(_read_json(self.selector_path))
-        return self._resolve_release(selector.selected)
+        return self._resolve_release(selector.selected, entrypoint=entrypoint)
 
     def select(self, release_id: str) -> SelectedRelease:
         """Atomically select a validated staged release for administrator tooling."""
@@ -167,7 +186,12 @@ class ImmutableReleaseResolver:
         self._require_trusted_file(self.selector_path)
         return SelectedRelease.from_mapping(_read_json(self.selector_path))
 
-    def _resolve_release(self, release_id: str) -> Path:
+    def _resolve_release(
+        self,
+        release_id: str,
+        *,
+        entrypoint: str = _ENTRYPOINTS["cli"],
+    ) -> Path:
         self._require_trusted_directory(self.releases_root)
         release_dir = self.releases_root / release_id
         self._require_trusted_directory(release_dir)
@@ -176,7 +200,7 @@ class ImmutableReleaseResolver:
         manifest = ReleaseManifest.from_mapping(_read_json(manifest_path))
         if manifest.release_id != release_id:
             raise ReleaseResolutionError("release manifest identity mismatch")
-        executable = release_dir / manifest.entrypoint
+        executable = release_dir / entrypoint
         self._require_trusted_file(executable, executable=True)
         if executable.resolve().parent.parent.parent != release_dir.resolve():
             raise ReleaseResolutionError("release entrypoint escapes release directory")
@@ -222,13 +246,14 @@ class ImmutableReleaseResolver:
 def launch_selected(
     arguments: list[str],
     *,
+    target: str = "cli",
     resolver: ImmutableReleaseResolver | None = None,
     environment: Mapping[str, str] | None = None,
 ) -> NoReturn:
     """Replace this process with the selected immutable CLI entry point."""
     resolver = resolver or ImmutableReleaseResolver()
     source_environment = dict(os.environ if environment is None else environment)
-    executable = resolver.resolve(source_environment)
+    executable = resolver.resolve_entrypoint(target, source_environment)
     source_environment[LAUNCH_GUARD] = "1"
     os.execve(
         executable,

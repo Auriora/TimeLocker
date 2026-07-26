@@ -216,11 +216,6 @@ def main() -> None:
         )
         raise SystemExit(2)
 
-    try:
-        tray = SystemTrayIntegration(app_name="TimeLocker")
-    except SystemTrayError:
-        tray = None
-
     client = _build_client(
         target_id=arguments.target_id,
         retention_policy_fingerprint=arguments.retention_policy_fingerprint,
@@ -229,12 +224,17 @@ def main() -> None:
         state = _handle_action(
             arguments.action,
             client,
-            tray=tray,
+            tray=None,
             dry_run_retention=arguments.dry_run_retention,
         )
         if state is not None:
             print(_render_status(state))
         return
+
+    try:
+        tray = SystemTrayIntegration(app_name="TimeLocker")
+    except SystemTrayError:
+        tray = None
 
     poll_interval = max(DEFAULT_POLL_SECONDS, arguments.refresh_seconds)
 

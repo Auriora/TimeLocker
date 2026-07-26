@@ -225,7 +225,7 @@ T009 -> T010 -> T011 -> T012
 
 ## Phase 4: Installation, portability, and live acceptance
 
-- [ ] T009 Integrate release assets, platform adapters, upgrade, and rollback.
+- [x] T009 Integrate release assets, platform adapters, upgrade, and rollback.
   - Depends on: T006, T007, T008
   - Requirements: Requirement 1; Requirement 2; Requirement 3 AC6-AC8;
     Requirement 6 AC1-AC6
@@ -236,11 +236,26 @@ T009 -> T010 -> T011 -> T012
     backend, socket, tray, and schedules; upgrade validates them before
     retirement; rollback restores the prior release without deleting records or
     changing policy.
-  - Evidence: Pending.
-  - [ ] T009.1 Add artifact manifest, permission, upgrade, and rollback tests.
-  - [ ] T009.2 Complete Linux install assets and Windows service/named-pipe test
+  - Evidence: Compatibility-checked deployment and immutable selected-release activation now cover CLI/backend/tray entrypoints, exact asset hashes and permissions, atomic installation, health-gated upgrade, rollback preserving policy and run records, Linux service/socket/tray/disabled-retention-timer assets, and a fail-closed Windows token/group/named-pipe adapter seam. The focused Phase 4 suite passed 178 tests; the expanded system-control/monitoring/integration suite passed 753 with 1 skipped; wheel/sdist validation covered four console entrypoints and 20 package-data files; an installed headless artifact imported CLI without loading tray code or requiring pystray; staged systemd unit verification passed with recursive dependency errors disabled.
+  - Status: Repository readiness complete; live Mint installation, production adapter activation, authorized/denied actions, retention execution, and rollback rehearsal remain T010 and require explicit host-mutation approval.
+  - Evidence mode: validation
+  - [x] T009.1 Add artifact manifest, permission, upgrade, and rollback tests.
+    - Evidence: `test_deployment.py` passed manifest hash, installed-mode,
+      health-gated upgrade, failed-upgrade, rollback, and policy/run-record
+      preservation cases inside the 178-test Phase 4 suite.
+    - Evidence mode: validation
+  - [x] T009.2 Complete Linux install assets and Windows service/named-pipe test
     double.
-  - [ ] T009.3 Prove headless install requires no GUI dependencies.
+    - Evidence: The validated artifact contains backend/socket, stable
+      CLI/backend/tray launchers, tray autostart, and disabled retention timer
+      assets; `test_windows_adapter.py` passed four token, membership, request
+      bound, and close-path tests.
+    - Evidence mode: validation
+  - [x] T009.3 Prove headless install requires no GUI dependencies.
+    - Evidence: A fresh artifact venv installed the wheel without GUI extras,
+      ran `timelocker-system-control --help`, imported `TimeLocker.cli` without
+      loading tray integration, and confirmed `pystray` was absent.
+    - Evidence mode: validation
 
 - [ ] T010 Run controlled Linux Mint live acceptance and rollback rehearsal.
   - Depends on: T009

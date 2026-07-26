@@ -2019,8 +2019,10 @@ def _create_credential_manager(
     """Instantiate credential manager respecting configuration directory."""
     from .security.credential_manager import CredentialManager
 
+    credential_dir = config_dir / "credentials" if config_dir is not None else None
     return cast(
-        _CredentialManagerLike, cast(object, CredentialManager(config_dir=config_dir))
+        _CredentialManagerLike,
+        cast(object, CredentialManager(config_dir=credential_dir)),
     )
 
 

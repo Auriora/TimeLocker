@@ -19,12 +19,16 @@ import logging
 from typing import Dict, List, Type, Optional
 from urllib.parse import urlparse
 
-from ..interfaces import IRepositoryFactory, RepositoryFactoryError, UnsupportedSchemeError
+from ..interfaces import (
+    IRepositoryFactory,
+    RepositoryFactoryError,
+    UnsupportedSchemeError,
+)
 from ..interfaces.backup_engine_plugin import BackupEngine, EngineNotAvailableError
 from ..backup_repository import BackupRepository
 from .validation_service import ValidationService
 from .plugin_registry import get_plugin_registry
-from ..utils import with_error_handling, ErrorContext
+from ..utils import with_error_handling
 
 logger = logging.getLogger(__name__)
 
@@ -32,7 +36,7 @@ logger = logging.getLogger(__name__)
 class RepositoryFactory(IRepositoryFactory):
     """
     Concrete implementation of repository factory following Abstract Factory pattern.
-    
+
     This factory supports the Open/Closed Principle by allowing new repository
     types to be registered without modifying existing code, and follows the
     Single Responsibility Principle by focusing solely on repository creation.
@@ -57,19 +61,24 @@ class RepositoryFactory(IRepositoryFactory):
         """Get or create credential manager instance (lazy loading)"""
         if self._credential_manager is None:
             from TimeLocker.security.credential_manager import CredentialManager
+
             self._credential_manager = CredentialManager()
             # Try auto-unlock for non-interactive operations
             if self._credential_manager.is_locked():
                 try:
                     if not self._credential_manager.ensure_unlocked(allow_prompt=False):
-                        logger.debug("Credential manager remains locked after non-interactive unlock attempts.")
+                        logger.debug(
+                            "Credential manager remains locked after non-interactive unlock attempts."
+                        )
                 except Exception as exc:
                     logger.debug("Credential manager unlock attempt failed: %s", exc)
         else:
             if self._credential_manager.is_locked():
                 try:
                     if not self._credential_manager.ensure_unlocked(allow_prompt=False):
-                        logger.debug("Credential manager remains locked after non-interactive unlock attempts.")
+                        logger.debug(
+                            "Credential manager remains locked after non-interactive unlock attempts."
+                        )
                 except Exception as exc:
                     logger.debug("Credential manager unlock attempt failed: %s", exc)
         return self._credential_manager
@@ -85,50 +94,67 @@ class RepositoryFactory(IRepositoryFactory):
 
     def _register_default_types(self) -> None:
         """Register default repository types"""
-        try:
-            # Import and register built-in repository types
-            from ..restic.Repositories.local import LocalResticRepository
-            from ..restic.Repositories.s3 import S3ResticRepository
-            from ..restic.Repositories.b2 import B2ResticRepository
 
-            # Local filesystem repositories
-            self.register_repository_type('local', LocalResticRepository)
-            self.register_repository_type('file', LocalResticRepository)
+        def _register_type(scheme: str, module_path: str, class_name: str) -> None:
+            """Load and register one backend repository class."""
+            try:
+                module = __import__(module_path, fromlist=[class_name])
+                repository_class = getattr(module, class_name)
+                self.register_repository_type(scheme, repository_class)
+                logger.debug(
+                    "Registered repository type '%s' from %s", scheme, module_path
+                )
+            except (ImportError, AttributeError) as exc:
+                logger.warning(
+                    "Repository backend '%s' unavailable; skipping registration for optional dependency issue",
+                    scheme,
+                )
+                logger.debug("Backend registration failure for '%s': %s", scheme, exc)
 
-            # Cloud backends
-            self.register_repository_type('s3', S3ResticRepository)
-            self.register_repository_type('b2', B2ResticRepository)
-            logger.debug("Registered default repository types (local, file, s3, b2)")
-        except ImportError as e:
-            logger.warning(f"Could not register default repository types: {e}")
-    
+        # Local filesystem repositories
+        _register_type(
+            "local", "TimeLocker.restic.Repositories.local", "LocalResticRepository"
+        )
+        _register_type(
+            "file", "TimeLocker.restic.Repositories.local", "LocalResticRepository"
+        )
+        _register_type("s3", "TimeLocker.restic.Repositories.s3", "S3ResticRepository")
+        _register_type("b2", "TimeLocker.restic.Repositories.b2", "B2ResticRepository")
+        logger.debug("Registered available default repository types")
+
     def _register_default_plugins(self) -> None:
         """Register default backup engine plugins"""
         try:
-            from .plugins import ResticEnginePlugin, RsyncEnginePlugin, RcloneEnginePlugin
-            
+            from .plugins import (
+                ResticEnginePlugin,
+                RsyncEnginePlugin,
+                RcloneEnginePlugin,
+            )
+
             # Register built-in plugins
             self._plugin_registry.register_plugin(ResticEnginePlugin)
             self._plugin_registry.register_plugin(RsyncEnginePlugin)
             self._plugin_registry.register_plugin(RcloneEnginePlugin)
-            
-            logger.debug("Registered default backup engine plugins (restic, rsync, rclone)")
+
+            logger.debug(
+                "Registered default backup engine plugins (restic, rsync, rclone)"
+            )
         except ImportError as e:
             logger.warning(f"Could not register default plugins: {e}")
         except Exception as e:
             logger.warning(f"Error registering default plugins: {e}")
 
     @with_error_handling("register_repository_type", "RepositoryFactory")
-    def register_repository_type(self,
-                                 scheme: str,
-                                 repository_class: Type[BackupRepository]) -> None:
+    def register_repository_type(
+        self, scheme: str, repository_class: Type[BackupRepository]
+    ) -> None:
         """
         Register a repository implementation for a specific URI scheme.
-        
+
         Args:
             scheme: URI scheme (e.g., 'local', 's3', 'b2')
             repository_class: Repository implementation class
-            
+
         Raises:
             RepositoryFactoryError: If registration fails
         """
@@ -137,7 +163,7 @@ class RepositoryFactory(IRepositoryFactory):
 
         if not issubclass(repository_class, BackupRepository):
             raise RepositoryFactoryError(
-                    f"Repository class must inherit from BackupRepository: {repository_class}"
+                f"Repository class must inherit from BackupRepository: {repository_class}"
             )
 
         scheme = scheme.lower()
@@ -146,12 +172,13 @@ class RepositoryFactory(IRepositoryFactory):
             logger.warning(f"Overriding existing repository type for scheme: {scheme}")
 
         self._repository_types[scheme] = repository_class
-        logger.debug(f"Registered repository type '{repository_class.__name__}' for scheme '{scheme}'")
+        logger.debug(
+            f"Registered repository type '{repository_class.__name__}' for scheme '{scheme}'"
+        )
 
-    def create_repository(self,
-                          uri: str,
-                          password: Optional[str] = None,
-                          **kwargs) -> BackupRepository:
+    def create_repository(
+        self, uri: str, password: Optional[str] = None, **kwargs
+    ) -> BackupRepository:
         """
         Create a repository instance from URI.
 
@@ -172,18 +199,18 @@ class RepositoryFactory(IRepositoryFactory):
         validation_result = self._validation_service.validate_repository_uri(uri)
         if not validation_result.is_valid:
             raise RepositoryFactoryError(
-                    f"Invalid repository URI: {', '.join(validation_result.errors)}"
+                f"Invalid repository URI: {', '.join(validation_result.errors)}"
             )
 
         # Parse URI to extract scheme
         parsed = urlparse(uri)
-        scheme = parsed.scheme.lower() if parsed.scheme else 'local'
+        scheme = parsed.scheme.lower() if parsed.scheme else "local"
 
         # Check if scheme is supported
         if not self.is_scheme_supported(scheme):
             raise UnsupportedSchemeError(
-                    f"Unsupported URI scheme '{scheme}'. "
-                    f"Supported schemes: {', '.join(self.get_supported_schemes())}"
+                f"Unsupported URI scheme '{scheme}'. "
+                f"Supported schemes: {', '.join(self.get_supported_schemes())}"
             )
 
         # Get repository class and create instance
@@ -191,22 +218,28 @@ class RepositoryFactory(IRepositoryFactory):
 
         try:
             # Create repository instance with appropriate parameters
-            logger.debug(f"Repository factory received password: {'***' if password else 'None'}")
+            logger.debug(
+                f"Repository factory received password: {'***' if password else 'None'}"
+            )
             if password:
-                kwargs['password'] = password
+                kwargs["password"] = password
                 logger.debug("Password added to kwargs")
 
             # Provide credential manager to repository
-            kwargs['credential_manager'] = self._get_credential_manager()
+            kwargs["credential_manager"] = self._get_credential_manager()
             logger.debug("Credential manager added to kwargs")
 
             # Pass repository_name if provided (for per-repository credential lookup)
-            if 'repository_name' in kwargs:
-                logger.debug(f"Repository name provided for credential lookup: {kwargs['repository_name']}")
+            if "repository_name" in kwargs:
+                logger.debug(
+                    f"Repository name provided for credential lookup: {kwargs['repository_name']}"
+                )
 
             # Use from_parsed_uri class method if available, otherwise fall back to constructor
-            if hasattr(repository_class, 'from_parsed_uri'):
-                logger.debug(f"Using from_parsed_uri with kwargs: {list(kwargs.keys())}")
+            if hasattr(repository_class, "from_parsed_uri"):
+                logger.debug(
+                    f"Using from_parsed_uri with kwargs: {list(kwargs.keys())}"
+                )
                 repository = repository_class.from_parsed_uri(parsed, **kwargs)
             else:
                 logger.debug(f"Using constructor with kwargs: {list(kwargs.keys())}")
@@ -221,7 +254,7 @@ class RepositoryFactory(IRepositoryFactory):
     def get_supported_schemes(self) -> List[str]:
         """
         Get list of supported URI schemes.
-        
+
         Returns:
             List of supported URI schemes
         """
@@ -230,10 +263,10 @@ class RepositoryFactory(IRepositoryFactory):
     def is_scheme_supported(self, scheme: str) -> bool:
         """
         Check if a URI scheme is supported.
-        
+
         Args:
             scheme: URI scheme to check
-            
+
         Returns:
             True if scheme is supported, False otherwise
         """
@@ -242,10 +275,10 @@ class RepositoryFactory(IRepositoryFactory):
     def get_repository_class(self, scheme: str) -> Optional[Type[BackupRepository]]:
         """
         Get repository class for a specific scheme.
-        
+
         Args:
             scheme: URI scheme
-            
+
         Returns:
             Repository class if found, None otherwise
         """
@@ -254,10 +287,10 @@ class RepositoryFactory(IRepositoryFactory):
     def unregister_repository_type(self, scheme: str) -> bool:
         """
         Unregister a repository type.
-        
+
         Args:
             scheme: URI scheme to unregister
-            
+
         Returns:
             True if scheme was unregistered, False if not found
         """
@@ -271,32 +304,30 @@ class RepositoryFactory(IRepositoryFactory):
     def get_repository_info(self) -> Dict[str, str]:
         """
         Get information about registered repository types.
-        
+
         Returns:
             Dictionary mapping schemes to repository class names
         """
         return {
-                scheme: repo_class.__name__
-                for scheme, repo_class in self._repository_types.items()
+            scheme: repo_class.__name__
+            for scheme, repo_class in self._repository_types.items()
         }
-    
-    def create_repository_with_engine(self,
-                                     uri: str,
-                                     engine: BackupEngine,
-                                     password: Optional[str] = None,
-                                     **kwargs) -> BackupRepository:
+
+    def create_repository_with_engine(
+        self, uri: str, engine: BackupEngine, password: Optional[str] = None, **kwargs
+    ) -> BackupRepository:
         """
         Create a repository instance using a specific backup engine.
-        
+
         Args:
             uri: Repository URI
             engine: Backup engine to use
             password: Optional password for repository
             **kwargs: Additional repository-specific parameters
-            
+
         Returns:
             BackupRepository instance
-            
+
         Raises:
             EngineNotAvailableError: If engine is not available
             RepositoryFactoryError: If repository creation fails
@@ -304,75 +335,79 @@ class RepositoryFactory(IRepositoryFactory):
         try:
             # Get plugin for the specified engine
             plugin = self._plugin_registry.get_plugin(engine)
-            
+
             # Validate URI for this engine
             validation = plugin.validate_uri(uri)
             if not validation.is_valid:
                 raise RepositoryFactoryError(
                     f"Invalid URI for {engine.value}: {', '.join(validation.errors)}"
                 )
-            
+
             # Validate engine configuration if provided
-            if 'engine_config' in kwargs:
-                config_validation = plugin.validate_configuration(kwargs['engine_config'])
+            if "engine_config" in kwargs:
+                config_validation = plugin.validate_configuration(
+                    kwargs["engine_config"]
+                )
                 if not config_validation.is_valid:
                     raise RepositoryFactoryError(
                         f"Invalid engine configuration: {', '.join(config_validation.errors)}"
                     )
-            
+
             # Provide credential manager
-            kwargs['credential_manager'] = self._get_credential_manager()
-            
+            kwargs["credential_manager"] = self._get_credential_manager()
+
             # Create repository using plugin
             repository = plugin.create_repository(uri, password, **kwargs)
-            
-            logger.info(f"Created repository using {engine.value} engine for URI: {uri}")
+
+            logger.info(
+                f"Created repository using {engine.value} engine for URI: {uri}"
+            )
             return repository
-            
+
         except EngineNotAvailableError:
             raise
         except Exception as e:
             raise RepositoryFactoryError(
                 f"Failed to create repository with {engine.value} engine: {e}"
             ) from e
-    
+
     def is_engine_available(self, engine: BackupEngine) -> bool:
         """
         Check if a backup engine is available.
-        
+
         Args:
             engine: Backup engine to check
-            
+
         Returns:
             True if engine is available, False otherwise
         """
         return self._plugin_registry.is_engine_available(engine)
-    
+
     def get_available_engines(self) -> List[BackupEngine]:
         """
         Get list of available backup engines.
-        
+
         Returns:
             List of available BackupEngine types
         """
         return self._plugin_registry.get_available_engines()
-    
+
     def get_engines_for_storage_type(self, storage_type: str) -> List[BackupEngine]:
         """
         Get list of engines that support a specific storage type.
-        
+
         Args:
             storage_type: Storage type (e.g., 's3', 'local')
-            
+
         Returns:
             List of BackupEngine types supporting the storage type
         """
         return self._plugin_registry.get_engines_supporting_storage(storage_type)
-    
+
     def get_plugin_info(self) -> Dict[str, Dict[str, any]]:
         """
         Get information about registered plugins.
-        
+
         Returns:
             Dictionary with plugin information
         """

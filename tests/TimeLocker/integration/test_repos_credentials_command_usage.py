@@ -115,6 +115,11 @@ exit 0
 """
 
 
+def _credential_store_path(config_dir: Path) -> Path:
+    """Return encrypted credential store path for the active config directory."""
+    return config_dir / "credentials" / "credentials.enc"
+
+
 @pytest.fixture()
 def isolated_cli_environment(tmp_path: Path) -> Dict[str, Any]:
     """Provision isolated directories + stub restic + base environment.
@@ -178,7 +183,7 @@ def prepared_s3_repo(isolated_cli_environment) -> Dict[str, Any]:
     assert "credential" in combined_out.lower(), f"Did not observe credential confirmation in output: {combined_out}"
 
     # Ensure encrypted credential file present
-    cred_file = Path(env["HOME"]) / ".timelocker" / "credentials" / "credentials.enc"
+    cred_file = _credential_store_path(config_dir)
     assert cred_file.exists(), "Encrypted credential store not created"
 
     return {"env": env, "config_dir": config_dir}

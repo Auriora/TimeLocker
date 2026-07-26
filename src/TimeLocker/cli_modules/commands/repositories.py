@@ -186,16 +186,21 @@ def _normalize_repository_list(raw_repositories: object) -> list[object]:
     return []
 
 
+def _credential_directory(config_dir: Optional[Path]) -> Optional[Path]:
+    """Resolve the credential-store directory below an explicit config root."""
+    return config_dir / "credentials" if config_dir is not None else None
+
+
 def _create_credential_manager(config_dir: Optional[Path] = None):
     """Instantiate credential manager respecting configuration directory."""
-    return CredentialManager()
+    return CredentialManager(config_dir=_credential_directory(config_dir))
 
 
 def _create_security_manager(config_dir: Optional[Path] = None):
     """Create security manager with access manager integration."""
     from TimeLocker.security import AccessManager
     
-    credential_manager = CredentialManager(config_dir=config_dir)
+    credential_manager = CredentialManager(config_dir=_credential_directory(config_dir))
     security_service = SecurityService(credential_manager, config_dir=config_dir)
     access_manager = AccessManager(config_dir=config_dir)
     
