@@ -3,7 +3,7 @@ title: Spec closure log
 doc_type: history
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-20
+last_reviewed: 2026-07-26
 ---
 
 # Spec Closure Log
@@ -14,6 +14,40 @@ reverse chronological order only after accepted content has been promoted and a
 final spec commit preserves the complete package.
 
 ## Entries
+
+### 2026-07-26 - 009-system-cli-tray-retention
+
+- **Spec:** removed; recover from Git
+- **Title:** System CLI, independent tray, retention, and control
+- **Final spec commit:** `d4ce71dd05cb5d7278bf36a9fc43e557d68e1e31`
+- **Closure cleanup commit:** `pending-cleanup-commit`
+- **Closure action:** removed
+- **Durable docs updated:**
+  - `docs/1-requirements/system-operations.md`
+  - `docs/2-architecture/system-architecture.md`
+  - `docs/2-architecture/scheduling-system.md`
+  - `docs/3-implementation/service-layer-integration.md`
+  - `docs/guides/user/installation.md`
+  - `docs/guides/developer/scheduling-guide.md`
+  - `docs/SYSTEM-TRAY-SETUP.md`
+  - `docs/reference/timelocker-cli-command-hierarchy.md`
+  - `docs/guides/user/backup-operations-troubleshooting.md`
+  - `docs/processes/version-management.md`
+  - `docs/README.md`
+  - `docs/DOCUMENTATION-STATUS.md`
+  - `docs/specs/README.md`
+- **Verification summary:** All 12 top-level tasks are complete. Final expert
+  review findings TLR-013 through TLR-018 were corrected; the configured
+  profile passed 2,998 tests with one skip, 57 deselections, and 53.79%
+  coverage against the 50% gate. All 72 lifecycle evidence records were
+  concrete, closure risk was low, and closure readiness had no blockers.
+- **Residual risks:**
+  - Windows has repository adapter coverage but no live deployment acceptance.
+  - The final T012 corrections are repository-complete but are not yet
+    published or deployed to replace the selected Linux release.
+- **Follow-up:** Treat release publication and deployment as separately
+  authorized work; retain user-scoped backup partitions and restores in issue
+  #70, and open a Windows live-acceptance package before claiming support.
 
 ### 2026-07-20 - 007-release-readiness-stabilization
 

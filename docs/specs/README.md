@@ -15,24 +15,15 @@ accepted content has been promoted and the package is closed.
 
 ## Current Packages
 
-- [`009-system-cli-tray-retention`](./009-system-cli-tray-retention/requirements.md)
-  — complete package awaiting closure cleanup. Implementation, live Linux
-  acceptance, durable-document promotion, final expert-review corrections, and
-  repository validation are complete.
+There are no active specification packages.
 
 ## Active-Package Sequencing
 
-Spec 007 is closed; its release-readiness evidence and recovery commits are
-recorded in `docs/history/`. Spec 009 is the only active package. Its design,
-tasks, traceability, canonical context, and verification plan were approved,
-and Phases 1 through 4 are complete in the repository. The approved Linux host
-mutation and live acceptance gate was completed in T010, and durable promotion
-was completed in T011. Work now proceeds through final expert review,
-correction, and closure (T012), which are complete. The package will be removed
-after its final spec commit and recorded in `docs/history/`; repository
-implementation approval still does not authorize release publication.
-Closed packages remain recorded in `docs/history/` rather than kept in this
-active path.
+Specs 007, 008, and 009 are closed. Their final package commits, cleanup
+commits, verification summaries, and residual follow-up are recorded in
+`docs/history/`. Closed packages remain recoverable from Git rather than kept
+in this active path. Repository implementation approval does not authorize
+release publication or deployment.
 
 ## When a Spec Is Needed
 
