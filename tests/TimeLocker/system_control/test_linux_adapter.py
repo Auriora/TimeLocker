@@ -226,6 +226,18 @@ class TestSystemPolicyAndAssets:
         assert "ProtectSystem=strict" in service_unit
         assert "ProtectHome=yes" in service_unit
         assert "RestrictAddressFamilies=AF_UNIX" in service_unit
+        assert (
+            "ExecStart=/usr/local/libexec/timelocker-system-control --systemd-socket"
+            in service_unit
+        )
         assert "EnvironmentFile=" not in service_unit
         assert "DISPLAY=" not in service_unit
         assert "s3://" not in service_unit
+
+        retention_service = (
+            ASSET_DIRECTORY / "timelocker-retention.service"
+        ).read_text()
+        retention_timer = (ASSET_DIRECTORY / "timelocker-retention.timer").read_text()
+        assert "ConditionPathExists=/etc/timelocker/retention-enabled" in retention_service
+        assert "--scheduled-retention" in retention_service
+        assert "Persistent=false" in retention_timer

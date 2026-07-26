@@ -25,6 +25,10 @@ def _stage_release(root: Path, release_id: str) -> Path:
     release.chmod(0o755)
     executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
     executable.chmod(0o755)
+    for sibling in ("timelocker-system-control", "timelocker-tray"):
+        sibling_executable = executable.with_name(sibling)
+        sibling_executable.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+        sibling_executable.chmod(0o755)
     manifest = release / "release.json"
     manifest.write_text(
         json.dumps(
@@ -58,6 +62,22 @@ def test_timelocker_and_tl_share_one_selected_release(tmp_path: Path) -> None:
 
     assert resolver.resolve({}) == expected
     assert resolver.resolve({}) == expected
+    assert resolver.resolve_entrypoint("backend", {}) == expected.with_name(
+        "timelocker-system-control"
+    )
+    assert resolver.resolve_entrypoint("tray", {}) == expected.with_name(
+        "timelocker-tray"
+    )
+
+
+@pytest.mark.unit
+def test_non_allowlisted_release_entrypoint_is_rejected(tmp_path: Path) -> None:
+    _stage_release(tmp_path, RELEASE_A)
+    resolver = _resolver(tmp_path)
+    resolver.select(RELEASE_A)
+
+    with pytest.raises(ReleaseResolutionError, match="allowlisted"):
+        resolver.resolve_entrypoint("../../bin/sh", {})
 
 
 @pytest.mark.unit
@@ -156,9 +176,16 @@ def test_staged_launcher_has_no_pyenv_checkout_or_root_overlay_fallback() -> Non
     )
     primary = (assets / "timelocker-launcher").read_text(encoding="utf-8")
     alias = (assets / "tl-launcher").read_text(encoding="utf-8")
-    for content in (primary, alias):
+    backend = (assets / "timelocker-system-control-launcher").read_text(
+        encoding="utf-8"
+    )
+    tray = (assets / "timelocker-tray-launcher").read_text(encoding="utf-8")
+    for content in (primary, alias, backend, tray):
         assert "/opt/timelocker/launcher/venv/bin/python" in content
-        assert "-m TimeLocker.system_control.launcher_entry" in content
         assert "pyenv" not in content
         assert "/root/.timelocker" not in content
         assert "Projects/" not in content
+    assert "-m TimeLocker.system_control.launcher_entry" in primary
+    assert "-m TimeLocker.system_control.launcher_entry" in alias
+    assert "-m TimeLocker.system_control.backend_launcher_entry" in backend
+    assert "-m TimeLocker.system_control.tray_launcher_entry" in tray
