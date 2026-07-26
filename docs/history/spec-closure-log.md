@@ -20,7 +20,7 @@ final spec commit preserves the complete package.
 - **Spec:** removed; recover from Git
 - **Title:** System CLI, independent tray, retention, and control
 - **Final spec commit:** `d4ce71dd05cb5d7278bf36a9fc43e557d68e1e31`
-- **Closure cleanup commit:** `pending-cleanup-commit`
+- **Closure cleanup commit:** `aba95875f453dd6abf39a1fdc6af25fd38c62db4`
 - **Closure action:** removed
 - **Durable docs updated:**
   - `docs/1-requirements/system-operations.md`
