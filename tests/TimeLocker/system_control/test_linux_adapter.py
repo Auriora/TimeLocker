@@ -222,6 +222,8 @@ class TestSystemPolicyAndAssets:
         assert "SocketMode=0660" in socket_unit
         assert "User=root" in service_unit
         assert "UMask=0077" in service_unit
+        assert "RuntimeDirectoryMode=0755" in service_unit
+        assert "StateDirectoryMode=0750" in service_unit
         assert "NoNewPrivileges=yes" in service_unit
         assert "ProtectSystem=strict" in service_unit
         assert "ProtectHome=yes" in service_unit
