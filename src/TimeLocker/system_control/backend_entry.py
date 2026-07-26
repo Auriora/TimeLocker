@@ -36,7 +36,9 @@ from .models import (
 from .policy_loader import load_system_policy
 from .production_retention import (
     DEFAULT_PRODUCTION_TARGET_PATH,
+    DEFAULT_RETENTION_ENABLE_MARKER,
     load_production_retention_components,
+    require_retention_enable_marker,
 )
 from .retention import (
     RetentionAdapter,
@@ -57,6 +59,7 @@ from .types import (
     DiagnosticComponent,
     DiagnosticLevel,
     OperationType,
+    OperationTrigger,
     RunState,
     SystemAction,
 )
@@ -419,8 +422,19 @@ def run_scheduled_retention(
     *,
     paths: LinuxBackendPaths,
     production_target_path: Path,
+    trigger: OperationTrigger = OperationTrigger.SCHEDULED,
+    enable_marker: Path = DEFAULT_RETENTION_ENABLE_MARKER,
 ) -> None:
     """Run one approved independent retention attempt using protected config."""
+    if trigger not in {
+        OperationTrigger.SCHEDULED,
+        OperationTrigger.BACKUP_SUCCESS,
+    }:
+        raise ValueError("unsupported automatic retention trigger")
+    require_retention_enable_marker(
+        enable_marker,
+        expected_owner=paths.expected_owner,
+    )
     policy = load_system_policy(
         paths.policy_path,
         expected_owner=paths.expected_owner,
@@ -435,17 +449,16 @@ def run_scheduled_retention(
         provider.resolve_retention_plan(policy),
         policy.retention,
     )
-    coordinator = RetentionTriggerCoordinator(
-        executor=RetentionExecutor(
-            store=store,
-            locks=locks,
-            adapter=adapter,
-        ),
-        trigger_store=RetentionTriggerStore(paths.trigger_root),
-        independent_schedule_enabled=True,
+    run = RetentionExecutor(
+        store=store,
+        locks=locks,
+        adapter=adapter,
+    ).execute(
+        plan,
+        trigger=trigger,
+        dry_run=False,
     )
-    run = coordinator.scheduled(plan)
-    if run is None or run.state is RunState.FAILED:
+    if run.state is RunState.FAILED:
         raise RuntimeError("scheduled retention failed safely")
 
 
@@ -481,6 +494,12 @@ def main(argv: list[str] | None = None) -> None:
         default=DEFAULT_PRODUCTION_TARGET_PATH,
         help=argparse.SUPPRESS,
     )
+    parser.add_argument(
+        "--retention-trigger",
+        choices=("scheduled", "backup-success"),
+        default="scheduled",
+        help=argparse.SUPPRESS,
+    )
     arguments = parser.parse_args(argv)
     try:
         paths = LinuxBackendPaths.from_state_root(
@@ -491,6 +510,11 @@ def main(argv: list[str] | None = None) -> None:
             run_scheduled_retention(
                 paths=paths,
                 production_target_path=arguments.production_target,
+                trigger=(
+                    OperationTrigger.BACKUP_SUCCESS
+                    if arguments.retention_trigger == "backup-success"
+                    else OperationTrigger.SCHEDULED
+                ),
             )
         else:
             run_linux_backend(

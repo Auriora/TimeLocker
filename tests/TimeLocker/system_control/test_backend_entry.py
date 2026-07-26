@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from TimeLocker.system_control import backend_entry
+from TimeLocker.system_control.types import OperationTrigger
 
 
 @pytest.mark.unit
@@ -31,6 +32,35 @@ def test_scheduled_retention_fails_closed_without_live_adapter(
 
     assert caught.value.code == 78
     assert "protected URI" not in capsys.readouterr().err
+
+
+@pytest.mark.unit
+def test_main_maps_backup_success_retention_trigger(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        backend_entry,
+        "run_scheduled_retention",
+        lambda **kwargs: captured.update(kwargs),
+    )
+
+    backend_entry.main(
+        [
+            "--scheduled-retention",
+            "--retention-trigger",
+            "backup-success",
+            "--policy",
+            str(tmp_path / "policy.json"),
+            "--state-root",
+            str(tmp_path / "state"),
+            "--production-target",
+            str(tmp_path / "target.json"),
+        ]
+    )
+
+    assert captured["trigger"] is OperationTrigger.BACKUP_SUCCESS
 
 
 @pytest.mark.unit

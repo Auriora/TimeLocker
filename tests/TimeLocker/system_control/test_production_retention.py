@@ -14,6 +14,7 @@ from TimeLocker.system_control.production_retention import (
     ProductionRetentionPlanProvider,
     ProductionRetentionTarget,
     TimeLockerCliRetentionAdapter,
+    require_retention_enable_marker,
 )
 
 
@@ -74,6 +75,18 @@ def test_rejects_writable_production_target(tmp_path: Path) -> None:
 
     with pytest.raises(PermissionError, match="must not be group/world writable"):
         ProductionRetentionTarget.load(path, expected_owner=os.getuid())
+
+
+@pytest.mark.unit
+def test_retention_enable_marker_must_be_protected(tmp_path: Path) -> None:
+    marker = tmp_path / "retention-enabled"
+    marker.touch(mode=0o600)
+
+    require_retention_enable_marker(marker, expected_owner=os.getuid())
+
+    marker.chmod(0o666)
+    with pytest.raises(PermissionError, match="must not be group/world writable"):
+        require_retention_enable_marker(marker, expected_owner=os.getuid())
 
 
 @pytest.mark.unit

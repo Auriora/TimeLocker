@@ -19,6 +19,7 @@ from .validation import require_exact_mapping, require_safe_identifier
 
 
 DEFAULT_PRODUCTION_TARGET_PATH = Path("/etc/timelocker/production-target.json")
+DEFAULT_RETENTION_ENABLE_MARKER = Path("/etc/timelocker/retention-enabled")
 _CONFIG_FIELDS = frozenset(
     {
         "schema_version",
@@ -244,6 +245,15 @@ def load_production_retention_components(
     )
 
 
+def require_retention_enable_marker(
+    path: Path = DEFAULT_RETENTION_ENABLE_MARKER,
+    *,
+    expected_owner: int = 0,
+) -> None:
+    """Refuse every retention mutation until the protected marker exists."""
+    _require_protected_file(path, expected_owner=expected_owner)
+
+
 def _removed_count(output: str) -> int:
     matches = _REMOVED_PATTERN.findall(output)
     if not matches:
@@ -270,8 +280,10 @@ def _require_protected_file(path: Path, *, expected_owner: int) -> None:
 
 __all__: Sequence[str] = (
     "DEFAULT_PRODUCTION_TARGET_PATH",
+    "DEFAULT_RETENTION_ENABLE_MARKER",
     "ProductionRetentionPlanProvider",
     "ProductionRetentionTarget",
     "TimeLockerCliRetentionAdapter",
     "load_production_retention_components",
+    "require_retention_enable_marker",
 )
