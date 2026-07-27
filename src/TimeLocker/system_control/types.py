@@ -44,6 +44,14 @@ class StatusEventKind(StrEnum):
     RESYNC_REQUIRED = "resync_required"
 
 
+class StatusEventConnectionState(StrEnum):
+    """Safe connection states exposed by platform event clients."""
+
+    CONNECTED = "connected"
+    DENIED = "denied"
+    UNAVAILABLE = "unavailable"
+
+
 class ProtocolErrorCode(StrEnum):
     """Stable response errors with metadata-free, code-owned summaries."""
 

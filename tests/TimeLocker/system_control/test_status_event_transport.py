@@ -17,7 +17,10 @@ from TimeLocker.system_control.interfaces import PeerIdentity
 from TimeLocker.system_control.linux_adapter import LinuxStatusEventTransport
 from TimeLocker.system_control.models import StatusEvent
 from TimeLocker.system_control.status_events import BoundedStatusEventBroker
-from TimeLocker.system_control.types import StatusEventKind
+from TimeLocker.system_control.types import (
+    StatusEventConnectionState,
+    StatusEventKind,
+)
 
 
 SESSION_ID = UUID("58d95acd-aa24-4461-96bb-74d3421e8e42")
@@ -280,3 +283,51 @@ def test_event_client_rejects_denial_without_status_disclosure() -> None:
     )
     with pytest.raises(StatusEventAccessDenied, match="access denied"):
         next(event_client.events(Event()))
+
+
+def test_event_client_projects_os_permission_denial_without_retry() -> None:
+    calls = 0
+
+    def denied_connect() -> socket.socket:
+        nonlocal calls
+        calls += 1
+        raise PermissionError("private socket path")
+
+    states: list[StatusEventConnectionState] = []
+    event_client = UnixSocketStatusEventClient(
+        connection_factory=denied_connect,
+    )
+
+    with pytest.raises(StatusEventAccessDenied, match="access denied"):
+        next(event_client.events(Event(), on_connection_state=states.append))
+
+    assert calls == 1
+    assert states == [StatusEventConnectionState.DENIED]
+
+
+def test_event_client_reports_unavailable_once_while_retrying() -> None:
+    stop_event = Event()
+    states: list[StatusEventConnectionState] = []
+    calls = 0
+
+    def unavailable_connect() -> socket.socket:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            stop_event.set()
+        raise FileNotFoundError("socket missing")
+
+    event_client = UnixSocketStatusEventClient(
+        connection_factory=unavailable_connect,
+        base_retry_delay_seconds=0.001,
+        max_retry_delay_seconds=0.002,
+    )
+
+    assert list(
+        event_client.events(
+            stop_event,
+            on_connection_state=states.append,
+        )
+    ) == []
+    assert calls == 2
+    assert states == [StatusEventConnectionState.UNAVAILABLE]

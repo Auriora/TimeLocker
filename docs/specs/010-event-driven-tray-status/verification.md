@@ -26,7 +26,7 @@ closure.
 | Tray and event integration tests pass | yes | pass | T007 focused event-driven integration checkpoint: 58 passed |
 | Windows platform contract tests pass | yes | pass | T008 injected named-pipe contract; live Windows acceptance remains deferred |
 | Package and deployment checks pass | yes | pass | T009 deployment contract and T010 wheel/sdist installed-artifact checks passed |
-| Approved Linux Mint acceptance passes | yes | pending | T011 |
+| Approved Linux Mint acceptance passes | yes | in progress | T011 remediation corrects authorization, systemd independence, and evidence timing before another deployment |
 | Expert review findings resolved | yes | pending | T012 |
 | Configured regression and coverage gate pass | yes | pending | T013 |
 | Durable documentation promoted | yes | pending | T013 |
@@ -108,7 +108,8 @@ closure.
 | T008 | complete | Token-derived bounded Windows named-pipe event contracts, four new platform tests, 232 system-control tests | No live Windows service or acceptance is claimed. |
 | T009 | complete | Named protected event socket asset, named systemd descriptor mapping, dual-protocol release metadata, structured activation/rollback gates, 246 system-control tests | Installed-artifact and live-host evidence remain T010-T011. |
 | T010 | complete | Five deterministic accessible logo badges, honest never-run/failure projection, 268-test regression, 27-file package-data validation, SHA-256 verification, and clean-install wheel/sdist smoke | No live selector, unit, socket, timer, backup, retention, or protected path changed. |
-| T011-T013 | pending | none | Sequenced by the task dependency graph. |
+| T011 | in progress | Approved review remediation; repository-owned evidence validator added | Live redeployment and acceptance remain pending. |
+| T012-T013 | pending | none | Sequenced by the task dependency graph. |
 
 ## Evidence Log
 
@@ -141,6 +142,9 @@ closure.
 | 2026-07-27 | Release-artifact tests, scoped Ruff, compileall, and patch integrity | pass | 10 artifact tests passed; source/system-control/project-test Ruff, compilation, and `git diff --check` passed. |
 | 2026-07-27 | T010 Linux status-badge focused and regression validation | pass | 53 focused tests and 268 system-control/monitoring/icon/release-artifact tests passed; scoped Ruff, compileall, and patch integrity passed. |
 | 2026-07-27 | Rebuilt badge-aware wheel/sdist validation and clean-install smoke | pass | Validator found 27 package-data files; both artifacts passed four-entrypoint, dual-protocol, system-asset, and five-icon smoke checks. Wheel SHA-256: `ceb610a5eafeedc1d0b13f0626d0ac9a74f33a4cb46735778c37fc4712b5bb7b`; sdist SHA-256: `ac9371a6e3087dc515dc5cd0c871687dd7cd23e7ce3468cc2d7d3b09c65bb7e0`. |
+| 2026-07-27 | T011 remediation focused tests | 59 passed | OS permission denial, unavailable-state reporting, control-only activation, weak event dependency, and evidence timing boundaries. |
+| 2026-07-27 | T011 system-control, monitoring tray, and evidence-validator regression | 270 passed | Scoped Ruff, compileall, `git diff --check`, lifecycle lint, and lifecycle scan also passed. |
+| 2026-07-27 | `systemd-analyze verify` for changed control/event units | environment-limited | Changed directives parsed; an unrelated unreadable unit and unprivileged access to the protected installed launcher prevented clean host verification. Live installed-unit proof remains T011. |
 
 ## Manual Or External Verification
 
@@ -165,6 +169,19 @@ The reviewed sequence is:
 Record selected release IDs, artifact hashes, service/socket/timer states,
 authorized and denied observations, event latency, idle-output capture, restart
 recovery, and rollback without recording credentials or raw protected content.
+Validate the resulting redacted JSON with
+`python scripts/validate_t011_linux_acceptance.py EVIDENCE.json`.
+
+The evidence collector must use these timing boundaries:
+
+- ordinary change latency: completed state mutation to tray presentation;
+- backend restart shutdown: restart request to replacement service start;
+- backend restart convergence: replacement service start to a fresh snapshot
+  from a new backend session.
+
+Only ordinary change latency carries the Requirement 1 two-second bound.
+Backend restart must demonstrate a new session and fresh presentation without
+silently folding graceful shutdown time into that latency result.
 
 ## Residual Risks
 

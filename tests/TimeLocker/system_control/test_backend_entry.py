@@ -186,6 +186,21 @@ def test_systemd_descriptor_names_remove_order_dependency() -> None:
 
 
 @pytest.mark.unit
+def test_systemd_descriptor_contract_allows_control_without_event_socket() -> None:
+    control, status = backend_entry._systemd_socket_descriptors(
+        {
+            "LISTEN_PID": "123",
+            "LISTEN_FDS": "1",
+            "LISTEN_FDNAMES": "control",
+        },
+        process_id=123,
+    )
+
+    assert control == 3
+    assert status is None
+
+
+@pytest.mark.unit
 @pytest.mark.parametrize(
     "environment",
     [
@@ -198,7 +213,7 @@ def test_systemd_descriptor_names_remove_order_dependency() -> None:
         {
             "LISTEN_PID": "123",
             "LISTEN_FDS": "1",
-            "LISTEN_FDNAMES": "control",
+            "LISTEN_FDNAMES": "status-events",
         },
         {
             "LISTEN_PID": "123",
@@ -212,6 +227,36 @@ def test_systemd_descriptor_contract_fails_closed(
 ) -> None:
     with pytest.raises(RuntimeError, match="systemd socket"):
         backend_entry._systemd_socket_descriptors(environment, process_id=123)
+
+
+@pytest.mark.unit
+def test_main_runs_control_backend_when_event_socket_is_absent(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    captured: dict[str, object] = {}
+    monkeypatch.setattr(
+        backend_entry,
+        "run_linux_backend",
+        lambda **kwargs: captured.update(kwargs),
+    )
+    monkeypatch.setenv("LISTEN_PID", str(os.getpid()))
+    monkeypatch.setenv("LISTEN_FDS", "1")
+    monkeypatch.setenv("LISTEN_FDNAMES", "control")
+
+    backend_entry.main(
+        [
+            "--systemd-socket",
+            "--policy",
+            str(tmp_path / "policy.json"),
+            "--state-root",
+            str(tmp_path / "state"),
+        ]
+    )
+
+    assert captured["systemd_descriptor"] == 3
+    assert captured["status_systemd_descriptor"] is None
+    assert captured["status_socket_mode"] == "disabled"
 
 
 @pytest.mark.unit

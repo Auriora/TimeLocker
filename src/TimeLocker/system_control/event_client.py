@@ -9,6 +9,7 @@ import socket
 from threading import Event
 
 from .models import StatusEvent
+from .types import StatusEventConnectionState
 
 
 DEFAULT_STATUS_EVENT_SOCKET_PATH = Path("/run/timelocker/status-events.sock")
@@ -58,26 +59,48 @@ class UnixSocketStatusEventClient:
         self.max_retry_delay_seconds = float(max_retry_delay_seconds)
         self._connection_factory = connection_factory
 
-    def events(self, stop_event: Event) -> Iterator[StatusEvent]:
+    def events(
+        self,
+        stop_event: Event,
+        *,
+        on_connection_state: (
+            Callable[[StatusEventConnectionState], None] | None
+        ) = None,
+    ) -> Iterator[StatusEvent]:
         """Yield events, reconnecting until shutdown without steady polling."""
         if not isinstance(stop_event, Event):
             raise TypeError("stop_event must be a threading.Event")
         retry_delay = self.base_retry_delay_seconds
         immediate_retry_available = False
+        reported_state: StatusEventConnectionState | None = None
+
+        def report(state: StatusEventConnectionState) -> None:
+            nonlocal reported_state
+            if on_connection_state is not None and state is not reported_state:
+                on_connection_state(state)
+            reported_state = state
+
         while not stop_event.is_set():
             connection: socket.socket | None = None
             try:
                 connection = self._connect()
                 for event in self._connected_events(connection, stop_event):
+                    report(StatusEventConnectionState.CONNECTED)
                     retry_delay = self.base_retry_delay_seconds
                     immediate_retry_available = True
                     yield event
                 if stop_event.is_set():
                     return
+            except PermissionError as error:
+                report(StatusEventConnectionState.DENIED)
+                raise StatusEventAccessDenied(
+                    "System event access denied."
+                ) from error
             except StatusEventAccessDenied:
+                report(StatusEventConnectionState.DENIED)
                 raise
             except (OSError, TimeoutError, UnicodeDecodeError, ValueError):
-                pass
+                report(StatusEventConnectionState.UNAVAILABLE)
             finally:
                 if connection is not None:
                     try:

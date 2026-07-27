@@ -1,3 +1,11 @@
+---
+title: Independent System Tray Setup
+doc_type: guide
+status: active
+owner: Auriora Team
+last_reviewed: 2026-07-27
+---
+
 # Independent System Tray Setup
 
 The TimeLocker tray is an optional, independent user-session process. Normal
@@ -80,8 +88,9 @@ timelocker-tray serve
 ## Platform Status
 
 The process boundary is platform-neutral and the source contains a Windows
-adapter. The independently installed protected tray/backend deployment has live
-acceptance evidence on Linux Mint. This document does not claim a live-accepted
+adapter. Linux Mint live acceptance is in progress under Spec 010; package and
+installed-artifact checks have passed, but this document does not yet claim a
+live-accepted protected deployment. It also does not claim a live-accepted
 Windows installation.
 
 ## References

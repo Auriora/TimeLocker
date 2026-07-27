@@ -76,9 +76,9 @@ backup, retention, status, diagnostics, and tray operations.
 ## Platform Requirement
 
 The architecture must preserve portable contracts for Linux and Windows
-adapters. The protected installation and independent tray are currently
-live-accepted on Linux Mint. This requirement does not claim an accepted
-Windows deployment.
+adapters. Linux Mint live acceptance for the protected installation and
+independent tray is in progress under Spec 010. This requirement does not yet
+claim an accepted Linux or Windows deployment.
 
 ## References
 

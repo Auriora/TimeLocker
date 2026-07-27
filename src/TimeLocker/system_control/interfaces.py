@@ -1,6 +1,6 @@
 """Platform and client interfaces for the TimeLocker system-control boundary."""
 
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
@@ -18,7 +18,7 @@ from .models import (
     StatusRevision,
     StatusSnapshot,
 )
-from .types import StatusEventKind
+from .types import StatusEventConnectionState, StatusEventKind
 from .validation import require_int, require_safe_identifier
 
 
@@ -126,7 +126,14 @@ class StatusEventTransport(Protocol):
 class StatusEventClient(Protocol):
     """Consume status events from a platform event transport."""
 
-    def events(self, stop_event: object) -> Iterator[StatusEvent]:
+    def events(
+        self,
+        stop_event: object,
+        *,
+        on_connection_state: (
+            Callable[[StatusEventConnectionState], None] | None
+        ) = None,
+    ) -> Iterator[StatusEvent]:
         """Yield status events until the caller signals shutdown."""
 
 

@@ -240,8 +240,12 @@ class TestSystemPolicyAndAssets:
             in service_unit
         )
         assert (
+            "Requires=timelocker-control.socket" in service_unit
+        )
+        assert "Wants=timelocker-status-events.socket" in service_unit
+        assert (
             "Requires=timelocker-control.socket timelocker-status-events.socket"
-            in service_unit
+            not in service_unit
         )
         assert "UMask=0077" in service_unit
         assert "RuntimeDirectory=" not in service_unit

@@ -204,7 +204,7 @@ T009 -> T010 -> T011 -> T012 -> T013
     release manifest/launcher code, deployment and package tests
   - Acceptance: Event socket ownership/mode, release probes, packaging, atomic
     selection, rollback, and existing backup/retention timers are verified.
-  - Evidence: Added the root-owned/group-accessible `timelocker-status-events.socket` package asset with mode 0660 and named `status-events` descriptor; the control socket is named `control`, and the service explicitly requires both sockets. Backend activation resolves descriptors from validated `LISTEN_PID`/`LISTEN_FDS`/`LISTEN_FDNAMES` rather than positional assumptions. Schema-2 release metadata binds control and event protocol versions while schema 1 remains readable for legacy rollback without claiming event compatibility. Structured activation probes require compatible CLI/backend/tray, explicit control status, event channel, and active+enabled backup/retention timers before atomic selection; rollback requires coherent artifacts, control status, and both timer states while permitting the added event socket to remain inert. Focused deployment/release/backend/Linux asset suite: 52 passed. Full system-control suite: 246 passed. Scoped Ruff and `git diff --check` passed. `systemd-analyze verify` was environment-limited by unrelated host permissions and absent protected installed launcher executability, so clean installed-unit evidence remains T011. No protected host mutation occurred.
+  - Evidence: Added the root-owned/group-accessible `timelocker-status-events.socket` package asset with mode 0660 and named `status-events` descriptor; the control socket is named `control`. Backend activation resolves descriptors from validated `LISTEN_PID`/`LISTEN_FDS`/`LISTEN_FDNAMES` rather than positional assumptions. Schema-2 release metadata binds control and event protocol versions while schema 1 remains readable for legacy rollback without claiming event compatibility. Structured activation probes require compatible CLI/backend/tray, explicit control status, event channel, and active+enabled backup/retention timers before atomic selection; rollback requires coherent artifacts, control status, and both timer states while permitting the added event socket to remain inert. Focused deployment/release/backend/Linux asset suite: 52 passed. Full system-control suite: 246 passed. Scoped Ruff and `git diff --check` passed. `systemd-analyze verify` was environment-limited by unrelated host permissions and absent protected installed launcher executability, so clean installed-unit evidence remains T011. The original unit required both sockets; T011 remediation makes the event dependency non-fatal while retaining named descriptor validation. No protected host mutation occurred.
 
   - Status: T009 complete; T010 local package build and installed-artifact smoke are dependency-ready. Live deployment remains gated at T011.
   - Evidence mode: validation
@@ -239,7 +239,7 @@ T009 -> T010 -> T011 -> T012 -> T013
   - Evidence mode: implementation
 ## Phase 4: Acceptance, Review, Promotion, And Closure
 
-- [ ] T011 Perform approved Linux Mint acceptance.
+- [~] T011 Perform approved Linux Mint acceptance.
   - Depends on: T010
   - Requirements: Requirement 1-Requirement 7
   - Properties: CP-001-CP-006
@@ -249,8 +249,9 @@ T009 -> T010 -> T011 -> T012 -> T013
     semantics, 90-second idle silence, backend restart, tray restart, action
     independence, timer health, and rollback are evidenced from the installed
     artifact.
-  - Evidence: Pending.
+  - Evidence: User approved remediation of T011 review findings. Implementation now maps OS socket permission denial to the safe denied state, reports other transport failures as unavailable with bounded reconnect, accepts control-only systemd activation, and makes the event socket a weak service dependency. A repository-owned redacted-evidence validator separates ordinary mutation-to-presentation latency from graceful shutdown and restart convergence. Durable documents now say Linux Mint acceptance is in progress. The focused remediation suite passed 59 tests; the system-control, monitoring-tray, and validator regression passed 270 tests; scoped Ruff, compileall, patch integrity, lifecycle lint, and lifecycle scan passed. Live redeployment and acceptance remain pending. `systemd-analyze verify` parsed the changed units but could not provide clean host evidence because an unrelated unit was unreadable and the protected installed launcher was not executable to the unprivileged verifier.
 
+  - Status: Remediation approved after failed live acceptance exposed harness and implementation defects.
 - [ ] T012 Run the TimeLocker expert review and address findings.
   - Depends on: T011
   - Requirements: Requirement 1-Requirement 7

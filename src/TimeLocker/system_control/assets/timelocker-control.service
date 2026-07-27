@@ -1,6 +1,7 @@
 [Unit]
 Description=TimeLocker privileged local system-control backend
-Requires=timelocker-control.socket timelocker-status-events.socket
+Requires=timelocker-control.socket
+Wants=timelocker-status-events.socket
 After=local-fs.target
 
 [Service]

@@ -373,7 +373,7 @@ def build_linux_backend(
     listener: socket.socket | None = None,
     status_listener: socket.socket | None = None,
     systemd_descriptor: int = 3,
-    status_systemd_descriptor: int = 4,
+    status_systemd_descriptor: int | None = 4,
     status_socket_mode: str = "systemd",
     request_timeout_seconds: float = 5.0,
     membership_resolver: GroupMembershipResolver | None = None,
@@ -391,8 +391,10 @@ def build_linux_backend(
         raise ValueError("max_diagnostics must be between 1 and 100000")
     if socket_mode not in {"systemd", "listener"}:
         raise ValueError("socket_mode must be 'systemd' or 'listener'")
-    if status_socket_mode not in {"systemd", "listener"}:
-        raise ValueError("status_socket_mode must be 'systemd' or 'listener'")
+    if status_socket_mode not in {"systemd", "listener", "disabled"}:
+        raise ValueError(
+            "status_socket_mode must be 'systemd', 'listener', or 'disabled'"
+        )
     if socket_mode == "listener":
         if listener is None:
             raise ValueError("listener socket is required for listener mode")
@@ -403,6 +405,8 @@ def build_linux_backend(
             raise ValueError("status socket listener is required for listener mode")
     elif status_listener is not None:
         raise ValueError("status socket listener can only be provided in listener mode")
+    if status_socket_mode == "systemd" and status_systemd_descriptor is None:
+        raise ValueError("status systemd descriptor is required for systemd mode")
 
     now = clock or _utc_now
     stop_event = stop_event or Event()
@@ -460,12 +464,16 @@ def build_linux_backend(
         request_timeout_seconds=request_timeout_seconds,
         stop_event=stop_event,
     )
-    status_event_transport = _build_status_transport(
-        policy=policy,
-        socket_mode=status_socket_mode,
-        listener=status_listener if status_socket_mode == "listener" else None,
-        systemd_descriptor=status_systemd_descriptor,
-        stop_event=stop_event,
+    status_event_transport = (
+        None
+        if status_socket_mode == "disabled"
+        else _build_status_transport(
+            policy=policy,
+            socket_mode=status_socket_mode,
+            listener=status_listener if status_socket_mode == "listener" else None,
+            systemd_descriptor=status_systemd_descriptor,
+            stop_event=stop_event,
+        )
     )
     dispatcher = LocalControlDispatcher(
         policy=policy,
@@ -598,8 +606,8 @@ def _systemd_socket_descriptors(
     environment: Mapping[str, str] | None = None,
     *,
     process_id: int | None = None,
-) -> tuple[int, int]:
-    """Resolve named control and event descriptors from systemd activation."""
+) -> tuple[int, int | None]:
+    """Resolve required control and optional event systemd descriptors."""
     environment = os.environ if environment is None else environment
     process_id = os.getpid() if process_id is None else process_id
     if type(process_id) is not int or process_id <= 0:
@@ -612,14 +620,19 @@ def _systemd_socket_descriptors(
         or int(listen_pid) != process_id
         or not listen_fds.isascii()
         or not listen_fds.isdecimal()
-        or int(listen_fds) != 2
+        or int(listen_fds) not in {1, 2}
     ):
-        raise RuntimeError("required systemd socket descriptors are unavailable")
+        raise RuntimeError("required systemd socket for control is unavailable")
     names = environment.get("LISTEN_FDNAMES", "").split(":")
-    if len(names) != 2 or set(names) != {"control", "status-events"}:
-        raise RuntimeError("required systemd socket descriptor names are unavailable")
+    expected_names = (
+        {"control"}
+        if int(listen_fds) == 1
+        else {"control", "status-events"}
+    )
+    if len(names) != int(listen_fds) or set(names) != expected_names:
+        raise RuntimeError("required systemd socket name for control is unavailable")
     descriptors = {name: 3 + index for index, name in enumerate(names)}
-    return descriptors["control"], descriptors["status-events"]
+    return descriptors["control"], descriptors.get("status-events")
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -721,6 +734,9 @@ def main(argv: list[str] | None = None) -> None:
                 socket_mode="systemd",
                 systemd_descriptor=control_descriptor,
                 status_systemd_descriptor=status_descriptor,
+                status_socket_mode=(
+                    "systemd" if status_descriptor is not None else "disabled"
+                ),
                 production_target_path=arguments.production_target,
             )
     except (OSError, PermissionError, RuntimeError, TypeError, ValueError):
@@ -757,7 +773,7 @@ def _build_status_transport(
     policy: SystemPolicy,
     socket_mode: str,
     listener: socket.socket | None,
-    systemd_descriptor: int,
+    systemd_descriptor: int | None,
     stop_event: Event,
 ) -> LinuxStatusEventTransport:
     if socket_mode == "listener":
@@ -769,6 +785,7 @@ def _build_status_transport(
             operator_group=policy.operator_group,
             stop_event=stop_event,
         )
+    assert systemd_descriptor is not None
     return LinuxStatusEventTransport.from_systemd(
         descriptor=systemd_descriptor,
         heartbeat_interval_seconds=5.0,

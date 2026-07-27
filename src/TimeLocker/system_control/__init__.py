@@ -89,6 +89,7 @@ from .types import (
     ResultCode,
     RunState,
     BackendStatus,
+    StatusEventConnectionState,
     StatusEventKind,
     SystemAction,
 )
@@ -151,6 +152,7 @@ __all__ = [
     "StatusEventAccessDenied",
     "StatusEventBroker",
     "StatusEventClient",
+    "StatusEventConnectionState",
     "StatusEventKind",
     "StatusEventTransport",
     "StatusRevision",

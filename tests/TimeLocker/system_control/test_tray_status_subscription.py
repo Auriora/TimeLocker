@@ -17,6 +17,7 @@ from TimeLocker.system_control.types import (
     BackendStatus,
     ProtocolErrorCode,
     ResponseStatus,
+    StatusEventConnectionState,
     StatusEventKind,
 )
 
@@ -47,7 +48,9 @@ class _EventClient:
     def __init__(self, events: list[StatusEvent]) -> None:
         self._events = events
 
-    def events(self, _stop_event: Event):
+    def events(self, _stop_event: Event, *, on_connection_state=None):
+        if on_connection_state is not None:
+            on_connection_state(StatusEventConnectionState.CONNECTED)
         yield from self._events
 
 
@@ -116,7 +119,9 @@ def test_older_snapshot_never_regresses_presentation() -> None:
 
 def test_denied_subscription_projects_only_safe_unavailable_state() -> None:
     class _DeniedClient:
-        def events(self, _stop_event: Event):
+        def events(self, _stop_event: Event, *, on_connection_state=None):
+            if on_connection_state is not None:
+                on_connection_state(StatusEventConnectionState.DENIED)
             raise StatusEventAccessDenied("secret backend detail")
             yield
 
@@ -130,6 +135,33 @@ def test_denied_subscription_projects_only_safe_unavailable_state() -> None:
         on_unavailable=unavailable.append,
     )
     assert unavailable == ["denied"]
+
+
+def test_event_transport_unavailability_projects_safe_state_once() -> None:
+    class _UnavailableThenConnectedClient:
+        def events(self, _stop_event: Event, *, on_connection_state=None):
+            assert on_connection_state is not None
+            on_connection_state(StatusEventConnectionState.UNAVAILABLE)
+            on_connection_state(StatusEventConnectionState.UNAVAILABLE)
+            on_connection_state(StatusEventConnectionState.CONNECTED)
+            yield StatusEvent(
+                StatusRevision(SESSION_ONE, 0),
+                StatusEventKind.SNAPSHOT_REQUIRED,
+            )
+
+    unavailable: list[str] = []
+    applied: list[StatusSnapshot] = []
+    TrayStatusSubscriptionClient(
+        control_client=_ControlClient([_snapshot(SESSION_ONE, 0)]),
+        event_client=_UnavailableThenConnectedClient(),
+    ).serve(
+        Event(),
+        on_snapshot=applied.append,
+        on_unavailable=unavailable.append,
+    )
+
+    assert unavailable == ["unavailable"]
+    assert applied == [_snapshot(SESSION_ONE, 0)]
 
 
 def test_heartbeat_retries_initial_snapshot_only_while_not_current() -> None:

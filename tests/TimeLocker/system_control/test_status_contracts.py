@@ -326,8 +326,9 @@ def test_status_protocol_interfaces_remain_platform_neutral_contracts() -> None:
             assert broker.current_revision() == snapshot.revision
 
     class FakeClient:
-        def events(self, stop_event: object):
+        def events(self, stop_event: object, *, on_connection_state=None):
             del stop_event
+            del on_connection_state
             yield event
 
     provider = cast(StatusSnapshotProvider, FakeProvider())

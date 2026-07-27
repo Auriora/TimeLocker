@@ -1,10 +1,11 @@
 ---
 title: "User Guide: Installation"
 id: "user-guide-installation"
+doc_type: guide
 type: [ guide ]
 status: [ approved ]
 owner: "Documentation Team"
-last_reviewed: "2026-07-26"
+last_reviewed: "2026-07-27"
 tags: [guide, user, installation]
 links:
   tooling: []
@@ -203,9 +204,11 @@ credentials. No PyPI distribution is currently published; use the source path
 above until an authorized release provides downloadable artifacts.
 
 The protected immutable-release, local-backend, systemd scheduling, and
-independent-tray deployment has live acceptance evidence on Linux Mint. The
-portable architecture includes a Windows adapter, but a protected Windows
-deployment is not yet claimed as live-accepted.
+independent-tray deployment is undergoing live acceptance on Linux Mint under
+Spec 010. Package and installed-artifact checks have passed, but protected
+deployment acceptance is not yet complete. The portable architecture includes
+a Windows adapter, but a protected Windows deployment is not yet claimed as
+live-accepted.
 
 ### 4.9 Understand Modern Packaging Features
 

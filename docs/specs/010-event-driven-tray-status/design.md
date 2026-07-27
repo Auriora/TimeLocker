@@ -187,13 +187,22 @@ class StatusEventTransport(Protocol):
     def serve(self, broker, identity_provider, membership_resolver) -> None: ...
 
 class StatusEventClient(Protocol):
-    def events(self, stop_event) -> Iterator[StatusEvent]: ...
+    def events(
+        self,
+        stop_event,
+        *,
+        on_connection_state: Callable[[StatusEventConnectionState], None] | None,
+    ) -> Iterator[StatusEvent]: ...
 ```
 
 ### Error Handling
 
 - Invalid, oversized, unknown-version, or unauthorized subscription frames fail
   closed with a stable safe result and connection close.
+- Platform clients project `connected`, `denied`, and `unavailable` connection
+  states through the platform-neutral callback. Linux maps an operating-system
+  socket `PermissionError` to `denied`; other transport failures map to
+  `unavailable` while bounded reconnect continues.
 - Event channel unavailability changes tray presentation to unavailable but
   does not disable explicit control-channel commands.
 - Backoff is bounded and resets only after a successful authorized handshake.
@@ -263,10 +272,18 @@ class StatusEventClient(Protocol):
 
 - Install the event socket with the same operator-group ownership model as the
   control socket.
+- Keep the control socket as the service's required activation dependency and
+  the event socket as a weak dependency. The backend accepts a named control
+  descriptor without an event descriptor and disables only event delivery in
+  that mode, so an event-unit failure cannot disable explicit control actions.
 - Expose health without raw subscriber identities or payloads.
 - Record bounded connection counts and safe error codes, not user data.
 - Activation and rollback must verify both timers remain active and enabled.
 - Live acceptance must avoid production mutation unless separately approved.
+- Measure ordinary status-change latency from completed state mutation to tray
+  presentation. Measure backend restart as separate graceful-shutdown and
+  new-service-start-to-fresh-presentation intervals; do not count shutdown time
+  against the ordinary two-second change budget.
 
 ## Open Questions
 

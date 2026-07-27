@@ -16,6 +16,7 @@ from .types import (
     ProtocolErrorCode,
     ResponseStatus,
     RunState,
+    StatusEventConnectionState,
     StatusEventKind,
 )
 
@@ -76,8 +77,27 @@ class TrayStatusSubscriptionClient:
             raise TypeError("stop_event must be a threading.Event")
         applied = None
         refresh_pending = True
+        last_unavailable: str | None = None
+
+        def connection_state_changed(state: StatusEventConnectionState) -> None:
+            nonlocal last_unavailable
+            if state is StatusEventConnectionState.CONNECTED:
+                last_unavailable = None
+                return
+            reason = (
+                "denied"
+                if state is StatusEventConnectionState.DENIED
+                else "unavailable"
+            )
+            if on_unavailable is not None and reason != last_unavailable:
+                on_unavailable(reason)
+            last_unavailable = reason
+
         try:
-            for event in self._event_client.events(stop_event):
+            for event in self._event_client.events(
+                stop_event,
+                on_connection_state=connection_state_changed,
+            ):
                 if stop_event.is_set():
                     return
                 if event.kind is StatusEventKind.HEARTBEAT and not refresh_pending:
@@ -110,7 +130,7 @@ class TrayStatusSubscriptionClient:
                 refresh_pending = False
                 on_snapshot(snapshot)
         except StatusEventAccessDenied:
-            if on_unavailable is not None:
+            if on_unavailable is not None and last_unavailable != "denied":
                 on_unavailable("denied")
 
 
