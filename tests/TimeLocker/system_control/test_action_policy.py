@@ -20,6 +20,7 @@ from TimeLocker.system_control.action_policy import (
         (("logs", "view"), "local", ActionClass.USER_LOCAL_READ, False),
         (("logs", "view"), "system", ActionClass.SYSTEM_READ, True),
         (("runs", "list"), None, ActionClass.SYSTEM_READ, True),
+        (("system", "status"), None, ActionClass.SYSTEM_READ, True),
         (("system", "backup"), None, ActionClass.SYSTEM_ACTION, True),
         (
             ("system", "rollback"),

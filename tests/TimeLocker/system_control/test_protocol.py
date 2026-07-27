@@ -6,11 +6,14 @@ from uuid import uuid4
 import pytest
 
 from TimeLocker.system_control import (
+    BackendStatus,
     ProtocolErrorCode,
     RequestEnvelope,
     ResponseEnvelope,
     ResponseStatus,
     SystemAction,
+    StatusRevision,
+    StatusSnapshot,
     project_response,
 )
 
@@ -223,6 +226,31 @@ class TestResponseProjection:
                 SystemAction.RUN_LIST,
                 {"runs": [{} for _ in range(1_001)]},
             )
+
+    def test_status_snapshot_projection_drops_non_allowlisted_fields(self) -> None:
+        snapshot = StatusSnapshot.from_run_history(
+            revision=StatusRevision(uuid4(), 0),
+            backend_status=BackendStatus.AVAILABLE,
+            active_operations=0,
+            runs=(),
+        ).to_wire()
+        snapshot["repository_password"] = "secret"
+        snapshot["environment"] = {"AWS_SECRET_ACCESS_KEY": "secret"}
+
+        projected = project_response(SystemAction.STATUS_SNAPSHOT, snapshot)
+
+        assert set(projected) == {
+            "revision",
+            "backend_status",
+            "active_operations",
+            "latest_backup",
+            "last_successful_backup_completed_at",
+            "latest_retention",
+            "next_backup_at",
+            "next_retention_at",
+        }
+        assert "repository_password" not in projected
+        assert "environment" not in projected
 
     def test_detail_health_schedule_ui_and_receipt_are_strictly_projected(self) -> None:
         detail = project_response(

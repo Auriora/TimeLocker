@@ -8,10 +8,20 @@ token, never from request data, and are testable on non-Windows hosts.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+from threading import Event
 from typing import Protocol
 
-from .interfaces import ControlRequestHandler, PeerIdentity
-from .validation import require_group_name, require_safe_identifier
+from .interfaces import (
+    ControlRequestHandler,
+    GroupMembershipResolver,
+    PeerIdentity,
+    StatusEventBroker,
+)
+from .models import StatusEvent
+from .status_events import StatusSubscriptionLimitError
+from .types import StatusEventKind
+from .validation import require_group_name, require_int, require_safe_identifier
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,6 +73,23 @@ class NamedPipeAcceptor(Protocol):
 
     def accept(self) -> NamedPipeConnection:
         """Return the next local connection."""
+
+
+class NamedPipeEventConnection(Protocol):
+    """Injectable bounded send seam for a Windows event subscription."""
+
+    def send_event(self, payload: bytes, timeout_seconds: float) -> None:
+        """Send one event within the platform binding's timeout."""
+
+    def close(self) -> None:
+        """Close the event connection."""
+
+
+class NamedPipeEventAcceptor(Protocol):
+    """Accept local event subscribers from a protected named pipe."""
+
+    def accept(self) -> NamedPipeEventConnection:
+        """Return the next local event connection."""
 
 
 class WindowsPeerIdentityProvider:
@@ -131,3 +158,110 @@ class WindowsNamedPipeTransport:
             connection.send(handler.handle(request, identity))
         finally:
             connection.close()
+
+
+class WindowsNamedPipeStatusEventTransport:
+    """Testable Windows event contract; no live service implementation claim."""
+
+    def __init__(
+        self,
+        acceptor: NamedPipeEventAcceptor,
+        token_provider: WindowsTokenProvider,
+        *,
+        operator_group: str = "timelocker-operators",
+        heartbeat_interval_seconds: float = 5.0,
+        send_timeout_seconds: float = 2.0,
+        max_frame_bytes: int = 1_048_576,
+    ) -> None:
+        if (
+            isinstance(heartbeat_interval_seconds, bool)
+            or not isinstance(heartbeat_interval_seconds, (int, float))
+            or not 0.25 <= heartbeat_interval_seconds <= 300.0
+        ):
+            raise ValueError("heartbeat_interval_seconds is outside the supported bound")
+        if (
+            isinstance(send_timeout_seconds, bool)
+            or not isinstance(send_timeout_seconds, (int, float))
+            or not 0.1 <= send_timeout_seconds <= 60.0
+        ):
+            raise ValueError("send_timeout_seconds is outside the supported bound")
+        self._acceptor = acceptor
+        self._identity_provider = WindowsPeerIdentityProvider(token_provider)
+        self.operator_group = require_group_name(operator_group)
+        self.heartbeat_interval_seconds = float(heartbeat_interval_seconds)
+        self.send_timeout_seconds = float(send_timeout_seconds)
+        self.max_frame_bytes = require_int(
+            max_frame_bytes,
+            field="max_frame_bytes",
+            minimum=1_024,
+            maximum=16_777_216,
+        )
+
+    def serve_once(
+        self,
+        broker: StatusEventBroker,
+        membership_resolver: GroupMembershipResolver,
+        *,
+        stop_event: Event | None = None,
+    ) -> None:
+        """Serve one injected connection with per-delivery authorization."""
+        stop_event = stop_event or Event()
+        connection = self._acceptor.accept()
+        subscription = None
+        try:
+            try:
+                identity = self._identity_provider.peer_identity(connection)
+            except (OSError, RuntimeError, TypeError, ValueError):
+                return
+            if not self._authorized(identity, membership_resolver):
+                self._send(
+                    connection,
+                    {
+                        "status": "denied",
+                        "safe_summary": "System access denied.",
+                    },
+                )
+                return
+            try:
+                subscription = broker.subscribe()
+            except StatusSubscriptionLimitError:
+                return
+            while not stop_event.is_set():
+                event = subscription.next_event(self.heartbeat_interval_seconds)
+                if not self._authorized(identity, membership_resolver):
+                    return
+                if event is None:
+                    event = StatusEvent(
+                        revision=broker.current_revision(),
+                        kind=StatusEventKind.HEARTBEAT,
+                    )
+                self._send(connection, event.to_wire())
+        finally:
+            if subscription is not None:
+                subscription.close()
+            connection.close()
+
+    def _send(
+        self,
+        connection: NamedPipeEventConnection,
+        payload: dict[str, object],
+    ) -> None:
+        frame = (json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n").encode(
+            "utf-8"
+        )
+        if len(frame) > self.max_frame_bytes:
+            raise OSError("named-pipe event exceeds configured bound")
+        connection.send_event(frame, self.send_timeout_seconds)
+
+    def _authorized(
+        self,
+        identity: PeerIdentity,
+        membership_resolver: GroupMembershipResolver,
+    ) -> bool:
+        try:
+            return membership_resolver.is_current_member(
+                identity,
+                self.operator_group,
+            ) is True
+        except (KeyError, OSError, RuntimeError, TypeError, ValueError):
+            return False

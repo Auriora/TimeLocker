@@ -1,7 +1,7 @@
 """Focused tests for the stand-alone tray service client."""
 
 from datetime import UTC, datetime, timedelta
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from pytest import mark
 import pytest
@@ -18,9 +18,12 @@ from TimeLocker.system_control.models import (
     RunRecordView,
     RetentionActionRequest,
     ScheduleSummary,
+    StatusRevision,
+    StatusSnapshot,
 )
 from TimeLocker.system_control.models import OperationTrigger
 from TimeLocker.system_control.types import (
+    BackendStatus,
     OperationType as BackendOperationType,
     ResultCode,
     RunState,
@@ -56,6 +59,25 @@ class FakeBackend:
         if self.status_error:
             raise self.status_error
         return self.summary
+
+    def get_status_snapshot(self):
+        self.requests.append(("get_status_snapshot", None))
+        if self.status_error:
+            raise self.status_error
+        return StatusSnapshot.from_run_history(
+            revision=StatusRevision(
+                UUID("244e6660-95ae-4cb0-b159-704356ab6700"),
+                1,
+            ),
+            backend_status=BackendStatus.AVAILABLE,
+            active_operations=sum(
+                run.state in {RunState.QUEUED, RunState.RUNNING}
+                for run in self.runs
+            ),
+            runs=self.runs,
+            next_backup_at=self.summary.next_backup_at,
+            next_retention_at=self.summary.next_retention_at,
+        )
 
     def request_backup(self, request: BackupActionRequest):
         self.requests.append(("request_backup", request))
@@ -118,9 +140,11 @@ def test_refresh_status_orders_runs_by_newest_and_projects_summary() -> None:
 
     assert state.status == "error"
     assert "Next backup" in state.tooltip
-    assert state.repository_count == 1
-    assert state.last_retention_status == "Operation failed."
-    assert state.last_backup_status == "Backup completed successfully."
+    assert state.latest_retention_status == "Operation failed."
+    assert state.latest_backup_status == "Backup completed successfully."
+    assert state.last_successful_backup_completed_at == (
+        base_time - timedelta(minutes=55)
+    )
     assert state.next_backup_at == base_time + timedelta(hours=1)
 
 
@@ -204,7 +228,90 @@ def test_new_success_supersedes_stale_interruption() -> None:
     state = client.refresh_status()
 
     assert state.status == "success"
-    assert state.last_backup_status == "Backup completed successfully."
+    assert state.latest_backup_status == "Backup completed successfully."
+
+
+@mark.unit
+def test_failed_newer_backup_does_not_replace_last_successful_completion() -> None:
+    base_time = datetime(2026, 7, 26, 12, 0, tzinfo=UTC)
+    successful_completion = base_time - timedelta(hours=1)
+    runs = [
+        RunRecordView.from_record(
+            RunRecord(
+                run_id=uuid4(),
+                operation=BackendOperationType.BACKUP,
+                started_at=base_time - timedelta(hours=2),
+                completed_at=successful_completion,
+                state=RunState.SUCCEEDED,
+                target_id="prod",
+                trigger=OperationTrigger.SCHEDULED,
+                result_code=ResultCode.BACKUP_SUCCEEDED,
+            )
+        ),
+        RunRecordView.from_record(
+            RunRecord(
+                run_id=uuid4(),
+                operation=BackendOperationType.BACKUP,
+                started_at=base_time,
+                completed_at=base_time + timedelta(minutes=5),
+                state=RunState.FAILED,
+                target_id="prod",
+                trigger=OperationTrigger.SCHEDULED,
+                result_code=ResultCode.OPERATION_FAILED,
+            )
+        ),
+    ]
+    state = TrayControlClient(
+        client_factory=lambda: FakeBackend(
+            runs,
+            ScheduleSummary(None, None),
+        ),
+    ).refresh_status()
+
+    assert state.status == "error"
+    assert state.latest_backup_status == "Operation failed."
+    assert state.last_successful_backup_completed_at == successful_completion
+    expected = successful_completion.astimezone().strftime("%Y-%m-%d %H:%M %Z")
+    assert f"Last successful backup: {expected}".rstrip() in state.tooltip
+
+
+@mark.unit
+def test_no_successful_backup_is_presented_as_never() -> None:
+    state = TrayControlClient(
+        client_factory=lambda: FakeBackend([], ScheduleSummary(None, None)),
+    ).refresh_status()
+
+    assert state.last_successful_backup_completed_at is None
+    assert state.status == "warning"
+    assert "Last successful backup: Never" in state.tooltip
+
+
+@mark.unit
+def test_successful_retention_does_not_make_never_run_backup_successful() -> None:
+    base_time = datetime(2026, 7, 26, 12, 0, tzinfo=UTC)
+    retention = RunRecordView.from_record(
+        RunRecord(
+            run_id=uuid4(),
+            operation=BackendOperationType.RETENTION,
+            started_at=base_time,
+            completed_at=base_time + timedelta(minutes=5),
+            state=RunState.SUCCEEDED,
+            target_id="prod",
+            trigger=OperationTrigger.SCHEDULED,
+            result_code=ResultCode.RETENTION_SUCCEEDED,
+            policy_fingerprint="a" * 64,
+        )
+    )
+
+    state = TrayControlClient(
+        client_factory=lambda: FakeBackend(
+            [retention],
+            ScheduleSummary(None, None),
+        ),
+    ).refresh_status()
+
+    assert state.status == "warning"
+    assert state.last_successful_backup_completed_at is None
 
 
 @mark.unit
@@ -246,7 +353,7 @@ def test_unavailable_backend_errors_are_retriable() -> None:
     recovered = client.refresh_status()
 
     assert recovered.backend_available is True
-    assert recovered.status == "idle"
+    assert recovered.status == "warning"
 
 
 @mark.unit

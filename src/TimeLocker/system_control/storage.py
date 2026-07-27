@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from contextlib import contextmanager
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import replace
 from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
 import tempfile
-from typing import Any, Iterator, Mapping
+from typing import Any
 from uuid import UUID
 
 from .models import (
@@ -152,7 +153,13 @@ def _diagnostic_from_wire(value: object) -> DiagnosticRecord:
 class AtomicRecordStore:
     """Persist strictly validated records with process-safe atomic replacement."""
 
-    def __init__(self, root: Path, *, max_diagnostics: int = 1_000) -> None:
+    def __init__(
+        self,
+        root: Path,
+        *,
+        max_diagnostics: int = 1_000,
+        status_change_callback: Callable[[], object] | None = None,
+    ) -> None:
         if not isinstance(root, Path):
             raise TypeError("root must be a Path")
         if type(max_diagnostics) is not int or not 1 <= max_diagnostics <= 100_000:
@@ -162,6 +169,11 @@ class AtomicRecordStore:
         self.diagnostics_directory = root / "diagnostics"
         self._store_lock_path = root / ".record-store.lock"
         self.max_diagnostics = max_diagnostics
+        if status_change_callback is not None and not callable(
+            status_change_callback
+        ):
+            raise TypeError("status_change_callback must be callable")
+        self._status_change_callback = status_change_callback
         for directory in (root, self.runs_directory, self.diagnostics_directory):
             directory.mkdir(mode=0o700, parents=True, exist_ok=True)
             directory.chmod(0o700)
@@ -188,6 +200,7 @@ class AtomicRecordStore:
             if destination.exists():
                 raise InvalidTransitionError("run already exists")
             self._atomic_write_json(destination, _run_to_wire(record))
+        self._notify_status_change()
 
     def read_run(self, run_id: UUID | str) -> RunRecord:
         """Read and validate one durable run."""
@@ -207,6 +220,10 @@ class AtomicRecordStore:
             if (query.operation is None or record.operation is query.operation)
             and (query.state is None or record.state is query.state)
         ][: query.limit]
+
+    def list_status_runs(self) -> list[RunRecord]:
+        """Return one locked run-history snapshot for internal status projection."""
+        return self._list_runs_unbounded()
 
     def _list_runs_unbounded(self) -> list[RunRecord]:
         """Return all runs for internal startup reconciliation."""
@@ -236,7 +253,8 @@ class AtomicRecordStore:
                 counters=counters,
             )
             self._atomic_write_json(self._run_path(run_id), _run_to_wire(candidate))
-            return candidate
+        self._notify_status_change()
+        return candidate
 
     def append_diagnostic(self, record: DiagnosticRecord) -> None:
         """Append one immutable diagnostic and trim only records beyond the bound."""
@@ -251,6 +269,16 @@ class AtomicRecordStore:
             for stale in records[: max(0, len(records) - self.max_diagnostics)]:
                 stale.unlink()
             self._fsync_directory(self.diagnostics_directory)
+
+    def _notify_status_change(self) -> None:
+        callback = self._status_change_callback
+        if callback is None:
+            return
+        try:
+            callback()
+        except Exception:
+            # Status delivery must never make a completed durable mutation fail.
+            return
 
     def list_diagnostics(
         self,

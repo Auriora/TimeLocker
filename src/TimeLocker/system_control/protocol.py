@@ -11,6 +11,7 @@ from .models import (
     DiagnosticView,
     PROTOCOL_VERSION,
     RunRecordView,
+    StatusSnapshot,
 )
 from .types import (
     DiagnosticLevel,
@@ -47,6 +48,7 @@ _PARAMETER_FIELDS: Mapping[SystemAction, tuple[frozenset[str], frozenset[str]]] 
         frozenset({"limit", "run_id", "level"}),
     ),
     SystemAction.SCHEDULE_SUMMARY: (frozenset(), frozenset()),
+    SystemAction.STATUS_SNAPSHOT: (frozenset(), frozenset()),
     SystemAction.BACKUP_REQUEST: (frozenset({"target_id"}), frozenset()),
     SystemAction.RETENTION_REQUEST: (
         frozenset({"policy_fingerprint"}),
@@ -82,6 +84,18 @@ _DIAGNOSTIC_VIEW_FIELDS = frozenset(
     }
 )
 _ACTION_RECEIPT_FIELDS = frozenset({"request_id", "accepted", "status", "run_id"})
+_STATUS_SNAPSHOT_FIELDS = frozenset(
+    {
+        "revision",
+        "backend_status",
+        "active_operations",
+        "latest_backup",
+        "last_successful_backup_completed_at",
+        "latest_retention",
+        "next_backup_at",
+        "next_retention_at",
+    }
+)
 
 PROTOCOL_ERROR_SUMMARIES: Mapping[ProtocolErrorCode, str] = MappingProxyType(
     {
@@ -371,6 +385,8 @@ def project_response(action: SystemAction, payload: object) -> dict[str, Any]:
         return _project_health(payload)
     if action is SystemAction.SCHEDULE_SUMMARY:
         return _project_schedule(payload)
+    if action is SystemAction.STATUS_SNAPSHOT:
+        return _project_status_snapshot(payload)
     if action is SystemAction.UI_AVAILABILITY:
         projected = _project_mapping(payload, frozenset({"available"}), "ui")
         if "available" not in projected:
@@ -480,3 +496,17 @@ def _project_schedule(value: object) -> dict[str, Any]:
                 field=f"schedule.{key}",
             ).isoformat()
     return projected
+
+
+def _project_status_snapshot(value: object) -> dict[str, Any]:
+    projected = _project_mapping(value, _STATUS_SNAPSHOT_FIELDS, "status_snapshot")
+    missing = _STATUS_SNAPSHOT_FIELDS - frozenset(projected)
+    if missing:
+        raise ValueError(
+            f"status_snapshot is missing required fields: {sorted(missing)}"
+        )
+    if projected["latest_backup"] is not None:
+        projected["latest_backup"] = _project_run(projected["latest_backup"])
+    if projected["latest_retention"] is not None:
+        projected["latest_retention"] = _project_run(projected["latest_retention"])
+    return StatusSnapshot.from_mapping(projected).to_wire()

@@ -6,6 +6,11 @@ from .interfaces import (
     LocalControlTransport,
     PeerIdentity,
     PeerIdentityProvider,
+    StatusEventBroker,
+    StatusEventClient,
+    StatusEventTransport,
+    StatusSnapshotProvider,
+    StatusSubscription,
     SystemControlClient,
 )
 from .dispatcher import AuditEvent, AuditSink, LocalControlDispatcher
@@ -19,6 +24,10 @@ from .client import (
     SystemControlClientError,
     UnixSocketSystemControlClient,
 )
+from .event_client import (
+    StatusEventAccessDenied,
+    UnixSocketStatusEventClient,
+)
 from .models import (
     ActionReceipt,
     BackupActionRequest,
@@ -31,7 +40,12 @@ from .models import (
     RunQuery,
     RunRecord,
     RunRecordView,
+    StatusEvent,
+    StatusRevision,
+    StatusSnapshot,
     RunTransition,
+    STATUS_EVENT_PROTOCOL_VERSION,
+    STATUS_EVENT_SCHEMA_VERSION,
     SystemPolicy,
 )
 from .protocol import RequestEnvelope, ResponseEnvelope, project_response
@@ -55,6 +69,15 @@ from .storage import (
     RepositoryMutationLock,
     reconcile_abandoned_runs,
 )
+from .status_events import (
+    BoundedStatusEventBroker,
+    BoundedStatusSubscription,
+    ProtectedStateChangeMonitor,
+    ProtectedStateWatcher,
+    StatusChangeCoordinator,
+    StatusSubscriptionLimitError,
+    StatusWatchSignal,
+)
 from .types import (
     DiagnosticCode,
     DiagnosticComponent,
@@ -65,6 +88,8 @@ from .types import (
     ResponseStatus,
     ResultCode,
     RunState,
+    BackendStatus,
+    StatusEventKind,
     SystemAction,
 )
 
@@ -74,8 +99,11 @@ __all__ = [
     "ActionRoute",
     "AuditEvent",
     "AuditSink",
+    "BackendStatus",
     "AtomicRecordStore",
     "BackupActionRequest",
+    "BoundedStatusEventBroker",
+    "BoundedStatusSubscription",
     "ControlRequestHandler",
     "DiagnosticCode",
     "DiagnosticComponent",
@@ -93,6 +121,8 @@ __all__ = [
     "PeerIdentity",
     "PeerIdentityProvider",
     "ProtocolErrorCode",
+    "ProtectedStateChangeMonitor",
+    "ProtectedStateWatcher",
     "RecordCorruptionError",
     "RecordNotFoundError",
     "RecordStoreError",
@@ -117,11 +147,27 @@ __all__ = [
     "RunRecordView",
     "RunTransition",
     "RunState",
+    "StatusEvent",
+    "StatusEventAccessDenied",
+    "StatusEventBroker",
+    "StatusEventClient",
+    "StatusEventKind",
+    "StatusEventTransport",
+    "StatusRevision",
+    "StatusSnapshot",
+    "StatusSnapshotProvider",
+    "StatusSubscription",
+    "StatusSubscriptionLimitError",
+    "StatusChangeCoordinator",
+    "StatusWatchSignal",
+    "STATUS_EVENT_PROTOCOL_VERSION",
+    "STATUS_EVENT_SCHEMA_VERSION",
     "SystemAction",
     "SystemControlClient",
     "SystemControlClientError",
     "SystemPolicy",
     "UnixSocketSystemControlClient",
+    "UnixSocketStatusEventClient",
     "UnknownPublicActionError",
     "classify_public_action",
     "project_response",

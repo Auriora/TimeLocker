@@ -9,6 +9,7 @@ import pytest
 from TimeLocker.system_control.release_launcher import (
     LAUNCH_GUARD,
     ImmutableReleaseResolver,
+    ReleaseManifest,
     ReleaseResolutionError,
 )
 
@@ -205,3 +206,36 @@ def test_staged_launcher_has_no_pyenv_checkout_or_root_overlay_fallback() -> Non
     assert "-m TimeLocker.system_control.launcher_entry" in alias
     assert "-m TimeLocker.system_control.backend_launcher_entry" in backend
     assert "-m TimeLocker.system_control.tray_launcher_entry" in tray
+
+
+@pytest.mark.unit
+def test_schema_two_manifest_binds_control_and_event_protocols() -> None:
+    manifest = ReleaseManifest.from_mapping(
+        {
+            "schema_version": 2,
+            "release_id": RELEASE_A,
+            "package_version": "0.9.1",
+            "control_protocol_version": 1,
+            "event_protocol_version": 1,
+            "entrypoint": "venv/bin/timelocker",
+        }
+    )
+
+    assert manifest.control_protocol_version == 1
+    assert manifest.event_protocol_version == 1
+
+
+@pytest.mark.unit
+def test_schema_one_manifest_remains_readable_only_without_event_claim() -> None:
+    manifest = ReleaseManifest.from_mapping(
+        {
+            "schema_version": 1,
+            "release_id": RELEASE_A,
+            "package_version": "0.9.1",
+            "protocol_version": 1,
+            "entrypoint": "venv/bin/timelocker",
+        }
+    )
+
+    assert manifest.control_protocol_version == 1
+    assert manifest.event_protocol_version is None

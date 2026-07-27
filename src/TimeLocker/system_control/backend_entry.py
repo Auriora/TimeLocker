@@ -12,14 +12,18 @@ from pathlib import Path
 import signal
 import socket
 import stat
-from threading import Event
+from threading import Event, Thread
 from types import FrameType
 from typing import Protocol
 from uuid import UUID, uuid4
 
 from .dispatcher import AuditEvent, AuditSink, LocalControlDispatcher
 from .interfaces import GroupMembershipResolver
-from .linux_adapter import LinuxNssGroupMembershipResolver, LinuxUnixSocketTransport
+from .linux_adapter import (
+    LinuxNssGroupMembershipResolver,
+    LinuxStatusEventTransport,
+    LinuxUnixSocketTransport,
+)
 from .models import (
     ActionReceipt,
     BackupActionRequest,
@@ -31,6 +35,8 @@ from .models import (
     RunQuery,
     RunRecordView,
     ScheduleSummary,
+    StatusRevision,
+    StatusSnapshot,
     SystemPolicy,
 )
 from .policy_loader import load_system_policy
@@ -60,7 +66,9 @@ from .storage import (
     RepositoryMutationLock,
     reconcile_abandoned_runs,
 )
+from .status_events import BoundedStatusEventBroker, StatusChangeCoordinator
 from .types import (
+    BackendStatus,
     DiagnosticCode,
     DiagnosticComponent,
     DiagnosticLevel,
@@ -291,18 +299,45 @@ class LinuxBackendService:
     locks: RepositoryMutationLock
     dispatcher: LocalControlDispatcher
     transport: LinuxUnixSocketTransport
+    status_event_transport: LinuxStatusEventTransport | None
     audit_sink: AuditSink
     stop_event: Event
+    status_event_broker: BoundedStatusEventBroker
+    status_change_coordinator: StatusChangeCoordinator
+    membership_resolver: GroupMembershipResolver
     reconciled_run_ids: tuple[UUID, ...] = ()
 
     def serve_forever(self, *, install_signal_handlers: bool = True) -> None:
         if install_signal_handlers:
             self.install_signal_handlers()
+        status_thread = None
+        if self.status_event_transport is not None:
+            status_thread = Thread(
+                target=self._serve_status_events,
+                name="timelocker-status-events",
+                daemon=True,
+            )
+            status_thread.start()
         try:
             self.transport.serve(self.dispatcher)
         except OSError:
             if not self.stop_event.is_set():
                 raise
+        finally:
+            self.stop()
+            if status_thread is not None:
+                status_thread.join(timeout=1.0)
+
+    def _serve_status_events(self) -> None:
+        assert self.status_event_transport is not None
+        try:
+            self.status_event_transport.serve(
+                self.status_event_broker,
+                self.transport.identity_provider,
+                self.membership_resolver,
+            )
+        except OSError:
+            return
 
     def install_signal_handlers(self) -> None:
         def _handle_signal(_signum: int, _frame: FrameType | None) -> None:
@@ -319,6 +354,16 @@ class LinuxBackendService:
                 listener.close()
             except OSError:
                 pass
+        status_listener = (
+            getattr(self.status_event_transport, "listener", None)
+            if self.status_event_transport is not None
+            else None
+        )
+        if isinstance(status_listener, socket.socket):
+            try:
+                status_listener.close()
+            except OSError:
+                pass
 
 
 def build_linux_backend(
@@ -326,7 +371,10 @@ def build_linux_backend(
     paths: LinuxBackendPaths,
     socket_mode: str = "systemd",
     listener: socket.socket | None = None,
+    status_listener: socket.socket | None = None,
     systemd_descriptor: int = 3,
+    status_systemd_descriptor: int = 4,
+    status_socket_mode: str = "systemd",
     request_timeout_seconds: float = 5.0,
     membership_resolver: GroupMembershipResolver | None = None,
     backup_adapter: BackupMutationAdapter | None = None,
@@ -343,16 +391,29 @@ def build_linux_backend(
         raise ValueError("max_diagnostics must be between 1 and 100000")
     if socket_mode not in {"systemd", "listener"}:
         raise ValueError("socket_mode must be 'systemd' or 'listener'")
+    if status_socket_mode not in {"systemd", "listener"}:
+        raise ValueError("status_socket_mode must be 'systemd' or 'listener'")
     if socket_mode == "listener":
         if listener is None:
             raise ValueError("listener socket is required for listener mode")
     elif listener is not None:
         raise ValueError("listener socket can only be provided in listener mode")
+    if status_socket_mode == "listener":
+        if status_listener is None:
+            raise ValueError("status socket listener is required for listener mode")
+    elif status_listener is not None:
+        raise ValueError("status socket listener can only be provided in listener mode")
 
     now = clock or _utc_now
     stop_event = stop_event or Event()
     policy = load_system_policy(paths.policy_path, expected_owner=paths.expected_owner)
-    store = AtomicRecordStore(paths.record_root, max_diagnostics=max_diagnostics)
+    status_event_broker = BoundedStatusEventBroker()
+    status_change_coordinator = StatusChangeCoordinator(status_event_broker)
+    store = AtomicRecordStore(
+        paths.record_root,
+        max_diagnostics=max_diagnostics,
+        status_change_callback=status_change_coordinator.run_changed,
+    )
     locks = RepositoryMutationLock(paths.lock_root)
     audit_sink = RootOnlyJsonlAuditSink(
         paths.audit_log_path,
@@ -399,6 +460,13 @@ def build_linux_backend(
         request_timeout_seconds=request_timeout_seconds,
         stop_event=stop_event,
     )
+    status_event_transport = _build_status_transport(
+        policy=policy,
+        socket_mode=status_socket_mode,
+        listener=status_listener if status_socket_mode == "listener" else None,
+        systemd_descriptor=status_systemd_descriptor,
+        stop_event=stop_event,
+    )
     dispatcher = LocalControlDispatcher(
         policy=policy,
         membership_resolver=membership_resolver,
@@ -410,6 +478,7 @@ def build_linux_backend(
             retention_adapter=retention_adapter,
             retention_plan_provider=retention_plan_provider,
             schedule_summary_provider=schedule_summary_provider,
+            status_change_coordinator=status_change_coordinator,
             trigger_root=paths.trigger_root,
             clock=now,
         ),
@@ -421,8 +490,12 @@ def build_linux_backend(
         locks=locks,
         dispatcher=dispatcher,
         transport=transport,
+        status_event_transport=status_event_transport,
         audit_sink=audit_sink,
         stop_event=stop_event,
+        status_event_broker=status_event_broker,
+        status_change_coordinator=status_change_coordinator,
+        membership_resolver=membership_resolver,
         reconciled_run_ids=tuple(record.run_id for record in reconciled),
     )
 
@@ -521,6 +594,34 @@ def _systemd_exit_status(value: str | None) -> int | None:
     return parsed if 0 <= parsed <= 255 else None
 
 
+def _systemd_socket_descriptors(
+    environment: Mapping[str, str] | None = None,
+    *,
+    process_id: int | None = None,
+) -> tuple[int, int]:
+    """Resolve named control and event descriptors from systemd activation."""
+    environment = os.environ if environment is None else environment
+    process_id = os.getpid() if process_id is None else process_id
+    if type(process_id) is not int or process_id <= 0:
+        raise ValueError("process_id must be a positive integer")
+    listen_pid = environment.get("LISTEN_PID", "")
+    listen_fds = environment.get("LISTEN_FDS", "")
+    if (
+        not listen_pid.isascii()
+        or not listen_pid.isdecimal()
+        or int(listen_pid) != process_id
+        or not listen_fds.isascii()
+        or not listen_fds.isdecimal()
+        or int(listen_fds) != 2
+    ):
+        raise RuntimeError("required systemd socket descriptors are unavailable")
+    names = environment.get("LISTEN_FDNAMES", "").split(":")
+    if len(names) != 2 or set(names) != {"control", "status-events"}:
+        raise RuntimeError("required systemd socket descriptor names are unavailable")
+    descriptors = {name: 3 + index for index, name in enumerate(names)}
+    return descriptors["control"], descriptors["status-events"]
+
+
 def main(argv: list[str] | None = None) -> None:
     """Run one allowlisted privileged system-control process mode."""
     parser = argparse.ArgumentParser(prog="timelocker-system-control")
@@ -614,9 +715,12 @@ def main(argv: list[str] | None = None) -> None:
                 exit_status=_systemd_exit_status(os.environ.get("EXIT_STATUS")),
             )
         else:
+            control_descriptor, status_descriptor = _systemd_socket_descriptors()
             run_linux_backend(
                 paths=paths,
                 socket_mode="systemd",
+                systemd_descriptor=control_descriptor,
+                status_systemd_descriptor=status_descriptor,
                 production_target_path=arguments.production_target,
             )
     except (OSError, PermissionError, RuntimeError, TypeError, ValueError):
@@ -648,6 +752,32 @@ def _build_transport(
     )
 
 
+def _build_status_transport(
+    *,
+    policy: SystemPolicy,
+    socket_mode: str,
+    listener: socket.socket | None,
+    systemd_descriptor: int,
+    stop_event: Event,
+) -> LinuxStatusEventTransport:
+    if socket_mode == "listener":
+        assert listener is not None
+        return LinuxStatusEventTransport(
+            listener,
+            max_frame_bytes=policy.max_request_bytes,
+            heartbeat_interval_seconds=5.0,
+            operator_group=policy.operator_group,
+            stop_event=stop_event,
+        )
+    return LinuxStatusEventTransport.from_systemd(
+        descriptor=systemd_descriptor,
+        heartbeat_interval_seconds=5.0,
+        max_frame_bytes=policy.max_request_bytes,
+        operator_group=policy.operator_group,
+        stop_event=stop_event,
+    )
+
+
 def _build_handlers(
     *,
     policy: SystemPolicy,
@@ -657,10 +787,15 @@ def _build_handlers(
     retention_adapter: RetentionAdapter,
     retention_plan_provider: RetentionPlanProvider,
     schedule_summary_provider: ScheduleSummaryProvider,
+    status_change_coordinator: StatusChangeCoordinator | None = None,
     trigger_root: Path,
     clock: Callable[[], datetime],
 ) -> Mapping[SystemAction, Callable[[object], object]]:
     from .protocol import RequestEnvelope
+
+    status_change_coordinator = status_change_coordinator or StatusChangeCoordinator(
+        BoundedStatusEventBroker()
+    )
 
     def health(_request: object) -> Mapping[str, object]:
         return {
@@ -723,6 +858,28 @@ def _build_handlers(
             raise TypeError("schedule_summary_provider returned an invalid summary")
         return _schedule_to_wire(summary)
 
+    def status_snapshot(_request: object) -> Mapping[str, object]:
+        def build_snapshot(revision: StatusRevision) -> StatusSnapshot:
+            summary = schedule_summary_provider.get_schedule_summary()
+            if not isinstance(summary, ScheduleSummary):
+                raise TypeError(
+                    "schedule_summary_provider returned an invalid summary"
+                )
+            runs = store.list_status_runs()
+            return StatusSnapshot.from_run_history(
+                revision=revision,
+                backend_status=BackendStatus.AVAILABLE,
+                active_operations=sum(
+                    record.state in {RunState.QUEUED, RunState.RUNNING}
+                    for record in runs
+                ),
+                runs=runs,
+                next_backup_at=summary.next_backup_at,
+                next_retention_at=summary.next_retention_at,
+            )
+
+        return status_change_coordinator.snapshot(build_snapshot).to_wire()
+
     def ui_availability(_request: object) -> Mapping[str, object]:
         return {"available": False}
 
@@ -732,6 +889,7 @@ def _build_handlers(
         SystemAction.RUN_DETAIL: run_detail,
         SystemAction.DIAGNOSTIC_LIST: diagnostic_list,
         SystemAction.SCHEDULE_SUMMARY: schedule_summary,
+        SystemAction.STATUS_SNAPSHOT: status_snapshot,
         SystemAction.UI_AVAILABILITY: ui_availability,
     }
     if not isinstance(backup_adapter, FailClosedBackupMutationAdapter):

@@ -1,5 +1,6 @@
 """Platform and client interfaces for the TimeLocker system-control boundary."""
 
+from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import Protocol
 from uuid import UUID
@@ -13,7 +14,11 @@ from .models import (
     RetentionActionRequest,
     RunQuery,
     RunRecordView,
+    StatusEvent,
+    StatusRevision,
+    StatusSnapshot,
 )
+from .types import StatusEventKind
 from .validation import require_int, require_safe_identifier
 
 
@@ -76,6 +81,55 @@ class LocalControlTransport(Protocol):
         """Serve requests until the transport is stopped."""
 
 
+class StatusSnapshotProvider(Protocol):
+    """Provide the current platform-neutral status snapshot."""
+
+    def snapshot(self) -> StatusSnapshot:
+        """Return the latest safe status snapshot."""
+
+
+class StatusEventBroker(Protocol):
+    """Own monotonic status revisions and publish bounded event updates."""
+
+    def current_revision(self) -> StatusRevision:
+        """Return the current backend-session revision."""
+
+    def publish_change(self, kind: StatusEventKind) -> StatusRevision:
+        """Advance and return the revision for an emitted status change."""
+
+    def subscribe(self) -> "StatusSubscription":
+        """Return one bounded status subscription."""
+
+
+class StatusSubscription(Protocol):
+    """Bounded event queue owned by one subscribed client."""
+
+    def next_event(self, timeout_seconds: float | None = None) -> StatusEvent | None:
+        """Return the next event, or None after timeout or closure."""
+
+    def close(self) -> None:
+        """Close and unregister this subscription."""
+
+
+class StatusEventTransport(Protocol):
+    """Serve authenticated event subscriptions without owning platform state."""
+
+    def serve(
+        self,
+        broker: StatusEventBroker,
+        identity_provider: PeerIdentityProvider,
+        membership_resolver: GroupMembershipResolver,
+    ) -> None:
+        """Serve status events until the transport is stopped."""
+
+
+class StatusEventClient(Protocol):
+    """Consume status events from a platform event transport."""
+
+    def events(self, stop_event: object) -> Iterator[StatusEvent]:
+        """Yield status events until the caller signals shutdown."""
+
+
 class SystemControlClient(Protocol):
     """Client contract shared by the CLI, tray, and platform adapters."""
 
@@ -96,3 +150,6 @@ class SystemControlClient(Protocol):
 
     def get_schedule_summary(self) -> ScheduleSummary:
         """Return next scheduled backup and retention run timestamps."""
+
+    def get_status_snapshot(self) -> StatusSnapshot:
+        """Return one authorized safe backend status snapshot."""

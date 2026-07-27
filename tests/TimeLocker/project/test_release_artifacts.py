@@ -74,6 +74,22 @@ def test_smoke_workflow_is_non_publishing_read_only_and_covers_support_matrix():
         assert forbidden not in workflow
 
 
+@pytest.mark.config
+@pytest.mark.unit
+def test_artifact_smoke_covers_system_entrypoints_protocols_and_assets():
+    smoke = (ROOT / "scripts/smoke_release_artifact.py").read_text()
+    for expected in (
+        "timelocker-system-control",
+        "timelocker-tray",
+        "STATUS_EVENT_PROTOCOL_VERSION",
+        "timelocker-status-events.socket",
+        "timelocker-retention.timer",
+        "timelocker-icon-idle.png",
+        "timelocker-icon-error.png",
+    ):
+        assert expected in smoke
+
+
 @pytest.mark.platform
 @pytest.mark.unit
 def test_root_help_is_compatible_with_windows_default_encoding():

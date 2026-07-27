@@ -14,6 +14,7 @@ from TimeLocker.system_control import (
     RetentionActionRequest,
     RunQuery,
     RunRecordView,
+    StatusSnapshot,
 )
 
 
@@ -67,6 +68,9 @@ class FakeSystemControlClient:
             status="accepted",
             run_id=uuid4(),
         )
+
+    def get_status_snapshot(self) -> StatusSnapshot:
+        raise LookupError("no snapshot configured")
 
 
 @pytest.mark.unit

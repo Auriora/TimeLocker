@@ -1,12 +1,13 @@
 """Strict platform-neutral models for TimeLocker system operations."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from types import MappingProxyType
-from typing import Any, ClassVar, Mapping
+from typing import Any, ClassVar, Iterable, Mapping
 from uuid import UUID
 
 from .types import (
+    BackendStatus,
     DiagnosticCode,
     DiagnosticComponent,
     DiagnosticLevel,
@@ -14,6 +15,7 @@ from .types import (
     OperationType,
     ResultCode,
     RunState,
+    StatusEventKind,
 )
 from .validation import (
     MAX_COUNTER_VALUE,
@@ -35,6 +37,8 @@ from .validation import (
 
 
 PROTOCOL_VERSION = 1
+STATUS_EVENT_SCHEMA_VERSION = 1
+STATUS_EVENT_PROTOCOL_VERSION = 1
 DEFAULT_MAX_REQUEST_BYTES = 65_536
 DEFAULT_MAX_RESPONSE_RECORDS = 100
 
@@ -728,6 +732,313 @@ class RunRecordView:
 
 
 @dataclass(frozen=True, slots=True)
+class StatusRevision:
+    """Monotonic per-session revision for event ordering and coalescing."""
+
+    session_id: UUID
+    sequence: int
+
+    def __post_init__(self) -> None:
+        """Reject unsupported revision types and non-monotonic values."""
+        object.__setattr__(
+            self,
+            "session_id",
+            require_uuid(self.session_id, field="session_id"),
+        )
+        object.__setattr__(
+            self,
+            "sequence",
+            require_int(
+                self.sequence,
+                field="sequence",
+                minimum=0,
+                maximum=MAX_COUNTER_VALUE,
+            ),
+        )
+
+    @classmethod
+    def from_mapping(cls, value: object) -> "StatusRevision":
+        """Parse an exact revision mapping from an untrusted payload."""
+        revision = require_exact_mapping(
+            value,
+            field="revision",
+            required=frozenset({"session_id", "sequence"}),
+        )
+        return cls(
+            session_id=revision["session_id"],
+            sequence=revision["sequence"],
+        )
+
+    def to_wire(self) -> dict[str, Any]:
+        """Return the exact wire representation for the status revision."""
+        return {
+            "session_id": str(self.session_id),
+            "sequence": self.sequence,
+        }
+
+    def is_strictly_newer_than(self, other: "StatusRevision") -> bool:
+        """Return True only for newer revisions within the same session."""
+        if not isinstance(other, StatusRevision):
+            raise TypeError("other must be a StatusRevision")
+        return self.session_id == other.session_id and self.sequence > other.sequence
+
+
+@dataclass(frozen=True, slots=True)
+class StatusEvent:
+    """Allowlisted status-event invalidation contract for tray subscribers."""
+
+    revision: StatusRevision
+    kind: StatusEventKind
+    schema_version: int = STATUS_EVENT_SCHEMA_VERSION
+    protocol_version: int = STATUS_EVENT_PROTOCOL_VERSION
+
+    def __post_init__(self) -> None:
+        """Validate supported versions and normalize nested immutable fields."""
+        schema_version = require_int(
+            self.schema_version,
+            field="schema_version",
+            minimum=1,
+            maximum=255,
+        )
+        if schema_version != STATUS_EVENT_SCHEMA_VERSION:
+            raise ValueError("schema_version is unsupported")
+        protocol_version = require_int(
+            self.protocol_version,
+            field="protocol_version",
+            minimum=1,
+            maximum=255,
+        )
+        if protocol_version != STATUS_EVENT_PROTOCOL_VERSION:
+            raise ValueError("protocol_version is unsupported")
+        revision = (
+            self.revision
+            if isinstance(self.revision, StatusRevision)
+            else StatusRevision.from_mapping(self.revision)
+        )
+        object.__setattr__(self, "schema_version", schema_version)
+        object.__setattr__(self, "protocol_version", protocol_version)
+        object.__setattr__(self, "revision", revision)
+        object.__setattr__(
+            self,
+            "kind",
+            require_enum(self.kind, StatusEventKind, field="kind"),
+        )
+
+    @classmethod
+    def from_mapping(cls, value: object) -> "StatusEvent":
+        """Parse an exact event mapping and reject arbitrary payload fields."""
+        event = require_exact_mapping(
+            value,
+            field="event",
+            required=frozenset(
+                {"schema_version", "protocol_version", "revision", "kind"}
+            ),
+        )
+        return cls(
+            schema_version=event["schema_version"],
+            protocol_version=event["protocol_version"],
+            revision=event["revision"],
+            kind=event["kind"],
+        )
+
+    def to_wire(self) -> dict[str, Any]:
+        """Return the exact allowlisted status-event wire shape."""
+        return {
+            "schema_version": self.schema_version,
+            "protocol_version": self.protocol_version,
+            "revision": self.revision.to_wire(),
+            "kind": self.kind.value,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class StatusSnapshot:
+    """Safe status projection used by the tray snapshot and event flow."""
+
+    revision: StatusRevision
+    backend_status: BackendStatus
+    active_operations: int
+    latest_backup: RunRecordView | None = None
+    last_successful_backup_completed_at: datetime | None = None
+    latest_retention: RunRecordView | None = None
+    next_backup_at: datetime | None = None
+    next_retention_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        """Validate exact safe fields and reject mismatched operation payloads."""
+        revision = (
+            self.revision
+            if isinstance(self.revision, StatusRevision)
+            else StatusRevision.from_mapping(self.revision)
+        )
+        latest_backup = _coerce_optional_run_view(
+            self.latest_backup,
+            field="latest_backup",
+            expected_operation=OperationType.BACKUP,
+        )
+        latest_retention = _coerce_optional_run_view(
+            self.latest_retention,
+            field="latest_retention",
+            expected_operation=OperationType.RETENTION,
+        )
+        object.__setattr__(self, "revision", revision)
+        object.__setattr__(
+            self,
+            "backend_status",
+            require_enum(
+                self.backend_status,
+                BackendStatus,
+                field="backend_status",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "active_operations",
+            require_int(
+                self.active_operations,
+                field="active_operations",
+                minimum=0,
+                maximum=MAX_COUNTER_VALUE,
+            ),
+        )
+        object.__setattr__(self, "latest_backup", latest_backup)
+        object.__setattr__(
+            self,
+            "last_successful_backup_completed_at",
+            require_optional_utc_datetime(
+                self.last_successful_backup_completed_at,
+                field="last_successful_backup_completed_at",
+            ),
+        )
+        object.__setattr__(self, "latest_retention", latest_retention)
+        object.__setattr__(
+            self,
+            "next_backup_at",
+            require_optional_utc_datetime(
+                self.next_backup_at,
+                field="next_backup_at",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "next_retention_at",
+            require_optional_utc_datetime(
+                self.next_retention_at,
+                field="next_retention_at",
+            ),
+        )
+
+    @classmethod
+    def from_mapping(cls, value: object) -> "StatusSnapshot":
+        """Parse the exact allowlisted status-snapshot wire contract."""
+        snapshot = require_exact_mapping(
+            value,
+            field="status_snapshot",
+            required=frozenset(
+                {
+                    "revision",
+                    "backend_status",
+                    "active_operations",
+                    "latest_backup",
+                    "last_successful_backup_completed_at",
+                    "latest_retention",
+                    "next_backup_at",
+                    "next_retention_at",
+                }
+            ),
+        )
+        return cls(
+            revision=snapshot["revision"],
+            backend_status=snapshot["backend_status"],
+            active_operations=snapshot["active_operations"],
+            latest_backup=snapshot["latest_backup"],
+            last_successful_backup_completed_at=require_optional_wire_utc_datetime(
+                snapshot["last_successful_backup_completed_at"],
+                field="status_snapshot.last_successful_backup_completed_at",
+            ),
+            latest_retention=snapshot["latest_retention"],
+            next_backup_at=require_optional_wire_utc_datetime(
+                snapshot["next_backup_at"],
+                field="status_snapshot.next_backup_at",
+            ),
+            next_retention_at=require_optional_wire_utc_datetime(
+                snapshot["next_retention_at"],
+                field="status_snapshot.next_retention_at",
+            ),
+        )
+
+    @classmethod
+    def from_run_history(
+        cls,
+        *,
+        revision: StatusRevision,
+        backend_status: BackendStatus,
+        active_operations: int,
+        runs: Iterable[RunRecord | RunRecordView],
+        next_backup_at: datetime | None = None,
+        next_retention_at: datetime | None = None,
+    ) -> "StatusSnapshot":
+        """Build a deterministic snapshot from an unordered safe run history."""
+        run_views = tuple(_coerce_run_view(run, field="runs") for run in runs)
+        backup_runs = tuple(
+            run for run in run_views if run.operation is OperationType.BACKUP
+        )
+        retention_runs = tuple(
+            run for run in run_views if run.operation is OperationType.RETENTION
+        )
+        successful_backups = tuple(
+            run
+            for run in backup_runs
+            if run.state is RunState.SUCCEEDED and run.completed_at is not None
+        )
+        return cls(
+            revision=revision,
+            backend_status=backend_status,
+            active_operations=active_operations,
+            latest_backup=_latest_run_view(backup_runs),
+            last_successful_backup_completed_at=(
+                max(run.completed_at for run in successful_backups)
+                if successful_backups
+                else None
+            ),
+            latest_retention=_latest_run_view(retention_runs),
+            next_backup_at=next_backup_at,
+            next_retention_at=next_retention_at,
+        )
+
+    def to_wire(self) -> dict[str, Any]:
+        """Return the exact status-snapshot wire representation."""
+        return {
+            "revision": self.revision.to_wire(),
+            "backend_status": self.backend_status.value,
+            "active_operations": self.active_operations,
+            "latest_backup": (
+                self.latest_backup.to_wire() if self.latest_backup is not None else None
+            ),
+            "last_successful_backup_completed_at": (
+                self.last_successful_backup_completed_at.isoformat()
+                if self.last_successful_backup_completed_at is not None
+                else None
+            ),
+            "latest_retention": (
+                self.latest_retention.to_wire()
+                if self.latest_retention is not None
+                else None
+            ),
+            "next_backup_at": (
+                self.next_backup_at.isoformat()
+                if self.next_backup_at is not None
+                else None
+            ),
+            "next_retention_at": (
+                self.next_retention_at.isoformat()
+                if self.next_retention_at is not None
+                else None
+            ),
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class DiagnosticView:
     """Allowlisted external projection of a diagnostic record."""
 
@@ -843,4 +1154,49 @@ def validate_counter_value(value: object) -> int:
         field="counter",
         minimum=0,
         maximum=MAX_COUNTER_VALUE,
+    )
+
+
+def _coerce_run_view(
+    value: RunRecord | RunRecordView,
+    *,
+    field: str,
+) -> RunRecordView:
+    if isinstance(value, RunRecordView):
+        return value
+    if isinstance(value, RunRecord):
+        return RunRecordView.from_record(value)
+    raise TypeError(f"{field} must contain RunRecord or RunRecordView values")
+
+
+def _coerce_optional_run_view(
+    value: object,
+    *,
+    field: str,
+    expected_operation: OperationType,
+) -> RunRecordView | None:
+    if value is None:
+        return None
+    run_view = (
+        value
+        if isinstance(value, RunRecordView)
+        else RunRecordView.from_mapping(value)
+    )
+    if run_view.operation is not expected_operation:
+        raise ValueError(f"{field} must be a {expected_operation.value} run")
+    return run_view
+
+
+def _latest_run_view(runs: Iterable[RunRecordView]) -> RunRecordView | None:
+    run_list = tuple(runs)
+    if not run_list:
+        return None
+    minimum_timestamp = datetime.min.replace(tzinfo=UTC)
+    return max(
+        run_list,
+        key=lambda run: (
+            run.started_at,
+            run.completed_at if run.completed_at is not None else minimum_timestamp,
+            str(run.run_id),
+        ),
     )

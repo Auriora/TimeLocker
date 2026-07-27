@@ -86,16 +86,68 @@ class TrayStatus(Enum):
     ERROR = "error"
 
 
+PACKAGED_TRAY_STATUS_ICON_PATHS = {
+    status: PACKAGED_TRAY_ICON_PATH.with_name(
+        f"timelocker-icon-{status.value}.png"
+    )
+    for status in TrayStatus
+}
+
+
+def _linux_tray_icon_path(status: TrayStatus) -> str:
+    """Return the packaged status icon, then the base logo, then a theme icon."""
+    status_path = PACKAGED_TRAY_STATUS_ICON_PATHS[status]
+    if status_path.is_file():
+        return str(status_path)
+    if PACKAGED_TRAY_ICON_PATH.is_file():
+        return str(PACKAGED_TRAY_ICON_PATH)
+    return "dialog-information"
+
+
 @dataclass
 class TrayStatusInfo:
     """Information displayed in system tray"""
 
     status: TrayStatus
     tooltip: str
-    last_backup_time: Optional[datetime] = None
-    last_backup_status: Optional[str] = None
-    repository_count: int = 0
+    backend_available: bool = False
+    last_successful_backup_time: Optional[datetime] = None
+    latest_backup_status: Optional[str] = None
+    latest_retention_status: Optional[str] = None
+    next_backup_time: Optional[datetime] = None
+    next_retention_time: Optional[datetime] = None
     active_operations: int = 0
+
+
+def _format_local_time(value: datetime | None, *, missing: str) -> str:
+    if value is None:
+        return missing
+    return value.astimezone().strftime("%Y-%m-%d %H:%M %Z").rstrip()
+
+
+def _status_menu_labels(status_info: TrayStatusInfo) -> tuple[str, ...]:
+    """Return platform-neutral, non-actionable status menu labels."""
+    activity = (
+        f"{status_info.active_operations} active"
+        if status_info.active_operations
+        else "Idle"
+    )
+    return (
+        "Backend: "
+        + ("Available" if status_info.backend_available else "Unavailable"),
+        f"Activity: {activity}",
+        "Last successful backup: "
+        + _format_local_time(
+            status_info.last_successful_backup_time,
+            missing="Never",
+        ),
+        f"Latest backup: {status_info.latest_backup_status or 'Unknown'}",
+        f"Latest retention: {status_info.latest_retention_status or 'Unknown'}",
+        "Next backup: "
+        + _format_local_time(status_info.next_backup_time, missing="Unknown"),
+        "Next retention: "
+        + _format_local_time(status_info.next_retention_time, missing="Unknown"),
+    )
 
 
 class SystemTrayIntegration:
@@ -107,7 +159,6 @@ class SystemTrayIntegration:
     - Application icon with status details
     - Tooltip with last backup status
     - Context menu with quick actions
-    - Click-to-open main interface
     """
 
     def __init__(
@@ -125,7 +176,7 @@ class SystemTrayIntegration:
         self.menu_actions = frozenset(
             menu_actions
             if menu_actions is not None
-            else {"status", "backup_now", "retention_now", "open_ui", "quit"}
+            else {"backup_now", "retention_now", "quit"}
         )
         self.current_status = TrayStatus.IDLE
         self.status_info = TrayStatusInfo(
@@ -220,6 +271,9 @@ class SystemTrayIntegration:
             try:
                 self._tray_impl.update_icon(status_info.status)
                 self._tray_impl.update_tooltip(self._format_tooltip(status_info))
+                update_rows = getattr(self._tray_impl, "update_status_rows", None)
+                if update_rows is not None:
+                    update_rows(status_info)
             except Exception as e:
                 logger.error(f"Failed to update system tray info: {e}")
 
@@ -235,15 +289,15 @@ class SystemTrayIntegration:
         """
         lines = [f"{self.app_name} - {status_info.status.value.title()}"]
 
-        if status_info.last_backup_time:
-            time_str = status_info.last_backup_time.strftime("%Y-%m-%d %H:%M")
-            lines.append(f"Last backup: {time_str}")
+        if status_info.last_successful_backup_time:
+            time_str = _format_local_time(
+                status_info.last_successful_backup_time,
+                missing="Never",
+            )
+            lines.append(f"Last successful backup: {time_str}")
 
-        if status_info.last_backup_status:
-            lines.append(f"Status: {status_info.last_backup_status}")
-
-        if status_info.repository_count > 0:
-            lines.append(f"Repositories: {status_info.repository_count}")
+        if status_info.latest_backup_status:
+            lines.append(f"Latest backup: {status_info.latest_backup_status}")
 
         if status_info.active_operations > 0:
             lines.append(f"Active operations: {status_info.active_operations}")
@@ -262,17 +316,14 @@ class SystemTrayIntegration:
             self._tray_impl.set_on_click(callback)
 
     def update_last_backup_time(self, backup_time: datetime | None) -> None:
-        """Update the platform-specific last-backup presentation when supported."""
+        """Compatibility helper for callers not yet using complete status info."""
         if not self.is_available():
             return
 
-        update_last_backup = getattr(
-            self._tray_impl,
-            "update_last_backup_time",
-            None,
-        )
-        if update_last_backup is not None:
-            update_last_backup(backup_time)
+        self.status_info.last_successful_backup_time = backup_time
+        update_rows = getattr(self._tray_impl, "update_status_rows", None)
+        if update_rows is not None:
+            update_rows(self.status_info)
 
     def set_on_menu_action_callback(self, callback: Callable[[str], None]):
         """
@@ -332,7 +383,7 @@ class LinuxSystemTray:
         self.menu_actions = (
             menu_actions
             if menu_actions is not None
-            else frozenset({"status", "backup_now", "retention_now", "open_ui", "quit"})
+            else frozenset({"backup_now", "retention_now", "quit"})
         )
         self._icon = None
         self._menu = None
@@ -351,11 +402,7 @@ class LinuxSystemTray:
             self._use_gtk = True
             self._indicator = self._indicator_module.Indicator.new(
                 self.app_name,
-                (
-                    str(PACKAGED_TRAY_ICON_PATH)
-                    if PACKAGED_TRAY_ICON_PATH.is_file()
-                    else "dialog-information"
-                ),
+                _linux_tray_icon_path(TrayStatus.IDLE),
                 self._indicator_module.IndicatorCategory.APPLICATION_STATUS,
             )
             self._indicator.set_status(self._indicator_module.IndicatorStatus.ACTIVE)
@@ -377,25 +424,17 @@ class LinuxSystemTray:
             Gtk = self._gtk
             self._menu = Gtk.Menu()
 
-            # Open item
-            open_item = Gtk.MenuItem(label="Open TimeLocker")
-            open_item.connect("activate", self._on_open_clicked)
-            self._menu.append(open_item)
-
-            # Separator
-            self._menu.append(Gtk.SeparatorMenuItem())
-
             # AppIndicator tooltips are not consistently available on Linux.
-            self._last_backup_item = Gtk.MenuItem(label="Last backup: Unknown")
-            self._last_backup_item.set_sensitive(False)
-            self._menu.append(self._last_backup_item)
-
-            # Status item
-            status_item = Gtk.MenuItem(label="View Status")
-            status_item.connect(
-                "activate", lambda x: self._trigger_menu_action("status")
+            self._status_items = []
+            initial_status = TrayStatusInfo(
+                status=TrayStatus.IDLE,
+                tooltip="TimeLocker - Connecting",
             )
-            self._menu.append(status_item)
+            for label in _status_menu_labels(initial_status):
+                item = Gtk.MenuItem(label=label)
+                item.set_sensitive(False)
+                self._menu.append(item)
+                self._status_items.append(item)
 
             # Backup now item
             backup_item = Gtk.MenuItem(label="Backup Now")
@@ -442,13 +481,7 @@ class LinuxSystemTray:
             return
 
         try:
-            self._indicator.set_icon(
-                (
-                    str(PACKAGED_TRAY_ICON_PATH)
-                    if PACKAGED_TRAY_ICON_PATH.is_file()
-                    else "dialog-information"
-                )
-            )
+            self._indicator.set_icon(_linux_tray_icon_path(status))
         except Exception as e:
             logger.error(f"Failed to update icon: {e}")
 
@@ -458,20 +491,20 @@ class LinuxSystemTray:
         # Tooltip is shown through the menu
         pass
 
-    def update_last_backup_time(self, backup_time: datetime | None) -> None:
-        """Show the latest backup start time in the Linux tray menu."""
-        if not hasattr(self, "_last_backup_item"):
+    def update_status_rows(self, status_info: TrayStatusInfo) -> None:
+        """Refresh non-actionable Linux menu rows from one coherent snapshot."""
+        if not hasattr(self, "_status_items"):
             return
 
-        label = "Last backup: Unknown"
-        if backup_time is not None:
-            local_time = backup_time.astimezone() if backup_time.tzinfo else backup_time
-            label = f"Last backup: {local_time.strftime('%Y-%m-%d %H:%M %Z')}".rstrip()
-
         try:
-            self._last_backup_item.set_label(label)
+            for item, label in zip(
+                self._status_items,
+                _status_menu_labels(status_info),
+                strict=True,
+            ):
+                item.set_label(label)
         except Exception as e:
-            logger.error(f"Failed to update last backup time: {e}")
+            logger.error(f"Failed to update tray status rows: {e}")
 
     def set_on_click(self, callback: Callable):
         """Set click callback"""
@@ -520,7 +553,7 @@ class MacOSSystemTray:
         self.menu_actions = (
             menu_actions
             if menu_actions is not None
-            else frozenset({"status", "backup_now", "retention_now", "open_ui", "quit"})
+            else frozenset({"backup_now", "retention_now", "quit"})
         )
         self._app = None
         self._on_click_callback = None
@@ -547,14 +580,17 @@ class MacOSSystemTray:
         try:
             import rumps
 
-            # Create menu items
+            self._status_items = [
+                rumps.MenuItem(label)
+                for label in _status_menu_labels(
+                    TrayStatusInfo(
+                        status=TrayStatus.IDLE,
+                        tooltip="TimeLocker - Connecting",
+                    )
+                )
+            ]
             menu = [
-                rumps.MenuItem("Open TimeLocker", callback=self._on_open_clicked),
-                None,  # Separator
-                rumps.MenuItem(
-                    "View Status",
-                    callback=lambda _: self._trigger_menu_action("status"),
-                ),
+                *self._status_items,
                 rumps.MenuItem(
                     "Backup Now",
                     callback=lambda _: self._trigger_menu_action("backup_now"),
@@ -578,6 +614,17 @@ class MacOSSystemTray:
             self._app.menu = menu
         except Exception as e:
             logger.error(f"Failed to create macOS menu: {e}")
+
+    def update_status_rows(self, status_info: TrayStatusInfo) -> None:
+        """Refresh non-actionable macOS menu rows."""
+        if not hasattr(self, "_status_items"):
+            return
+        for item, label in zip(
+            self._status_items,
+            _status_menu_labels(status_info),
+            strict=True,
+        ):
+            item.title = label
 
     def _on_open_clicked(self, sender):
         """Handle open menu item click"""
@@ -658,7 +705,7 @@ class WindowsSystemTray:
         self.menu_actions = (
             menu_actions
             if menu_actions is not None
-            else frozenset({"status", "backup_now", "retention_now", "open_ui", "quit"})
+            else frozenset({"backup_now", "retention_now", "quit"})
         )
         self._icon = None
         self._on_click_callback = None
@@ -706,11 +753,21 @@ class WindowsSystemTray:
             import pystray
             from pystray import MenuItem as Item
 
+            status_info = getattr(
+                self,
+                "_status_info",
+                TrayStatusInfo(
+                    status=TrayStatus.IDLE,
+                    tooltip="TimeLocker - Connecting",
+                ),
+            )
             items = [
-                Item("Open TimeLocker", self._on_open_clicked),
-                Item("View Status", lambda: self._trigger_menu_action("status")),
-                Item("Backup Now", lambda: self._trigger_menu_action("backup_now")),
+                Item(label, None, enabled=False)
+                for label in _status_menu_labels(status_info)
             ]
+            items.append(
+                Item("Backup Now", lambda: self._trigger_menu_action("backup_now"))
+            )
             if "retention_now" in self.menu_actions:
                 items.append(
                     Item(
@@ -723,6 +780,12 @@ class WindowsSystemTray:
         except Exception as e:
             logger.error(f"Failed to create Windows menu: {e}")
             return None
+
+    def update_status_rows(self, status_info: TrayStatusInfo) -> None:
+        """Refresh non-actionable Windows menu rows."""
+        self._status_info = status_info
+        if self._icon is not None:
+            self._icon.menu = self._create_menu()
 
     def _on_open_clicked(self, icon, item):
         """Handle open menu item click"""

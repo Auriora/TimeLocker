@@ -16,6 +16,7 @@ from .models import (
     RetentionActionRequest,
     RunQuery,
     RunRecordView,
+    StatusSnapshot,
 )
 from .protocol import RequestEnvelope, ResponseEnvelope
 from .types import ProtocolErrorCode, ResponseStatus, SystemAction
@@ -105,6 +106,11 @@ class UnixSocketSystemControlClient:
     def get_schedule_summary(self) -> ScheduleSummary:
         result = self._request(SystemAction.SCHEDULE_SUMMARY, {})
         return ScheduleSummary.from_mapping(result)
+
+    def get_status_snapshot(self) -> StatusSnapshot:
+        """Return the backend's coherent allowlisted status projection."""
+        result = self._request(SystemAction.STATUS_SNAPSHOT, {})
+        return StatusSnapshot.from_mapping(result)
 
     def _request(
         self,

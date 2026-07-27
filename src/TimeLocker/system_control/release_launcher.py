@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping, NoReturn
 
-from .models import PROTOCOL_VERSION
+from .models import PROTOCOL_VERSION, STATUS_EVENT_PROTOCOL_VERSION
 from .validation import require_exact_mapping, require_int, require_safe_identifier
 
 
@@ -68,12 +68,66 @@ class ReleaseManifest:
 
     release_id: str
     package_version: str
-    protocol_version: int
+    control_protocol_version: int
+    event_protocol_version: int | None
     entrypoint: str = "venv/bin/timelocker"
-    schema_version: int = 1
+    schema_version: int = 2
 
     @classmethod
     def from_mapping(cls, value: object) -> "ReleaseManifest":
+        if not isinstance(value, Mapping):
+            raise ReleaseResolutionError("release manifest is invalid")
+        schema_version = require_int(
+            value.get("schema_version"),
+            field="schema_version",
+            minimum=1,
+            maximum=2,
+        )
+        if schema_version == 1:
+            return cls._from_legacy_mapping(value)
+        mapping = require_exact_mapping(
+            value,
+            field="release manifest",
+            required=frozenset(
+                {
+                    "schema_version",
+                    "release_id",
+                    "package_version",
+                    "control_protocol_version",
+                    "event_protocol_version",
+                    "entrypoint",
+                }
+            ),
+        )
+        entrypoint = mapping["entrypoint"]
+        if entrypoint != "venv/bin/timelocker":
+            raise ReleaseResolutionError("release entrypoint is not allowlisted")
+        return cls(
+            schema_version=schema_version,
+            release_id=_release_id(mapping["release_id"]),
+            package_version=require_safe_identifier(
+                mapping["package_version"],
+                field="package_version",
+                maximum=64,
+            ),
+            control_protocol_version=require_int(
+                mapping["control_protocol_version"],
+                field="control_protocol_version",
+                minimum=PROTOCOL_VERSION,
+                maximum=PROTOCOL_VERSION,
+            ),
+            event_protocol_version=require_int(
+                mapping["event_protocol_version"],
+                field="event_protocol_version",
+                minimum=STATUS_EVENT_PROTOCOL_VERSION,
+                maximum=STATUS_EVENT_PROTOCOL_VERSION,
+            ),
+            entrypoint=entrypoint,
+        )
+
+    @classmethod
+    def _from_legacy_mapping(cls, value: Mapping[str, object]) -> "ReleaseManifest":
+        """Read schema 1 for rollback without claiming event compatibility."""
         mapping = require_exact_mapping(
             value,
             field="release manifest",
@@ -91,24 +145,20 @@ class ReleaseManifest:
         if entrypoint != "venv/bin/timelocker":
             raise ReleaseResolutionError("release entrypoint is not allowlisted")
         return cls(
-            schema_version=require_int(
-                mapping["schema_version"],
-                field="schema_version",
-                minimum=1,
-                maximum=1,
-            ),
+            schema_version=1,
             release_id=_release_id(mapping["release_id"]),
             package_version=require_safe_identifier(
                 mapping["package_version"],
                 field="package_version",
                 maximum=64,
             ),
-            protocol_version=require_int(
+            control_protocol_version=require_int(
                 mapping["protocol_version"],
                 field="protocol_version",
                 minimum=PROTOCOL_VERSION,
                 maximum=PROTOCOL_VERSION,
             ),
+            event_protocol_version=None,
             entrypoint=entrypoint,
         )
 
@@ -205,6 +255,19 @@ class ImmutableReleaseResolver:
         if executable.resolve().parent.parent.parent != release_dir.resolve():
             raise ReleaseResolutionError("release entrypoint escapes release directory")
         return executable
+
+    def release_manifest(self, release_id: str) -> ReleaseManifest:
+        """Return trusted compatibility metadata for one staged release."""
+        release_id = _release_id(release_id)
+        self._require_trusted_directory(self.releases_root)
+        release_dir = self.releases_root / release_id
+        self._require_trusted_directory(release_dir)
+        manifest_path = release_dir / "release.json"
+        self._require_trusted_file(manifest_path)
+        manifest = ReleaseManifest.from_mapping(_read_json(manifest_path))
+        if manifest.release_id != release_id:
+            raise ReleaseResolutionError("release manifest identity mismatch")
+        return manifest
 
     def _require_trusted_file(self, path: Path, *, executable: bool = False) -> None:
         try:

@@ -11,6 +11,7 @@ class SystemAction(StrEnum):
     RUN_DETAIL = "run.detail"
     DIAGNOSTIC_LIST = "diagnostic.list"
     SCHEDULE_SUMMARY = "schedule.summary"
+    STATUS_SNAPSHOT = "status.snapshot"
     BACKUP_REQUEST = "backup.request"
     RETENTION_REQUEST = "retention.request"
     UI_AVAILABILITY = "ui.availability"
@@ -25,6 +26,22 @@ class ResponseStatus(StrEnum):
     UNAVAILABLE = "unavailable"
     INVALID = "invalid"
     FAILED = "failed"
+
+
+class BackendStatus(StrEnum):
+    """Bounded backend availability states for status snapshots."""
+
+    AVAILABLE = "available"
+    UNAVAILABLE = "unavailable"
+
+
+class StatusEventKind(StrEnum):
+    """Allowlisted status event kinds for the event-driven tray contract."""
+
+    SNAPSHOT_REQUIRED = "snapshot_required"
+    CHANGED = "changed"
+    HEARTBEAT = "heartbeat"
+    RESYNC_REQUIRED = "resync_required"
 
 
 class ProtocolErrorCode(StrEnum):

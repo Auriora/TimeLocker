@@ -1,10 +1,11 @@
 [Unit]
 Description=TimeLocker privileged local system-control backend
-Requires=timelocker-control.socket
+Requires=timelocker-control.socket timelocker-status-events.socket
 After=local-fs.target
 
 [Service]
 Type=simple
+Sockets=timelocker-control.socket timelocker-status-events.socket
 User=root
 Group=root
 UMask=0077

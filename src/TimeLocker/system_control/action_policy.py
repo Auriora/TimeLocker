@@ -154,6 +154,7 @@ _SYSTEM_READ = frozenset(
     {
         ("runs", "list"),
         ("runs", "show"),
+        ("system", "status"),
         ("logs", "view", "system"),
     }
 )

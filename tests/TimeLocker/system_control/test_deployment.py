@@ -9,8 +9,11 @@ import pytest
 from TimeLocker.system_control.deployment import (
     AssetTarget,
     DeploymentError,
+    ReleaseProbeResult,
+    ReleaseProbeTargets,
     SystemReleaseDeployment,
     build_asset_manifest,
+    build_release_manifest,
     linux_asset_targets,
 )
 from TimeLocker.system_control.release_launcher import ImmutableReleaseResolver
@@ -30,13 +33,10 @@ def _stage_release(root: Path, release_id: str) -> None:
         executable.chmod(0o755)
     (release / "release.json").write_text(
         json.dumps(
-            {
-                "schema_version": 1,
-                "release_id": release_id,
-                "package_version": "0.9.1",
-                "protocol_version": 1,
-                "entrypoint": "venv/bin/timelocker",
-            }
+            build_release_manifest(
+                release_id=release_id,
+                package_version="0.9.1",
+            )
         )
     )
     (release / "release.json").chmod(0o644)
@@ -49,6 +49,22 @@ def _resolver(root: Path) -> ImmutableReleaseResolver:
         releases_root=root / "releases",
         selector_path=root / "selected-release.json",
         expected_owner_uid=os.getuid(),
+    )
+
+
+def _passing_probe(targets: ReleaseProbeTargets) -> ReleaseProbeResult:
+    return ReleaseProbeResult(
+        cli_compatible=True,
+        backend_compatible=True,
+        tray_compatible=True,
+        control_status_available=True,
+        event_channel_available=True,
+        backup_timer_active=True,
+        backup_timer_enabled=True,
+        retention_timer_active=True,
+        retention_timer_enabled=True,
+        control_protocol_version=targets.control_protocol_version,
+        event_protocol_version=targets.event_protocol_version,
     )
 
 
@@ -104,13 +120,10 @@ def test_upgrade_and_rollback_preserve_policy_and_run_records(tmp_path: Path) ->
     policy.write_text("approved-policy")
     record.write_text("durable-run")
 
-    def probe(*_executables: Path) -> bool:
-        return True
-
-    deployment.activate(RELEASE_A, health_probe=probe)
-    deployment.activate(RELEASE_B, health_probe=probe)
+    deployment.activate(RELEASE_A, health_probe=_passing_probe)
+    deployment.activate(RELEASE_B, health_probe=_passing_probe)
     assert resolver.resolve({}).parts[-4] == RELEASE_B
-    deployment.rollback(health_probe=probe)
+    deployment.rollback(health_probe=_passing_probe)
 
     assert resolver.resolve({}).parts[-4] == RELEASE_A
     assert policy.read_text() == "approved-policy"
@@ -156,10 +169,16 @@ def test_linux_asset_set_covers_launchers_backend_tray_and_schedules(
         "timelocker-tray-launcher",
         "timelocker-control.service",
         "timelocker-control.socket",
+        "timelocker-status-events.socket",
         "timelocker-retention.service",
         "timelocker-retention.timer",
         "timelocker-tray.desktop",
         "timelocker-icon.png",
+        "timelocker-icon-idle.png",
+        "timelocker-icon-running.png",
+        "timelocker-icon-success.png",
+        "timelocker-icon-warning.png",
+        "timelocker-icon-error.png",
     } <= sources
     policy = next(
         target
@@ -172,3 +191,93 @@ def test_linux_asset_set_covers_launchers_backend_tray_and_schedules(
     )
     assert icon.destination == tmp_path / "icons" / "timelocker.png"
     assert icon.mode == 0o644
+    error_icon = next(
+        target
+        for target in targets
+        if target.source_name == "timelocker-icon-error.png"
+    )
+    assert error_icon.destination == tmp_path / "icons" / "timelocker-error.png"
+    assert error_icon.mode == 0o644
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize(
+    "failed_field",
+    [
+        "control_status_available",
+        "event_channel_available",
+        "backup_timer_active",
+        "backup_timer_enabled",
+        "retention_timer_active",
+        "retention_timer_enabled",
+    ],
+)
+def test_activation_requires_protocol_socket_and_timer_health(
+    tmp_path: Path,
+    failed_field: str,
+) -> None:
+    _stage_release(tmp_path, RELEASE_A)
+    resolver = _resolver(tmp_path)
+    deployment = SystemReleaseDeployment(
+        resolver=resolver,
+        targets=(AssetTarget("unused", tmp_path / "unused", 0o644),),
+        expected_owner_uid=os.getuid(),
+    )
+
+    def probe(targets: ReleaseProbeTargets) -> ReleaseProbeResult:
+        values = {
+            "cli_compatible": True,
+            "backend_compatible": True,
+            "tray_compatible": True,
+            "control_status_available": True,
+            "event_channel_available": True,
+            "backup_timer_active": True,
+            "backup_timer_enabled": True,
+            "retention_timer_active": True,
+            "retention_timer_enabled": True,
+            "control_protocol_version": targets.control_protocol_version,
+            "event_protocol_version": targets.event_protocol_version,
+        }
+        values[failed_field] = False
+        return ReleaseProbeResult(**values)
+
+    with pytest.raises(DeploymentError, match="probe failed"):
+        deployment.activate(RELEASE_A, health_probe=probe)
+
+    assert not resolver.selector_path.exists()
+
+
+@pytest.mark.unit
+def test_rollback_allows_inert_event_socket_but_requires_control_and_timers(
+    tmp_path: Path,
+) -> None:
+    _stage_release(tmp_path, RELEASE_A)
+    _stage_release(tmp_path, RELEASE_B)
+    resolver = _resolver(tmp_path)
+    resolver.select(RELEASE_A)
+    resolver.select(RELEASE_B)
+    deployment = SystemReleaseDeployment(
+        resolver=resolver,
+        targets=(AssetTarget("unused", tmp_path / "unused", 0o644),),
+        expected_owner_uid=os.getuid(),
+    )
+
+    def rollback_probe(targets: ReleaseProbeTargets) -> ReleaseProbeResult:
+        result = _passing_probe(targets)
+        return ReleaseProbeResult(
+            cli_compatible=result.cli_compatible,
+            backend_compatible=result.backend_compatible,
+            tray_compatible=result.tray_compatible,
+            control_status_available=result.control_status_available,
+            event_channel_available=False,
+            backup_timer_active=result.backup_timer_active,
+            backup_timer_enabled=result.backup_timer_enabled,
+            retention_timer_active=result.retention_timer_active,
+            retention_timer_enabled=result.retention_timer_enabled,
+            control_protocol_version=result.control_protocol_version,
+            event_protocol_version=result.event_protocol_version,
+        )
+
+    selected = deployment.rollback(health_probe=rollback_probe)
+
+    assert selected.selected == RELEASE_A

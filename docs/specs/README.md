@@ -15,15 +15,20 @@ accepted content has been promoted and the package is closed.
 
 ## Current Packages
 
-There are no active specification packages.
+- [`010-event-driven-tray-status`](./010-event-driven-tray-status/README.md) -
+  active implementation package for replacing tray status polling with an
+  authenticated event subscription and accurate, quiet status presentation.
+  Implementation was approved on 2026-07-27; T001 is the first slice.
 
 ## Active-Package Sequencing
 
-Specs 007, 008, and 009 are closed. Their final package commits, cleanup
-commits, verification summaries, and residual follow-up are recorded in
-`docs/history/`. Closed packages remain recoverable from Git rather than kept
-in this active path. Repository implementation approval does not authorize
-release publication or deployment.
+Spec 010 is the only active package. Specs 007, 008, and 009 are closed. Their
+final package commits, cleanup commits, verification summaries, and residual
+follow-up are recorded in `docs/history/`. Closed packages remain recoverable
+from Git rather than kept in this active path. Spec 010 may rely on the durable
+behavior promoted by Spec 009, but not on its removed package as current
+authority. Repository implementation approval does not authorize release
+publication or deployment.
 
 ## When a Spec Is Needed
 

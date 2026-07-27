@@ -215,13 +215,34 @@ class TestSystemPolicyAndAssets:
 
     def test_socket_and_service_templates_enforce_narrow_boundary(self) -> None:
         socket_unit = (ASSET_DIRECTORY / "timelocker-control.socket").read_text()
+        event_socket_unit = (
+            ASSET_DIRECTORY / "timelocker-status-events.socket"
+        ).read_text()
         service_unit = (ASSET_DIRECTORY / "timelocker-control.service").read_text()
 
         assert "ListenStream=/run/timelocker/control.sock" in socket_unit
         assert "DirectoryMode=0755" in socket_unit
         assert "SocketGroup=timelocker-operators" in socket_unit
         assert "SocketMode=0660" in socket_unit
+        assert "FileDescriptorName=control" in socket_unit
+        assert "ListenStream=/run/timelocker/status-events.sock" in event_socket_unit
+        assert "DirectoryMode=0755" in event_socket_unit
+        assert "SocketUser=root" in event_socket_unit
+        assert "SocketGroup=timelocker-operators" in event_socket_unit
+        assert "SocketMode=0660" in event_socket_unit
+        assert "FileDescriptorName=status-events" in event_socket_unit
+        assert (
+            "Service=timelocker-control.service" in event_socket_unit
+        )
         assert "User=root" in service_unit
+        assert (
+            "Sockets=timelocker-control.socket timelocker-status-events.socket"
+            in service_unit
+        )
+        assert (
+            "Requires=timelocker-control.socket timelocker-status-events.socket"
+            in service_unit
+        )
         assert "UMask=0077" in service_unit
         assert "RuntimeDirectory=" not in service_unit
         assert "StateDirectoryMode=0750" in service_unit

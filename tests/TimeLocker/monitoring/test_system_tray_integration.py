@@ -21,11 +21,13 @@ from unittest.mock import Mock, patch
 
 from TimeLocker.monitoring.system_tray_integration import (
     PACKAGED_TRAY_ICON_PATH,
+    PACKAGED_TRAY_STATUS_ICON_PATHS,
     LinuxSystemTray,
     SystemTrayError,
     SystemTrayIntegration,
     TrayStatus,
     TrayStatusInfo,
+    _linux_tray_icon_path,
     _load_linux_tray_modules,
 )
 
@@ -40,14 +42,14 @@ class TestTrayStatusInfo:
         info = TrayStatusInfo(
             status=TrayStatus.SUCCESS,
             tooltip="Last backup: 2 hours ago",
-            last_backup_time=datetime.now(),
-            last_backup_status="success",
-            repository_count=3,
+            backend_available=True,
+            last_successful_backup_time=datetime.now(),
+            latest_backup_status="success",
             active_operations=0,
         )
 
         assert info.status == TrayStatus.SUCCESS
-        assert info.repository_count == 3
+        assert info.backend_available is True
         assert info.active_operations == 0
 
 
@@ -72,10 +74,8 @@ class TestSystemTrayIntegration:
                 "TestApp",
                 frozenset(
                     {
-                        "status",
                         "backup_now",
                         "retention_now",
-                        "open_ui",
                         "quit",
                     }
                 ),
@@ -152,7 +152,7 @@ class TestLinuxSystemTray:
 
     @pytest.mark.monitoring
     @pytest.mark.unit
-    def test_uses_packaged_timelocker_icon_for_initial_and_updated_status(self):
+    def test_uses_packaged_status_icons_for_initial_and_updated_status(self):
         gtk = Mock()
         indicator_module = Mock()
         indicator = indicator_module.Indicator.new.return_value
@@ -166,25 +166,35 @@ class TestLinuxSystemTray:
 
         indicator_module.Indicator.new.assert_called_once_with(
             "TimeLocker",
-            str(PACKAGED_TRAY_ICON_PATH),
+            str(PACKAGED_TRAY_STATUS_ICON_PATHS[TrayStatus.IDLE]),
             indicator_module.IndicatorCategory.APPLICATION_STATUS,
         )
-        indicator.set_icon.assert_called_once_with(str(PACKAGED_TRAY_ICON_PATH))
+        indicator.set_icon.assert_called_once_with(
+            str(PACKAGED_TRAY_STATUS_ICON_PATHS[TrayStatus.ERROR])
+        )
+
+    @pytest.mark.monitoring
+    @pytest.mark.unit
+    def test_status_icon_falls_back_to_base_logo(self):
+        with patch.object(
+            type(PACKAGED_TRAY_ICON_PATH),
+            "is_file",
+            side_effect=(False, True),
+        ):
+            icon = _linux_tray_icon_path(TrayStatus.ERROR)
+
+        assert icon == str(PACKAGED_TRAY_ICON_PATH)
 
     @pytest.mark.monitoring
     @pytest.mark.unit
     def test_linux_menu_shows_last_backup_in_local_time(self):
         gtk = Mock()
         indicator_module = Mock()
-        open_item = Mock()
-        last_backup_item = Mock()
-        status_item = Mock()
+        status_items = [Mock() for _ in range(7)]
         backup_item = Mock()
         quit_item = Mock()
         gtk.MenuItem.side_effect = [
-            open_item,
-            last_backup_item,
-            status_item,
+            *status_items,
             backup_item,
             quit_item,
         ]
@@ -196,14 +206,27 @@ class TestLinuxSystemTray:
             backup_time = datetime(2026, 7, 26, 12, 34, tzinfo=UTC)
             tray = LinuxSystemTray(
                 "TimeLocker",
-                frozenset({"status", "backup_now", "open_ui", "quit"}),
+                frozenset({"backup_now", "quit"}),
             )
-            tray.update_last_backup_time(backup_time)
+            tray.update_status_rows(
+                TrayStatusInfo(
+                    status=TrayStatus.SUCCESS,
+                    tooltip="TimeLocker",
+                    backend_available=True,
+                    last_successful_backup_time=backup_time,
+                    latest_backup_status="Backup completed successfully.",
+                )
+            )
 
-        last_backup_item.set_sensitive.assert_called_once_with(False)
+        assert all(
+            call.kwargs.get("label") not in {"Open TimeLocker", "View Status"}
+            for call in gtk.MenuItem.call_args_list
+        )
+        for status_item in status_items:
+            status_item.set_sensitive.assert_called_once_with(False)
         expected_time = backup_time.astimezone().strftime("%Y-%m-%d %H:%M %Z")
-        last_backup_item.set_label.assert_called_once_with(
-            f"Last backup: {expected_time}".rstrip()
+        status_items[2].set_label.assert_called_once_with(
+            f"Last successful backup: {expected_time}".rstrip()
         )
 
     @pytest.mark.monitoring

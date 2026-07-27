@@ -4,18 +4,25 @@ from __future__ import annotations
 
 import argparse
 import os
+from queue import Empty, Full, Queue
 import signal
 import sys
 import time
 from contextlib import contextmanager, suppress
 from pathlib import Path
-from typing import Any, Callable
+from threading import Event, Thread
+from typing import Any
 
-from .tray_client import TrayControlClient, TrayDisplayState
+from .tray_client import (
+    TrayControlClient,
+    TrayDisplayState,
+    TrayStatusSubscriptionClient,
+)
 from ..monitoring.system_tray_integration import (
     SystemTrayError,
     SystemTrayIntegration,
     TrayStatus,
+    TrayStatusInfo,
 )
 
 try:
@@ -23,16 +30,10 @@ try:
 except ImportError:  # pragma: no cover - Windows-specific.
     fcntl = None
 
-from .client import (
-    ProtocolErrorCode,
-    SystemControlClientError,
-    UnixSocketSystemControlClient,
-)
-from .types import ResponseStatus
+from .client import UnixSocketSystemControlClient
 
 DEFAULT_REFRESH_SECONDS = 15
-DEFAULT_POLL_SECONDS = 30
-TRAY_STATUS_ACTIONS = {"status", "backup_now", "retention_now", "open_ui", "quit"}
+TRAY_STATUS_ACTIONS = {"status", "backup_now", "retention_now", "quit"}
 _runtime_directory = os.environ.get("XDG_RUNTIME_DIR")
 LOCK_PATH = (
     Path(_runtime_directory) / "timelocker" / "tray.lock"
@@ -126,8 +127,12 @@ def _render_status(state: TrayDisplayState) -> str:
         f"status: {state.status}",
         f"active_operations: {state.active_operations}",
         f"backend_available: {state.backend_available}",
-        f"repositories: {state.repository_count}",
     ]
+    if state.last_successful_backup_completed_at:
+        bits.append(
+            "last_successful_backup_completed_at: "
+            f"{state.last_successful_backup_completed_at.isoformat()}"
+        )
     if state.next_backup_at:
         bits.append(f"next_backup_at: {state.next_backup_at.isoformat()}")
     if state.next_retention_at:
@@ -141,8 +146,21 @@ def _apply_state(
 ) -> None:
     if not tray.is_available():
         return
-    tray.update_status(_status_to_tray(state.status), tooltip=state.tooltip)
-    tray.update_last_backup_time(state.last_backup_started_at)
+    tray.update_status_info(
+        TrayStatusInfo(
+            status=_status_to_tray(state.status),
+            tooltip=state.tooltip,
+            backend_available=state.backend_available,
+            last_successful_backup_time=(
+                state.last_successful_backup_completed_at
+            ),
+            latest_backup_status=state.latest_backup_status,
+            latest_retention_status=state.latest_retention_status,
+            next_backup_time=state.next_backup_at,
+            next_retention_time=state.next_retention_at,
+            active_operations=state.active_operations,
+        )
+    )
 
 
 def _build_client(
@@ -157,7 +175,7 @@ def _build_client(
 
 
 def _tray_menu_actions(retention_policy_fingerprint: str | None) -> frozenset[str]:
-    actions = {"status", "backup_now", "open_ui", "quit"}
+    actions = {"backup_now", "quit"}
     if retention_policy_fingerprint:
         actions.add("retention_now")
     return frozenset(actions)
@@ -172,9 +190,6 @@ def _handle_action(
 ) -> TrayDisplayState | None:
     if action == "quit":
         raise SystemExit(0)
-    if action == "open_ui":
-        print("open-ui not yet implemented")
-        return None
     if action not in TRAY_STATUS_ACTIONS:
         raise SystemExit(f"unsupported action: {action}")
     return client.perform_action(action, dry_run_retention=dry_run_retention)
@@ -199,17 +214,17 @@ def _menu_action(
         _apply_state(tray, state)
 
 
-def _wait_for_next_refresh(
-    tray: SystemTrayIntegration | None,
-    seconds: float,
-    stop_requested: Callable[[], bool],
+def _offer_latest(
+    updates: Queue[TrayDisplayState],
+    state: TrayDisplayState,
 ) -> None:
-    """Keep the desktop event loop responsive between backend refreshes."""
-    deadline = time.monotonic() + seconds
-    while not stop_requested() and time.monotonic() < deadline:
-        if tray is not None:
-            tray.process_events()
-        time.sleep(min(0.25, max(0.0, deadline - time.monotonic())))
+    """Coalesce worker-to-desktop updates to the newest safe state."""
+    try:
+        updates.put_nowait(state)
+    except Full:
+        with suppress(Empty):
+            updates.get_nowait()
+        updates.put_nowait(state)
 
 
 def main() -> None:
@@ -247,13 +262,14 @@ def main() -> None:
     except SystemTrayError:
         tray = None
 
-    poll_interval = max(DEFAULT_POLL_SECONDS, arguments.refresh_seconds)
-
     stop_requested = False
+    subscription_stop = Event()
+    subscription_thread: Thread | None = None
 
     def _request_stop(*_args: Any) -> None:
         nonlocal stop_requested
         stop_requested = True
+        subscription_stop.set()
 
     signal.signal(signal.SIGTERM, _request_stop)
     signal.signal(signal.SIGINT, _request_stop)
@@ -272,48 +288,55 @@ def main() -> None:
                     )
                 tray.show_context_menu()
 
+            updates: Queue[TrayDisplayState] = Queue(maxsize=1)
+            subscription = TrayStatusSubscriptionClient()
+
+            def _subscribe() -> None:
+                subscription.serve(
+                    subscription_stop,
+                    on_snapshot=lambda snapshot: _offer_latest(
+                        updates,
+                        client.project_snapshot(snapshot),
+                    ),
+                    on_unavailable=lambda reason: _offer_latest(
+                        updates,
+                        client.unavailable_state(
+                            (
+                                "TimeLocker - Access denied"
+                                if reason == "denied"
+                                else "TimeLocker - System backend unavailable"
+                            ),
+                            backend_available=reason == "denied",
+                        ),
+                    ),
+                )
+
+            subscription_thread = Thread(
+                target=_subscribe,
+                name="timelocker-tray-status",
+                daemon=True,
+            )
+            subscription_thread.start()
+
             while not stop_requested:
+                if tray is not None:
+                    tray.process_events()
                 try:
-                    state = client.refresh_status()
-                except Exception as exc:
-                    if isinstance(exc, SystemControlClientError):
-                        if (
-                            exc.error_code
-                            is ProtocolErrorCode.SYSTEM_BACKEND_UNAVAILABLE
-                            and exc.status == ResponseStatus.UNAVAILABLE
-                        ):
-                            # Keep tray alive; retry on background interval.
-                            print("backend unavailable, retrying...", file=sys.stderr)
-                            _wait_for_next_refresh(
-                                tray,
-                                poll_interval,
-                                lambda: stop_requested,
-                            )
-                            continue
-                    print(f"{exc}", file=sys.stderr)
-                    _wait_for_next_refresh(
-                        tray,
-                        poll_interval,
-                        lambda: stop_requested,
-                    )
+                    state = updates.get_nowait()
+                except Empty:
+                    time.sleep(0.05)
                     continue
-
-                if state:
-                    if tray and tray.is_available():
-                        _apply_state(tray, state)
-                    print(_render_status(state))
-
+                if tray and tray.is_available():
+                    _apply_state(tray, state)
                 if arguments.once:
                     break
-                _wait_for_next_refresh(
-                    tray,
-                    poll_interval,
-                    lambda: stop_requested,
-                )
     except RuntimeError as exc:
         print(f"{exc}", file=sys.stderr)
         raise SystemExit(1) from None
     finally:
+        subscription_stop.set()
+        if subscription_thread is not None:
+            subscription_thread.join(timeout=1.0)
         if tray is not None and tray.is_available():
             tray.shutdown()
 

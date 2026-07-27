@@ -9,9 +9,13 @@ import os
 from pathlib import Path
 import shutil
 
-from .models import PROTOCOL_VERSION
-from .release_launcher import ImmutableReleaseResolver, SelectedRelease
-from .validation import require_int, require_safe_identifier
+from .models import PROTOCOL_VERSION, STATUS_EVENT_PROTOCOL_VERSION
+from .release_launcher import (
+    ImmutableReleaseResolver,
+    ReleaseManifest,
+    SelectedRelease,
+)
+from .validation import require_bool, require_int, require_safe_identifier
 
 
 class DeploymentError(RuntimeError):
@@ -65,6 +69,64 @@ class SystemAssetManifest:
                 character not in "0123456789abcdef" for character in digest
             ):
                 raise ValueError("asset hash must be a lowercase SHA-256 digest")
+
+
+@dataclass(frozen=True, slots=True)
+class ReleaseProbeTargets:
+    """Trusted artifacts and protocol versions a probe must exercise."""
+
+    cli: Path
+    backend: Path
+    tray: Path
+    control_protocol_version: int
+    event_protocol_version: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class ReleaseProbeResult:
+    """Fail-closed activation evidence returned by the deployment probe."""
+
+    cli_compatible: bool
+    backend_compatible: bool
+    tray_compatible: bool
+    control_status_available: bool
+    event_channel_available: bool
+    backup_timer_active: bool
+    backup_timer_enabled: bool
+    retention_timer_active: bool
+    retention_timer_enabled: bool
+    control_protocol_version: int
+    event_protocol_version: int | None
+
+    def __post_init__(self) -> None:
+        for field_name in (
+            "cli_compatible",
+            "backend_compatible",
+            "tray_compatible",
+            "control_status_available",
+            "event_channel_available",
+            "backup_timer_active",
+            "backup_timer_enabled",
+            "retention_timer_active",
+            "retention_timer_enabled",
+        ):
+            require_bool(getattr(self, field_name), field=field_name)
+        require_int(
+            self.control_protocol_version,
+            field="control_protocol_version",
+            minimum=PROTOCOL_VERSION,
+            maximum=PROTOCOL_VERSION,
+        )
+        if self.event_protocol_version is not None:
+            require_int(
+                self.event_protocol_version,
+                field="event_protocol_version",
+                minimum=STATUS_EVENT_PROTOCOL_VERSION,
+                maximum=STATUS_EVENT_PROTOCOL_VERSION,
+            )
+
+
+ReleaseHealthProbe = Callable[[ReleaseProbeTargets], ReleaseProbeResult]
 
 
 class SystemReleaseDeployment:
@@ -122,41 +184,85 @@ class SystemReleaseDeployment:
         self,
         release_id: str,
         *,
-        health_probe: Callable[[Path, Path, Path], bool],
+        health_probe: ReleaseHealthProbe,
     ) -> SelectedRelease:
-        """Select a release only after CLI, backend, and tray probes pass."""
-        executables = tuple(
-            self.resolver._resolve_release(release_id, entrypoint=entrypoint)
-            for entrypoint in (
-                "venv/bin/timelocker",
-                "venv/bin/timelocker-system-control",
-                "venv/bin/timelocker-tray",
+        """Select a release only after its complete compatibility probe passes."""
+        manifest = self.resolver.release_manifest(release_id)
+        if manifest.event_protocol_version is None:
+            raise DeploymentError(
+                "staged release does not declare event protocol compatibility"
             )
-        )
-        if health_probe(*executables) is not True:
+        targets = self._probe_targets(release_id, manifest)
+        result = health_probe(targets)
+        if not self._probe_passed(result, targets, require_event=True):
             raise DeploymentError("staged release compatibility probe failed")
         return self.resolver.select(release_id)
+
+    def _probe_targets(
+        self,
+        release_id: str,
+        manifest: ReleaseManifest,
+    ) -> ReleaseProbeTargets:
+        return ReleaseProbeTargets(
+            cli=self.resolver._resolve_release(
+                release_id,
+                entrypoint="venv/bin/timelocker",
+            ),
+            backend=self.resolver._resolve_release(
+                release_id,
+                entrypoint="venv/bin/timelocker-system-control",
+            ),
+            tray=self.resolver._resolve_release(
+                release_id,
+                entrypoint="venv/bin/timelocker-tray",
+            ),
+            control_protocol_version=manifest.control_protocol_version,
+            event_protocol_version=manifest.event_protocol_version,
+        )
 
     def rollback(
         self,
         *,
-        health_probe: Callable[[Path, Path, Path], bool],
+        health_probe: ReleaseHealthProbe,
     ) -> SelectedRelease:
-        """Restore the prior selector only after its artifacts pass probes."""
+        """Restore the prior selector while preserving control and timer health."""
         current = self.resolver._read_selector_optional()
         if current is None or current.previous is None:
             raise DeploymentError("no previous release is available")
-        executables = tuple(
-            self.resolver._resolve_release(current.previous, entrypoint=entrypoint)
-            for entrypoint in (
-                "venv/bin/timelocker",
-                "venv/bin/timelocker-system-control",
-                "venv/bin/timelocker-tray",
-            )
-        )
-        if health_probe(*executables) is not True:
+        manifest = self.resolver.release_manifest(current.previous)
+        targets = self._probe_targets(current.previous, manifest)
+        result = health_probe(targets)
+        if not self._probe_passed(result, targets, require_event=False):
             raise DeploymentError("rollback release compatibility probe failed")
         return self.resolver.rollback()
+
+    @staticmethod
+    def _probe_passed(
+        result: object,
+        targets: ReleaseProbeTargets,
+        *,
+        require_event: bool,
+    ) -> bool:
+        if not isinstance(result, ReleaseProbeResult):
+            return False
+        if (
+            result.control_protocol_version != targets.control_protocol_version
+            or result.event_protocol_version != targets.event_protocol_version
+        ):
+            return False
+        required = (
+            result.cli_compatible,
+            result.backend_compatible,
+            result.tray_compatible,
+            result.control_status_available,
+            result.backup_timer_active,
+            result.backup_timer_enabled,
+            result.retention_timer_active,
+            result.retention_timer_enabled,
+        )
+        return all(required) and (
+            result.event_channel_available if require_event else True
+        )
 
 
 def linux_asset_targets(
@@ -198,6 +304,11 @@ def linux_asset_targets(
             0o644,
         ),
         AssetTarget(
+            "timelocker-status-events.socket",
+            unit_root / "timelocker-status-events.socket",
+            0o644,
+        ),
+        AssetTarget(
             "timelocker-retention.service",
             unit_root / "timelocker-retention.service",
             0o644,
@@ -223,6 +334,14 @@ def linux_asset_targets(
             icon_root / "timelocker.png",
             0o644,
         ),
+        *(
+            AssetTarget(
+                f"timelocker-icon-{status}.png",
+                icon_root / f"timelocker-{status}.png",
+                0o644,
+            )
+            for status in ("idle", "running", "success", "warning", "error")
+        ),
     )
 
 
@@ -239,6 +358,28 @@ def build_asset_manifest(
         package_version=package_version,
         hashes={name: _sha256(asset_root / name) for name in asset_names},
     )
+
+
+def build_release_manifest(
+    *,
+    release_id: str,
+    package_version: str,
+) -> dict[str, object]:
+    """Build schema-2 metadata binding all selected process protocols."""
+    mapping: dict[str, object] = {
+        "schema_version": 2,
+        "release_id": release_id,
+        "package_version": require_safe_identifier(
+            package_version,
+            field="package_version",
+            maximum=64,
+        ),
+        "control_protocol_version": PROTOCOL_VERSION,
+        "event_protocol_version": STATUS_EVENT_PROTOCOL_VERSION,
+        "entrypoint": "venv/bin/timelocker",
+    }
+    ReleaseManifest.from_mapping(mapping)
+    return mapping
 
 
 def _sha256(path: Path) -> str:

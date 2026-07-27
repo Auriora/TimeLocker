@@ -18,12 +18,15 @@ from TimeLocker.system_control.models import (
     RunQuery,
     RunRecord,
     RunRecordView,
+    StatusRevision,
+    StatusSnapshot,
     BackupActionRequest,
     RetentionActionRequest,
     ActionReceipt,
 )
 from TimeLocker.system_control.protocol import ResponseEnvelope
 from TimeLocker.system_control.types import (
+    BackendStatus,
     DiagnosticCode,
     DiagnosticComponent,
     DiagnosticLevel,
@@ -237,6 +240,22 @@ def test_schedule_summary_parses_only_utc_projected_timestamps() -> None:
 
     assert summary.next_backup_at == next_backup
     assert summary.next_retention_at is None
+
+
+@pytest.mark.unit
+def test_status_snapshot_uses_one_read_only_allowlisted_request() -> None:
+    expected = StatusSnapshot.from_run_history(
+        revision=StatusRevision(uuid4(), 0),
+        backend_status=BackendStatus.AVAILABLE,
+        active_operations=0,
+        runs=(_run(),),
+    )
+
+    client = UnixSocketSystemControlClient(
+        exchange=_success_exchange(SystemAction.STATUS_SNAPSHOT, expected.to_wire())
+    )
+
+    assert client.get_status_snapshot() == expected
 
 
 @pytest.mark.unit

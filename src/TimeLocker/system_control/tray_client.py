@@ -4,17 +4,24 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from threading import Event
 from typing import Callable, TypeVar
 
 from .client import SystemControlClientError, UnixSocketSystemControlClient
-from .interfaces import SystemControlClient
-from .models import RunQuery, RunRecordView, ScheduleSummary
-from .models import RetentionActionRequest, BackupActionRequest
-from .types import OperationType, ProtocolErrorCode, ResponseStatus, RunState
+from .event_client import StatusEventAccessDenied, UnixSocketStatusEventClient
+from .interfaces import StatusEventClient, SystemControlClient
+from .models import BackupActionRequest, RetentionActionRequest, StatusSnapshot
+from .types import (
+    BackendStatus,
+    ProtocolErrorCode,
+    ResponseStatus,
+    RunState,
+    StatusEventKind,
+)
 
 
 ALLOWED_TRAY_ACTIONS = frozenset(
-    {"status", "backup_now", "retention_now", "open_ui", "quit"}
+    {"status", "backup_now", "retention_now", "quit"}
 )
 _BACKEND_RETRY_DELAY_SECONDS = 2.0
 _BACKEND_RETRY_MAX_SECONDS = 60.0
@@ -28,13 +35,13 @@ class TrayDisplayState:
     tooltip: str
     active_operations: int
     backend_available: bool
-    last_backup_started_at: datetime | None
-    last_backup_status: str | None
-    last_retention_started_at: datetime | None
-    last_retention_status: str | None
+    last_successful_backup_completed_at: datetime | None
+    latest_backup_started_at: datetime | None
+    latest_backup_status: str | None
+    latest_retention_started_at: datetime | None
+    latest_retention_status: str | None
     next_backup_at: datetime | None
     next_retention_at: datetime | None
-    repository_count: int
 
 
 class TrayBackendUnavailable(RuntimeError):
@@ -43,6 +50,68 @@ class TrayBackendUnavailable(RuntimeError):
 
 _ClientFactory = Callable[[], SystemControlClient]
 _T = TypeVar("_T")
+
+
+class TrayStatusSubscriptionClient:
+    """Refresh snapshots only when the authenticated event stream invalidates."""
+
+    def __init__(
+        self,
+        *,
+        control_client: SystemControlClient | None = None,
+        event_client: StatusEventClient | None = None,
+    ) -> None:
+        self._control_client = control_client or UnixSocketSystemControlClient()
+        self._event_client = event_client or UnixSocketStatusEventClient()
+
+    def serve(
+        self,
+        stop_event: Event,
+        *,
+        on_snapshot: Callable[[StatusSnapshot], None],
+        on_unavailable: Callable[[str], None] | None = None,
+    ) -> None:
+        """Consume invalidations and publish coherent snapshots to the tray."""
+        if not isinstance(stop_event, Event):
+            raise TypeError("stop_event must be a threading.Event")
+        applied = None
+        refresh_pending = True
+        try:
+            for event in self._event_client.events(stop_event):
+                if stop_event.is_set():
+                    return
+                if event.kind is StatusEventKind.HEARTBEAT and not refresh_pending:
+                    continue
+                if event.kind is not StatusEventKind.HEARTBEAT and (
+                    applied is not None
+                    and event.revision.session_id == applied.session_id
+                    and event.revision.sequence <= applied.sequence
+                ):
+                    continue
+                refresh_pending = True
+                try:
+                    snapshot = self._control_client.get_status_snapshot()
+                except SystemControlClientError as error:
+                    if on_unavailable is not None:
+                        state = (
+                            "denied"
+                            if error.status is ResponseStatus.DENIED
+                            else "unavailable"
+                        )
+                        on_unavailable(state)
+                    continue
+                if (
+                    applied is not None
+                    and snapshot.revision.session_id == applied.session_id
+                    and snapshot.revision.sequence < applied.sequence
+                ):
+                    continue
+                applied = snapshot.revision
+                refresh_pending = False
+                on_snapshot(snapshot)
+        except StatusEventAccessDenied:
+            if on_unavailable is not None:
+                on_unavailable("denied")
 
 
 class TrayControlClient:
@@ -82,63 +151,106 @@ class TrayControlClient:
 
     def refresh_status(self) -> TrayDisplayState:
         """Return a tray-safe status snapshot for the current backend state."""
-
-        def _build_from_runs(
-            runs: list[RunRecordView],
-            summary: ScheduleSummary,
-        ) -> TrayDisplayState:
-            active_operations = self._count_active_runs(runs)
-            backup_runs = [run for run in runs if run.operation is OperationType.BACKUP]
-            retention_runs = [
-                run for run in runs if run.operation is OperationType.RETENTION
-            ]
-            latest_backup = self._latest_run(backup_runs)
-            latest_retention = self._latest_run(retention_runs)
-
-            return TrayDisplayState(
-                status=self._status_from_runs(runs),
-                tooltip=self._build_tooltip(
-                    latest_backup, latest_retention, summary, active_operations
-                ),
-                active_operations=active_operations,
-                backend_available=True,
-                last_backup_started_at=latest_backup.started_at
-                if latest_backup
-                else None,
-                last_backup_status=latest_backup.safe_summary
-                if latest_backup
-                else None,
-                last_retention_started_at=(
-                    latest_retention.started_at if latest_retention else None
-                ),
-                last_retention_status=(
-                    latest_retention.safe_summary if latest_retention else None
-                ),
-                next_backup_at=summary.next_backup_at,
-                next_retention_at=summary.next_retention_at,
-                repository_count=len({run.target_id for run in runs}),
-            )
-
         try:
-            runs = self._with_backend(
-                lambda backend: backend.list_runs(
-                    RunQuery(limit=self._max_history_runs)
-                )
+            snapshot = self._with_backend(
+                lambda backend: backend.get_status_snapshot()
             )
-            summary = self._with_backend(lambda backend: backend.get_schedule_summary())
         except TrayBackendUnavailable:
-            return self._unavailable_state(
+            return self.unavailable_state(
                 "TimeLocker - System backend unavailable",
                 backend_available=False,
             )
         except SystemControlClientError as error:
             if error.status is ResponseStatus.DENIED:
-                return self._unavailable_state(
+                return self.unavailable_state(
                     "TimeLocker - Access denied",
                     backend_available=True,
                 )
             raise
-        return _build_from_runs(runs, summary)
+        return self.project_snapshot(snapshot)
+
+    @staticmethod
+    def project_snapshot(snapshot: StatusSnapshot) -> TrayDisplayState:
+        """Project one coherent backend snapshot into safe desktop fields."""
+        if not isinstance(snapshot, StatusSnapshot):
+            raise TypeError("snapshot must be a StatusSnapshot")
+        latest_runs = tuple(
+            run
+            for run in (snapshot.latest_backup, snapshot.latest_retention)
+            if run is not None
+        )
+        if snapshot.backend_status is BackendStatus.UNAVAILABLE:
+            status = "warning"
+        elif snapshot.active_operations:
+            status = "running"
+        elif any(
+            run.state in {RunState.FAILED, RunState.INTERRUPTED}
+            for run in latest_runs
+        ):
+            status = "error"
+        elif snapshot.latest_backup is None:
+            status = "warning"
+        elif any(run.state is RunState.SKIPPED for run in latest_runs):
+            status = "warning"
+        elif any(run.state is RunState.SUCCEEDED for run in latest_runs):
+            status = "success"
+        else:
+            status = "idle"
+
+        tooltip_lines = [
+            "TimeLocker",
+            f"Backend: {snapshot.backend_status.value.title()}",
+            f"Active operations: {snapshot.active_operations}",
+            "Last successful backup: "
+            + _format_local_time(snapshot.last_successful_backup_completed_at),
+        ]
+        if snapshot.latest_backup is not None:
+            tooltip_lines.append(
+                f"Latest backup: {snapshot.latest_backup.safe_summary}"
+            )
+        if snapshot.latest_retention is not None:
+            tooltip_lines.append(
+                f"Latest retention: {snapshot.latest_retention.safe_summary}"
+            )
+        if snapshot.next_backup_at is not None:
+            tooltip_lines.append(
+                f"Next backup: {_format_local_time(snapshot.next_backup_at)}"
+            )
+        if snapshot.next_retention_at is not None:
+            tooltip_lines.append(
+                f"Next retention: {_format_local_time(snapshot.next_retention_at)}"
+            )
+        return TrayDisplayState(
+            status=status,
+            tooltip="\n".join(tooltip_lines),
+            active_operations=snapshot.active_operations,
+            backend_available=snapshot.backend_status is BackendStatus.AVAILABLE,
+            last_successful_backup_completed_at=(
+                snapshot.last_successful_backup_completed_at
+            ),
+            latest_backup_started_at=(
+                snapshot.latest_backup.started_at
+                if snapshot.latest_backup is not None
+                else None
+            ),
+            latest_backup_status=(
+                snapshot.latest_backup.safe_summary
+                if snapshot.latest_backup is not None
+                else None
+            ),
+            latest_retention_started_at=(
+                snapshot.latest_retention.started_at
+                if snapshot.latest_retention is not None
+                else None
+            ),
+            latest_retention_status=(
+                snapshot.latest_retention.safe_summary
+                if snapshot.latest_retention is not None
+                else None
+            ),
+            next_backup_at=snapshot.next_backup_at,
+            next_retention_at=snapshot.next_retention_at,
+        )
 
     def perform_action(
         self, action: str, *, dry_run_retention: bool = False
@@ -146,10 +258,8 @@ class TrayControlClient:
         """Execute a supported tray action and refresh status when possible."""
         if action not in ALLOWED_TRAY_ACTIONS:
             raise ValueError(f"unsupported tray action: {action}")
-        if action in {"status", "open_ui", "quit"}:
+        if action in {"status", "quit"}:
             if action == "quit":
-                return None
-            if action == "open_ui":
                 return None
             return self.refresh_status()
         if action == "backup_now":
@@ -195,7 +305,7 @@ class TrayControlClient:
         return result
 
     @staticmethod
-    def _unavailable_state(
+    def unavailable_state(
         tooltip: str,
         *,
         backend_available: bool,
@@ -205,72 +315,17 @@ class TrayControlClient:
             tooltip=tooltip,
             active_operations=0,
             backend_available=backend_available,
-            last_backup_started_at=None,
-            last_backup_status=None,
-            last_retention_started_at=None,
-            last_retention_status=None,
+            last_successful_backup_completed_at=None,
+            latest_backup_started_at=None,
+            latest_backup_status=None,
+            latest_retention_started_at=None,
+            latest_retention_status=None,
             next_backup_at=None,
             next_retention_at=None,
-            repository_count=0,
         )
 
-    def _count_active_runs(self, runs: list[RunRecordView]) -> int:
-        return sum(
-            1
-            for run in runs
-            if run.state in {RunState.QUEUED, RunState.RUNNING}
-        )
 
-    def _latest_run(self, runs: list[RunRecordView]) -> RunRecordView | None:
-        if not runs:
-            return None
-        return sorted(runs, key=lambda run: run.started_at, reverse=True)[0]
-
-    def _status_from_runs(self, runs: list[RunRecordView]) -> str:
-        if any(
-            run.state in {RunState.QUEUED, RunState.RUNNING}
-            for run in runs
-        ):
-            return "running"
-        latest_runs = [
-            latest
-            for operation in (OperationType.BACKUP, OperationType.RETENTION)
-            if (
-                latest := self._latest_run(
-                    [run for run in runs if run.operation is operation]
-                )
-            )
-            is not None
-        ]
-        if any(
-            run.state in {RunState.FAILED, RunState.INTERRUPTED}
-            for run in latest_runs
-        ):
-            return "error"
-        if any(run.state is RunState.SKIPPED for run in latest_runs):
-            return "warning"
-        if any(run.state is RunState.SUCCEEDED for run in latest_runs):
-            return "success"
-        return "idle"
-
-    def _build_tooltip(
-        self,
-        latest_backup: RunRecordView | None,
-        latest_retention: RunRecordView | None,
-        summary: ScheduleSummary,
-        active_operations: int,
-    ) -> str:
-        lines: list[str] = ["TimeLocker"]
-        if active_operations:
-            lines.append(f"Active: {active_operations}")
-        if latest_backup:
-            lines.append(f"Last backup: {latest_backup.started_at.isoformat()}")
-            lines.append(f"Backup status: {latest_backup.safe_summary}")
-        if latest_retention:
-            lines.append(f"Last retention: {latest_retention.started_at.isoformat()}")
-            lines.append(f"Retention status: {latest_retention.safe_summary}")
-        if summary.next_backup_at:
-            lines.append(f"Next backup: {summary.next_backup_at.isoformat()}")
-        if summary.next_retention_at:
-            lines.append(f"Next retention: {summary.next_retention_at.isoformat()}")
-        return "\n".join(lines) if len(lines) > 1 else "TimeLocker - Idle"
+def _format_local_time(value: datetime | None) -> str:
+    if value is None:
+        return "Never"
+    return value.astimezone().strftime("%Y-%m-%d %H:%M %Z").rstrip()
