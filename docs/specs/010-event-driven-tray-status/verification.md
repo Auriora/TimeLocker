@@ -108,7 +108,7 @@ closure.
 | T008 | complete | Token-derived bounded Windows named-pipe event contracts, four new platform tests, 232 system-control tests | No live Windows service or acceptance is claimed. |
 | T009 | complete | Named protected event socket asset, named systemd descriptor mapping, dual-protocol release metadata, structured activation/rollback gates, 246 system-control tests | Installed-artifact and live-host evidence remain T010-T011. |
 | T010 | complete | Five deterministic accessible logo badges, honest never-run/failure projection, 268-test regression, 27-file package-data validation, SHA-256 verification, and clean-install wheel/sdist smoke | No live selector, unit, socket, timer, backup, retention, or protected path changed. |
-| T011 | in progress | Repository-owned evidence validator and preflight-first transactional deployment harness; fail-closed wheel-filename correction and exact staging rehearsal | New committed artifact, redeployment, and acceptance remain pending. |
+| T011 | in progress | Repository-owned evidence validator, preflight-first transaction, fail-closed wheel-filename correction, and successful commit-bound Linux Mint activation | Remaining installed acceptance checks and evidence validation are pending; general deployment workflow is routed to Spec 011. |
 | T012-T013 | pending | none | Sequenced by the task dependency graph. |
 
 ## Evidence Log
@@ -152,6 +152,8 @@ closure.
 | 2026-07-27 | Commit-bound hardened deployment staging | fail closed; rollback passed | Pip rejected the private evidence copy because `candidate.whl` is not a valid wheel filename. Failure occurred before activation; selector `d540b453864fce9b1c96a85ad9ecf604b98b7f57`, service, sockets, and timers remained healthy, and candidate `8e8ebada197e713b60285d5105fe8b7ad8b9b8dc` was removed. |
 | 2026-07-27 | Wheel-filename correction focused validation | pass | The harness preserves and validates the original wheel basename, rejects `candidate.whl` before host-state creation, and passes 11 focused tests, scoped Ruff, compileall, and patch integrity. |
 | 2026-07-27 | Exact system-Python staging rehearsal | pass | `/usr/bin/python3` staged `timelocker-0.9.1-py3-none-any.whl` through the corrected harness into an isolated `/tmp` release and imported installed TimeLocker version `0.9.1`; no protected host path or service was changed. |
+| 2026-07-28 | Corrected commit-bound Linux Mint deployment | activation passed | Release `a67c83ac09ac29b94a3ed481ee536b3380db3337` was selected with `d540b453864fce9b1c96a85ad9ecf604b98b7f57` retained as previous. Identity preflights passed; deployment triggered no backup or retention. Independent reads confirmed the control service, both sockets, backup timer, and retention timer active, required units enabled, installed CLI version `0.9.1`, system run access, and tray status success. |
+| 2026-07-28 | General deployment workflow routing | follow-up created | Draft [Spec 011](../011-protected-system-deployment/README.md) owns the supported install, upgrade, status, rollback, staging, provenance, and evidence workflow. Its implementation waits for Spec 010 closure. |
 
 ## Manual Or External Verification
 

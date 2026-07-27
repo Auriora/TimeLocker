@@ -281,12 +281,17 @@ T009 -> T010 -> T011 -> T012 -> T013
     before creating host state. Eleven focused harness tests, scoped Ruff,
     compileall, patch integrity, and an exact `/usr/bin/python3` staging
     rehearsal with the release wheel passed. Live redeployment and acceptance
-    remain pending; no backup, retention, selector, unit, or protected host
-    state was changed by this correction.
+    remained separately approval-gated. The subsequent commit-bound deployment
+    of `a67c83ac09ac29b94a3ed481ee536b3380db3337` succeeded on Linux Mint:
+    preflight identity checks passed, no backup or retention was triggered, the
+    selector retained `d540b453864fce9b1c96a85ad9ecf604b98b7f57` as the
+    previous release, the control service, sockets, backup timer, and retention
+    timer remained healthy, and installed CLI/tray status probes passed. The
+    absence of a supported general deployment entrypoint is routed to
+    [Spec 011](../011-protected-system-deployment/README.md).
 
-  - Status: Wheel-filename correction implemented and locally validated; a new
-    committed release artifact and renewed live deployment approval remain
-    required.
+  - Status: Corrected release activated successfully; the remaining installed
+    T011 acceptance checks and evidence validation are in progress.
 - [ ] T012 Run the TimeLocker expert review and address findings.
   - Depends on: T011
   - Requirements: Requirement 1-Requirement 7
@@ -304,8 +309,9 @@ T009 -> T010 -> T011 -> T012 -> T013
     `docs/specs/README.md`, `docs/history/`
   - Acceptance: Configured regression and all required focused/platform/
     security/package checks pass; accepted behavior is promoted; Windows live
-    work has one follow-up destination; lifecycle evidence, traceability,
-    closure, final-spec commit, cleanup, and history indexes are complete.
+    work has one follow-up destination; general protected deployment workflow
+    debt is owned by Spec 011; lifecycle evidence, traceability, closure,
+    final-spec commit, cleanup, and history indexes are complete.
   - Evidence: Pending.
 
 ## Execution Rules

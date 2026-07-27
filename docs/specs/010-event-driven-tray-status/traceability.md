@@ -37,7 +37,7 @@ last_reviewed: 2026-07-27
 | Requirement 4 | must-have | T002-T005, T007-T011, T013 | V2-V5, V7-V10 | architecture, troubleshooting | partial | Linux reconnect, bounds, and event/control independence complete; integration, deployment, and live acceptance remain |
 | Requirement 5 | must-have | T006-T007, T010-T013 | V5, V6, V8-V10 | tray setup, command reference | partial | Honest rows, actions, and deterministic non-colour-only Linux logo badges pass local and installed-artifact checks; live acceptance remains |
 | Requirement 6 | must-have | T006-T007, T011-T013 | V6, V10 | tray setup, troubleshooting | partial | Healthy serve silence and explicit one-shot output passed; live idle capture remains |
-| Requirement 7 | must-have | T001, T005, T008-T013 | V1-V3, V7-V11, V13 | requirements, architecture, installation | partial | T001 platform-neutral interfaces complete; platform transports and rollout remain |
+| Requirement 7 | must-have | T001, T005, T008-T013 | V1-V3, V7-V11, V13 | requirements, architecture, installation | partial | Linux activation passed; remaining live acceptance stays in T011, while the supported general deployment workflow is routed to Spec 011 |
 
 ## Correctness Property Coverage
 
@@ -59,7 +59,7 @@ last_reviewed: 2026-07-27
 | Linux event transport | Requirement 1, Requirement 2, Requirement 4, Requirement 7 | T005 | Linux adapter, backend, event client | V3-V5 | pass | Authenticated bounded listener, reconnect, revocation, restart, and independence tests passed |
 | Tray presentation | Requirement 3, Requirement 5, Requirement 6 | T006 | tray client, entry, platform integration | V5-V6 | pass | Snapshot-driven rows, local last-success, menu actions, and quiet serve validated |
 | Windows event contract | Requirement 2, Requirement 4, Requirement 7 | T008 | Windows adapter and platform tests | V7 | not-covered | T008 |
-| Deployment and compatibility | Requirement 4, Requirement 7 | T009-T011 | assets, deployment, release probes | V8-V10 | partial | T009 local contract passed; built artifact and live host remain T010-T011 |
+| Deployment and compatibility | Requirement 4, Requirement 7 | T009-T011 | assets, deployment, release probes | V8-V10 | partial | Corrected Linux activation passed; remaining installed acceptance stays in T011 and reusable deployment workflow debt is routed to Spec 011 |
 | Promotion and closure | Requirement 1-Requirement 7 | T012-T013 | durable docs and lifecycle artifacts | V11-V15 | not-covered | T012-T013 |
 
 ## Open Decision Impact

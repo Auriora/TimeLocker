@@ -3,7 +3,7 @@ title: "Active Specification Packages"
 doc_type: reference
 status: active
 owner: "Auriora Team"
-last_reviewed: 2026-07-26
+last_reviewed: 2026-07-28
 ---
 
 # Active Specification Packages
@@ -18,17 +18,26 @@ accepted content has been promoted and the package is closed.
 - [`010-event-driven-tray-status`](./010-event-driven-tray-status/README.md) -
   active implementation package for replacing tray status polling with an
   authenticated event subscription and accurate, quiet status presentation.
-  Implementation was approved on 2026-07-27; T001 is the first slice.
+  Implementation was approved on 2026-07-27; T011 live acceptance is in
+  progress.
+- [`011-protected-system-deployment`](./011-protected-system-deployment/README.md) -
+  draft requirements package for replacing acceptance-specific deployment
+  commands and temporary operator inputs with one supported transactional
+  install, upgrade, status, and rollback workflow.
 
 ## Active-Package Sequencing
 
-Spec 010 is the only active package. Specs 007, 008, and 009 are closed. Their
-final package commits, cleanup commits, verification summaries, and residual
-follow-up are recorded in `docs/history/`. Closed packages remain recoverable
-from Git rather than kept in this active path. Spec 010 may rely on the durable
-behavior promoted by Spec 009, but not on its removed package as current
-authority. Repository implementation approval does not authorize release
-publication or deployment.
+Spec 010 remains the only implementation-approved package. Spec 011 may proceed
+through requirements and design concurrently because those documentation stages
+do not change the runtime surface under live acceptance. Spec 011 implementation
+must wait until Spec 010 completes T013 promotion and closure.
+
+Specs 007, 008, and 009 are closed. Their final package commits, cleanup
+commits, verification summaries, and residual follow-up are recorded in
+`docs/history/`. Closed packages remain recoverable from Git rather than kept
+in this active path. Spec 010 may rely on the durable behavior promoted by Spec
+009, but not on its removed package as current authority. Repository
+implementation approval does not authorize release publication or deployment.
 
 ## When a Spec Is Needed
 
