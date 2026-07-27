@@ -249,9 +249,34 @@ T009 -> T010 -> T011 -> T012 -> T013
     semantics, 90-second idle silence, backend restart, tray restart, action
     independence, timer health, and rollback are evidenced from the installed
     artifact.
-  - Evidence: User approved remediation of T011 review findings. Implementation now maps OS socket permission denial to the safe denied state, reports other transport failures as unavailable with bounded reconnect, accepts control-only systemd activation, and makes the event socket a weak service dependency. A repository-owned redacted-evidence validator separates ordinary mutation-to-presentation latency from graceful shutdown and restart convergence. Durable documents now say Linux Mint acceptance is in progress. The focused remediation suite passed 59 tests; the system-control, monitoring-tray, and validator regression passed 270 tests; scoped Ruff, compileall, patch integrity, lifecycle lint, and lifecycle scan passed. Live redeployment and acceptance remain pending. `systemd-analyze verify` parsed the changed units but could not provide clean host evidence because an unrelated unit was unreadable and the protected installed launcher was not executable to the unprivileged verifier.
+  - Evidence: User approved remediation of T011 review findings. Implementation
+    maps OS socket permission denial to the safe denied state, reports other
+    transport failures as unavailable with bounded reconnect, accepts
+    control-only systemd activation, and makes the event socket a weak service
+    dependency. A repository-owned redacted-evidence validator separates
+    ordinary mutation-to-presentation latency from graceful shutdown and restart
+    convergence. After a temporary deployment script failed because its `0660`
+    probe was executed as an identity that could not read it, the rollout path
+    was replaced with the repository-owned `scripts/deploy_t011_linux.py`
+    harness. It snapshots exact inputs into private root-owned evidence, runs
+    inline authorized and denied identity probes before protected mutation,
+    rejects packaged assets outside the staged release, uses a locked
+    expected-current selector compare-and-swap, and restores the selector,
+    service unit, sockets, service, and timer gates on failure or interruption.
+    Focused harness, selector, deployment, and evidence validation passed 46
+    tests; the complete system-control plus harness/evidence regression passed
+    272 tests. Scoped Ruff, compileall, and patch integrity passed. A fresh wheel
+    and sdist passed artifact validation with 27 package-data files; the wheel
+    passed installed-artifact smoke and explicit installed selector-contract
+    checks. Wheel SHA-256:
+    `5603dd6c4aae461f5e6e673eea97b2d2b2972e843b6d9a32f8f3d8347e1c3dde`;
+    sdist SHA-256:
+    `fc0f4bda037a7c41128a8834129a7be9c20040d0efd8580dab05ff0599427748`.
+    Live redeployment and acceptance remain pending; no backup, retention,
+    selector, unit, or protected host state was changed by this remediation.
 
-  - Status: Remediation approved after failed live acceptance exposed harness and implementation defects.
+  - Status: Harness remediation implemented and locally validated; a committed
+    release artifact and renewed live deployment approval remain required.
 - [ ] T012 Run the TimeLocker expert review and address findings.
   - Depends on: T011
   - Requirements: Requirement 1-Requirement 7

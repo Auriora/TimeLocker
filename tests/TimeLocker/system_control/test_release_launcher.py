@@ -98,6 +98,19 @@ def test_release_switch_and_rollback_are_atomic_and_symmetric(tmp_path: Path) ->
 
 
 @pytest.mark.unit
+def test_release_selection_rejects_stale_expected_current(tmp_path: Path) -> None:
+    _stage_release(tmp_path, RELEASE_A)
+    _stage_release(tmp_path, RELEASE_B)
+    resolver = _resolver(tmp_path)
+    resolver.select(RELEASE_A)
+
+    with pytest.raises(ReleaseResolutionError, match="changed before activation"):
+        resolver.select(RELEASE_B, expected_current=RELEASE_B)
+
+    assert resolver.resolve({}).parts[-4] == RELEASE_A
+
+
+@pytest.mark.unit
 def test_release_selector_mode_ignores_restrictive_process_umask(
     tmp_path: Path,
 ) -> None:
@@ -110,6 +123,10 @@ def test_release_selector_mode_ignores_restrictive_process_umask(
         os.umask(previous_umask)
 
     assert resolver.selector_path.stat().st_mode & 0o777 == 0o644
+    lock_path = resolver.selector_path.with_suffix(
+        f"{resolver.selector_path.suffix}.lock"
+    )
+    assert lock_path.stat().st_mode & 0o777 == 0o600
     assert resolver.resolve({}).name == "timelocker"
 
 

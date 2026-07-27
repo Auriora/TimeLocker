@@ -66,3 +66,31 @@ def test_release_admin_returns_configuration_exit_on_invalid_release(
             release_admin.main()
     assert caught.value.code == 78
     assert "release selection failed" in capsys.readouterr().err
+
+
+@pytest.mark.unit
+def test_release_admin_forwards_expected_current_compare_and_swap(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    resolver = Mock()
+    resolver.select.return_value = SelectedRelease(selected="b" * 40)
+    with (
+        patch.object(release_admin, "ImmutableReleaseResolver", return_value=resolver),
+        patch(
+            "sys.argv",
+            [
+                "timelocker-release-select",
+                "select",
+                "b" * 40,
+                "--expected-current",
+                "a" * 40,
+            ],
+        ),
+    ):
+        release_admin.main()
+
+    resolver.select.assert_called_once_with(
+        "b" * 40,
+        expected_current="a" * 40,
+    )
+    assert capsys.readouterr().out.strip() == "b" * 40

@@ -3,9 +3,10 @@
 import json
 import os
 import stat
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Mapping, NoReturn
+from typing import Iterator, Mapping, NoReturn
 
 from .models import PROTOCOL_VERSION, STATUS_EVENT_PROTOCOL_VERSION
 from .validation import require_exact_mapping, require_int, require_safe_identifier
@@ -201,33 +202,85 @@ class ImmutableReleaseResolver:
         selector = SelectedRelease.from_mapping(_read_json(self.selector_path))
         return self._resolve_release(selector.selected, entrypoint=entrypoint)
 
-    def select(self, release_id: str) -> SelectedRelease:
+    def select(
+        self,
+        release_id: str,
+        *,
+        expected_current: str | None = None,
+    ) -> SelectedRelease:
         """Atomically select a validated staged release for administrator tooling."""
         release_id = _release_id(release_id)
+        if expected_current is not None:
+            expected_current = _release_id(expected_current)
         self._require_trusted_directory(self.selector_path.parent)
         self._resolve_release(release_id)
-        current = self._read_selector_optional()
-        next_state = SelectedRelease(
-            selected=release_id,
-            previous=current.selected
-            if current and current.selected != release_id
-            else (current.previous if current else None),
-        )
-        _atomic_write_json(self.selector_path, next_state.to_wire())
+        with self._selector_lock():
+            current = self._read_selector_optional()
+            if expected_current is not None and (
+                current is None or current.selected != expected_current
+            ):
+                raise ReleaseResolutionError(
+                    "selected release changed before activation"
+                )
+            next_state = SelectedRelease(
+                selected=release_id,
+                previous=current.selected
+                if current and current.selected != release_id
+                else (current.previous if current else None),
+            )
+            _atomic_write_json(self.selector_path, next_state.to_wire())
         return next_state
 
     def rollback(self) -> SelectedRelease:
         """Atomically swap selected and previous validated releases."""
-        current = self._read_selector_optional()
-        if current is None or current.previous is None:
-            raise ReleaseResolutionError("no previous release is available")
-        self._resolve_release(current.previous)
-        next_state = SelectedRelease(
-            selected=current.previous,
-            previous=current.selected,
-        )
-        _atomic_write_json(self.selector_path, next_state.to_wire())
+        with self._selector_lock():
+            current = self._read_selector_optional()
+            if current is None or current.previous is None:
+                raise ReleaseResolutionError("no previous release is available")
+            self._resolve_release(current.previous)
+            next_state = SelectedRelease(
+                selected=current.previous,
+                previous=current.selected,
+            )
+            _atomic_write_json(self.selector_path, next_state.to_wire())
         return next_state
+
+    @contextmanager
+    def _selector_lock(self) -> Iterator[None]:
+        """Serialize administrator writes without affecting atomic readers."""
+        try:
+            import fcntl
+        except ImportError as error:  # pragma: no cover - Linux deployment only
+            raise ReleaseResolutionError(
+                "release selection locking is unavailable"
+            ) from error
+        lock_path = self.selector_path.with_suffix(
+            f"{self.selector_path.suffix}.lock"
+        )
+        try:
+            flags = os.O_RDWR | os.O_CREAT
+            if hasattr(os, "O_NOFOLLOW"):
+                flags |= os.O_NOFOLLOW
+            descriptor = os.open(lock_path, flags, 0o600)
+        except OSError as error:
+            raise ReleaseResolutionError(
+                "release selection lock is unavailable"
+            ) from error
+        try:
+            metadata = os.fstat(descriptor)
+            if (
+                not stat.S_ISREG(metadata.st_mode)
+                or metadata.st_uid != self.expected_owner_uid
+                or metadata.st_mode & 0o022
+            ):
+                raise ReleaseResolutionError(
+                    "release selection lock is not trusted"
+                )
+            os.fchmod(descriptor, 0o600)
+            fcntl.flock(descriptor, fcntl.LOCK_EX)
+            yield
+        finally:
+            os.close(descriptor)
 
     def _read_selector_optional(self) -> SelectedRelease | None:
         self._require_trusted_directory(self.selector_path.parent)

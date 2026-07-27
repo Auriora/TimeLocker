@@ -26,7 +26,7 @@ closure.
 | Tray and event integration tests pass | yes | pass | T007 focused event-driven integration checkpoint: 58 passed |
 | Windows platform contract tests pass | yes | pass | T008 injected named-pipe contract; live Windows acceptance remains deferred |
 | Package and deployment checks pass | yes | pass | T009 deployment contract and T010 wheel/sdist installed-artifact checks passed |
-| Approved Linux Mint acceptance passes | yes | in progress | T011 remediation corrects authorization, systemd independence, and evidence timing before another deployment |
+| Approved Linux Mint acceptance passes | yes | in progress | Repository-owned preflight-first harness and evidence validator pass locally; committed live artifact and host acceptance remain |
 | Expert review findings resolved | yes | pending | T012 |
 | Configured regression and coverage gate pass | yes | pending | T013 |
 | Durable documentation promoted | yes | pending | T013 |
@@ -108,7 +108,7 @@ closure.
 | T008 | complete | Token-derived bounded Windows named-pipe event contracts, four new platform tests, 232 system-control tests | No live Windows service or acceptance is claimed. |
 | T009 | complete | Named protected event socket asset, named systemd descriptor mapping, dual-protocol release metadata, structured activation/rollback gates, 246 system-control tests | Installed-artifact and live-host evidence remain T010-T011. |
 | T010 | complete | Five deterministic accessible logo badges, honest never-run/failure projection, 268-test regression, 27-file package-data validation, SHA-256 verification, and clean-install wheel/sdist smoke | No live selector, unit, socket, timer, backup, retention, or protected path changed. |
-| T011 | in progress | Approved review remediation; repository-owned evidence validator added | Live redeployment and acceptance remain pending. |
+| T011 | in progress | Repository-owned evidence validator and preflight-first transactional deployment harness; 272-test regression | Committed live artifact, redeployment, and acceptance remain pending. |
 | T012-T013 | pending | none | Sequenced by the task dependency graph. |
 
 ## Evidence Log
@@ -145,6 +145,10 @@ closure.
 | 2026-07-27 | T011 remediation focused tests | 59 passed | OS permission denial, unavailable-state reporting, control-only activation, weak event dependency, and evidence timing boundaries. |
 | 2026-07-27 | T011 system-control, monitoring tray, and evidence-validator regression | 270 passed | Scoped Ruff, compileall, `git diff --check`, lifecycle lint, and lifecycle scan also passed. |
 | 2026-07-27 | `systemd-analyze verify` for changed control/event units | environment-limited | Changed directives parsed; an unrelated unreadable unit and unprivileged access to the protected installed launcher prevented clean host verification. Live installed-unit proof remains T011. |
+| 2026-07-27 | Failed temporary-script deployment review | fail closed; rollback passed | A `0660` temporary probe was unreadable to UID/GID 65534, and the script selected the release before identity probes, contrary to the approved order. Prior release, unit, sockets, service, and timers were restored; the candidate was removed. |
+| 2026-07-27 | Repository-owned T011 deployment harness focused regression | 46 passed | Restrictive umask, inline target identities, preflight-before-selection, input snapshotting, package-boundary enforcement, compare-and-swap, signal recovery, full simulated activation, and forced post-activation rollback. |
+| 2026-07-27 | System-control plus T011 harness/evidence regression | 272 passed | Scoped Ruff, compileall, and patch integrity passed. No protected host mutation occurred. |
+| 2026-07-27 | Fresh T011 harness-remediation package validation | pass | Wheel and sdist contained 27 package-data files; wheel SHA-256 `5603dd6c4aae461f5e6e673eea97b2d2b2972e843b6d9a32f8f3d8347e1c3dde`; sdist SHA-256 `fc0f4bda037a7c41128a8834129a7be9c20040d0efd8580dab05ff0599427748`. Wheel installed-artifact smoke and installed expected-current selector checks passed. |
 
 ## Manual Or External Verification
 
@@ -153,13 +157,14 @@ The reviewed sequence is:
 
 1. Record the current and previous selected release IDs plus active/enabled
    backup and retention timer states.
-2. Stage the validated artifact as an immutable root-owned release with
-   schema-2 control/event protocol metadata.
-3. Install the exact hashed assets, reload systemd, and enable the protected
-   control and status-event sockets without changing backup or retention
-   policy.
-4. Run staged CLI/backend/tray/protocol probes and verify both existing timers
-   before atomically selecting the new release.
+2. Use the committed repository-owned `scripts/deploy_t011_linux.py` harness to
+   copy the exact wheel and manifest into private root-owned evidence, then
+   stage an immutable release with schema-2 control/event protocol metadata.
+3. Run staged CLI/backend/protocol, authorized-event, denied-event, systemd,
+   and timer probes before changing the selected release or service unit.
+4. Install the validated service unit, select with the locked expected-current
+   compare-and-swap, restart the backend, and recheck both existing timers
+   without changing backup or retention policy.
 5. Run authorized/denied event, status, silence, restart, and independence
    acceptance checks.
 6. Probe and atomically roll back to the previous release, then verify explicit
