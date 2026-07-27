@@ -242,6 +242,35 @@ def test_event_client_reconnects_after_oversized_frame_and_disconnect() -> None:
     stop_event.set()
 
 
+def test_event_client_reconnects_immediately_after_a_healthy_stream_drops() -> None:
+    initial = StatusEvent(
+        revision=BoundedStatusEventBroker(session_id=SESSION_ID).current_revision(),
+        kind=StatusEventKind.SNAPSHOT_REQUIRED,
+    )
+    restarted = StatusEvent(
+        revision=BoundedStatusEventBroker().current_revision(),
+        kind=StatusEventKind.SNAPSHOT_REQUIRED,
+    )
+    payloads = [
+        (json.dumps(initial.to_wire()) + "\n").encode(),
+        (json.dumps(restarted.to_wire()) + "\n").encode(),
+    ]
+
+    def connect() -> socket.socket:
+        return _MemoryConnection([payloads.pop(0)])  # type: ignore[return-value]
+
+    stop_event = Event()
+    waits: list[float | None] = []
+    stop_event.wait = lambda timeout=None: waits.append(timeout) or False  # type: ignore[method-assign]
+    event_client = UnixSocketStatusEventClient(connection_factory=connect)
+    events = event_client.events(stop_event)
+
+    assert next(events) == initial
+    assert next(events) == restarted
+    assert waits == []
+    stop_event.set()
+
+
 def test_event_client_rejects_denial_without_status_disclosure() -> None:
     client = _MemoryConnection(
         [b'{"safe_summary":"System access denied.","status":"denied"}\n']

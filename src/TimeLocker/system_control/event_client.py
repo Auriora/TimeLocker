@@ -63,12 +63,14 @@ class UnixSocketStatusEventClient:
         if not isinstance(stop_event, Event):
             raise TypeError("stop_event must be a threading.Event")
         retry_delay = self.base_retry_delay_seconds
+        immediate_retry_available = False
         while not stop_event.is_set():
             connection: socket.socket | None = None
             try:
                 connection = self._connect()
                 for event in self._connected_events(connection, stop_event):
                     retry_delay = self.base_retry_delay_seconds
+                    immediate_retry_available = True
                     yield event
                 if stop_event.is_set():
                     return
@@ -82,6 +84,9 @@ class UnixSocketStatusEventClient:
                         connection.close()
                     except OSError:
                         pass
+            if immediate_retry_available:
+                immediate_retry_available = False
+                continue
             if stop_event.wait(retry_delay):
                 return
             retry_delay = min(retry_delay * 2.0, self.max_retry_delay_seconds)
