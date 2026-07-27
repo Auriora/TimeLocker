@@ -157,7 +157,7 @@ def _paths(harness: ModuleType, root: Path):
 
 
 def _request(harness: ModuleType, root: Path):
-    wheel = root / "timelocker.whl"
+    wheel = root / "timelocker-0.9.1-py3-none-any.whl"
     wheel.write_bytes(b"validated wheel")
     digest = harness._sha256(wheel)
     manifest = root / "release.json"
@@ -276,6 +276,8 @@ def test_identity_preflights_are_inline_and_precede_mutation_under_restrictive_u
         for command in target_identity_commands
     )
     assert deployer.evidence is not None
+    assert deployer.staged_wheel is not None
+    assert deployer.staged_wheel.name == request.wheel.name
     evidence_modes = {
         path.name: path.stat().st_mode & 0o777
         for path in deployer.evidence.iterdir()
@@ -283,6 +285,38 @@ def test_identity_preflights_are_inline_and_precede_mutation_under_restrictive_u
     }
     assert evidence_modes
     assert set(evidence_modes.values()) == {0o600}
+
+
+def test_invalid_wheel_filename_is_rejected_before_host_state(
+    tmp_path: Path,
+) -> None:
+    harness = _load_harness()
+    paths = _paths(harness, tmp_path)
+    _baseline(paths)
+    request = _request(harness, tmp_path)
+    invalid_wheel = tmp_path / "candidate.whl"
+    request.wheel.replace(invalid_wheel)
+    request = harness.DeploymentRequest(
+        release_id=request.release_id,
+        expected_current=request.expected_current,
+        wheel=invalid_wheel,
+        wheel_sha256=harness._sha256(invalid_wheel),
+        manifest=request.manifest,
+        operator_user=request.operator_user,
+    )
+    deployer = harness.T011LinuxDeployer(
+        request,
+        paths=paths,
+        executor=FakeExecutor(harness, tmp_path / "unused.service"),
+        owner_uid=None,
+        owner_gid=None,
+    )
+
+    with pytest.raises(harness.DeploymentFailure, match="valid wheel filename"):
+        deployer.validate_request()
+
+    assert list(paths.evidence_root.iterdir()) == []
+    assert not deployer.release.exists()
 
 
 def test_preflight_failure_never_calls_activation() -> None:
@@ -522,7 +556,13 @@ def test_full_simulated_transaction_runs_preflight_before_selection(
         if "TimeLocker.system_control.release_admin" in command
         and "select" in command
     )
+    pip_command = next(
+        command
+        for command in executor.commands
+        if len(command) >= 5 and command[1:4] == ["-m", "pip", "install"]
+    )
     assert denied_index < selection_index
+    assert Path(pip_command[-1]).name == request.wheel.name
     assert deployer.release.exists()
     assert paths.service_unit.read_text() == packaged_unit.read_text()
     assert all(

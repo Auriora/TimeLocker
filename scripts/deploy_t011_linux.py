@@ -28,6 +28,9 @@ from typing import TextIO
 
 
 RELEASE_ID_PATTERN = re.compile(r"[0-9a-f]{40}")
+WHEEL_FILENAME_PATTERN = re.compile(
+    r"[A-Za-z0-9_.+!]+(?:-[A-Za-z0-9_.+!]+){4,}\.whl"
+)
 REQUIRED_ENTRYPOINTS = (
     "timelocker",
     "tl",
@@ -214,6 +217,7 @@ class T011LinuxDeployer:
             raise DeploymentFailure("wheel_sha256 must be a lowercase SHA-256 digest")
         _require_regular_file(self.request.wheel, "wheel")
         _require_regular_file(self.request.manifest, "manifest")
+        _validated_wheel_filename(self.request.wheel)
         try:
             pwd.getpwnam(self.request.operator_user)
         except KeyError as error:
@@ -254,7 +258,9 @@ class T011LinuxDeployer:
             uid=self.owner_uid,
             gid=self.owner_gid,
         )
-        self.staged_wheel = self.evidence / "candidate.whl"
+        self.staged_wheel = self.evidence / _validated_wheel_filename(
+            self.request.wheel
+        )
         self.staged_manifest = self.evidence / "candidate-release.json"
         _atomic_copy(
             self.request.wheel,
@@ -635,6 +641,17 @@ def _sha256(path: Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _validated_wheel_filename(path: Path) -> str:
+    """Return a pip-compatible wheel basename without changing its identity."""
+    filename = path.name
+    if WHEEL_FILENAME_PATTERN.fullmatch(filename) is None:
+        raise DeploymentFailure(
+            "wheel must use a valid wheel filename, for example "
+            "timelocker-0.9.1-py3-none-any.whl"
+        )
+    return filename
 
 
 def _read_json(path: Path) -> dict[str, object]:

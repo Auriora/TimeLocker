@@ -272,11 +272,21 @@ T009 -> T010 -> T011 -> T012 -> T013
     `5603dd6c4aae461f5e6e673eea97b2d2b2972e843b6d9a32f8f3d8347e1c3dde`;
     sdist SHA-256:
     `fc0f4bda037a7c41128a8834129a7be9c20040d0efd8580dab05ff0599427748`.
-    Live redeployment and acceptance remain pending; no backup, retention,
-    selector, unit, or protected host state was changed by this remediation.
+    The first commit-bound harness deployment failed closed during staged pip
+    installation because the private evidence copy renamed the valid wheel to
+    `candidate.whl`, which pip rejects before inspecting the artifact. Recovery
+    removed the inert candidate; the prior selector, unit, sockets, service,
+    and timers remained unchanged. The harness now validates the supplied wheel
+    basename, preserves it in private evidence, and rejects an invalid basename
+    before creating host state. Eleven focused harness tests, scoped Ruff,
+    compileall, patch integrity, and an exact `/usr/bin/python3` staging
+    rehearsal with the release wheel passed. Live redeployment and acceptance
+    remain pending; no backup, retention, selector, unit, or protected host
+    state was changed by this correction.
 
-  - Status: Harness remediation implemented and locally validated; a committed
-    release artifact and renewed live deployment approval remain required.
+  - Status: Wheel-filename correction implemented and locally validated; a new
+    committed release artifact and renewed live deployment approval remain
+    required.
 - [ ] T012 Run the TimeLocker expert review and address findings.
   - Depends on: T011
   - Requirements: Requirement 1-Requirement 7

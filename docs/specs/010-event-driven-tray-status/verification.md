@@ -108,7 +108,7 @@ closure.
 | T008 | complete | Token-derived bounded Windows named-pipe event contracts, four new platform tests, 232 system-control tests | No live Windows service or acceptance is claimed. |
 | T009 | complete | Named protected event socket asset, named systemd descriptor mapping, dual-protocol release metadata, structured activation/rollback gates, 246 system-control tests | Installed-artifact and live-host evidence remain T010-T011. |
 | T010 | complete | Five deterministic accessible logo badges, honest never-run/failure projection, 268-test regression, 27-file package-data validation, SHA-256 verification, and clean-install wheel/sdist smoke | No live selector, unit, socket, timer, backup, retention, or protected path changed. |
-| T011 | in progress | Repository-owned evidence validator and preflight-first transactional deployment harness; 272-test regression | Committed live artifact, redeployment, and acceptance remain pending. |
+| T011 | in progress | Repository-owned evidence validator and preflight-first transactional deployment harness; fail-closed wheel-filename correction and exact staging rehearsal | New committed artifact, redeployment, and acceptance remain pending. |
 | T012-T013 | pending | none | Sequenced by the task dependency graph. |
 
 ## Evidence Log
@@ -149,6 +149,9 @@ closure.
 | 2026-07-27 | Repository-owned T011 deployment harness focused regression | 46 passed | Restrictive umask, inline target identities, preflight-before-selection, input snapshotting, package-boundary enforcement, compare-and-swap, signal recovery, full simulated activation, and forced post-activation rollback. |
 | 2026-07-27 | System-control plus T011 harness/evidence regression | 272 passed | Scoped Ruff, compileall, and patch integrity passed. No protected host mutation occurred. |
 | 2026-07-27 | Fresh T011 harness-remediation package validation | pass | Wheel and sdist contained 27 package-data files; wheel SHA-256 `5603dd6c4aae461f5e6e673eea97b2d2b2972e843b6d9a32f8f3d8347e1c3dde`; sdist SHA-256 `fc0f4bda037a7c41128a8834129a7be9c20040d0efd8580dab05ff0599427748`. Wheel installed-artifact smoke and installed expected-current selector checks passed. |
+| 2026-07-27 | Commit-bound hardened deployment staging | fail closed; rollback passed | Pip rejected the private evidence copy because `candidate.whl` is not a valid wheel filename. Failure occurred before activation; selector `d540b453864fce9b1c96a85ad9ecf604b98b7f57`, service, sockets, and timers remained healthy, and candidate `8e8ebada197e713b60285d5105fe8b7ad8b9b8dc` was removed. |
+| 2026-07-27 | Wheel-filename correction focused validation | pass | The harness preserves and validates the original wheel basename, rejects `candidate.whl` before host-state creation, and passes 11 focused tests, scoped Ruff, compileall, and patch integrity. |
+| 2026-07-27 | Exact system-Python staging rehearsal | pass | `/usr/bin/python3` staged `timelocker-0.9.1-py3-none-any.whl` through the corrected harness into an isolated `/tmp` release and imported installed TimeLocker version `0.9.1`; no protected host path or service was changed. |
 
 ## Manual Or External Verification
 
