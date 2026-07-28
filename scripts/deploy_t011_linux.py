@@ -376,24 +376,29 @@ class T011LinuxDeployer:
         )
 
         candidate_cli = self.release / "venv/bin/timelocker"
-        self.executor.run(
+        candidate_version = self.executor.run(
             [
                 "timeout",
-                "15",
+                "10",
                 "runuser",
                 "-u",
                 self.request.operator_user,
                 "--",
                 candidate_cli,
-                "runs",
-                "list",
-                "--limit",
-                "3",
-                "--json",
+                "version",
+                "--short",
             ],
-            timeout=20,
-            output=self.evidence / "preflight-authorized-runs.json",
-        )
+            timeout=15,
+            output=self.evidence / "preflight-cli-version.txt",
+            capture=True,
+        ).strip()
+        expected_package_version = manifest["package_version"]
+        if candidate_version != expected_package_version:
+            raise DeploymentFailure(
+                "staged CLI version probe failed: "
+                f"expected {expected_package_version}, "
+                f"got {candidate_version or '<empty>'}"
+            )
         self.executor.run(
             [
                 "timeout",

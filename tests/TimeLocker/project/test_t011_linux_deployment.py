@@ -58,6 +58,8 @@ class FakeExecutor:
         result = ""
         if command[-2:] == ["-c", self.harness.BACKEND_IMPORT_PROBE]:
             result = f"{self.backend_protocol}\n"
+        elif command[-2:] == ["version", "--short"]:
+            result = "0.9.1\n"
         elif command[-2:] == ["-c", self.harness.PACKAGED_UNIT_PROBE]:
             result = f"{self.packaged_unit}\n"
         elif command[-2:] == ["-c", self.harness.DENIED_EVENT_PROBE]:
@@ -605,12 +607,25 @@ def test_full_simulated_transaction_runs_preflight_before_selection(
         if "TimeLocker.system_control.release_admin" in command
         and "select" in command
     )
+    version_index = next(
+        index
+        for index, command in enumerate(executor.commands)
+        if command[-2:] == ["version", "--short"]
+    )
+    system_read_indexes = [
+        index
+        for index, command in enumerate(executor.commands)
+        if command[-5:] == ["runs", "list", "--limit", "3", "--json"]
+    ]
     pip_command = next(
         command
         for command in executor.commands
         if len(command) >= 5 and command[1:4] == ["-m", "pip", "install"]
     )
     assert denied_index < selection_index
+    assert version_index < selection_index
+    assert system_read_indexes
+    assert all(index > selection_index for index in system_read_indexes)
     assert Path(pip_command[-1]).name == request.wheel.name
     assert deployer.release.exists()
     assert paths.service_unit.read_text() == packaged_unit.read_text()

@@ -159,6 +159,7 @@ closure.
 | 2026-07-28 | Connecting-badge release artifacts | pass | Fresh wheel and sdist validation found 28 package-data files; the wheel passed clean installed-artifact smoke. Wheel SHA-256 `d9fb99bbe856c7659304701ab8b12d5dd8d97fc194f5b8ce5825d33a559609c8`; sdist SHA-256 `bb5df2b2450db07335ccbb848f03e01b010ed568d6609f29cdd3b24f827ffeea`. |
 | 2026-07-28 | Protocol-2 commit-bound deployment staging | fail closed before activation | Commit `2e1b565c823dd9a2714e43ed976338d45a9cbee5` correctly reported candidate protocols `2:1`, but the deployer retained a stale hard-coded `1:1` expectation. The harness recovered the inert candidate without selecting it; no backup or retention was triggered. |
 | 2026-07-28 | Manifest-bound backend probe correction | pass | The deployer now compares the staged backend report to the staged, validated release manifest and retains the report in private evidence. The exact committed wheel reported `2:1`; the mismatch regression, 12 focused harness tests, 284 system-control/artifact tests, scoped Ruff, and patch integrity passed. |
+| 2026-07-28 | Cross-version preflight rehearsal | defect found and corrected before retry | The protocol-2 candidate CLI correctly rejected the active protocol-1 backend response, showing that a pre-activation `runs list` cannot prove a coherent protocol upgrade. The pre-activation CLI probe now verifies the candidate's manifest-bound local version; simulated ordering requires the real system read only after candidate selection and backend restart. |
 
 ## Manual Or External Verification
 

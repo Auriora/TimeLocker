@@ -315,6 +315,13 @@ T009 -> T010 -> T011 -> T012 -> T013
     activation; the exact committed wheel independently reported `2:1`.
     Twelve focused harness tests, a 284-test system-control/artifact regression,
     scoped Ruff, and patch integrity passed before another deployment attempt.
+    A further exact preflight rehearsal found that a protocol-2 candidate
+    `runs list` cannot query the still-active protocol-1 backend. Before any
+    retry, the pre-activation CLI check was narrowed to the candidate's local,
+    manifest-bound version; the real system read remains a required
+    post-activation check after the candidate backend is coherently selected.
+    Simulated transaction ordering proves no protocol-2 system read occurs
+    before selection and that the post-activation read still runs.
 
   - Status: Corrected release activated successfully; the remaining installed
     T011 acceptance checks, including visible connecting-state startup, and
