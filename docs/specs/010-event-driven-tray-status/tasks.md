@@ -331,12 +331,26 @@ T009 -> T010 -> T011 -> T012 -> T013
     and retains the prior environment for rollback. Forced post-activation
     failure restores the prior launcher before restarting the prior backend.
     A 299-test system-control, deployment, artifact, and tray-icon regression
-    passed with scoped Ruff, compileall, and patch integrity.
+    passed with scoped Ruff, compileall, and patch integrity. The exact
+    commit-bound wheel for
+    `18990e168108e23479193563a35a72f773120aec` passed installed-artifact smoke,
+    cross-version manifest parsing, and a real staged-launcher directory rename
+    rehearsal; its SHA-256 is
+    `f097cbeb2d4a02ae0e84d335fdac1fc3cc7f93738e5cbee5f4cf3931e15129ba`.
+    The protected deployment then succeeded with preflight identity checks
+    passing and no backup or retention execution. Independent post-activation
+    reads confirmed protocol `2:1` in the stable launcher, the candidate
+    selected with `a67c83ac09ac29b94a3ed481ee536b3380db3337` retained as
+    previous, all five protected units active, required units enabled, system
+    run access, and the tray process running from the selected release. An
+    authorized event subscription received its initial event in approximately
+    0.10 seconds.
 
-  - Status: Prior release `a67c83ac09ac29b94a3ed481ee536b3380db3337`
-    remains active and healthy. Corrected protocol-2 release deployment and the
+  - Status: Corrected protocol-2 release
+    `18990e168108e23479193563a35a72f773120aec` is active and healthy. The
     remaining installed T011 acceptance checks, including visible
-    connecting-state startup and evidence validation, are in progress.
+    connecting-state startup, event mutation latency, idle silence, restart,
+    rollback/reselection, and evidence validation, are in progress.
   - [x] T011.1 Reconcile and test backup-health and tray-row contracts.
     - Acceptance: State is health-only; Activity is transient; Last Backup is
       successful completion or Never; exact wire and menu tests fail before the
