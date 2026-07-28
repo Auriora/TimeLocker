@@ -304,7 +304,17 @@ T009 -> T010 -> T011 -> T012 -> T013
     `d9fb99bbe856c7659304701ab8b12d5dd8d97fc194f5b8ce5825d33a559609c8`;
     sdist SHA-256:
     `bb5df2b2450db07335ccbb848f03e01b010ed568d6609f29cdd3b24f827ffeea`.
-    No protected host mutation occurred.
+    No protected host mutation occurred. The first protocol-2 deployment of
+    commit `2e1b565c823dd9a2714e43ed976338d45a9cbee5` failed closed during
+    staged backend preflight because the repository deployer still compared
+    the candidate's correct `2:1` protocol report to a stale hard-coded `1:1`
+    expectation. Activation did not begin and the candidate release was
+    removed. The deployer now derives the expected signature from the staged,
+    already-validated schema-2 manifest and records the probe output in private
+    evidence. A regression proves a stale `1:1` candidate fails before
+    activation; the exact committed wheel independently reported `2:1`.
+    Twelve focused harness tests, a 284-test system-control/artifact regression,
+    scoped Ruff, and patch integrity passed before another deployment attempt.
 
   - Status: Corrected release activated successfully; the remaining installed
     T011 acceptance checks, including visible connecting-state startup, and

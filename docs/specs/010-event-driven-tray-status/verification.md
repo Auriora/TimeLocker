@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: verification
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-27
+last_reviewed: 2026-07-28
 ---
 
 # Verification
@@ -157,6 +157,8 @@ closure.
 | 2026-07-28 | General deployment workflow routing | follow-up created | Draft [Spec 011](../011-protected-system-deployment/README.md) owns the supported install, upgrade, status, rollback, staging, provenance, and evidence workflow. Its implementation waits for Spec 010 closure. |
 | 2026-07-28 | Immediate connecting-state implementation | pass | The tray processes a deterministic connecting badge before starting its background subscription worker. Lazy package boundaries reduce direct source startup to approximately 0.11 seconds for launcher import and 0.56 seconds for full tray-entry import. Focused tray/asset/deployment/artifact tests passed 42 cases; broader system-control, tray-monitoring, and backup compatibility regression passed 415 tests. Scoped Ruff, compileall, patch integrity, and lazy public-export compatibility passed. No protected host mutation occurred. |
 | 2026-07-28 | Connecting-badge release artifacts | pass | Fresh wheel and sdist validation found 28 package-data files; the wheel passed clean installed-artifact smoke. Wheel SHA-256 `d9fb99bbe856c7659304701ab8b12d5dd8d97fc194f5b8ce5825d33a559609c8`; sdist SHA-256 `bb5df2b2450db07335ccbb848f03e01b010ed568d6609f29cdd3b24f827ffeea`. |
+| 2026-07-28 | Protocol-2 commit-bound deployment staging | fail closed before activation | Commit `2e1b565c823dd9a2714e43ed976338d45a9cbee5` correctly reported candidate protocols `2:1`, but the deployer retained a stale hard-coded `1:1` expectation. The harness recovered the inert candidate without selecting it; no backup or retention was triggered. |
+| 2026-07-28 | Manifest-bound backend probe correction | pass | The deployer now compares the staged backend report to the staged, validated release manifest and retains the report in private evidence. The exact committed wheel reported `2:1`; the mismatch regression, 12 focused harness tests, 284 system-control/artifact tests, scoped Ruff, and patch integrity passed. |
 
 ## Manual Or External Verification
 

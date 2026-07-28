@@ -31,9 +31,16 @@ def _load_harness() -> ModuleType:
 class FakeExecutor:
     """Capture commands and return deterministic candidate-probe output."""
 
-    def __init__(self, harness: ModuleType, packaged_unit: Path) -> None:
+    def __init__(
+        self,
+        harness: ModuleType,
+        packaged_unit: Path,
+        *,
+        backend_protocol: str = "2:1",
+    ) -> None:
         self.harness = harness
         self.packaged_unit = packaged_unit
+        self.backend_protocol = backend_protocol
         self.commands: list[list[str]] = []
 
     def run(
@@ -50,7 +57,7 @@ class FakeExecutor:
         self.commands.append(command)
         result = ""
         if command[-2:] == ["-c", self.harness.BACKEND_IMPORT_PROBE]:
-            result = "1:1\n"
+            result = f"{self.backend_protocol}\n"
         elif command[-2:] == ["-c", self.harness.PACKAGED_UNIT_PROBE]:
             result = f"{self.packaged_unit}\n"
         elif command[-2:] == ["-c", self.harness.DENIED_EVENT_PROBE]:
@@ -285,6 +292,48 @@ def test_identity_preflights_are_inline_and_precede_mutation_under_restrictive_u
     }
     assert evidence_modes
     assert set(evidence_modes.values()) == {0o600}
+
+
+def test_backend_protocol_probe_must_match_validated_release_manifest(
+    tmp_path: Path,
+) -> None:
+    harness = _load_harness()
+    paths = _paths(harness, tmp_path)
+    _baseline(paths)
+    request = _request(harness, tmp_path)
+    packaged_unit = (
+        paths.releases_root
+        / RELEASE_B
+        / "venv/lib/python3.12/site-packages/TimeLocker/system_control/assets"
+        / "timelocker-control.service"
+    )
+    deployer = harness.T011LinuxDeployer(
+        request,
+        paths=paths,
+        executor=FakeExecutor(
+            harness,
+            packaged_unit,
+            backend_protocol="1:1",
+        ),
+        owner_uid=None,
+        owner_gid=None,
+    )
+    deployer.validate_request()
+    deployer.capture_baseline()
+    _staged_release(deployer, packaged_unit)
+
+    with pytest.raises(
+        harness.DeploymentFailure,
+        match=r"expected 2:1, got 1:1",
+    ):
+        deployer.preflight_staged_release()
+
+    assert json.loads(paths.selector.read_text())["selected"] == RELEASE_A
+    assert paths.service_unit.read_text() == "old service\n"
+    assert deployer.evidence is not None
+    assert (
+        deployer.evidence / "preflight-backend-protocol.txt"
+    ).read_text(encoding="utf-8") == "1:1\n"
 
 
 def test_invalid_wheel_filename_is_rejected_before_host_state(

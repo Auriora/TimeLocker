@@ -348,10 +348,20 @@ class T011LinuxDeployer:
 
         protocol_output = self.executor.run(
             [python, "-c", BACKEND_IMPORT_PROBE],
+            output=self.evidence / "preflight-backend-protocol.txt",
             capture=True,
         ).strip()
-        if protocol_output != "1:1":
-            raise DeploymentFailure("staged backend protocol probe failed")
+        assert self.staged_manifest is not None
+        manifest = _read_json(self.staged_manifest)
+        expected_protocol_output = (
+            f"{manifest['control_protocol_version']}:"
+            f"{manifest['event_protocol_version']}"
+        )
+        if protocol_output != expected_protocol_output:
+            raise DeploymentFailure(
+                "staged backend protocol probe failed: "
+                f"expected {expected_protocol_output}, got {protocol_output or '<empty>'}"
+            )
         packaged_unit = Path(
             self.executor.run(
                 [python, "-c", PACKAGED_UNIT_PROBE],
