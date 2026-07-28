@@ -155,7 +155,7 @@ def test_unauthorized_snapshot_receives_only_safe_denial(tmp_path: Path) -> None
         audit_sink=AuditSink(),
     )
     request = {
-        "protocol_version": 1,
+        "protocol_version": 2,
         "request_id": "44444444-4444-4444-8444-444444444444",
         "action": "status.snapshot",
         "parameters": {},

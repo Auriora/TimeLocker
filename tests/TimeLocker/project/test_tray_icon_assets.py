@@ -16,7 +16,7 @@ ASSET_ROOT = (
     PROJECT_ROOT / "src" / "TimeLocker" / "system_control" / "assets"
 )
 BASE_ICON = ASSET_ROOT / "timelocker-icon.png"
-STATUSES = ("idle", "running", "success", "warning", "error")
+STATUSES = ("connecting", "idle", "running", "success", "warning", "error")
 
 
 @mark.unit

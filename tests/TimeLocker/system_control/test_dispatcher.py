@@ -43,7 +43,7 @@ def request(
     action: str = "health",
     parameters: dict[str, object] | None = None,
     *,
-    version: int = 1,
+    version: int = 2,
 ) -> bytes:
     return json.dumps(
         {
@@ -151,7 +151,7 @@ class TestLocalControlDispatcher:
         ("payload", "error_code"),
         [
             (b"{", "invalid_request"),
-            (request(version=2), "contract_version_unsupported"),
+            (request(version=3), "contract_version_unsupported"),
             (
                 request(
                     "backup.request",

@@ -10,7 +10,7 @@ from typing import Any, Protocol
 from uuid import UUID
 
 from .interfaces import GroupMembershipResolver, PeerIdentity
-from .models import SystemPolicy
+from .models import PROTOCOL_VERSION, SystemPolicy
 from .protocol import RequestEnvelope, ResponseEnvelope
 from .types import ProtocolErrorCode, ResponseStatus, SystemAction
 
@@ -208,7 +208,10 @@ def _extract_request_id(request: object) -> UUID:
 def _parse_error_code(request: bytes) -> ProtocolErrorCode:
     try:
         value: Any = json.loads(request.decode("utf-8"))
-        if isinstance(value, Mapping) and value.get("protocol_version") != 1:
+        if (
+            isinstance(value, Mapping)
+            and value.get("protocol_version") != PROTOCOL_VERSION
+        ):
             return ProtocolErrorCode.CONTRACT_VERSION_UNSUPPORTED
     except (UnicodeDecodeError, json.JSONDecodeError):
         pass

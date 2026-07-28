@@ -84,6 +84,7 @@ def test_artifact_smoke_covers_system_entrypoints_protocols_and_assets():
         "STATUS_EVENT_PROTOCOL_VERSION",
         "timelocker-status-events.socket",
         "timelocker-retention.timer",
+        "timelocker-icon-connecting.png",
         "timelocker-icon-idle.png",
         "timelocker-icon-error.png",
     ):

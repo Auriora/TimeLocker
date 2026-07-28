@@ -24,7 +24,7 @@ def request_payload(
 ) -> dict[str, object]:
     """Build one otherwise-valid protocol request."""
     return {
-        "protocol_version": 1,
+        "protocol_version": 2,
         "request_id": str(uuid4()),
         "action": action,
         "parameters": parameters or {},
@@ -148,7 +148,7 @@ class TestRequestEnvelope:
                 )
             )
 
-    @pytest.mark.parametrize("version", [0, 2, True, "1"])
+    @pytest.mark.parametrize("version", [0, 3, True, "2"])
     def test_unsupported_or_mistyped_protocol_version_is_rejected(
         self,
         version: object,
@@ -242,6 +242,7 @@ class TestResponseProjection:
         assert set(projected) == {
             "revision",
             "backend_status",
+            "backup_schedule_health",
             "active_operations",
             "latest_backup",
             "last_successful_backup_completed_at",
@@ -365,7 +366,7 @@ class TestResponseEnvelope:
 
     def test_untrusted_error_summary_is_rejected(self) -> None:
         payload = {
-            "protocol_version": 1,
+            "protocol_version": 2,
             "request_id": str(uuid4()),
             "status": "denied",
             "result": None,
@@ -389,7 +390,7 @@ class TestResponseEnvelope:
     def test_success_response_round_trip_reprojects_untrusted_result(self) -> None:
         request_id = uuid4()
         payload = {
-            "protocol_version": 1,
+            "protocol_version": 2,
             "request_id": str(request_id),
             "status": "ok",
             "result": {"runs": [run_payload(environment={"PASSWORD": "secret"})]},
@@ -416,7 +417,7 @@ class TestResponseEnvelope:
                 "safe_summary": "System access denied.",
             },
             {"status": ResponseStatus.DENIED, "result": None},
-            {"status": ResponseStatus.OK, "result": {}, "protocol_version": 2},
+            {"status": ResponseStatus.OK, "result": {}, "protocol_version": 3},
         ],
     )
     def test_response_envelope_rejects_inconsistent_shapes(

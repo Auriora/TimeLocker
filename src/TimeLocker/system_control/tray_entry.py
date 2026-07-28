@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 from queue import Empty, Full, Queue
 import signal
@@ -35,6 +36,7 @@ from .client import UnixSocketSystemControlClient
 DEFAULT_REFRESH_SECONDS = 15
 TRAY_STATUS_ACTIONS = {"status", "backup_now", "retention_now", "quit"}
 _runtime_directory = os.environ.get("XDG_RUNTIME_DIR")
+logger = logging.getLogger(__name__)
 LOCK_PATH = (
     Path(_runtime_directory) / "timelocker" / "tray.lock"
     if _runtime_directory and Path(_runtime_directory).is_absolute()
@@ -43,6 +45,7 @@ LOCK_PATH = (
 
 
 _STATUS_MAP = {
+    "connecting": TrayStatus.CONNECTING,
     "running": TrayStatus.RUNNING,
     "error": TrayStatus.ERROR,
     "warning": TrayStatus.WARNING,
@@ -150,6 +153,8 @@ def _apply_state(
         TrayStatusInfo(
             status=_status_to_tray(state.status),
             tooltip=state.tooltip,
+            health=state.health,
+            activity=state.activity,
             backend_available=state.backend_available,
             last_successful_backup_time=(
                 state.last_successful_backup_completed_at
@@ -228,6 +233,7 @@ def _offer_latest(
 
 
 def main() -> None:
+    startup_started = time.monotonic()
     arguments = _parse_args()
     if (
         arguments.action == "retention_now"
@@ -261,6 +267,12 @@ def main() -> None:
         )
     except SystemTrayError:
         tray = None
+    if tray is not None and tray.is_available():
+        tray.process_events()
+        logger.debug(
+            "Tray icon ready before status subscription (startup_ms=%.1f)",
+            (time.monotonic() - startup_started) * 1_000,
+        )
 
     stop_requested = False
     subscription_stop = Event()
@@ -317,6 +329,10 @@ def main() -> None:
                 daemon=True,
             )
             subscription_thread.start()
+            logger.debug(
+                "Tray status subscription worker started (startup_ms=%.1f)",
+                (time.monotonic() - startup_started) * 1_000,
+            )
 
             while not stop_requested:
                 if tray is not None:

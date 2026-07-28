@@ -88,6 +88,7 @@ _STATUS_SNAPSHOT_FIELDS = frozenset(
     {
         "revision",
         "backend_status",
+        "backup_schedule_health",
         "active_operations",
         "latest_backup",
         "last_successful_backup_completed_at",

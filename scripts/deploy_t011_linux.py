@@ -282,7 +282,7 @@ class T011LinuxDeployer:
         expected_manifest = {
             "schema_version": 2,
             "release_id": self.request.release_id,
-            "control_protocol_version": 1,
+            "control_protocol_version": 2,
             "event_protocol_version": 1,
             "entrypoint": "venv/bin/timelocker",
         }

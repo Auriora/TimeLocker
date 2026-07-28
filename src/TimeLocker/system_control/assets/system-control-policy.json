@@ -1,7 +1,7 @@
 {
   "operator_group": "timelocker-operators",
   "transport_identifier": "/run/timelocker/control.sock",
-  "protocol_version": 1,
+  "protocol_version": 2,
   "max_request_bytes": 65536,
   "max_response_records": 100,
   "retention": {

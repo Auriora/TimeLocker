@@ -93,8 +93,9 @@ that status is current without repeated polling and terminal output.
 2. WHILE a subscription is healthy, THE TRAY SHALL NOT issue periodic status
    snapshot requests solely because a fixed refresh interval elapsed.
 3. WHEN backup, retention, backend-availability, or TimeLocker-managed schedule
-   status changes, THEN an authorized connected tray SHALL be prompted to
-   refresh within two seconds under normal local-host load.
+   status changes in the backend process or a separate protected worker, THEN
+   an authorized connected tray SHALL be prompted to refresh within two seconds
+   under normal local-host load.
 4. WHEN multiple changes occur faster than the tray can render them, THEN the
    system SHALL coalesce them without applying an older revision after a newer
    revision.
@@ -125,7 +126,7 @@ control or expose secrets.
 5. WHEN an unauthorized local client attempts to subscribe, THEN it SHALL
    receive no status payload beyond a bounded safe denial.
 
-### Requirement 3: Accurate Backup And Retention Status
+### Requirement 3: Accurate Backup Health And Activity
 
 **User Story:** As an operator, I want the tray's backup time to mean successful
 completion, so that a failed or running attempt cannot misrepresent protection.
@@ -134,8 +135,8 @@ completion, so that a failed or running attempt cannot misrepresent protection.
 
 #### Acceptance Criteria
 
-1. THE `Last successful backup` value SHALL be selected only from backup runs
-   in `SUCCEEDED` state and SHALL display that run's `completed_at` time.
+1. THE `Last Backup` value SHALL be selected only from backup runs in
+   `SUCCEEDED` state and SHALL display that run's `completed_at` time.
 2. WHEN a newer backup is queued, running, failed, skipped, or interrupted,
    THEN it SHALL NOT replace the last successful backup completion time.
 3. WHEN no successful backup exists, THEN the tray SHALL display `Never` or
@@ -146,6 +147,13 @@ completion, so that a failed or running attempt cannot misrepresent protection.
 5. WHEN a timestamp is displayed, THEN the tray SHALL convert the stored
    timezone-aware UTC value to the desktop session's local time and identify
    the timezone.
+6. THE BACKEND SHALL derive backup schedule health from the configured system
+   timer, its service state, and durable backup-run records without granting the
+   tray direct systemd or protected-file access.
+7. WHEN an enabled scheduled occurrence passes its configured grace deadline
+   without a matching active or terminal backup run, THEN schedule health SHALL
+   become `backup_missed`. A failed matching run SHALL be `backup_failed`, not
+   `backup_missed`.
 
 ### Requirement 4: Resilience And Process Independence
 
@@ -156,8 +164,10 @@ recoverable, so that presentation failures never disrupt backup or retention.
 
 #### Acceptance Criteria
 
-1. WHEN the backend or event channel is unavailable, THEN the tray SHALL remain
-   responsive and reconnect using bounded exponential backoff.
+1. WHEN the tray process starts, THEN it SHALL present a connecting state before
+   beginning backend subscription work. WHEN the backend or event channel is
+   unavailable, THEN the presented tray SHALL remain responsive and reconnect
+   using bounded exponential backoff.
 2. WHEN the backend restarts, THEN a connected or reconnecting tray SHALL
    establish a new subscription session and obtain a fresh snapshot.
 3. THE BACKEND SHALL bound subscriber count, frame size, queued event state,
@@ -177,9 +187,10 @@ status, so that its labels accurately describe what they do.
 
 #### Acceptance Criteria
 
-1. THE MENU SHALL show backend availability, current activity, last successful
-   backup completion, latest retention result, and next known schedules when
-   those values are available.
+1. THE MENU SHALL contain exactly three non-actionable status rows: `State`,
+   `Activity`, and `Last Backup`. `State` SHALL contain health only; `Activity`
+   SHALL contain transient work such as connecting, backup running, retention
+   running, or idle.
 2. THE MENU SHALL NOT show `Open TimeLocker` until an implemented desktop
    application exists.
 3. THE MENU SHALL NOT show an actionable `View Status` item unless activating
@@ -190,9 +201,14 @@ status, so that its labels accurately describe what they do.
 5. WHEN a status event arrives, THEN the visible menu SHALL update without
    restarting the tray process.
 6. ON Linux, THE TRAY SHALL preserve the TimeLocker logo while applying a
-   distinct non-colour-only status badge for running, successful, warning or
-   never-run, and failed/interrupted states. WHEN no backup attempt exists, the
-   icon SHALL use the warning or never-run state rather than implying success.
+   distinct non-colour-only badge consistent with health and activity. Running
+   activity MAY temporarily select the running badge; otherwise failed, missed,
+   unavailable, disabled, healthy, and never-run health SHALL select an honest
+   error, warning, success, or idle badge.
+7. `State` SHALL use bounded user-facing values including `Healthy`,
+   `Backup failed`, `Backup missed`, `Schedule disabled`,
+   `Backend unavailable`, and `Access denied`. Connection progress and running
+   operations SHALL NOT be reported as health states.
 
 ### Requirement 6: Quiet Background Operation
 
@@ -249,6 +265,9 @@ implementation.
   lock or alter an active run except through existing allowlisted requests.
 - **CP-006:** A healthy tray over any interval emits zero periodic successful
   status records to stdout or stderr.
+- **CP-007:** An enabled backup occurrence becomes missed only after its grace
+  deadline when no matching active or terminal backup run exists; any matching
+  failed run is reported as failed instead.
 
 ## Technical Context
 
@@ -259,8 +278,9 @@ implementation.
   contracts and tests
 - **Constraints:** local-only IPC, current group authorization, bounded frames,
   safe projections, immutable releases, no GUI dependency in CLI/backend
-- **Performance Goals:** event-to-menu update within two seconds under normal
-  local load; no steady-state snapshot polling; bounded idle heartbeat
+- **Performance Goals:** present the connecting tray before starting backend
+  subscription work; event-to-menu update within two seconds under normal local
+  load; no steady-state snapshot polling; bounded idle heartbeat
 
 ## Success Criteria
 

@@ -136,6 +136,7 @@ def test_status_snapshot_round_trip_and_rejects_mismatched_run_operations() -> N
         {
             "revision": {"session_id": str(SESSION_ID), "sequence": 4},
             "backend_status": "available",
+            "backup_schedule_health": "healthy",
             "active_operations": 1,
             "latest_backup": latest_backup.to_wire(),
             "last_successful_backup_completed_at": None,
@@ -165,6 +166,7 @@ def test_status_snapshot_rejects_unknown_fields_and_bool_as_active_operations() 
     payload = {
         "revision": {"session_id": str(SESSION_ID), "sequence": 1},
         "backend_status": "available",
+        "backup_schedule_health": "healthy",
         "active_operations": True,
         "latest_backup": None,
         "last_successful_backup_completed_at": None,

@@ -247,8 +247,9 @@ T009 -> T010 -> T011 -> T012 -> T013
     execution approval required.
   - Acceptance: Authorized and denied subscription, event latency, last-success
     semantics, 90-second idle silence, backend restart, tray restart, action
-    independence, timer health, and rollback are evidenced from the installed
-    artifact.
+    independence, timer health, external-worker invalidation, missed-backup
+    health, the exact three-row menu, and rollback are evidenced from the
+    installed artifact.
   - Evidence: User approved remediation of T011 review findings. Implementation
     maps OS socket permission denial to the safe denied state, reports other
     transport failures as unavailable with bounded reconnect, accepts
@@ -288,10 +289,61 @@ T009 -> T010 -> T011 -> T012 -> T013
     previous release, the control service, sockets, backup timer, and retention
     timer remained healthy, and installed CLI/tray status probes passed. The
     absence of a supported general deployment entrypoint is routed to
-    [Spec 011](../011-protected-system-deployment/README.md).
+    [Spec 011](../011-protected-system-deployment/README.md). A subsequent
+    startup correction adds an explicit deterministic connecting badge,
+    processes the desktop event loop before starting the subscription worker,
+    and lazily loads unrelated package and system-control exports. Focused tray,
+    asset, deployment, and artifact tests passed 42 cases; the broader
+    system-control, tray-monitoring, and backup compatibility regression passed
+    415 tests. Scoped Ruff, compileall, patch integrity, and public lazy-export
+    compatibility checks passed. Direct source startup measurements were
+    approximately 0.11 seconds for the launcher import and 0.56 seconds for the
+    full tray entry import. A fresh wheel and sdist passed release validation
+    with 28 package-data files, and the wheel passed clean installed-artifact
+    smoke. Wheel SHA-256:
+    `d9fb99bbe856c7659304701ab8b12d5dd8d97fc194f5b8ce5825d33a559609c8`;
+    sdist SHA-256:
+    `bb5df2b2450db07335ccbb848f03e01b010ed568d6609f29cdd3b24f827ffeea`.
+    No protected host mutation occurred.
 
   - Status: Corrected release activated successfully; the remaining installed
-    T011 acceptance checks and evidence validation are in progress.
+    T011 acceptance checks, including visible connecting-state startup, and
+    evidence validation are in progress.
+  - [x] T011.1 Reconcile and test backup-health and tray-row contracts.
+    - Acceptance: State is health-only; Activity is transient; Last Backup is
+      successful completion or Never; exact wire and menu tests fail before the
+      implementation change.
+    - Evidence: User approved the corrected State/Activity distinction on
+      2026-07-28. Requirements, design, traceability, verification, and tests
+      now define health-only State, transient Activity, and successful-only
+      Last Backup. The strict status snapshot contract includes bounded backup
+      schedule health and control protocol version 2; schema-1 release metadata
+      and preserved protocol-1 policy declarations remain readable for upgrade
+      and rollback without accepting protocol-1 traffic as the new contract.
+  - [x] T011.2 Implement external-worker invalidation and backup schedule health.
+    - Acceptance: Separate protected run-record writes prompt a snapshot within
+      two seconds; systemd timer/service state and durable runs distinguish
+      healthy, failed, missed, disabled, and unavailable without fixed polling.
+    - Evidence: Added watchdog-backed native filesystem invalidation for
+      protected run-record atomic renames, a bounded systemd timer/service
+      observer, durable run matching, a 15-minute missed-occurrence grace
+      deadline, and a one-shot deadline monitor. Tests cover unavailable,
+      disabled, healthy, missed, failed-run matching, late manual backup,
+      numeric systemd timestamps, deadline publication, and an external
+      `AtomicRecordStore` write. The current host's read-only observer returned
+      an enabled/active timer with the expected last and next trigger times.
+  - [x] T011.3 Implement and validate the exact three-row tray presentation.
+    - Acceptance: All platform adapters show only State, Activity, and Last
+      Backup; retention affects Activity only while running and never health.
+    - Evidence: Tray projection and all platform menu adapters now expose only
+      `State`, `Activity`, and `Last Backup`. Backup failure/miss, schedule
+      disabled/unavailable, backend unavailable, access denial, and healthy
+      states are separate from connecting, backup-running,
+      retention-running, combined-running, and idle activity. Retention
+      terminal outcomes do not affect health. A 416-test system-control,
+      tray, deployment, artifact, backup, and CLI regression passed; scoped
+      Ruff, compileall, patch integrity, wheel/sdist build, and installed-wheel
+      smoke passed. No protected host mutation or live backup/retention ran.
 - [ ] T012 Run the TimeLocker expert review and address findings.
   - Depends on: T011
   - Requirements: Requirement 1-Requirement 7

@@ -13,6 +13,7 @@ from .interfaces import StatusEventClient, SystemControlClient
 from .models import BackupActionRequest, RetentionActionRequest, StatusSnapshot
 from .types import (
     BackendStatus,
+    BackupScheduleHealth,
     ProtocolErrorCode,
     ResponseStatus,
     RunState,
@@ -34,6 +35,8 @@ class TrayDisplayState:
 
     status: str
     tooltip: str
+    health: str
+    activity: str
     active_operations: int
     backend_available: bool
     last_successful_backup_completed_at: datetime | None
@@ -194,55 +197,66 @@ class TrayControlClient:
         """Project one coherent backend snapshot into safe desktop fields."""
         if not isinstance(snapshot, StatusSnapshot):
             raise TypeError("snapshot must be a StatusSnapshot")
-        latest_runs = tuple(
-            run
-            for run in (snapshot.latest_backup, snapshot.latest_retention)
-            if run is not None
+        backup_active = (
+            snapshot.latest_backup is not None
+            and snapshot.latest_backup.state in {RunState.QUEUED, RunState.RUNNING}
+        )
+        retention_active = (
+            snapshot.latest_retention is not None
+            and snapshot.latest_retention.state
+            in {RunState.QUEUED, RunState.RUNNING}
         )
         if snapshot.backend_status is BackendStatus.UNAVAILABLE:
             status = "warning"
-        elif snapshot.active_operations:
-            status = "running"
-        elif any(
-            run.state in {RunState.FAILED, RunState.INTERRUPTED}
-            for run in latest_runs
+            health = "Backend unavailable"
+        elif snapshot.backup_schedule_health is BackupScheduleHealth.DISABLED:
+            status = "warning"
+            health = "Schedule disabled"
+        elif snapshot.backup_schedule_health is BackupScheduleHealth.MISSED:
+            status = "error"
+            health = "Backup missed"
+        elif snapshot.backup_schedule_health is BackupScheduleHealth.UNAVAILABLE:
+            status = "warning"
+            health = "Schedule unavailable"
+        elif (
+            snapshot.latest_backup is not None
+            and snapshot.latest_backup.state
+            in {RunState.FAILED, RunState.INTERRUPTED}
         ):
             status = "error"
-        elif snapshot.latest_backup is None:
-            status = "warning"
-        elif any(run.state is RunState.SKIPPED for run in latest_runs):
-            status = "warning"
-        elif any(run.state is RunState.SUCCEEDED for run in latest_runs):
-            status = "success"
+            health = "Backup failed"
         else:
-            status = "idle"
+            status = "success"
+            health = "Healthy"
+
+        if backup_active and retention_active:
+            activity = "Backup and retention running"
+        elif backup_active:
+            activity = "Backup running"
+        elif retention_active:
+            activity = "Retention running"
+        elif snapshot.active_operations:
+            activity = "Operation running"
+        else:
+            activity = "Idle"
+
+        if activity != "Idle":
+            status = "running"
+        elif health == "Healthy" and snapshot.latest_backup is None:
+            status = "warning"
 
         tooltip_lines = [
             "TimeLocker",
-            f"Backend: {snapshot.backend_status.value.title()}",
-            f"Active operations: {snapshot.active_operations}",
-            "Last successful backup: "
+            f"State: {health}",
+            f"Activity: {activity}",
+            "Last Backup: "
             + _format_local_time(snapshot.last_successful_backup_completed_at),
         ]
-        if snapshot.latest_backup is not None:
-            tooltip_lines.append(
-                f"Latest backup: {snapshot.latest_backup.safe_summary}"
-            )
-        if snapshot.latest_retention is not None:
-            tooltip_lines.append(
-                f"Latest retention: {snapshot.latest_retention.safe_summary}"
-            )
-        if snapshot.next_backup_at is not None:
-            tooltip_lines.append(
-                f"Next backup: {_format_local_time(snapshot.next_backup_at)}"
-            )
-        if snapshot.next_retention_at is not None:
-            tooltip_lines.append(
-                f"Next retention: {_format_local_time(snapshot.next_retention_at)}"
-            )
         return TrayDisplayState(
             status=status,
             tooltip="\n".join(tooltip_lines),
+            health=health,
+            activity=activity,
             active_operations=snapshot.active_operations,
             backend_available=snapshot.backend_status is BackendStatus.AVAILABLE,
             last_successful_backup_completed_at=(
@@ -333,6 +347,10 @@ class TrayControlClient:
         return TrayDisplayState(
             status="warning",
             tooltip=tooltip,
+            health=(
+                "Access denied" if backend_available else "Backend unavailable"
+            ),
+            activity="Idle" if backend_available else "Connecting",
             active_operations=0,
             backend_available=backend_available,
             last_successful_backup_completed_at=None,

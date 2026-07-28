@@ -24,9 +24,9 @@ steady-state tray polling.
 |-------------|---------------------|-----------------|---------------------|
 | Requirement 1 | AC1-AC5 | Subscription handshake, session revisions, invalidation stream | Protocol, broker, integration, idle tests |
 | Requirement 2 | AC1-AC5 | Peer identity, per-frame authorization, allowlisted models | Security and negative-control tests |
-| Requirement 3 | AC1-AC5 | Backend-derived `StatusSnapshot` and local presentation | Model, store, tray tests |
+| Requirement 3 | AC1-AC7 | Backend-derived `StatusSnapshot`, systemd schedule health, and local presentation | Model, store, schedule, tray tests |
 | Requirement 4 | AC1-AC5 | Separate transport, backoff, heartbeat, bounded clients | Failure, restart, slow-client tests |
-| Requirement 5 | AC1-AC6 | Disabled status rows, action-only mutations, and deterministic logo badges | Platform menu/icon tests and Linux acceptance |
+| Requirement 5 | AC1-AC7 | Three disabled status rows, action-only mutations, and deterministic logo badges | Platform menu/icon tests and Linux acceptance |
 | Requirement 6 | AC1-AC4 | Silent serve loop and logging boundary | Captured-stream and logging tests |
 | Requirement 7 | AC1-AC5 | Portable interfaces, Linux adapter, Windows contracts, release probes | Platform, package, deployment, rollback tests |
 
@@ -40,6 +40,7 @@ steady-state tray polling.
 | CP-004 | Initial/reconnect flow always fetches `status.snapshot`. | Restart, gap, and reconnect integration tests | Events are invalidations, not state. |
 | CP-005 | Event components have read/status dependencies only. | Interface and lock-spy tests | Mutations retain existing action path. |
 | CP-006 | Serve path has no successful-state `print`. | Captured 90-second idle test with shortened test clock | One-shot output remains tested separately. |
+| CP-007 | Systemd occurrence, grace deadline, and durable run matching derive backup health. | Fake-clock/systemd tables and deadline tests | Failed runs remain distinct from missed runs. |
 
 ## High-Level Design
 
@@ -82,6 +83,9 @@ requests or mutation actions.
   - Explicitly notify after TimeLocker-owned run and schedule mutations.
   - Monitor protected atomic record/schedule state changes produced by separate
     workers through an injectable platform change-watcher boundary.
+  - On Linux, use filesystem notifications for protected run-record changes
+    and a one-shot deadline monitor for the next scheduled occurrence; do not
+    add fixed-interval tray polling.
 - **Linux event transport**
   - Adopt a systemd-owned AF_UNIX listener.
   - Derive `SO_PEERCRED`, enforce current NSS membership, bound connections and
@@ -95,7 +99,11 @@ requests or mutation actions.
   - Signal the presentation loop to fetch a fresh snapshot after newer events.
   - Reconnect with bounded exponential backoff and coalesce refresh requests.
 - **Tray presentation**
+  - Construct and process an explicit connecting badge before starting the
+    background subscription worker.
   - Replace `View Status` with non-actionable status rows.
+  - Render exactly `State`, `Activity`, and `Last Backup`.
+  - Keep health (`State`) separate from transient work (`Activity`).
   - Keep `Open TimeLocker` absent.
   - Remove periodic successful stdout rendering from `serve`.
 
@@ -121,6 +129,7 @@ StatusSnapshot
   latest_retention: optional safe run summary
   next_backup_at: optional UTC datetime
   next_retention_at: optional UTC datetime
+  backup_schedule_health: healthy | missed | disabled | unavailable
 ```
 
 The exact snapshot schema must reuse existing stable enums and safe summaries.
@@ -129,15 +138,17 @@ or backend output.
 
 ### Data Flow
 
-1. Tray connects to the event socket.
-2. Backend derives peer identity and authorizes current group membership.
-3. Backend sends `snapshot_required` with the current revision.
-4. Tray requests `status.snapshot` through the control socket and renders it.
-5. A durable run or managed schedule change advances the broker sequence.
-6. Backend reauthorizes each subscriber and sends one coalesced `changed`
+1. Tray constructs and processes its connecting presentation.
+2. A background worker connects to the event socket without blocking the
+   desktop event loop.
+3. Backend derives peer identity and authorizes current group membership.
+4. Backend sends `snapshot_required` with the current revision.
+5. Tray requests `status.snapshot` through the control socket and renders it.
+6. A durable run or managed schedule change advances the broker sequence.
+7. Backend reauthorizes each subscriber and sends one coalesced `changed`
    event.
-7. Tray fetches and renders the newest snapshot if its revision is newer.
-8. On disconnect, session change, gap, or `resync_required`, the tray reconnects
+8. Tray fetches and renders the newest snapshot if its revision is newer.
+9. On disconnect, session change, gap, or `resync_required`, the tray reconnects
    and repeats the initial snapshot flow.
 
 ## Low-Level Design
@@ -162,8 +173,10 @@ on_tray_event(event):
 
 build_status_snapshot():
     runs = protected_store.list_for_status()
+    schedule = system_schedule_provider.snapshot()
     successful = backup runs with state SUCCEEDED and completed_at present
     last_success = max(successful, key=completed_at, default=None)
+    backup_health = reconcile(schedule, runs, now, grace)
     return sanitized snapshot at broker.current_revision
 ```
 
@@ -205,10 +218,16 @@ class StatusEventClient(Protocol):
   `unavailable` while bounded reconnect continues.
 - Event channel unavailability changes tray presentation to unavailable but
   does not disable explicit control-channel commands.
+- Initial connection and later reconnect attempts run outside the desktop event
+  loop; no socket timeout or backoff delay may postpone the first connecting
+  presentation.
 - Backoff is bounded and resets only after a successful authorized handshake.
 - Slow subscribers retain at most the newest pending revision; if they cannot
   keep up, the backend disconnects them.
 - Watcher overflow or uncertainty emits `resync_required`.
+- The schedule deadline monitor sleeps only until the next expected occurrence
+  plus grace, publishes one invalidation, then rearms from a fresh systemd
+  projection. It does not poll the tray or protected backend on a fixed cadence.
 - Logging uses stable codes and redacted summaries with repetition control.
 
 ### Security, Trust, and Access

@@ -8,6 +8,7 @@ from uuid import UUID
 
 from .types import (
     BackendStatus,
+    BackupScheduleHealth,
     DiagnosticCode,
     DiagnosticComponent,
     DiagnosticLevel,
@@ -36,7 +37,7 @@ from .validation import (
 )
 
 
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2
 STATUS_EVENT_SCHEMA_VERSION = 1
 STATUS_EVENT_PROTOCOL_VERSION = 1
 DEFAULT_MAX_REQUEST_BYTES = 65_536
@@ -168,7 +169,7 @@ class SystemPolicy:
                 maximum=255,
             ),
         )
-        if self.protocol_version != PROTOCOL_VERSION:
+        if self.protocol_version not in {1, PROTOCOL_VERSION}:
             raise ValueError("protocol_version is unsupported")
         object.__setattr__(
             self,
@@ -858,6 +859,7 @@ class StatusSnapshot:
     revision: StatusRevision
     backend_status: BackendStatus
     active_operations: int
+    backup_schedule_health: BackupScheduleHealth = BackupScheduleHealth.HEALTHY
     latest_backup: RunRecordView | None = None
     last_successful_backup_completed_at: datetime | None = None
     latest_retention: RunRecordView | None = None
@@ -889,6 +891,15 @@ class StatusSnapshot:
                 self.backend_status,
                 BackendStatus,
                 field="backend_status",
+            ),
+        )
+        object.__setattr__(
+            self,
+            "backup_schedule_health",
+            require_enum(
+                self.backup_schedule_health,
+                BackupScheduleHealth,
+                field="backup_schedule_health",
             ),
         )
         object.__setattr__(
@@ -938,6 +949,7 @@ class StatusSnapshot:
                 {
                     "revision",
                     "backend_status",
+                    "backup_schedule_health",
                     "active_operations",
                     "latest_backup",
                     "last_successful_backup_completed_at",
@@ -950,6 +962,7 @@ class StatusSnapshot:
         return cls(
             revision=snapshot["revision"],
             backend_status=snapshot["backend_status"],
+            backup_schedule_health=snapshot["backup_schedule_health"],
             active_operations=snapshot["active_operations"],
             latest_backup=snapshot["latest_backup"],
             last_successful_backup_completed_at=require_optional_wire_utc_datetime(
@@ -973,6 +986,7 @@ class StatusSnapshot:
         *,
         revision: StatusRevision,
         backend_status: BackendStatus,
+        backup_schedule_health: BackupScheduleHealth = BackupScheduleHealth.HEALTHY,
         active_operations: int,
         runs: Iterable[RunRecord | RunRecordView],
         next_backup_at: datetime | None = None,
@@ -994,6 +1008,7 @@ class StatusSnapshot:
         return cls(
             revision=revision,
             backend_status=backend_status,
+            backup_schedule_health=backup_schedule_health,
             active_operations=active_operations,
             latest_backup=_latest_run_view(backup_runs),
             last_successful_backup_completed_at=(
@@ -1011,6 +1026,7 @@ class StatusSnapshot:
         return {
             "revision": self.revision.to_wire(),
             "backend_status": self.backend_status.value,
+            "backup_schedule_health": self.backup_schedule_health.value,
             "active_operations": self.active_operations,
             "latest_backup": (
                 self.latest_backup.to_wire() if self.latest_backup is not None else None

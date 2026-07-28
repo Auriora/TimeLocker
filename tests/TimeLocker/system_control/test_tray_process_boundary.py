@@ -45,6 +45,62 @@ def test_cli_import_does_not_load_platform_tray_module() -> None:
 
 
 @pytest.mark.unit
+def test_package_import_defers_backup_and_cloud_dependencies() -> None:
+    environment = dict(os.environ)
+    environment["PYTHONPATH"] = "src"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys; import TimeLocker; "
+                "assert 'TimeLocker.backup_manager' not in sys.modules; "
+                "assert 'boto3' not in sys.modules; "
+                "assert 'b2sdk' not in sys.modules; "
+                "from TimeLocker import BackupManager; "
+                "assert BackupManager.__name__ == 'BackupManager'"
+            ),
+        ],
+        cwd=Path(__file__).parents[3],
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.unit
+def test_tray_launcher_import_defers_unrelated_system_services() -> None:
+    environment = dict(os.environ)
+    environment["PYTHONPATH"] = "src"
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            (
+                "import sys; "
+                "import TimeLocker.system_control.tray_launcher_entry; "
+                "assert 'TimeLocker.system_control.retention' not in sys.modules; "
+                "assert 'TimeLocker.system_control.storage' not in sys.modules; "
+                "assert 'boto3' not in sys.modules; "
+                "assert 'b2sdk' not in sys.modules"
+            ),
+        ],
+        cwd=Path(__file__).parents[3],
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.unit
 def test_tray_single_instance_lock_rejects_second_owner(tmp_path) -> None:
     lock_path = tmp_path / "tray.lock"
 
@@ -101,6 +157,8 @@ def test_apply_state_projects_last_backup_time_to_tray() -> None:
     state = TrayDisplayState(
         status="success",
         tooltip="TimeLocker\nLast backup: 2026-07-26T12:34:00+00:00",
+        health="Healthy",
+        activity="Idle",
         active_operations=0,
         backend_available=True,
         last_successful_backup_completed_at=backup_time,
@@ -116,6 +174,8 @@ def test_apply_state_projects_last_backup_time_to_tray() -> None:
 
     status_info = tray.update_status_info.call_args.args[0]
     assert status_info.last_successful_backup_time == backup_time
+    assert status_info.health == "Healthy"
+    assert status_info.activity == "Idle"
 
 
 @pytest.mark.unit
@@ -138,6 +198,8 @@ def test_healthy_serve_is_silent_and_applies_event_snapshot(
     state = TrayDisplayState(
         status="success",
         tooltip="TimeLocker",
+        health="Healthy",
+        activity="Idle",
         active_operations=0,
         backend_available=True,
         last_successful_backup_completed_at=datetime(
@@ -185,6 +247,53 @@ def test_healthy_serve_is_silent_and_applies_event_snapshot(
 
 
 @pytest.mark.unit
+def test_connecting_icon_is_processed_before_subscription_starts(
+    monkeypatch,
+) -> None:
+    arguments = type(
+        "Arguments",
+        (),
+        {
+            "action": "serve",
+            "once": True,
+            "refresh_seconds": 15,
+            "target_id": "production",
+            "retention_policy_fingerprint": None,
+            "dry_run_retention": False,
+        },
+    )()
+    events: list[str] = []
+    tray = Mock()
+    tray.is_available.return_value = True
+    tray.process_events.side_effect = lambda: events.append("ui-ready")
+
+    class _Subscription:
+        def serve(self, _stop_event, *, on_snapshot, on_unavailable) -> None:
+            events.append("subscription-started")
+            on_snapshot(object())
+
+    monkeypatch.setattr(tray_entry, "_parse_args", lambda: arguments)
+    monkeypatch.setattr(
+        tray_entry,
+        "_build_client",
+        lambda **_kwargs: Mock(),
+    )
+    monkeypatch.setattr(tray_entry, "SystemTrayIntegration", lambda **_kwargs: tray)
+    monkeypatch.setattr(
+        tray_entry,
+        "TrayStatusSubscriptionClient",
+        lambda: _Subscription(),
+    )
+    monkeypatch.setattr(tray_entry, "_single_instance", lambda: nullcontext())
+    monkeypatch.setattr(tray_entry.signal, "signal", lambda *_args: None)
+
+    tray_entry.main()
+
+    assert events[0] == "ui-ready"
+    assert "subscription-started" in events
+
+
+@pytest.mark.unit
 def test_explicit_status_action_still_renders_bounded_output(
     monkeypatch,
     capsys,
@@ -202,6 +311,8 @@ def test_explicit_status_action_still_renders_bounded_output(
     state = TrayDisplayState(
         status="idle",
         tooltip="TimeLocker",
+        health="Healthy",
+        activity="Idle",
         active_operations=0,
         backend_available=True,
         last_successful_backup_completed_at=None,

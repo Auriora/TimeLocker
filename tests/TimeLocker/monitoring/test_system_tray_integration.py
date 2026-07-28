@@ -68,7 +68,7 @@ class TestSystemTrayIntegration:
             tray = SystemTrayIntegration(app_name="TestApp")
 
             assert tray.app_name == "TestApp"
-            assert tray.current_status == TrayStatus.IDLE
+            assert tray.current_status == TrayStatus.CONNECTING
             assert tray.is_available() is True
             linux_tray.assert_called_once_with(
                 "TestApp",
@@ -101,6 +101,7 @@ class TestSystemTrayIntegration:
     @pytest.mark.unit
     def test_tray_status_enum(self):
         """Test TrayStatus enum values"""
+        assert TrayStatus.CONNECTING.value == "connecting"
         assert TrayStatus.IDLE.value == "idle"
         assert TrayStatus.RUNNING.value == "running"
         assert TrayStatus.SUCCESS.value == "success"
@@ -166,7 +167,7 @@ class TestLinuxSystemTray:
 
         indicator_module.Indicator.new.assert_called_once_with(
             "TimeLocker",
-            str(PACKAGED_TRAY_STATUS_ICON_PATHS[TrayStatus.IDLE]),
+            str(PACKAGED_TRAY_STATUS_ICON_PATHS[TrayStatus.CONNECTING]),
             indicator_module.IndicatorCategory.APPLICATION_STATUS,
         )
         indicator.set_icon.assert_called_once_with(
@@ -190,7 +191,7 @@ class TestLinuxSystemTray:
     def test_linux_menu_shows_last_backup_in_local_time(self):
         gtk = Mock()
         indicator_module = Mock()
-        status_items = [Mock() for _ in range(7)]
+        status_items = [Mock() for _ in range(3)]
         backup_item = Mock()
         quit_item = Mock()
         gtk.MenuItem.side_effect = [
@@ -212,6 +213,8 @@ class TestLinuxSystemTray:
                 TrayStatusInfo(
                     status=TrayStatus.SUCCESS,
                     tooltip="TimeLocker",
+                    health="Healthy",
+                    activity="Idle",
                     backend_available=True,
                     last_successful_backup_time=backup_time,
                     latest_backup_status="Backup completed successfully.",
@@ -226,7 +229,7 @@ class TestLinuxSystemTray:
             status_item.set_sensitive.assert_called_once_with(False)
         expected_time = backup_time.astimezone().strftime("%Y-%m-%d %H:%M %Z")
         status_items[2].set_label.assert_called_once_with(
-            f"Last successful backup: {expected_time}".rstrip()
+            f"Last Backup: {expected_time}".rstrip()
         )
 
     @pytest.mark.monitoring

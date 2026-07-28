@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections import deque
 from collections.abc import Callable, Iterator
 from enum import StrEnum
+from pathlib import Path
+from queue import Empty, Full, Queue
 from threading import Condition, Event, RLock
 from typing import Protocol, TypeVar
 from uuid import UUID, uuid4
@@ -33,6 +35,52 @@ class ProtectedStateWatcher(Protocol):
 
     def events(self, stop_event: Event) -> Iterator[StatusWatchSignal]:
         """Yield bounded change signals until shutdown."""
+
+
+class FileSystemProtectedStateWatcher:
+    """Watch protected JSON records using native filesystem notifications."""
+
+    def __init__(self, roots: tuple[Path, ...]) -> None:
+        if not roots or any(not isinstance(root, Path) for root in roots):
+            raise TypeError("roots must contain at least one Path")
+        self._roots = roots
+
+    def events(self, stop_event: Event) -> Iterator[StatusWatchSignal]:
+        from watchdog.events import FileSystemEvent, FileSystemEventHandler
+        from watchdog.observers import Observer
+
+        signals: Queue[StatusWatchSignal] = Queue(maxsize=1)
+
+        class Handler(FileSystemEventHandler):
+            def on_any_event(self, event: FileSystemEvent) -> None:
+                if event.is_directory:
+                    return
+                paths = (
+                    str(event.src_path),
+                    str(getattr(event, "dest_path", "")),
+                )
+                if not any(path.endswith(".json") for path in paths):
+                    return
+                try:
+                    signals.put_nowait(StatusWatchSignal.CHANGED)
+                except Full:
+                    return
+
+        observer = Observer()
+        handler = Handler()
+        for root in self._roots:
+            root.mkdir(parents=True, exist_ok=True)
+            observer.schedule(handler, str(root), recursive=True)
+        observer.start()
+        try:
+            while not stop_event.is_set():
+                try:
+                    yield signals.get(timeout=0.25)
+                except Empty:
+                    continue
+        finally:
+            observer.stop()
+            observer.join(timeout=1.0)
 
 
 class BoundedStatusSubscription:

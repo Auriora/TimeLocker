@@ -156,7 +156,7 @@ class ReleaseManifest:
             control_protocol_version=require_int(
                 mapping["protocol_version"],
                 field="protocol_version",
-                minimum=PROTOCOL_VERSION,
+                minimum=1,
                 maximum=PROTOCOL_VERSION,
             ),
             event_protocol_version=None,

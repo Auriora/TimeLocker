@@ -66,9 +66,21 @@ from .storage import (
     RepositoryMutationLock,
     reconcile_abandoned_runs,
 )
-from .status_events import BoundedStatusEventBroker, StatusChangeCoordinator
+from .schedule_health import (
+    BackupScheduleObservation,
+    ScheduleDeadlineMonitor,
+    SystemdScheduleSummaryProvider,
+    derive_backup_schedule_health,
+)
+from .status_events import (
+    BoundedStatusEventBroker,
+    FileSystemProtectedStateWatcher,
+    ProtectedStateChangeMonitor,
+    StatusChangeCoordinator,
+)
 from .types import (
     BackendStatus,
+    BackupScheduleHealth,
     DiagnosticCode,
     DiagnosticComponent,
     DiagnosticLevel,
@@ -107,6 +119,13 @@ class ScheduleSummaryProvider(Protocol):
 
     def get_schedule_summary(self) -> ScheduleSummary:
         """Return a safe schedule projection."""
+
+
+class BackupScheduleObserver(Protocol):
+    """Return current protected backup-schedule facts."""
+
+    def observe_backup_schedule(self) -> BackupScheduleObservation:
+        """Return the current bounded schedule observation."""
 
 
 class FailClosedBackupMutationAdapter:
@@ -305,12 +324,14 @@ class LinuxBackendService:
     status_event_broker: BoundedStatusEventBroker
     status_change_coordinator: StatusChangeCoordinator
     membership_resolver: GroupMembershipResolver
+    state_change_monitors: tuple[object, ...] = ()
     reconciled_run_ids: tuple[UUID, ...] = ()
 
     def serve_forever(self, *, install_signal_handlers: bool = True) -> None:
         if install_signal_handlers:
             self.install_signal_handlers()
         status_thread = None
+        monitor_threads: list[Thread] = []
         if self.status_event_transport is not None:
             status_thread = Thread(
                 target=self._serve_status_events,
@@ -318,6 +339,15 @@ class LinuxBackendService:
                 daemon=True,
             )
             status_thread.start()
+        for index, monitor in enumerate(self.state_change_monitors):
+            monitor_thread = Thread(
+                target=monitor.run,
+                args=(self.stop_event,),
+                name=f"timelocker-state-monitor-{index}",
+                daemon=True,
+            )
+            monitor_thread.start()
+            monitor_threads.append(monitor_thread)
         try:
             self.transport.serve(self.dispatcher)
         except OSError:
@@ -327,6 +357,8 @@ class LinuxBackendService:
             self.stop()
             if status_thread is not None:
                 status_thread.join(timeout=1.0)
+            for monitor_thread in monitor_threads:
+                monitor_thread.join(timeout=1.0)
 
     def _serve_status_events(self) -> None:
         assert self.status_event_transport is not None
@@ -382,6 +414,7 @@ def build_linux_backend(
     retention_plan_provider: RetentionPlanProvider | None = None,
     production_target_path: Path | None = None,
     schedule_summary_provider: ScheduleSummaryProvider | None = None,
+    backup_schedule_observer: BackupScheduleObserver | None = None,
     max_diagnostics: int = 1_000,
     stop_event: Event | None = None,
     clock: Callable[[], datetime] | None = None,
@@ -427,6 +460,11 @@ def build_linux_backend(
     schedule_summary_provider = (
         schedule_summary_provider or StaticScheduleSummaryProvider()
     )
+    if backup_schedule_observer is None and hasattr(
+        schedule_summary_provider,
+        "observe_backup_schedule",
+    ):
+        backup_schedule_observer = schedule_summary_provider  # type: ignore[assignment]
     membership_resolver = membership_resolver or LinuxNssGroupMembershipResolver()
     if (
         retention_adapter is None
@@ -486,12 +524,27 @@ def build_linux_backend(
             retention_adapter=retention_adapter,
             retention_plan_provider=retention_plan_provider,
             schedule_summary_provider=schedule_summary_provider,
+            backup_schedule_observer=backup_schedule_observer,
             status_change_coordinator=status_change_coordinator,
             trigger_root=paths.trigger_root,
             clock=now,
         ),
         audit_sink=audit_sink,
     )
+    state_change_monitors: list[object] = [
+        ProtectedStateChangeMonitor(
+            FileSystemProtectedStateWatcher((paths.record_root / "runs",)),
+            status_change_coordinator,
+        )
+    ]
+    if isinstance(backup_schedule_observer, SystemdScheduleSummaryProvider):
+        state_change_monitors.append(
+            ScheduleDeadlineMonitor(
+                backup_schedule_observer,
+                status_change_coordinator,
+                clock=now,
+            )
+        )
     return LinuxBackendService(
         policy=policy,
         store=store,
@@ -504,6 +557,7 @@ def build_linux_backend(
         status_event_broker=status_event_broker,
         status_change_coordinator=status_change_coordinator,
         membership_resolver=membership_resolver,
+        state_change_monitors=tuple(state_change_monitors),
         reconciled_run_ids=tuple(record.run_id for record in reconciled),
     )
 
@@ -738,6 +792,7 @@ def main(argv: list[str] | None = None) -> None:
                     "systemd" if status_descriptor is not None else "disabled"
                 ),
                 production_target_path=arguments.production_target,
+                schedule_summary_provider=SystemdScheduleSummaryProvider(),
             )
     except (OSError, PermissionError, RuntimeError, TypeError, ValueError):
         parser.exit(78, "TimeLocker system backend failed to initialize safely.\n")
@@ -807,6 +862,7 @@ def _build_handlers(
     status_change_coordinator: StatusChangeCoordinator | None = None,
     trigger_root: Path,
     clock: Callable[[], datetime],
+    backup_schedule_observer: BackupScheduleObserver | None = None,
 ) -> Mapping[SystemAction, Callable[[object], object]]:
     from .protocol import RequestEnvelope
 
@@ -883,6 +939,15 @@ def _build_handlers(
                     "schedule_summary_provider returned an invalid summary"
                 )
             runs = store.list_status_runs()
+            schedule_health = (
+                derive_backup_schedule_health(
+                    backup_schedule_observer.observe_backup_schedule(),
+                    runs,
+                    now=clock(),
+                )
+                if backup_schedule_observer is not None
+                else BackupScheduleHealth.HEALTHY
+            )
             return StatusSnapshot.from_run_history(
                 revision=revision,
                 backend_status=BackendStatus.AVAILABLE,
@@ -891,6 +956,7 @@ def _build_handlers(
                     for record in runs
                 ),
                 runs=runs,
+                backup_schedule_health=schedule_health,
                 next_backup_at=summary.next_backup_at,
                 next_retention_at=summary.next_retention_at,
             )

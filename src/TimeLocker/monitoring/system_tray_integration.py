@@ -79,6 +79,7 @@ class SystemTrayError(Exception):
 class TrayStatus(Enum):
     """System tray status indicators"""
 
+    CONNECTING = "connecting"
     IDLE = "idle"
     RUNNING = "running"
     SUCCESS = "success"
@@ -110,6 +111,8 @@ class TrayStatusInfo:
 
     status: TrayStatus
     tooltip: str
+    health: str = "Unknown"
+    activity: str = "Connecting"
     backend_available: bool = False
     last_successful_backup_time: Optional[datetime] = None
     latest_backup_status: Optional[str] = None
@@ -127,26 +130,14 @@ def _format_local_time(value: datetime | None, *, missing: str) -> str:
 
 def _status_menu_labels(status_info: TrayStatusInfo) -> tuple[str, ...]:
     """Return platform-neutral, non-actionable status menu labels."""
-    activity = (
-        f"{status_info.active_operations} active"
-        if status_info.active_operations
-        else "Idle"
-    )
     return (
-        "Backend: "
-        + ("Available" if status_info.backend_available else "Unavailable"),
-        f"Activity: {activity}",
-        "Last successful backup: "
+        f"State: {status_info.health}",
+        f"Activity: {status_info.activity}",
+        "Last Backup: "
         + _format_local_time(
             status_info.last_successful_backup_time,
             missing="Never",
         ),
-        f"Latest backup: {status_info.latest_backup_status or 'Unknown'}",
-        f"Latest retention: {status_info.latest_retention_status or 'Unknown'}",
-        "Next backup: "
-        + _format_local_time(status_info.next_backup_time, missing="Unknown"),
-        "Next retention: "
-        + _format_local_time(status_info.next_retention_time, missing="Unknown"),
     )
 
 
@@ -178,9 +169,10 @@ class SystemTrayIntegration:
             if menu_actions is not None
             else {"backup_now", "retention_now", "quit"}
         )
-        self.current_status = TrayStatus.IDLE
+        self.current_status = TrayStatus.CONNECTING
         self.status_info = TrayStatusInfo(
-            status=TrayStatus.IDLE, tooltip="TimeLocker - No recent activity"
+            status=TrayStatus.CONNECTING,
+            tooltip="TimeLocker - Connecting",
         )
 
         # Platform-specific implementation
@@ -288,20 +280,7 @@ class SystemTrayIntegration:
             str: Formatted tooltip text
         """
         lines = [f"{self.app_name} - {status_info.status.value.title()}"]
-
-        if status_info.last_successful_backup_time:
-            time_str = _format_local_time(
-                status_info.last_successful_backup_time,
-                missing="Never",
-            )
-            lines.append(f"Last successful backup: {time_str}")
-
-        if status_info.latest_backup_status:
-            lines.append(f"Latest backup: {status_info.latest_backup_status}")
-
-        if status_info.active_operations > 0:
-            lines.append(f"Active operations: {status_info.active_operations}")
-
+        lines.extend(_status_menu_labels(status_info))
         return "\n".join(lines)
 
     def set_on_click_callback(self, callback: Callable):
@@ -402,7 +381,7 @@ class LinuxSystemTray:
             self._use_gtk = True
             self._indicator = self._indicator_module.Indicator.new(
                 self.app_name,
-                _linux_tray_icon_path(TrayStatus.IDLE),
+                _linux_tray_icon_path(TrayStatus.CONNECTING),
                 self._indicator_module.IndicatorCategory.APPLICATION_STATUS,
             )
             self._indicator.set_status(self._indicator_module.IndicatorStatus.ACTIVE)
@@ -427,7 +406,7 @@ class LinuxSystemTray:
             # AppIndicator tooltips are not consistently available on Linux.
             self._status_items = []
             initial_status = TrayStatusInfo(
-                status=TrayStatus.IDLE,
+                status=TrayStatus.CONNECTING,
                 tooltip="TimeLocker - Connecting",
             )
             for label in _status_menu_labels(initial_status):
@@ -563,7 +542,7 @@ class MacOSSystemTray:
         try:
             import rumps
 
-            self._app = rumps.App(app_name, "⏰")
+            self._app = rumps.App(app_name, "…")
             self._create_menu()
             logger.info("Using rumps for macOS system tray")
         except ImportError:
@@ -584,7 +563,7 @@ class MacOSSystemTray:
                 rumps.MenuItem(label)
                 for label in _status_menu_labels(
                     TrayStatusInfo(
-                        status=TrayStatus.IDLE,
+                        status=TrayStatus.CONNECTING,
                         tooltip="TimeLocker - Connecting",
                     )
                 )
@@ -642,6 +621,7 @@ class MacOSSystemTray:
             return
 
         icon_map = {
+            TrayStatus.CONNECTING: "…",
             TrayStatus.IDLE: "⏰",
             TrayStatus.RUNNING: "🔄",
             TrayStatus.SUCCESS: "✅",
@@ -757,7 +737,7 @@ class WindowsSystemTray:
                 self,
                 "_status_info",
                 TrayStatusInfo(
-                    status=TrayStatus.IDLE,
+                    status=TrayStatus.CONNECTING,
                     tooltip="TimeLocker - Connecting",
                 ),
             )
@@ -816,6 +796,7 @@ class WindowsSystemTray:
             from PIL import Image, ImageDraw
 
             color_map = {
+                TrayStatus.CONNECTING: "deepskyblue",
                 TrayStatus.IDLE: "gray",
                 TrayStatus.RUNNING: "blue",
                 TrayStatus.SUCCESS: "green",

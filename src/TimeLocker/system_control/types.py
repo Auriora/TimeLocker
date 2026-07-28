@@ -35,6 +35,15 @@ class BackendStatus(StrEnum):
     UNAVAILABLE = "unavailable"
 
 
+class BackupScheduleHealth(StrEnum):
+    """Health of the protected system backup schedule."""
+
+    HEALTHY = "healthy"
+    MISSED = "missed"
+    DISABLED = "disabled"
+    UNAVAILABLE = "unavailable"
+
+
 class StatusEventKind(StrEnum):
     """Allowlisted status event kinds for the event-driven tray contract."""
 

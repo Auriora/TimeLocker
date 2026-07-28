@@ -11,7 +11,7 @@ last_reviewed: 2026-07-27
 
 ## Scope
 
-This plan covers Requirements 1-7, CP-001-CP-006, T001-T013, the protected
+This plan covers Requirements 1-7, CP-001-CP-007, T001-T013, the protected
 snapshot/event contracts, Linux implementation, Windows contract tests, tray
 presentation, packaging, approved live acceptance, durable promotion, and
 closure.
@@ -57,7 +57,7 @@ closure.
 | Requirement 2 | AC1-AC5 | T001-T005, T008, T011-T012 | pending |
 | Requirement 3 | AC1-AC5 | T001-T002, T006-T007, T011 | pending |
 | Requirement 4 | AC1-AC5 | T002-T005, T007-T011 | pending |
-| Requirement 5 | AC1-AC6 | T006-T007, T010-T011 | partial-pass; deterministic Linux badges and honest never-run/failure projection passed, live acceptance pending |
+| Requirement 5 | AC1-AC7 | T006-T007, T010-T011 | partial-pass; exact three-row health/activity projection, deterministic Linux badges, and honest never-run/failure/missed projection passed; live acceptance pending |
 | Requirement 6 | AC1-AC4 | T006-T007, T011 | pending |
 | Requirement 7 | AC1-AC5 | T001, T005, T008-T011 | pending |
 
@@ -71,6 +71,7 @@ closure.
 | CP-004 | Restart, session change, gap, and snapshot convergence tests | partial-pass | Reconnect, new session, gap, and initial-snapshot recovery passed; live integration remains |
 | CP-005 | Interface isolation, lock spy, and live operation independence | partial-pass | Separate event/control failure isolation passed; live operation evidence remains |
 | CP-006 | Captured idle serve test and live 90-second observation | partial-pass | Healthy serve is silent and one-shot output remains; live 90-second evidence pending |
+| CP-007 | Fake systemd projections, grace deadlines, and run matching | partial-pass | Systemd parsing, bounded health derivation, one-shot deadline publication, and atomic-record invalidation passed; live timer deadline evidence remains T011 |
 
 ## Scope Reconciliation Before Closure
 
@@ -108,7 +109,7 @@ closure.
 | T008 | complete | Token-derived bounded Windows named-pipe event contracts, four new platform tests, 232 system-control tests | No live Windows service or acceptance is claimed. |
 | T009 | complete | Named protected event socket asset, named systemd descriptor mapping, dual-protocol release metadata, structured activation/rollback gates, 246 system-control tests | Installed-artifact and live-host evidence remain T010-T011. |
 | T010 | complete | Five deterministic accessible logo badges, honest never-run/failure projection, 268-test regression, 27-file package-data validation, SHA-256 verification, and clean-install wheel/sdist smoke | No live selector, unit, socket, timer, backup, retention, or protected path changed. |
-| T011 | in progress | Repository-owned evidence validator, preflight-first transaction, fail-closed wheel-filename correction, and successful commit-bound Linux Mint activation | Remaining installed acceptance checks and evidence validation are pending; general deployment workflow is routed to Spec 011. |
+| T011 | in progress | Repository-owned evidence validator, preflight-first transaction, fail-closed wheel-filename correction, successful commit-bound Linux Mint activation, and immediate connecting-state startup correction | Remaining installed acceptance checks, including visible startup behavior, and evidence validation are pending; general deployment workflow is routed to Spec 011. |
 | T012-T013 | pending | none | Sequenced by the task dependency graph. |
 
 ## Evidence Log
@@ -154,6 +155,8 @@ closure.
 | 2026-07-27 | Exact system-Python staging rehearsal | pass | `/usr/bin/python3` staged `timelocker-0.9.1-py3-none-any.whl` through the corrected harness into an isolated `/tmp` release and imported installed TimeLocker version `0.9.1`; no protected host path or service was changed. |
 | 2026-07-28 | Corrected commit-bound Linux Mint deployment | activation passed | Release `a67c83ac09ac29b94a3ed481ee536b3380db3337` was selected with `d540b453864fce9b1c96a85ad9ecf604b98b7f57` retained as previous. Identity preflights passed; deployment triggered no backup or retention. Independent reads confirmed the control service, both sockets, backup timer, and retention timer active, required units enabled, installed CLI version `0.9.1`, system run access, and tray status success. |
 | 2026-07-28 | General deployment workflow routing | follow-up created | Draft [Spec 011](../011-protected-system-deployment/README.md) owns the supported install, upgrade, status, rollback, staging, provenance, and evidence workflow. Its implementation waits for Spec 010 closure. |
+| 2026-07-28 | Immediate connecting-state implementation | pass | The tray processes a deterministic connecting badge before starting its background subscription worker. Lazy package boundaries reduce direct source startup to approximately 0.11 seconds for launcher import and 0.56 seconds for full tray-entry import. Focused tray/asset/deployment/artifact tests passed 42 cases; broader system-control, tray-monitoring, and backup compatibility regression passed 415 tests. Scoped Ruff, compileall, patch integrity, and lazy public-export compatibility passed. No protected host mutation occurred. |
+| 2026-07-28 | Connecting-badge release artifacts | pass | Fresh wheel and sdist validation found 28 package-data files; the wheel passed clean installed-artifact smoke. Wheel SHA-256 `d9fb99bbe856c7659304701ab8b12d5dd8d97fc194f5b8ce5825d33a559609c8`; sdist SHA-256 `bb5df2b2450db07335ccbb848f03e01b010ed568d6609f29cdd3b24f827ffeea`. |
 
 ## Manual Or External Verification
 

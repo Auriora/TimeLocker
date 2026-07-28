@@ -24,6 +24,7 @@ from TimeLocker.system_control.models import (
 from TimeLocker.system_control.models import OperationTrigger
 from TimeLocker.system_control.types import (
     BackendStatus,
+    BackupScheduleHealth,
     OperationType as BackendOperationType,
     ResultCode,
     RunState,
@@ -93,6 +94,36 @@ class FakeBackend:
 
 
 @mark.unit
+@pytest.mark.parametrize(
+    ("schedule_health", "expected_health", "expected_status"),
+    (
+        (BackupScheduleHealth.HEALTHY, "Healthy", "warning"),
+        (BackupScheduleHealth.MISSED, "Backup missed", "error"),
+        (BackupScheduleHealth.DISABLED, "Schedule disabled", "warning"),
+        (BackupScheduleHealth.UNAVAILABLE, "Schedule unavailable", "warning"),
+    ),
+)
+def test_schedule_health_is_kept_separate_from_activity(
+    schedule_health: BackupScheduleHealth,
+    expected_health: str,
+    expected_status: str,
+) -> None:
+    snapshot = StatusSnapshot.from_run_history(
+        revision=StatusRevision(uuid4(), 1),
+        backend_status=BackendStatus.AVAILABLE,
+        backup_schedule_health=schedule_health,
+        active_operations=0,
+        runs=(),
+    )
+
+    state = TrayControlClient.project_snapshot(snapshot)
+
+    assert state.health == expected_health
+    assert state.activity == "Idle"
+    assert state.status == expected_status
+
+
+@mark.unit
 def test_refresh_status_orders_runs_by_newest_and_projects_summary() -> None:
     base_time = datetime(2026, 7, 26, 12, 0, tzinfo=UTC)
     runs = [
@@ -138,8 +169,10 @@ def test_refresh_status_orders_runs_by_newest_and_projects_summary() -> None:
 
     state = client.refresh_status()
 
-    assert state.status == "error"
-    assert "Next backup" in state.tooltip
+    assert state.status == "success"
+    assert state.health == "Healthy"
+    assert state.activity == "Idle"
+    assert "Next backup" not in state.tooltip
     assert state.latest_retention_status == "Operation failed."
     assert state.latest_backup_status == "Backup completed successfully."
     assert state.last_successful_backup_completed_at == (
@@ -186,6 +219,8 @@ def test_queued_backup_is_active_and_overrides_stale_interruption() -> None:
     state = client.refresh_status()
 
     assert state.status == "running"
+    assert state.health == "Healthy"
+    assert state.activity == "Backup running"
     assert state.active_operations == 1
 
 
@@ -272,7 +307,7 @@ def test_failed_newer_backup_does_not_replace_last_successful_completion() -> No
     assert state.latest_backup_status == "Operation failed."
     assert state.last_successful_backup_completed_at == successful_completion
     expected = successful_completion.astimezone().strftime("%Y-%m-%d %H:%M %Z")
-    assert f"Last successful backup: {expected}".rstrip() in state.tooltip
+    assert f"Last Backup: {expected}".rstrip() in state.tooltip
 
 
 @mark.unit
@@ -283,7 +318,7 @@ def test_no_successful_backup_is_presented_as_never() -> None:
 
     assert state.last_successful_backup_completed_at is None
     assert state.status == "warning"
-    assert "Last successful backup: Never" in state.tooltip
+    assert "Last Backup: Never" in state.tooltip
 
 
 @mark.unit
@@ -345,6 +380,8 @@ def test_unavailable_backend_errors_are_retriable() -> None:
 
     assert unavailable.backend_available is False
     assert unavailable.status == "warning"
+    assert unavailable.health == "Backend unavailable"
+    assert unavailable.activity == "Connecting"
     assert "backend unavailable" in unavailable.tooltip.lower()
 
     backend = client._client
@@ -372,6 +409,8 @@ def test_denied_backend_is_rendered_without_protected_detail() -> None:
     state = client.refresh_status()
 
     assert state.backend_available is True
+    assert state.health == "Access denied"
+    assert state.activity == "Idle"
     assert state.tooltip == "TimeLocker - Access denied"
     assert "detail" not in state.tooltip
 

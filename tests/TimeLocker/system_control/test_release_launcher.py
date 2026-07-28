@@ -34,10 +34,11 @@ def _stage_release(root: Path, release_id: str) -> Path:
     manifest.write_text(
         json.dumps(
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "release_id": release_id,
                 "package_version": "0.9.1",
-                "protocol_version": 1,
+                "control_protocol_version": 2,
+                "event_protocol_version": 1,
                 "entrypoint": "venv/bin/timelocker",
             }
         ),
@@ -232,13 +233,13 @@ def test_schema_two_manifest_binds_control_and_event_protocols() -> None:
             "schema_version": 2,
             "release_id": RELEASE_A,
             "package_version": "0.9.1",
-            "control_protocol_version": 1,
+            "control_protocol_version": 2,
             "event_protocol_version": 1,
             "entrypoint": "venv/bin/timelocker",
         }
     )
 
-    assert manifest.control_protocol_version == 1
+    assert manifest.control_protocol_version == 2
     assert manifest.event_protocol_version == 1
 
 

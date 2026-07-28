@@ -174,6 +174,7 @@ def test_linux_asset_set_covers_launchers_backend_tray_and_schedules(
         "timelocker-retention.timer",
         "timelocker-tray.desktop",
         "timelocker-icon.png",
+        "timelocker-icon-connecting.png",
         "timelocker-icon-idle.png",
         "timelocker-icon-running.png",
         "timelocker-icon-success.png",

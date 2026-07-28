@@ -44,6 +44,12 @@ def _draw_idle(draw: ImageDraw.ImageDraw) -> None:
     draw.ellipse((812, 876, 850, 914), fill="white")
 
 
+def _draw_connecting(draw: ImageDraw.ImageDraw) -> None:
+    _draw_circle_badge(draw, fill="#1570EF")
+    for left in (746, 814, 882):
+        draw.ellipse((left, 794, left + 40, 834), fill="white")
+
+
 def _draw_running(draw: ImageDraw.ImageDraw) -> None:
     _draw_circle_badge(draw, fill="#1570EF")
     draw.ellipse(
@@ -82,6 +88,7 @@ def _draw_error(draw: ImageDraw.ImageDraw) -> None:
 
 
 DRAWERS = {
+    "connecting": _draw_connecting,
     "idle": _draw_idle,
     "running": _draw_running,
     "success": _draw_success,

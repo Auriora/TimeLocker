@@ -254,7 +254,12 @@ class TestPolicyModels:
 
     def test_system_policy_rejects_unsupported_protocol_version(self) -> None:
         with pytest.raises(ValueError, match="unsupported"):
-            SystemPolicy(protocol_version=2)
+            SystemPolicy(protocol_version=3)
+
+    def test_system_policy_accepts_legacy_protocol_declaration_for_upgrade(
+        self,
+    ) -> None:
+        assert SystemPolicy(protocol_version=1).protocol_version == 1
 
 
 @pytest.mark.unit

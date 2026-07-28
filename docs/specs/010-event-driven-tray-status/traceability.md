@@ -23,7 +23,7 @@ last_reviewed: 2026-07-27
 | T008 | Requirement 2, Requirement 4, Requirement 7 | Requirement 2 AC1-AC5; Requirement 4 AC3-AC5; Requirement 7 AC1, AC3 | Windows Event Contract | V3, V7 | requirements, architecture |
 | T009 | Requirement 4, Requirement 7 | Requirement 4 AC5; Requirement 7 AC2, AC4-AC5 | Migration and Compatibility | V8, V9 | installation, version management |
 | T010 | Requirement 5, Requirement 7 | Requirement 5 AC6; Requirement 7 all | Tray Presentation, Operational Considerations | V5, V8, V9 | tray setup |
-| T011 | Requirement 1-Requirement 7 | all Linux acceptance criteria | Complete Linux flow | V10 | operational docs |
+| T011 | Requirement 1-Requirement 7 | all Linux acceptance criteria, including external-worker invalidation, Requirement 3 AC6-AC7, Requirement 5 AC1 and AC7 | Complete Linux flow | V10 | operational docs |
 | T012 | Requirement 1-Requirement 7 | review disposition | Security, Reliability, Portability | V11 | all promotion targets |
 | T013 | Requirement 1-Requirement 7 | all | Promotion and Closure | V12-V15 | all promotion targets and history |
 
@@ -34,8 +34,8 @@ last_reviewed: 2026-07-27
 | Requirement 1 | must-have | T001, T003-T005, T007, T011-T013 | V1, V2, V4, V5, V10 | requirements, architecture, tray setup | partial | Contracts through event-driven tray integration complete; deployment and live acceptance remain |
 | Requirement 2 | must-have | T001-T005, T007-T008, T011-T013 | V1-V5, V7, V10-V11 | requirements, architecture | partial | Allowlisted models and Linux continuous authorization complete; Windows contract and live acceptance remain |
 | Requirement 3 | must-have | T001-T002, T006-T007, T011-T013 | V1, V5-V6, V10 | requirements, tray setup | partial | Last-success contract, backend snapshot, local tray projection, and `Never` fallback complete; live acceptance remains |
-| Requirement 4 | must-have | T002-T005, T007-T011, T013 | V2-V5, V7-V10 | architecture, troubleshooting | partial | Linux reconnect, bounds, and event/control independence complete; integration, deployment, and live acceptance remain |
-| Requirement 5 | must-have | T006-T007, T010-T013 | V5, V6, V8-V10 | tray setup, command reference | partial | Honest rows, actions, and deterministic non-colour-only Linux logo badges pass local and installed-artifact checks; live acceptance remains |
+| Requirement 4 | must-have | T002-T005, T007-T011, T013 | V2-V5, V7-V10 | architecture, troubleshooting | partial | Immediate connecting presentation, Linux reconnect, bounds, and event/control independence pass local regression; installed startup and remaining live acceptance remain |
+| Requirement 5 | must-have | T006-T007, T010-T013 | V5, V6, V8-V10 | tray setup, command reference | partial | Honest rows, actions, and deterministic non-colour-only Linux logo badges, including connecting, pass local checks; installed connecting-state and remaining live acceptance remain |
 | Requirement 6 | must-have | T006-T007, T011-T013 | V6, V10 | tray setup, troubleshooting | partial | Healthy serve silence and explicit one-shot output passed; live idle capture remains |
 | Requirement 7 | must-have | T001, T005, T008-T013 | V1-V3, V7-V11, V13 | requirements, architecture, installation | partial | Linux activation passed; remaining live acceptance stays in T011, while the supported general deployment workflow is routed to Spec 011 |
 
@@ -49,6 +49,7 @@ last_reviewed: 2026-07-27
 | CP-004 | Requirement 1, Requirement 4 | T001-T005, T008, T011 | V1-V5, V7, V10 | none for accepted Linux slice |
 | CP-005 | Requirement 2, Requirement 4 | T002-T005, T008, T011 | V3-V5, V7, V10 | none |
 | CP-006 | Requirement 6 | T006-T007, T011 | V6, V10 | desktop session capture variation |
+| CP-007 | Requirement 3, Requirement 5 | T011 | V1, V4-V6, V10 | live systemd deadline timing remains host-sensitive |
 
 ## Design To Implementation Matrix
 
@@ -57,7 +58,7 @@ last_reviewed: 2026-07-27
 | Status models and snapshot | Requirement 2, Requirement 3 | T001-T002 | models, protocol, backend, storage | V1, V3 | partial-pass | T001 contracts passed; T002 backend action remains |
 | Event broker and change sources | Requirement 1, Requirement 4 | T003 | new broker/watcher modules | V2, V4 | pass | Bounded broker, mutation seams, snapshot race boundary, and watcher resync validated |
 | Linux event transport | Requirement 1, Requirement 2, Requirement 4, Requirement 7 | T005 | Linux adapter, backend, event client | V3-V5 | pass | Authenticated bounded listener, reconnect, revocation, restart, and independence tests passed |
-| Tray presentation | Requirement 3, Requirement 5, Requirement 6 | T006 | tray client, entry, platform integration | V5-V6 | pass | Snapshot-driven rows, local last-success, menu actions, and quiet serve validated |
+| Tray presentation | Requirement 3-Requirement 6 | T006, T011 | tray client, entry, platform integration | V5-V6, V10 | partial | Exact State/Activity/Last Backup rows, local last-success, health/activity separation, menu actions, quiet serve, and connecting-before-subscription ordering pass local checks; installed visual startup remains T011 |
 | Windows event contract | Requirement 2, Requirement 4, Requirement 7 | T008 | Windows adapter and platform tests | V7 | not-covered | T008 |
 | Deployment and compatibility | Requirement 4, Requirement 7 | T009-T011 | assets, deployment, release probes | V8-V10 | partial | Corrected Linux activation passed; remaining installed acceptance stays in T011 and reusable deployment workflow debt is routed to Spec 011 |
 | Promotion and closure | Requirement 1-Requirement 7 | T012-T013 | durable docs and lifecycle artifacts | V11-V15 | not-covered | T012-T013 |

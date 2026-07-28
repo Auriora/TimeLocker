@@ -340,7 +340,14 @@ def linux_asset_targets(
                 icon_root / f"timelocker-{status}.png",
                 0o644,
             )
-            for status in ("idle", "running", "success", "warning", "error")
+            for status in (
+                "connecting",
+                "idle",
+                "running",
+                "success",
+                "warning",
+                "error",
+            )
         ),
     )
 

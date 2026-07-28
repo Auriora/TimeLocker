@@ -167,7 +167,7 @@ def _request(harness: ModuleType, root: Path):
                 "schema_version": 2,
                 "release_id": RELEASE_B,
                 "package_version": "0.9.1",
-                "control_protocol_version": 1,
+                "control_protocol_version": 2,
                 "event_protocol_version": 1,
                 "entrypoint": "venv/bin/timelocker",
             }

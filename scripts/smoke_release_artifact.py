@@ -50,6 +50,7 @@ for name in (
     "timelocker-status-events.socket",
     "timelocker-retention.service",
     "timelocker-retention.timer",
+    "timelocker-icon-connecting.png",
     "timelocker-icon-idle.png",
     "timelocker-icon-running.png",
     "timelocker-icon-success.png",
