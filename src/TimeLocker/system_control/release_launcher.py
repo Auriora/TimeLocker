@@ -15,6 +15,7 @@ from .validation import require_exact_mapping, require_int, require_safe_identif
 DEFAULT_RELEASES_ROOT = Path("/opt/timelocker/releases")
 DEFAULT_SELECTOR_PATH = Path("/opt/timelocker/selected-release.json")
 LAUNCH_GUARD = "TIMELOCKER_SYSTEM_LAUNCH_ACTIVE"
+MAX_DECLARED_PROTOCOL_VERSION = 65_535
 _ENTRYPOINTS = {
     "cli": "venv/bin/timelocker",
     "backend": "venv/bin/timelocker-system-control",
@@ -114,14 +115,14 @@ class ReleaseManifest:
             control_protocol_version=require_int(
                 mapping["control_protocol_version"],
                 field="control_protocol_version",
-                minimum=PROTOCOL_VERSION,
-                maximum=PROTOCOL_VERSION,
+                minimum=1,
+                maximum=MAX_DECLARED_PROTOCOL_VERSION,
             ),
             event_protocol_version=require_int(
                 mapping["event_protocol_version"],
                 field="event_protocol_version",
-                minimum=STATUS_EVENT_PROTOCOL_VERSION,
-                maximum=STATUS_EVENT_PROTOCOL_VERSION,
+                minimum=1,
+                maximum=MAX_DECLARED_PROTOCOL_VERSION,
             ),
             entrypoint=entrypoint,
         )
@@ -157,7 +158,7 @@ class ReleaseManifest:
                 mapping["protocol_version"],
                 field="protocol_version",
                 minimum=1,
-                maximum=PROTOCOL_VERSION,
+                maximum=MAX_DECLARED_PROTOCOL_VERSION,
             ),
             event_protocol_version=None,
             entrypoint=entrypoint,
@@ -214,6 +215,14 @@ class ImmutableReleaseResolver:
             expected_current = _release_id(expected_current)
         self._require_trusted_directory(self.selector_path.parent)
         self._resolve_release(release_id)
+        manifest = self.release_manifest(release_id)
+        if (
+            manifest.control_protocol_version != PROTOCOL_VERSION
+            or manifest.event_protocol_version != STATUS_EVENT_PROTOCOL_VERSION
+        ):
+            raise ReleaseResolutionError(
+                "release protocols are incompatible with selector"
+            )
         with self._selector_lock():
             current = self._read_selector_optional()
             if expected_current is not None and (

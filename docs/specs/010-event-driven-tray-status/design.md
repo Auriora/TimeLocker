@@ -248,8 +248,12 @@ class StatusEventClient(Protocol):
 
 - Existing CLI control actions remain request/response compatible.
 - Release metadata records both control and event protocol compatibility.
-- Activation installs and probes the event socket/service assets before
-  selecting the release.
+- A stable launcher parses bounded cross-version release metadata but permits
+  explicit selection only when the target protocols match the selector
+  implementation. Rollback may still resolve the previously accepted release.
+- Activation stages and probes a replacement launcher environment plus the
+  event socket/service assets before selection, then atomically retains the
+  prior launcher environment for recovery before selecting the release.
 - A new tray paired with an incompatible backend shows a safe unavailable state
   rather than reverting to indefinite status polling.
 - Linux uses packaged deterministic variants of the TimeLocker logo. A

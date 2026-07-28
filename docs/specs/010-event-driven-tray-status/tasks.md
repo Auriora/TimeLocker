@@ -322,10 +322,21 @@ T009 -> T010 -> T011 -> T012 -> T013
     post-activation check after the candidate backend is coherently selected.
     Simulated transaction ordering proves no protocol-2 system read occurs
     before selection and that the post-activation read still runs.
+    Inspection of the installed stable launcher then found that its protocol-1
+    manifest parser could not resolve a protocol-2 selected release. The
+    launcher contract now parses bounded cross-version metadata while allowing
+    normal selection only for its own protocols. The deployment transaction
+    stages a separate candidate launcher environment, verifies that it resolves
+    both current and candidate manifests, swaps it at the mutation boundary,
+    and retains the prior environment for rollback. Forced post-activation
+    failure restores the prior launcher before restarting the prior backend.
+    A 299-test system-control, deployment, artifact, and tray-icon regression
+    passed with scoped Ruff, compileall, and patch integrity.
 
-  - Status: Corrected release activated successfully; the remaining installed
-    T011 acceptance checks, including visible connecting-state startup, and
-    evidence validation are in progress.
+  - Status: Prior release `a67c83ac09ac29b94a3ed481ee536b3380db3337`
+    remains active and healthy. Corrected protocol-2 release deployment and the
+    remaining installed T011 acceptance checks, including visible
+    connecting-state startup and evidence validation, are in progress.
   - [x] T011.1 Reconcile and test backup-health and tray-row contracts.
     - Acceptance: State is health-only; Activity is transient; Last Backup is
       successful completion or Never; exact wire and menu tests fail before the

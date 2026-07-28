@@ -58,6 +58,8 @@ class FakeExecutor:
         result = ""
         if command[-2:] == ["-c", self.harness.BACKEND_IMPORT_PROBE]:
             result = f"{self.backend_protocol}\n"
+        elif self.harness.LAUNCHER_COMPATIBILITY_PROBE in command:
+            result = "compatible\n"
         elif command[-2:] == ["version", "--short"]:
             result = "0.9.1\n"
         elif command[-2:] == ["-c", self.harness.PACKAGED_UNIT_PROBE]:
@@ -104,12 +106,16 @@ class SimulatedHostExecutor(FakeExecutor):
     ) -> str:
         command = [str(argument) for argument in arguments]
         if command[:4] == ["python3", "-m", "venv", "--system-site-packages"]:
-            release = Path(command[4]).parent
-            python = release / "venv/bin/python"
+            venv_path = Path(command[4])
+            python = venv_path / "bin/python"
             python.parent.mkdir(parents=True)
             python.write_text("#!/bin/sh\n", encoding="utf-8")
             python.chmod(0o755)
-        elif len(command) >= 5 and command[1:4] == ["-m", "pip", "install"]:
+        elif (
+            len(command) >= 5
+            and command[1:4] == ["-m", "pip", "install"]
+            and "--no-deps" not in command
+        ):
             release = Path(command[0]).parents[2]
             python = release / "venv/bin/python"
             for name in self.harness.REQUIRED_ENTRYPOINTS:
@@ -162,6 +168,7 @@ def _paths(harness: ModuleType, root: Path):
         service_unit=root / "etc/systemd/system/timelocker-control.service",
         evidence_root=root / "var/lib/timelocker/migration-backup",
         lock_file=root / "run/lock/timelocker-t011-deploy.lock",
+        launcher_venv=root / "opt/timelocker/launcher/venv",
     )
 
 
@@ -209,6 +216,33 @@ def _baseline(paths) -> None:
     paths.service_unit.write_text("old service\n", encoding="utf-8")
     paths.evidence_root.mkdir(parents=True)
     paths.releases_root.mkdir(parents=True)
+    launcher_python = paths.launcher_venv / "bin/python"
+    launcher_python.parent.mkdir(parents=True)
+    paths.launcher_venv.parent.chmod(0o755)
+    paths.launcher_venv.chmod(0o755)
+    launcher_python.parent.chmod(0o755)
+    launcher_python.write_text("#!/bin/sh\n# old launcher\n", encoding="utf-8")
+    launcher_python.chmod(0o755)
+    current_release = paths.releases_root / RELEASE_A
+    current_entrypoints = current_release / "venv/bin"
+    current_entrypoints.mkdir(parents=True)
+    for name in ("timelocker", "timelocker-system-control", "timelocker-tray"):
+        entrypoint = current_entrypoints / name
+        entrypoint.write_text("#!/bin/sh\n", encoding="utf-8")
+        entrypoint.chmod(0o755)
+    (current_release / "release.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "release_id": RELEASE_A,
+                "package_version": "0.9.1",
+                "control_protocol_version": 1,
+                "event_protocol_version": 1,
+                "entrypoint": "venv/bin/timelocker",
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 def _staged_release(deployer, packaged_unit: Path) -> None:
@@ -441,6 +475,41 @@ def test_interruption_after_mutation_runs_recovery() -> None:
     ]
 
 
+@pytest.mark.parametrize("candidate_at_canonical_path", [False, True])
+def test_launcher_restore_uses_filesystem_state_across_swap_interruptions(
+    tmp_path: Path,
+    candidate_at_canonical_path: bool,
+) -> None:
+    harness = _load_harness()
+    paths = _paths(harness, tmp_path)
+    _baseline(paths)
+    deployer = harness.T011LinuxDeployer(
+        _request(harness, tmp_path),
+        paths=paths,
+        executor=FakeExecutor(harness, tmp_path / "unused.service"),
+        owner_uid=None,
+        owner_gid=None,
+    )
+    deployer.staged_launcher.mkdir()
+    candidate_python = deployer.staged_launcher / "python"
+    candidate_python.write_text("candidate launcher", encoding="utf-8")
+    os.replace(paths.launcher_venv, deployer.previous_launcher)
+    if candidate_at_canonical_path:
+        os.replace(deployer.staged_launcher, paths.launcher_venv)
+    deployer.launcher_prior_moved = True
+    deployer.launcher_swapped = False
+
+    deployer._restore_launcher()
+
+    assert "# old launcher" in (
+        paths.launcher_venv / "bin/python"
+    ).read_text(encoding="utf-8")
+    assert not deployer.previous_launcher.exists()
+    assert (deployer.staged_launcher / "python").read_text(
+        encoding="utf-8"
+    ) == "candidate launcher"
+
+
 def test_recovery_restores_selector_and_service_and_removes_candidate(
     tmp_path: Path,
 ) -> None:
@@ -628,6 +697,13 @@ def test_full_simulated_transaction_runs_preflight_before_selection(
     assert all(index > selection_index for index in system_read_indexes)
     assert Path(pip_command[-1]).name == request.wheel.name
     assert deployer.release.exists()
+    assert (
+        "# old launcher"
+        not in (paths.launcher_venv / "bin/python").read_text(encoding="utf-8")
+    )
+    assert "# old launcher" in (
+        deployer.previous_launcher / "bin/python"
+    ).read_text(encoding="utf-8")
     assert paths.service_unit.read_text() == packaged_unit.read_text()
     assert all(
         path.stat().st_mode & 0o022 == 0
@@ -670,3 +746,8 @@ def test_full_simulated_post_activation_failure_rolls_back(
     assert json.loads(paths.selector.read_text())["selected"] == RELEASE_A
     assert paths.service_unit.read_text() == "old service\n"
     assert not deployer.release.exists()
+    assert "# old launcher" in (
+        paths.launcher_venv / "bin/python"
+    ).read_text(encoding="utf-8")
+    assert not deployer.previous_launcher.exists()
+    assert not deployer.staged_launcher.exists()

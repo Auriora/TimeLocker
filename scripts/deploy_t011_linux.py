@@ -95,6 +95,19 @@ from importlib.resources import files
 print(files("TimeLocker.system_control.assets") / "timelocker-control.service")
 """
 
+LAUNCHER_COMPATIBILITY_PROBE = """\
+import sys
+from TimeLocker.system_control.release_launcher import ImmutableReleaseResolver
+resolver = ImmutableReleaseResolver()
+current = resolver.release_manifest(sys.argv[1])
+candidate = resolver.release_manifest(sys.argv[2])
+assert current.release_id == sys.argv[1]
+assert candidate.release_id == sys.argv[2]
+assert candidate.control_protocol_version == int(sys.argv[3])
+assert candidate.event_protocol_version == int(sys.argv[4])
+print("compatible")
+"""
+
 
 class DeploymentFailure(RuntimeError):
     """Raised when a deployment gate fails or rollback cannot complete."""
@@ -113,6 +126,7 @@ class DeploymentPaths:
     service_unit: Path = Path("/etc/systemd/system/timelocker-control.service")
     evidence_root: Path = Path("/var/lib/timelocker/migration-backup")
     lock_file: Path = Path("/run/lock/timelocker-t011-deploy.lock")
+    launcher_venv: Path = Path("/opt/timelocker/launcher/venv")
 
 
 @dataclass(frozen=True, slots=True)
@@ -180,6 +194,14 @@ class T011LinuxDeployer:
         self.evidence: Path | None = None
         self.staged_wheel: Path | None = None
         self.staged_manifest: Path | None = None
+        self.staged_launcher = self.paths.launcher_venv.with_name(
+            f".venv.{request.release_id}.staged"
+        )
+        self.previous_launcher = self.paths.launcher_venv.with_name(
+            f"venv.previous.{request.expected_current}"
+        )
+        self.launcher_prior_moved = False
+        self.launcher_swapped = False
         self.mutation_started = False
         self.completed = False
 
@@ -192,10 +214,10 @@ class T011LinuxDeployer:
             self.preflight_staged_release()
             self.activate()
             self.verify_activation()
+            self.completed = True
         except BaseException:
             self.recover()
             raise
-        self.completed = True
         assert self.evidence is not None
         return self.evidence
 
@@ -224,6 +246,26 @@ class T011LinuxDeployer:
             raise DeploymentFailure("operator_user does not exist") from error
         if self.release.exists():
             raise DeploymentFailure(f"candidate release already exists: {self.release}")
+        if self.staged_launcher.exists():
+            raise DeploymentFailure(
+                f"staged launcher already exists: {self.staged_launcher}"
+            )
+        if self.previous_launcher.exists():
+            raise DeploymentFailure(
+                f"launcher rollback path already exists: {self.previous_launcher}"
+            )
+        _require_trusted_directory(
+            self.paths.launcher_venv.parent,
+            expected_owner_uid=self.owner_uid,
+        )
+        _require_trusted_directory(
+            self.paths.launcher_venv,
+            expected_owner_uid=self.owner_uid,
+        )
+        _require_trusted_executable(
+            self.paths.launcher_venv / "bin/python",
+            expected_owner_uid=self.owner_uid,
+        )
         if _selected_release(self.paths.selector) != self.request.expected_current:
             raise DeploymentFailure("selected release changed before deployment")
         for unit in REQUIRED_ACTIVE_UNITS:
@@ -326,6 +368,35 @@ class T011LinuxDeployer:
             uid=self.owner_uid,
             gid=self.owner_gid,
         )
+        self.executor.run(
+            [
+                "python3",
+                "-m",
+                "venv",
+                "--system-site-packages",
+                self.staged_launcher,
+            ],
+            timeout=120,
+            output=self.evidence / "launcher-venv-create.txt",
+        )
+        self.executor.run(
+            [
+                self.staged_launcher / "bin/python",
+                "-m",
+                "pip",
+                "install",
+                "--disable-pip-version-check",
+                "--no-deps",
+                self.staged_wheel,
+            ],
+            timeout=300,
+            output=self.evidence / "launcher-pip-install.txt",
+        )
+        _make_tree_immutable(
+            self.staged_launcher,
+            uid=self.owner_uid,
+            gid=self.owner_gid,
+        )
 
     def preflight_staged_release(self) -> None:
         """Exercise every target identity before protected activation."""
@@ -362,6 +433,21 @@ class T011LinuxDeployer:
                 "staged backend protocol probe failed: "
                 f"expected {expected_protocol_output}, got {protocol_output or '<empty>'}"
             )
+        launcher_output = self.executor.run(
+            [
+                self.staged_launcher / "bin/python",
+                "-c",
+                LAUNCHER_COMPATIBILITY_PROBE,
+                self.request.expected_current,
+                self.request.release_id,
+                str(manifest["control_protocol_version"]),
+                str(manifest["event_protocol_version"]),
+            ],
+            output=self.evidence / "preflight-launcher-compatibility.txt",
+            capture=True,
+        ).strip()
+        if launcher_output != "compatible":
+            raise DeploymentFailure("staged launcher compatibility probe failed")
         packaged_unit = Path(
             self.executor.run(
                 [python, "-c", PACKAGED_UNIT_PROBE],
@@ -452,7 +538,28 @@ class T011LinuxDeployer:
                 capture=True,
             ).strip()
         )
+        assert self.staged_manifest is not None
+        manifest = _read_json(self.staged_manifest)
         self.mutation_started = True
+        self.launcher_prior_moved = True
+        os.replace(self.paths.launcher_venv, self.previous_launcher)
+        os.replace(self.staged_launcher, self.paths.launcher_venv)
+        self.launcher_swapped = True
+        launcher_output = self.executor.run(
+            [
+                self.paths.launcher_venv / "bin/python",
+                "-c",
+                LAUNCHER_COMPATIBILITY_PROBE,
+                self.request.expected_current,
+                self.request.release_id,
+                str(manifest["control_protocol_version"]),
+                str(manifest["event_protocol_version"]),
+            ],
+            output=self.evidence / "activated-launcher-compatibility.txt",
+            capture=True,
+        ).strip()
+        if launcher_output != "compatible":
+            raise DeploymentFailure("activated launcher compatibility probe failed")
         _atomic_copy(
             packaged_unit,
             self.paths.service_unit,
@@ -565,6 +672,10 @@ class T011LinuxDeployer:
                     )
                 except OSError as error:
                     errors.append(f"restore {destination}: {error}")
+            try:
+                self._restore_launcher()
+            except OSError as error:
+                errors.append(f"restore stable launcher: {error}")
             for command in (
                 ("systemctl", "daemon-reload"),
                 ("systemctl", "restart", "timelocker-control.socket"),
@@ -597,10 +708,28 @@ class T011LinuxDeployer:
                 shutil.rmtree(self.release)
             except OSError as error:
                 errors.append(f"remove candidate release: {error}")
+        if self.staged_launcher.exists():
+            try:
+                shutil.rmtree(self.staged_launcher)
+            except OSError as error:
+                errors.append(f"remove staged launcher: {error}")
         if errors:
             raise DeploymentFailure(
                 "deployment failed and rollback was incomplete: " + "; ".join(errors)
             )
+
+    def _restore_launcher(self) -> None:
+        """Restore the prior immutable launcher after activation begins."""
+        if not self.launcher_prior_moved:
+            return
+        if not self.previous_launcher.exists():
+            self.launcher_prior_moved = False
+            return
+        if self.paths.launcher_venv.exists():
+            os.replace(self.paths.launcher_venv, self.staged_launcher)
+            self.launcher_swapped = False
+        os.replace(self.previous_launcher, self.paths.launcher_venv)
+        self.launcher_prior_moved = False
 
     def _validate_packaged_unit(self, packaged_unit: Path) -> None:
         _require_regular_file(packaged_unit, "packaged service unit")
@@ -648,6 +777,44 @@ def _display_command(command: Sequence[str]) -> str:
 def _require_regular_file(path: Path, field: str) -> None:
     if not path.is_file() or path.is_symlink():
         raise DeploymentFailure(f"{field} must be a regular non-symlink file")
+
+
+def _require_trusted_directory(
+    path: Path,
+    *,
+    expected_owner_uid: int | None,
+) -> None:
+    try:
+        metadata = path.lstat()
+    except OSError as error:
+        raise DeploymentFailure(f"trusted directory is unavailable: {path}") from error
+    if not path.is_dir() or path.is_symlink():
+        raise DeploymentFailure(f"trusted directory is invalid: {path}")
+    if expected_owner_uid is not None and metadata.st_uid != expected_owner_uid:
+        raise DeploymentFailure(f"trusted directory has wrong owner: {path}")
+    if metadata.st_mode & 0o022:
+        raise DeploymentFailure(f"trusted directory is group/world writable: {path}")
+
+
+def _require_trusted_executable(
+    path: Path,
+    *,
+    expected_owner_uid: int | None,
+) -> None:
+    _require_trusted_directory(
+        path.parent,
+        expected_owner_uid=expected_owner_uid,
+    )
+    try:
+        metadata = path.resolve(strict=True).stat()
+    except OSError as error:
+        raise DeploymentFailure(f"trusted executable is unavailable: {path}") from error
+    if not path.resolve().is_file() or not os.access(path, os.X_OK):
+        raise DeploymentFailure(f"trusted executable is invalid: {path}")
+    if expected_owner_uid is not None and metadata.st_uid != expected_owner_uid:
+        raise DeploymentFailure(f"trusted executable has wrong owner: {path}")
+    if metadata.st_mode & 0o022:
+        raise DeploymentFailure(f"trusted executable is group/world writable: {path}")
 
 
 def _sha256(path: Path) -> str:

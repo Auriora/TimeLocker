@@ -18,7 +18,13 @@ RELEASE_A = "a" * 40
 RELEASE_B = "b" * 40
 
 
-def _stage_release(root: Path, release_id: str) -> Path:
+def _stage_release(
+    root: Path,
+    release_id: str,
+    *,
+    control_protocol_version: int = 2,
+    event_protocol_version: int = 1,
+) -> Path:
     release = root / "releases" / release_id
     executable = release / "venv" / "bin" / "timelocker"
     executable.parent.mkdir(parents=True)
@@ -37,8 +43,8 @@ def _stage_release(root: Path, release_id: str) -> Path:
                 "schema_version": 2,
                 "release_id": release_id,
                 "package_version": "0.9.1",
-                "control_protocol_version": 2,
-                "event_protocol_version": 1,
+                "control_protocol_version": control_protocol_version,
+                "event_protocol_version": event_protocol_version,
                 "entrypoint": "venv/bin/timelocker",
             }
         ),
@@ -241,6 +247,39 @@ def test_schema_two_manifest_binds_control_and_event_protocols() -> None:
 
     assert manifest.control_protocol_version == 2
     assert manifest.event_protocol_version == 1
+
+
+@pytest.mark.unit
+def test_launcher_reads_bounded_cross_version_manifests_but_selects_current_only(
+    tmp_path: Path,
+) -> None:
+    older = _stage_release(
+        tmp_path,
+        RELEASE_A,
+        control_protocol_version=1,
+    )
+    _stage_release(tmp_path, RELEASE_B)
+    resolver = _resolver(tmp_path)
+
+    assert resolver.release_manifest(RELEASE_A).control_protocol_version == 1
+    with pytest.raises(ReleaseResolutionError, match="protocols are incompatible"):
+        resolver.select(RELEASE_A)
+
+    resolver.select(RELEASE_B)
+    resolver.selector_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "selected": RELEASE_B,
+                "previous": RELEASE_A,
+            }
+        ),
+        encoding="utf-8",
+    )
+    state = resolver.rollback()
+
+    assert state.selected == RELEASE_A
+    assert resolver.resolve({}) == older
 
 
 @pytest.mark.unit
