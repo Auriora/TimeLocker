@@ -1,5 +1,6 @@
 ---
 title: "Architecture Document: System Architecture"
+doc_type: architecture
 id: "arch-system-architecture"
 type: [ architecture ]
 status: [ approved ]
@@ -38,7 +39,7 @@ user CLI                         user-session tray
           authenticated local AF_UNIX protocol
                        |
                        v
-          root-owned system-control backend
+       socket-activated one-request helper
              |         |          |
              v         v          v
           backup   retention   run/diagnostic
@@ -50,16 +51,9 @@ user CLI                         user-session tray
              Restic command adapter
 ```
 
-## Approved Residency Constraint And Current Non-Conformance
+## Zero-Idle Protected Runtime
 
-The root-owned continuously resident system-control backend shown above is the
-currently deployed implementation, not the accepted long-term operating model.
-On 2026-07-28 the project direction was clarified: TimeLocker must not require
-a resident daemon. The deployed backend also demonstrated the reason for that
-constraint by entering a read-notify-read status loop and consuming substantial
-CPU while no backup or retention operation was running.
-
-The replacement architecture must use:
+The accepted protected runtime uses:
 
 - existing one-shot scheduler units for scheduled backup and retention;
 - bounded, short-lived authenticated helpers for protected queries and manual
@@ -68,10 +62,12 @@ The replacement architecture must use:
 - direct filesystem notification in the optional tray, without a privileged
   event broker or heartbeat process.
 
-Until that replacement is implemented, the diagram remains implementation
-truth but records a known architectural non-conformance. Spec 010 acceptance of
-the resident backend is halted, and Spec 011 owns the daemonless protected
-deployment boundary.
+The enabled AF_UNIX socket is kernel state, not a TimeLocker process. systemd
+starts the selected root helper for one connection; the helper authenticates,
+serves one bounded request, closes, and exits. Backup and retention workers
+publish `/run/timelocker/status.json` atomically after durable run-state
+changes. The optional tray registers a filesystem watch before its initial
+read and ignores read/open notifications, preventing read-notify-read loops.
 
 ## Component Boundaries
 
@@ -87,13 +83,11 @@ deployment boundary.
   versioned local protocol, peer identity, current group authorization,
   allowlisted dispatch, protected adapters, repository locking, durable run
   records, safe diagnostics, deployment assets, and release activation. Its
-  current resident backend is transitional and must be replaced by bounded
-  one-shot execution.
+  one-request socket activation and sanitized status publication.
 - **Tray boundary** — `timelocker-tray` is an independent unprivileged
-  user-session process. The current release requests status and allowlisted
-  actions through the protected backend; the accepted replacement observes
-  sanitized state directly and invokes only short-lived protected helpers. CLI
-  startup never initializes it.
+  user-session process. It observes sanitized state directly and invokes a
+  short-lived protected helper only for explicit actions. CLI startup never
+  initializes it.
 - **Application boundary** — managers, orchestrators, and focused services
   coordinate repositories, backups, snapshots, recovery, policies, schedules,
   validation, and monitoring. CLI modules should delegate domain work here.
@@ -139,7 +133,8 @@ Restic 0.18.0 or later must be available on `PATH`. User configuration
 locations are resolved through `ConfigurationPathResolver`. Protected
 deployment configuration is root-owned under `/etc/timelocker`; durable system
 state is under `/var/lib/timelocker`; the local socket is
-`/run/timelocker/control.sock`. Unattended credentials are referenced from
+`/run/timelocker/control.sock`; sanitized transient status is
+`/run/timelocker/status.json`. Unattended credentials are referenced from
 protected files and are never copied into user-readable configuration.
 
 ## Validation

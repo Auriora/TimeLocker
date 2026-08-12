@@ -2,9 +2,9 @@
 title: Protected system deployment
 doc_type: spec
 artifact_type: overview
-status: draft
+status: active
 owner: Auriora Team
-last_reviewed: 2026-07-28
+last_reviewed: 2026-08-12
 ---
 
 # Protected System Deployment
@@ -23,22 +23,21 @@ administrator deployment interface.
 
 ## Current Stage
 
-- Requirements are being reconciled with the approved zero-idle-residency
-  constraint.
-- Design and task authoring have not started.
-- Implementation is not approved.
-- Spec 010 resident-backend acceptance is halted; only independently valid
-  status semantics may be retained.
-- Spec 011 now owns removal of the resident privileged backend as well as the
-  supported deployment transaction.
+- Requirements and design are approved.
+- Daemonless runtime and supported deployment implementation are complete.
+- Automated validation, MoE review, promotion, and lifecycle closure are in
+  progress.
+- Protected host mutation and the 90-second live idle observation remain a
+  separate operational approval boundary.
 
 ## Package
 
 - [Requirements](./requirements.md)
 - [Canonical context](./canonical-context.md)
-
-Design, tasks, change impact, traceability, and verification artifacts will be
-added in their lifecycle stages after the requirements are reviewed.
+- [Design](./design.md)
+- [Tasks](./tasks.md)
+- [Traceability](./traceability.md)
+- [Verification](./verification.md)
 
 ## Approval Boundary
 

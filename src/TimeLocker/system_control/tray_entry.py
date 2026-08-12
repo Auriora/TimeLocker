@@ -301,6 +301,10 @@ def main() -> None:
                 tray.show_context_menu()
 
             updates: Queue[TrayDisplayState] = Queue(maxsize=1)
+            # An explicit tray launch may wake the one-shot helper once. The
+            # helper answers and exits; subsequent updates come directly from
+            # the sanitized status file without polling the privileged socket.
+            _offer_latest(updates, client.refresh_status())
             subscription = TrayStatusSubscriptionClient()
 
             def _subscribe() -> None:

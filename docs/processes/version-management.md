@@ -106,8 +106,8 @@ After the workflow completes:
 1. Confirm the release tag and GitHub release point to the approved commit.
 2. Download both distributions and `SHA256SUMS` from the release.
 3. Compare hashes and smoke a clean install through `timelocker`, `tl`,
-   `timelocker-system-control`, and `timelocker-tray`, including the packaged
-   control/event protocol contract and protected system assets.
+   `timelocker-system-control`, `timelocker-tray`, and `timelocker-deploy`,
+   including the packaged control protocol and daemonless protected assets.
 4. Confirm the published body matches the corresponding changelog section.
 5. Announce the release only after these checks pass.
 
@@ -136,21 +136,21 @@ immutable history.
 Publishing a GitHub release and selecting a protected host release are separate
 boundaries. A protected host stages an immutable release under
 `/opt/timelocker/releases/RELEASE_ID/` with a manifest that binds its release
-identity, package version, control protocol version, event protocol version,
-and entrypoint.
+identity, package version, control protocol version, and entrypoint. Schema 3
+explicitly has no privileged event protocol or status service.
 
-Before activation, the deployment probes the staged CLI, backend, tray,
-explicit control status, protected event channel, and active/enabled backup and
-retention timers. Only then may the root-only selector atomically update
+Before activation, `timelocker-deploy` validates and privately stages the local
+wheel, derives its manifest, and probes the staged CLI, backend, tray, explicit
+control status, and protected timers. Only then may the root-only selector update
 `/opt/timelocker/selected-release.json`, preserving the prior release identifier
 for rollback. Stable launchers resolve that selector and fail closed on missing,
 untrusted, incompatible, recursively invoked, or non-allowlisted state.
 
-Rollback probes the previous release, explicit control status, and both timer
+Rollback probes a schema-3 previous release, explicit control status, and timer
 states before swapping selected and previous identifiers. It does not delete
 protected configuration, credential references, retention policy, or durable
-run records. A newer event socket asset may remain installed but inert when a
-legacy release is selected.
+run records. Schema-1/2 rollback is rejected because it can re-enable the
+removed resident event service.
 
 ## Current Deferrals
 

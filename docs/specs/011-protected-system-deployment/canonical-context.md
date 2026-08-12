@@ -2,16 +2,16 @@
 title: Protected system deployment canonical context
 doc_type: spec
 artifact_type: canonical-context
-status: draft
+status: active
 owner: Auriora Team
-last_reviewed: 2026-07-28
+last_reviewed: 2026-08-12
 ---
 
 # Canonical Context
 
 ## Purpose
 
-This package turns a Spec 010 acceptance harness into a future supported
+This package turns a Spec 010 acceptance harness into the supported
 administrator workflow. This map prevents the proposed workflow, temporary
 acceptance evidence, or removed spec history from being mistaken for current
 installation behavior.
@@ -37,9 +37,9 @@ or live system evidence.
 
 | Source | Role | Scope | Notes |
 |--------|------|-------|-------|
-| `requirements.md` | Proposed observable deployment behavior | Spec 011 | Requires review before design. |
-| future `design.md` | Deployment architecture and decisions | Spec 011 | Must reconcile with the proven Spec 010 transaction. |
-| future `tasks.md` | Dependency-aware execution index | Spec 011 | Implementation must not begin from tasks alone. |
+| `requirements.md` | Approved observable deployment behavior | Spec 011 | Implemented contract. |
+| `design.md` | Deployment architecture and decisions | Spec 011 | Reconciled with the proven Spec 010 transaction. |
+| `tasks.md` | Dependency-aware execution index | Spec 011 | Evidence is updated through lifecycle task states. |
 
 ## Imported Sources
 
@@ -58,21 +58,28 @@ or live system evidence.
 |--------|----------------------|----------|
 | Removed Specs 007-009 recovered from Git | Closed delivery scaffolding | Use only for historical rationale; durable promoted documents own current behavior. |
 | `/tmp/timelocker-*` scripts and artifacts from acceptance work | Ephemeral, unversioned, or build-local evidence | Do not use as a supported deployment interface or durable procedure. |
-| `scripts/deploy_t011_linux.py` after Spec 010 closure | Acceptance-specific name and contract | Preserve as evidence or compatibility input until Spec 011 replaces or retires it explicitly. |
+| `scripts/deploy_t011_linux.py` after Spec 010 closure | Acceptance-specific name and contract | Deprecated compatibility wrapper; `timelocker-deploy` is authoritative. |
 
 ## Promotion Map
 
 | Spec-local content | Durable destination or route | Required before closure |
 |--------------------|------------------------------|-------------------------|
 | Supported install, upgrade, status, and rollback behavior | `docs/1-requirements/system-operations.md` | yes |
-| Zero-idle-residency and short-lived protected execution | `CHARTER.md`, `docs/1-requirements/system-operations.md`, and `docs/2-architecture/system-architecture.md` | yes |
+| Zero-idle project boundary | `CHARTER.md` | yes |
+| Zero-idle operational requirement | `docs/1-requirements/system-operations.md` | yes |
+| Short-lived protected-execution architecture | `docs/2-architecture/system-architecture.md` | yes |
 | Deployment components, trust boundaries, and platform adapters | `docs/2-architecture/system-architecture.md` | yes |
-| Administrator procedure and troubleshooting | `docs/guides/user/installation.md` and a durable deployment runbook | yes |
+| Administrator installation procedure | `docs/guides/user/installation.md` | yes |
+| Administrator troubleshooting procedure | `docs/guides/user/backup-operations-troubleshooting.md` | yes |
 | Release artifact and host activation relationship | `docs/processes/version-management.md` | yes |
-| Administrator command reference | `docs/reference/timelocker-cli-command-hierarchy.md` or a dedicated reference | yes |
-| Live Windows implementation | follow-up spec or issue if not accepted in this package | yes |
+| Administrator command reference | `docs/reference/timelocker-cli-command-hierarchy.md` | yes |
+| Live Windows implementation routing | `docs/2-architecture/system-architecture.md` | yes |
 
 ## Related Artifacts
 
 - Requirements: [requirements.md](./requirements.md)
 - Overview: [README.md](./README.md)
+- Design: [design.md](./design.md)
+- Tasks: [tasks.md](./tasks.md)
+- Traceability: [traceability.md](./traceability.md)
+- Verification: [verification.md](./verification.md)

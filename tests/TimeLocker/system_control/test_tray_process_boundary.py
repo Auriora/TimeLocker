@@ -243,7 +243,7 @@ def test_healthy_serve_is_silent_and_applies_event_snapshot(
     assert captured.out == ""
     assert captured.err == ""
     assert tray.update_status_info.call_count == 1
-    client.refresh_status.assert_not_called()
+    client.refresh_status.assert_called_once_with()
 
 
 @pytest.mark.unit

@@ -73,7 +73,7 @@ class ReleaseManifest:
     control_protocol_version: int
     event_protocol_version: int | None
     entrypoint: str = "venv/bin/timelocker"
-    schema_version: int = 2
+    schema_version: int = 3
 
     @classmethod
     def from_mapping(cls, value: object) -> "ReleaseManifest":
@@ -83,10 +83,44 @@ class ReleaseManifest:
             value.get("schema_version"),
             field="schema_version",
             minimum=1,
-            maximum=2,
+            maximum=3,
         )
         if schema_version == 1:
             return cls._from_legacy_mapping(value)
+        if schema_version == 3:
+            mapping = require_exact_mapping(
+                value,
+                field="release manifest",
+                required=frozenset(
+                    {
+                        "schema_version",
+                        "release_id",
+                        "package_version",
+                        "control_protocol_version",
+                        "entrypoint",
+                    }
+                ),
+            )
+            entrypoint = mapping["entrypoint"]
+            if entrypoint != "venv/bin/timelocker":
+                raise ReleaseResolutionError("release entrypoint is not allowlisted")
+            return cls(
+                schema_version=3,
+                release_id=_release_id(mapping["release_id"]),
+                package_version=require_safe_identifier(
+                    mapping["package_version"],
+                    field="package_version",
+                    maximum=64,
+                ),
+                control_protocol_version=require_int(
+                    mapping["control_protocol_version"],
+                    field="control_protocol_version",
+                    minimum=1,
+                    maximum=MAX_DECLARED_PROTOCOL_VERSION,
+                ),
+                event_protocol_version=None,
+                entrypoint=entrypoint,
+            )
         mapping = require_exact_mapping(
             value,
             field="release manifest",
@@ -218,7 +252,10 @@ class ImmutableReleaseResolver:
         manifest = self.release_manifest(release_id)
         if (
             manifest.control_protocol_version != PROTOCOL_VERSION
-            or manifest.event_protocol_version != STATUS_EVENT_PROTOCOL_VERSION
+            or (
+                manifest.schema_version < 3
+                and manifest.event_protocol_version != STATUS_EVENT_PROTOCOL_VERSION
+            )
         ):
             raise ReleaseResolutionError(
                 "release protocols are incompatible with selector"

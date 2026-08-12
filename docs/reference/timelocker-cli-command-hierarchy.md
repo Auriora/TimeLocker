@@ -1,5 +1,6 @@
 ---
 title: "Reference: TimeLocker CLI Command Hierarchy"
+doc_type: reference
 id: "ref-cli-hierarchy"
 type: [ reference ]
 status: [ approved ]
@@ -108,13 +109,26 @@ approved policy fingerprint and is hidden from the graphical menu when the
 tray was not configured with one. The tray communicates with the protected
 backend and does not own backup execution.
 
-## Administrator Release Tool
+## Administrator Deployment Tool
+
+`timelocker-deploy` is the supported root administration surface and is
+installed at `/usr/local/sbin/timelocker-deploy`:
+
+```text
+timelocker-deploy install WHEEL --operator-user ACCOUNT
+timelocker-deploy upgrade WHEEL --operator-user ACCOUNT
+timelocker-deploy status
+timelocker-deploy rollback
+```
+
+Every operation returns one JSON object. Mutating operations require root;
+status does not start a TimeLocker service process. The command derives the
+wheel digest, release identity, and manifest rather than accepting manually
+assembled identity inputs.
 
 `timelocker-release-select` is a root-only deployment tool. It is deliberately
-not part of the public CLI hierarchy and is installed with restricted
-permissions. Administrators use it to select or roll back compatible immutable
-releases; ordinary operators do not gain release-management authority through
-group membership.
+not the supported operator workflow; it remains a restricted internal
+primitive used by the transactional entrypoint.
 
 ## Routing Rules
 

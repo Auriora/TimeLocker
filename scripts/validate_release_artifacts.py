@@ -16,6 +16,7 @@ from pathlib import Path, PurePosixPath
 EXPECTED_REQUIRES_PYTHON = ">=3.12,<3.14"
 EXPECTED_ENTRY_POINTS = {
     "timelocker": "TimeLocker.cli:main",
+    "timelocker-deploy": "TimeLocker.system_control.deployment_entry:main",
     "timelocker-system-control": "TimeLocker.system_control.backend_entry:main",
     "timelocker-tray": "TimeLocker.system_control.tray_entry:main",
     "tl": "TimeLocker.cli:main",

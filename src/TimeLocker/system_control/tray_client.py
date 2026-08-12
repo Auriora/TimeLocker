@@ -8,17 +8,18 @@ from threading import Event
 from typing import Callable, TypeVar
 
 from .client import SystemControlClientError, UnixSocketSystemControlClient
-from .event_client import StatusEventAccessDenied, UnixSocketStatusEventClient
-from .interfaces import StatusEventClient, SystemControlClient
+from .interfaces import SystemControlClient
 from .models import BackupActionRequest, RetentionActionRequest, StatusSnapshot
+from .status_snapshot import (
+    StatusSnapshotFileWatcher,
+    StatusSnapshotUnavailable,
+)
 from .types import (
     BackendStatus,
     BackupScheduleHealth,
     ProtocolErrorCode,
     ResponseStatus,
     RunState,
-    StatusEventConnectionState,
-    StatusEventKind,
 )
 
 
@@ -57,16 +58,14 @@ _T = TypeVar("_T")
 
 
 class TrayStatusSubscriptionClient:
-    """Refresh snapshots only when the authenticated event stream invalidates."""
+    """Consume the sanitized status file without a privileged event service."""
 
     def __init__(
         self,
         *,
-        control_client: SystemControlClient | None = None,
-        event_client: StatusEventClient | None = None,
+        watcher: StatusSnapshotFileWatcher | None = None,
     ) -> None:
-        self._control_client = control_client or UnixSocketSystemControlClient()
-        self._event_client = event_client or UnixSocketStatusEventClient()
+        self._watcher = watcher or StatusSnapshotFileWatcher()
 
     def serve(
         self,
@@ -78,63 +77,22 @@ class TrayStatusSubscriptionClient:
         """Consume invalidations and publish coherent snapshots to the tray."""
         if not isinstance(stop_event, Event):
             raise TypeError("stop_event must be a threading.Event")
-        applied = None
-        refresh_pending = True
-        last_unavailable: str | None = None
-
-        def connection_state_changed(state: StatusEventConnectionState) -> None:
-            nonlocal last_unavailable
-            if state is StatusEventConnectionState.CONNECTED:
-                last_unavailable = None
-                return
-            reason = (
-                "denied"
-                if state is StatusEventConnectionState.DENIED
-                else "unavailable"
-            )
-            if on_unavailable is not None and reason != last_unavailable:
-                on_unavailable(reason)
-            last_unavailable = reason
-
         try:
-            for event in self._event_client.events(
-                stop_event,
-                on_connection_state=connection_state_changed,
-            ):
+            applied = None
+            for snapshot in self._watcher.snapshots(stop_event):
                 if stop_event.is_set():
                     return
-                if event.kind is StatusEventKind.HEARTBEAT and not refresh_pending:
-                    continue
-                if event.kind is not StatusEventKind.HEARTBEAT and (
-                    applied is not None
-                    and event.revision.session_id == applied.session_id
-                    and event.revision.sequence <= applied.sequence
-                ):
-                    continue
-                refresh_pending = True
-                try:
-                    snapshot = self._control_client.get_status_snapshot()
-                except SystemControlClientError as error:
-                    if on_unavailable is not None:
-                        state = (
-                            "denied"
-                            if error.status is ResponseStatus.DENIED
-                            else "unavailable"
-                        )
-                        on_unavailable(state)
-                    continue
                 if (
                     applied is not None
                     and snapshot.revision.session_id == applied.session_id
-                    and snapshot.revision.sequence < applied.sequence
+                    and snapshot.revision.sequence <= applied.sequence
                 ):
                     continue
                 applied = snapshot.revision
-                refresh_pending = False
                 on_snapshot(snapshot)
-        except StatusEventAccessDenied:
-            if on_unavailable is not None and last_unavailable != "denied":
-                on_unavailable("denied")
+        except StatusSnapshotUnavailable:
+            if on_unavailable is not None:
+                on_unavailable("unavailable")
 
 
 class TrayControlClient:

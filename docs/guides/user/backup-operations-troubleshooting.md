@@ -54,12 +54,13 @@ The socket should be owned by root and the operator group with group read/write
 access. The public CLI returns a bounded backend-unavailable error; it does not
 fall back to a checkout, pyenv shim, root home, or legacy configuration.
 
-### Temporarily Stop The Resident Backend
+### Stop A Legacy Resident Backend
 
-The continuously resident backend is a known architectural non-conformance
-pending the daemonless replacement in Spec 011. To stop it for the current boot,
-first stop the user tray so that it does not reconnect, then stop the service
-and both activation sockets:
+Current schema-3 deployments do not keep this service resident: after one
+request, `timelocker-control.service` returns to inactive while
+`timelocker-control.socket` remains listening in the kernel. If an older
+schema-1/2 deployment is consuming resources, stop the tray, service, and both
+legacy activation sockets immediately:
 
 ```bash
 pkill -TERM -x timelocker-tray
@@ -70,13 +71,22 @@ sudo systemctl stop timelocker-control.service \
 This does not stop or disable the independent backup and retention timers.
 Protected interactive status and tray actions are unavailable while these
 sockets are stopped; scheduled one-shot backup and retention remain independent.
-Because the sockets remain enabled, they return on the next boot. To restore
-protected interactive access before then:
+Because the old sockets remain enabled, they return on the next boot. Upgrade
+with `timelocker-deploy` to remove that architecture. To restore only protected
+interactive access before upgrading, start the control socket; do not restart
+the legacy event socket:
 
 ```bash
-sudo systemctl start timelocker-control.socket \
-  timelocker-status-events.socket
+sudo systemctl start timelocker-control.socket
 timelocker-tray
+```
+
+After a daemonless upgrade, remove stale legacy activation explicitly if it
+was not already removed by the transaction:
+
+```bash
+sudo systemctl disable --now timelocker-status-events.socket
+sudo rm -f /run/timelocker/status-events.sock
 ```
 
 ## Scheduled Backup Did Not Run

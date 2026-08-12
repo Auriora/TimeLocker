@@ -148,6 +148,7 @@ is distinct from a user/source installation. It provides:
 /usr/local/bin/timelocker
 /usr/local/bin/tl
 /usr/local/bin/timelocker-tray
+/usr/local/sbin/timelocker-deploy
 /usr/local/libexec/timelocker-system-control
 /usr/local/share/icons/hicolor/1024x1024/apps/timelocker.png
 /opt/timelocker/releases/RELEASE_ID/
@@ -161,11 +162,29 @@ current working directory. A staged release is selected only after its CLI,
 backend, and tray entrypoints pass compatibility probes. System control is
 exposed through `/run/timelocker/control.sock`.
 
-The repository contains validated deployment primitives and packaged assets;
-it does not currently expose a general end-user installer command. An
-administrator must stage the release, install the root-owned assets, configure
-the protected target and credentials by reference, approve retention, and
-enable the required systemd units.
+Build or obtain the approved local wheel, then use the supported administrator
+entrypoint. It derives the artifact digest, release ID, schema-3 daemonless
+manifest, and private staging paths; do not create a manifest or deployment
+script manually.
+
+```bash
+python -m build --wheel
+sudo "$(pwd)/.venv/bin/timelocker-deploy" install \
+  dist/timelocker-0.9.1-py3-none-any.whl --operator-user "$USER"
+
+sudo /usr/local/sbin/timelocker-deploy upgrade \
+  /absolute/path/to/timelocker-NEW-py3-none-any.whl \
+  --operator-user "$USER"
+/usr/local/sbin/timelocker-deploy status
+sudo /usr/local/sbin/timelocker-deploy rollback
+```
+
+Each command returns one JSON object and a stable exit status. Install/upgrade
+creates or reuses `timelocker-operators`, privately snapshots the wheel,
+validates its filename, package metadata, digest, and complete protected asset
+set, then activates it transactionally. It stops/disables the legacy event
+socket and never starts backup or retention. A rollback to a schema-1/2 release
+is rejected because those releases can require the removed resident service.
 
 Verify an installed host without reading secrets:
 
@@ -181,8 +200,9 @@ systemctl status timelocker-retention.timer
 ```
 
 Protected reads and `system backup`/`system retention` requests require current
-membership in `timelocker-operators`. These commands use the privileged backend
-without elevating the caller process.
+membership in `timelocker-operators`. These commands activate one privileged
+helper for one request without elevating the caller process. The helper exits
+after its response.
 Installation, group changes, policy approval, service changes, release
 selection, and rollback require root.
 
@@ -203,19 +223,19 @@ still require a compatible Restic executable and any backend-specific
 credentials. No PyPI distribution is currently published; use the source path
 above until an authorized release provides downloadable artifacts.
 
-The protected immutable-release, local-backend, systemd scheduling, and
-independent-tray deployment is undergoing live acceptance on Linux Mint under
-Spec 010. Package and installed-artifact checks have passed, but protected
-deployment acceptance is not yet complete. The portable architecture includes
-a Windows adapter, but a protected Windows deployment is not yet claimed as
-live-accepted.
+The daemonless immutable-release, systemd scheduling, and independent-tray
+implementation has automated acceptance. Live protected-host mutation and the
+90-second idle residency observation require separate operational approval.
+The portable architecture includes a Windows adapter, but a protected Windows
+deployment is not yet claimed as live-accepted.
 
 ### 4.9 Understand Modern Packaging Features
 
 - `pyproject.toml` for modern builds (PEP 517/518).
 - Optional dependency groups (`dev`, `gui`). S3 and B2 runtime dependencies are
   included in the base installation.
-- Entry points install both `timelocker` and `tl` commands.
+- Entry points install `timelocker`, `tl`, `timelocker-tray`,
+  `timelocker-system-control`, and `timelocker-deploy`.
 
 ### 4.10 Configure Environment
 

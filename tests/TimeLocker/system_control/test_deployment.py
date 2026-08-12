@@ -154,6 +154,7 @@ def test_linux_asset_set_covers_launchers_backend_tray_and_schedules(
 ) -> None:
     targets = linux_asset_targets(
         bin_root=tmp_path / "bin",
+        admin_bin_root=tmp_path / "sbin",
         libexec_root=tmp_path / "libexec",
         unit_root=tmp_path / "units",
         config_root=tmp_path / "etc",
@@ -166,10 +167,10 @@ def test_linux_asset_set_covers_launchers_backend_tray_and_schedules(
         "timelocker-launcher",
         "tl-launcher",
         "timelocker-system-control-launcher",
+        "timelocker-deploy-launcher",
         "timelocker-tray-launcher",
         "timelocker-control.service",
         "timelocker-control.socket",
-        "timelocker-status-events.socket",
         "timelocker-retention.service",
         "timelocker-retention.timer",
         "timelocker-tray.desktop",
@@ -181,6 +182,12 @@ def test_linux_asset_set_covers_launchers_backend_tray_and_schedules(
         "timelocker-icon-warning.png",
         "timelocker-icon-error.png",
     } <= sources
+    deploy = next(
+        target for target in targets if target.source_name == "timelocker-deploy-launcher"
+    )
+    assert deploy.destination == tmp_path / "sbin" / "timelocker-deploy"
+    assert deploy.mode == 0o750
+    assert "timelocker-status-events.socket" not in sources
     policy = next(
         target
         for target in targets
@@ -206,7 +213,6 @@ def test_linux_asset_set_covers_launchers_backend_tray_and_schedules(
     "failed_field",
     [
         "control_status_available",
-        "event_channel_available",
         "backup_timer_active",
         "backup_timer_enabled",
         "retention_timer_active",
@@ -249,7 +255,7 @@ def test_activation_requires_protocol_socket_and_timer_health(
 
 
 @pytest.mark.unit
-def test_rollback_allows_inert_event_socket_but_requires_control_and_timers(
+def test_rollback_does_not_require_legacy_event_socket(
     tmp_path: Path,
 ) -> None:
     _stage_release(tmp_path, RELEASE_A)

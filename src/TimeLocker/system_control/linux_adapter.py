@@ -132,12 +132,16 @@ class LinuxUnixSocketTransport:
     def serve(self, handler: ControlRequestHandler) -> None:
         """Serve until stopped, isolating malformed clients to one connection."""
         while not self.stop_event.is_set():
-            connection, _address = self.listener.accept()
-            with connection:
-                try:
-                    self.serve_connection(connection, handler)
-                except OSError:
-                    continue
+            self.serve_once(handler)
+
+    def serve_once(self, handler: ControlRequestHandler) -> None:
+        """Serve exactly one bounded request for daemonless socket activation."""
+        connection, _address = self.listener.accept()
+        with connection:
+            try:
+                self.serve_connection(connection, handler)
+            except OSError:
+                return
 
     def serve_connection(
         self,

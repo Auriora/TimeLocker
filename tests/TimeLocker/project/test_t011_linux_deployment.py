@@ -1,753 +1,442 @@
-"""Safety contracts for the repository-owned T011 Linux deployment harness."""
+"""Supported daemonless protected deployment entrypoint contracts."""
 
 from __future__ import annotations
 
 import getpass
-import importlib.util
 import json
 import os
 from pathlib import Path
-import sys
-from types import ModuleType
+from types import SimpleNamespace
+import zipfile
 
 import pytest
 
+from TimeLocker.system_control import deployment_entry as entry
+from TimeLocker.system_control.deployment import AssetTarget, linux_asset_targets
 
-ROOT = Path(__file__).resolve().parents[3]
+
 RELEASE_A = "a" * 40
-RELEASE_B = "b" * 40
 
 
-def _load_harness() -> ModuleType:
-    path = ROOT / "scripts/deploy_t011_linux.py"
-    spec = importlib.util.spec_from_file_location("deploy_t011_linux", path)
-    assert spec is not None and spec.loader is not None
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
-
-
-class FakeExecutor:
-    """Capture commands and return deterministic candidate-probe output."""
-
-    def __init__(
-        self,
-        harness: ModuleType,
-        packaged_unit: Path,
-        *,
-        backend_protocol: str = "2:1",
-    ) -> None:
-        self.harness = harness
-        self.packaged_unit = packaged_unit
-        self.backend_protocol = backend_protocol
-        self.commands: list[list[str]] = []
-
-    def run(
-        self,
-        arguments,
-        *,
-        timeout=30,
-        output=None,
-        capture=False,
-        check=True,
-    ) -> str:
-        del timeout, check
-        command = [str(argument) for argument in arguments]
-        self.commands.append(command)
-        result = ""
-        if command[-2:] == ["-c", self.harness.BACKEND_IMPORT_PROBE]:
-            result = f"{self.backend_protocol}\n"
-        elif self.harness.LAUNCHER_COMPATIBILITY_PROBE in command:
-            result = "compatible\n"
-        elif command[-2:] == ["version", "--short"]:
-            result = "0.9.1\n"
-        elif command[-2:] == ["-c", self.harness.PACKAGED_UNIT_PROBE]:
-            result = f"{self.packaged_unit}\n"
-        elif command[-2:] == ["-c", self.harness.DENIED_EVENT_PROBE]:
-            result = "denied\n"
-        elif command[-2:] == ["-c", self.harness.AUTHORIZED_EVENT_PROBE]:
-            result = json.dumps(
-                {
-                    "kind": "snapshot",
-                    "sequence": 1,
-                    "session_id": "526719f9-4c46-42ac-b286-2623079bc335",
-                }
-            )
-        if output is not None:
-            self.harness._write_private_text(output, result)
-        return result
-
-
-class SimulatedHostExecutor(FakeExecutor):
-    """Model the filesystem effects of venv, pip, and release selection."""
-
-    def __init__(
-        self,
-        harness: ModuleType,
-        packaged_unit: Path,
-        paths,
-        *,
-        fail_activated_event: bool = False,
-    ) -> None:
-        super().__init__(harness, packaged_unit)
-        self.paths = paths
-        self.fail_activated_event = fail_activated_event
-        self.authorized_event_calls = 0
-
-    def run(
-        self,
-        arguments,
-        *,
-        timeout=30,
-        output=None,
-        capture=False,
-        check=True,
-    ) -> str:
-        command = [str(argument) for argument in arguments]
-        if command[:4] == ["python3", "-m", "venv", "--system-site-packages"]:
-            venv_path = Path(command[4])
-            python = venv_path / "bin/python"
-            python.parent.mkdir(parents=True)
-            python.write_text("#!/bin/sh\n", encoding="utf-8")
-            python.chmod(0o755)
-        elif (
-            len(command) >= 5
-            and command[1:4] == ["-m", "pip", "install"]
-            and "--no-deps" not in command
-        ):
-            release = Path(command[0]).parents[2]
-            python = release / "venv/bin/python"
-            for name in self.harness.REQUIRED_ENTRYPOINTS:
-                entrypoint = release / "venv/bin" / name
-                entrypoint.write_text(f"#!{python}\n", encoding="utf-8")
-                entrypoint.chmod(0o755)
-            self.packaged_unit.parent.mkdir(parents=True)
-            self.packaged_unit.write_text(
-                "\n".join(
-                    (
-                        "[Unit]",
-                        "Requires=timelocker-control.socket",
-                        "Wants=timelocker-status-events.socket",
-                        "[Service]",
-                        (
-                            "Sockets=timelocker-control.socket "
-                            "timelocker-status-events.socket"
-                        ),
-                        "",
-                    )
-                ),
-                encoding="utf-8",
-            )
-        elif (
-            "TimeLocker.system_control.release_admin" in command
-            and "select" in command
-        ):
-            state = json.loads(self.paths.selector.read_text(encoding="utf-8"))
-            state["previous"] = state["selected"]
-            state["selected"] = command[command.index("select") + 1]
-            self.paths.selector.write_text(json.dumps(state), encoding="utf-8")
-        result = super().run(
-            arguments,
-            timeout=timeout,
-            output=output,
-            capture=capture,
-            check=check,
-        )
-        if command[-2:] == ["-c", self.harness.AUTHORIZED_EVENT_PROBE]:
-            self.authorized_event_calls += 1
-            if self.fail_activated_event and self.authorized_event_calls == 2:
-                return "not-json"
-        return result
-
-
-def _paths(harness: ModuleType, root: Path):
-    return harness.DeploymentPaths(
+def _paths(root: Path) -> entry.DeploymentPaths:
+    return entry.DeploymentPaths(
         releases_root=root / "opt/timelocker/releases",
         selector=root / "opt/timelocker/selected-release.json",
         service_unit=root / "etc/systemd/system/timelocker-control.service",
-        evidence_root=root / "var/lib/timelocker/migration-backup",
-        lock_file=root / "run/lock/timelocker-t011-deploy.lock",
+        evidence_root=root / "var/lib/timelocker/deployments",
+        lock_file=root / "run/lock/timelocker-deploy.lock",
         launcher_venv=root / "opt/timelocker/launcher/venv",
+        legacy_event_socket=root / "run/timelocker/status-events.sock",
+        attention_file=root / "var/lib/timelocker/deployment-attention.json",
+        expected_owner_uid=os.getuid(),
     )
 
 
-def _request(harness: ModuleType, root: Path):
+def _wheel(root: Path, *, include_legacy_event: bool = False) -> Path:
     wheel = root / "timelocker-0.9.1-py3-none-any.whl"
-    wheel.write_bytes(b"validated wheel")
-    digest = harness._sha256(wheel)
-    manifest = root / "release.json"
+    with zipfile.ZipFile(wheel, "w") as archive:
+        archive.writestr(
+            "timelocker-0.9.1.dist-info/METADATA",
+            "Metadata-Version: 2.1\nName: timelocker\nVersion: 0.9.1\n",
+        )
+        for target in linux_asset_targets():
+            content = "asset\n"
+            if target.source_name == "timelocker-control.service":
+                content = (
+                    "[Unit]\nRequires=timelocker-control.socket\n"
+                    "[Service]\nType=exec\nSockets=timelocker-control.socket\n"
+                    "RuntimeDirectoryPreserve=yes\n"
+                )
+            archive.writestr(
+                f"TimeLocker/system_control/assets/{target.source_name}", content
+            )
+        if include_legacy_event:
+            archive.writestr(
+                "TimeLocker/system_control/assets/timelocker-status-events.socket",
+                "legacy\n",
+            )
+    return wheel
+
+
+def _prepare_roots(paths: entry.DeploymentPaths) -> None:
+    entry._prepare_protected_roots(paths)
+
+
+@pytest.mark.unit
+def test_local_wheel_identity_and_daemonless_manifest_are_derived(tmp_path: Path) -> None:
+    paths = _paths(tmp_path)
+    _prepare_roots(paths)
+    wheel = _wheel(tmp_path)
+
+    request = entry._derive_request(
+        wheel,
+        expected_current=RELEASE_A,
+        operator_user=getpass.getuser(),
+        paths=paths,
+    )
+
+    assert request.release_id == entry._sha256(wheel)[:40]
+    assert request.wheel_sha256 == entry._sha256(wheel)
+    manifest = json.loads(request.manifest.read_text())
+    assert manifest == {
+        "schema_version": 3,
+        "release_id": request.release_id,
+        "package_version": "0.9.1",
+        "control_protocol_version": 2,
+        "entrypoint": "venv/bin/timelocker",
+    }
+
+
+@pytest.mark.unit
+def test_local_wheel_rejects_legacy_event_service_asset(tmp_path: Path) -> None:
+    paths = _paths(tmp_path)
+    _prepare_roots(paths)
+
+    with pytest.raises(entry.DeploymentFailure, match="asset set"):
+        entry._derive_request(
+            _wheel(tmp_path, include_legacy_event=True),
+            expected_current=None,
+            operator_user=getpass.getuser(),
+            paths=paths,
+        )
+
+
+@pytest.mark.unit
+def test_verified_release_retry_is_idempotent() -> None:
+    assert (
+        entry._release_request_disposition(
+            "install", current=RELEASE_A, candidate=RELEASE_A
+        )
+        == "already_selected"
+    )
+    assert (
+        entry._release_request_disposition(
+            "upgrade", current=RELEASE_A, candidate=RELEASE_A
+        )
+        == "already_selected"
+    )
+    assert (
+        entry._release_request_disposition(
+            "install", current=RELEASE_A, candidate="b" * 40
+        )
+        == "already_installed"
+    )
+
+
+@pytest.mark.unit
+def test_packaged_service_requires_single_control_socket_and_no_event_service(
+    tmp_path: Path,
+) -> None:
+    release = tmp_path / ("b" * 40)
+    unit = release / "assets/timelocker-control.service"
+    unit.parent.mkdir(parents=True)
+    unit.write_text(
+        "[Unit]\nRequires=timelocker-control.socket\n"
+        "[Service]\nType=exec\nSockets=timelocker-control.socket\n"
+        "RuntimeDirectoryPreserve=yes\n"
+    )
+    request = entry.DeploymentRequest(
+        release_id="b" * 40,
+        expected_current=None,
+        wheel=tmp_path / "unused.whl",
+        wheel_sha256="c" * 64,
+        manifest=tmp_path / "release.json",
+        operator_user=getpass.getuser(),
+    )
+    deployer = entry.T011LinuxDeployer(request, owner_uid=os.getuid())
+    deployer.release = release
+
+    deployer._validate_packaged_unit(unit)
+    unit.write_text(unit.read_text() + "Wants=timelocker-status-events.socket\n")
+    with pytest.raises(entry.DeploymentFailure, match="event socket"):
+        deployer._validate_packaged_unit(unit)
+
+
+@pytest.mark.unit
+def test_initial_install_validation_does_not_require_running_units(
+    tmp_path: Path,
+) -> None:
+    paths = _paths(tmp_path)
+    _prepare_roots(paths)
+    wheel = tmp_path / "timelocker-0.9.1-py3-none-any.whl"
+    wheel.write_bytes(b"wheel")
+    manifest = tmp_path / "release.json"
+    manifest.write_text("{}")
+    commands: list[list[str]] = []
+
+    class Executor:
+        def run(self, arguments, **_kwargs):
+            commands.append([str(value) for value in arguments])
+            return ""
+
+    deployer = entry.T011LinuxDeployer(
+        entry.DeploymentRequest(
+            release_id="b" * 40,
+            expected_current=None,
+            wheel=wheel,
+            wheel_sha256=entry._sha256(wheel),
+            manifest=manifest,
+            operator_user=getpass.getuser(),
+        ),
+        paths=paths,
+        executor=Executor(),
+        owner_uid=os.getuid(),
+        owner_gid=os.getgid(),
+        asset_targets=(
+            AssetTarget("timelocker-control.service", paths.service_unit, 0o644),
+        ),
+    )
+
+    deployer.validate_request()
+    assert commands == []
+
+
+@pytest.mark.unit
+def test_status_reports_zero_resident_service_contract(tmp_path: Path) -> None:
+    paths = _paths(tmp_path)
+    paths.selector.parent.mkdir(parents=True)
+    paths.selector.parent.chmod(0o755)
+    paths.selector.write_text(
+        json.dumps(
+            {"schema_version": 1, "selected": RELEASE_A, "previous": None}
+        )
+    )
+    paths.selector.chmod(0o644)
+    paths.service_unit.parent.mkdir(parents=True)
+    paths.service_unit.write_text(
+        "[Service]\nType=exec\nSockets=timelocker-control.socket\n"
+        "RuntimeDirectoryPreserve=yes\n"
+    )
+
+    assert entry._deployment_status(paths, unit_probe=lambda _action, _unit: True) == {
+        "operation": "status",
+        "result_code": "installed",
+        "selected_release": RELEASE_A,
+        "previous_release": None,
+        "one_shot_helper_ready": True,
+        "resident_service_required": False,
+        "attention_required": False,
+        "control_socket_active": True,
+        "control_socket_enabled": True,
+        "backup_timer_active": True,
+        "backup_timer_enabled": True,
+        "retention_timer_active": True,
+        "retention_timer_enabled": True,
+    }
+
+
+@pytest.mark.unit
+def test_status_on_clean_host_is_not_installed_and_reports_unit_health(
+    tmp_path: Path,
+) -> None:
+    paths = _paths(tmp_path)
+
+    payload = entry._deployment_status(
+        paths,
+        unit_probe=lambda _action, _unit: False,
+    )
+
+    assert payload["result_code"] == "not_installed"
+    assert payload["one_shot_helper_ready"] is False
+    assert payload["backup_timer_active"] is False
+    assert payload["retention_timer_enabled"] is False
+
+
+@pytest.mark.unit
+def test_private_evidence_writer_rejects_symlink(tmp_path: Path) -> None:
+    target = tmp_path / "target"
+    target.write_text("unchanged")
+    link = tmp_path / "evidence.json"
+    link.symlink_to(target)
+
+    with pytest.raises(OSError):
+        entry._write_private_text(link, "replacement")
+
+    assert target.read_text() == "unchanged"
+
+
+@pytest.mark.unit
+def test_activation_enables_only_the_on_demand_control_socket(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    paths = _paths(tmp_path)
+    _prepare_roots(paths)
+    release_id = "b" * 40
+    manifest = tmp_path / "release.json"
     manifest.write_text(
         json.dumps(
             {
-                "schema_version": 2,
-                "release_id": RELEASE_B,
+                "schema_version": 3,
+                "release_id": release_id,
                 "package_version": "0.9.1",
                 "control_protocol_version": 2,
-                "event_protocol_version": 1,
                 "entrypoint": "venv/bin/timelocker",
             }
-        ),
-        encoding="utf-8",
+        )
     )
-    return harness.DeploymentRequest(
-        release_id=RELEASE_B,
-        expected_current=RELEASE_A,
+    wheel = tmp_path / "timelocker-0.9.1-py3-none-any.whl"
+    wheel.write_bytes(b"wheel")
+    commands: list[list[str]] = []
+    packaged_unit = tmp_path / "packaged/timelocker-control.service"
+    packaged_unit.parent.mkdir()
+    packaged_unit.write_text("[Service]\nType=exec\n")
+
+    class Executor:
+        def run(self, arguments, **kwargs):
+            command = [str(value) for value in arguments]
+            commands.append(command)
+            if "PACKAGED_UNIT_PROBE" in str(arguments):
+                return str(packaged_unit)
+            if "importlib.resources" in str(arguments):
+                return str(packaged_unit)
+            return ""
+
+    class AssetInstaller:
+        def __init__(self, **_kwargs):
+            pass
+
+        def install_assets(self, _root, _manifest):
+            return None
+
+    request = entry.DeploymentRequest(
+        release_id=release_id,
+        expected_current=None,
         wheel=wheel,
-        wheel_sha256=digest,
+        wheel_sha256=entry._sha256(wheel),
         manifest=manifest,
         operator_user=getpass.getuser(),
     )
+    deployer = entry.T011LinuxDeployer(
+        request,
+        paths=paths,
+        executor=Executor(),
+        owner_uid=os.getuid(),
+        owner_gid=os.getgid(),
+        asset_targets=(
+            AssetTarget("timelocker-control.service", paths.service_unit, 0o644),
+        ),
+    )
+    deployer.release.mkdir(parents=True)
+    (deployer.release / "venv/bin").mkdir(parents=True)
+    deployer.staged_launcher.mkdir(parents=True)
+    deployer.evidence = tmp_path / "evidence"
+    deployer.evidence.mkdir()
+    deployer.staged_manifest = manifest
+    monkeypatch.setattr(entry, "SystemReleaseDeployment", AssetInstaller)
+    monkeypatch.setattr(entry, "build_asset_manifest", lambda **_kwargs: object())
+    monkeypatch.setattr(entry, "_selected_release_optional", lambda _path: None)
+
+    deployer.activate()
+
+    enable_commands = [command for command in commands if "enable" in command]
+    assert enable_commands == [
+        ["systemctl", "enable", "--now", "timelocker-control.socket"]
+    ]
+    assert all("timelocker-retention.timer" not in command for command in commands)
+    assert all(
+        "timelocker-npbackup-migration.timer" not in command for command in commands
+    )
 
 
-def _baseline(paths) -> None:
-    paths.selector.parent.mkdir(parents=True)
+@pytest.mark.unit
+def test_mutating_command_returns_one_json_elevation_instruction(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(entry.os, "geteuid", lambda: 1000)
+
+    assert entry.main(["upgrade", "/not/read.whl", "--operator-user", "user"]) == 77
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["result_code"] == "elevation_required"
+    assert payload["next_action"] == "run this command with sudo"
+
+
+@pytest.mark.unit
+def test_rollback_rejects_release_that_requires_resident_event_service(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    paths = _paths(tmp_path)
+    _prepare_roots(paths)
+    for release_id in (RELEASE_A, "b" * 40):
+        executable = paths.releases_root / release_id / "venv/bin/timelocker"
+        executable.parent.mkdir(parents=True)
+        executable.write_text("#!/bin/sh\n")
+        executable.chmod(0o755)
+        for name in ("timelocker-system-control", "timelocker-tray"):
+            sibling = executable.with_name(name)
+            sibling.write_text("#!/bin/sh\n")
+            sibling.chmod(0o755)
+        (executable.parents[2] / "release.json").write_text(
+            json.dumps(
+                {
+                    "schema_version": 2,
+                    "release_id": release_id,
+                    "package_version": "0.9.1",
+                    "control_protocol_version": 2,
+                    "event_protocol_version": 1,
+                    "entrypoint": "venv/bin/timelocker",
+                }
+            )
+        )
     paths.selector.write_text(
         json.dumps(
             {
                 "schema_version": 1,
-                "selected": RELEASE_A,
-                "previous": None,
+                "selected": "b" * 40,
+                "previous": RELEASE_A,
             }
-        ),
-        encoding="utf-8",
-    )
-    paths.service_unit.parent.mkdir(parents=True)
-    paths.service_unit.write_text("old service\n", encoding="utf-8")
-    paths.evidence_root.mkdir(parents=True)
-    paths.releases_root.mkdir(parents=True)
-    launcher_python = paths.launcher_venv / "bin/python"
-    launcher_python.parent.mkdir(parents=True)
-    paths.launcher_venv.parent.chmod(0o755)
-    paths.launcher_venv.chmod(0o755)
-    launcher_python.parent.chmod(0o755)
-    launcher_python.write_text("#!/bin/sh\n# old launcher\n", encoding="utf-8")
-    launcher_python.chmod(0o755)
-    current_release = paths.releases_root / RELEASE_A
-    current_entrypoints = current_release / "venv/bin"
-    current_entrypoints.mkdir(parents=True)
-    for name in ("timelocker", "timelocker-system-control", "timelocker-tray"):
-        entrypoint = current_entrypoints / name
-        entrypoint.write_text("#!/bin/sh\n", encoding="utf-8")
-        entrypoint.chmod(0o755)
-    (current_release / "release.json").write_text(
-        json.dumps(
-            {
-                "schema_version": 2,
-                "release_id": RELEASE_A,
-                "package_version": "0.9.1",
-                "control_protocol_version": 1,
-                "event_protocol_version": 1,
-                "entrypoint": "venv/bin/timelocker",
-            }
-        ),
-        encoding="utf-8",
+        )
     )
 
-
-def _staged_release(deployer, packaged_unit: Path) -> None:
-    python = deployer.release / "venv/bin/python"
-    python.parent.mkdir(parents=True)
-    python.write_text("#!/bin/sh\n", encoding="utf-8")
-    python.chmod(0o755)
-    for name in (
-        "timelocker",
-        "tl",
-        "timelocker-tray",
-        "timelocker-system-control",
-    ):
-        entrypoint = deployer.release / "venv/bin" / name
-        entrypoint.write_text(f"#!{python}\n", encoding="utf-8")
-        entrypoint.chmod(0o755)
-    packaged_unit.parent.mkdir(parents=True)
-    packaged_unit.write_text(
-        "\n".join(
-            (
-                "[Unit]",
-                "Requires=timelocker-control.socket",
-                "Wants=timelocker-status-events.socket",
-                "[Service]",
-                "Sockets=timelocker-control.socket timelocker-status-events.socket",
-                "",
-            )
-        ),
-        encoding="utf-8",
-    )
+    assert entry._run_rollback(paths) == 1
+    assert json.loads(capsys.readouterr().out)["result_code"] == "rollback_failed"
 
 
-def test_identity_preflights_are_inline_and_precede_mutation_under_restrictive_umask(
+@pytest.mark.unit
+def test_rollback_verifies_control_and_timer_health(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
-    harness = _load_harness()
-    paths = _paths(harness, tmp_path)
-    _baseline(paths)
-    request = _request(harness, tmp_path)
-    packaged_unit = (
-        paths.releases_root
-        / RELEASE_B
-        / "venv/lib/python3.12/site-packages/TimeLocker/system_control/assets"
-        / "timelocker-control.service"
-    )
-    executor = FakeExecutor(harness, packaged_unit)
-    deployer = harness.T011LinuxDeployer(
-        request,
-        paths=paths,
-        executor=executor,
-        owner_uid=None,
-        owner_gid=None,
-    )
-    deployer.validate_request()
-    old_umask = os.umask(0o077)
-    try:
-        deployer.capture_baseline()
-        _staged_release(deployer, packaged_unit)
-        deployer.preflight_staged_release()
-    finally:
-        os.umask(old_umask)
+    paths = _paths(tmp_path)
+    _prepare_roots(paths)
+    commands: list[list[str]] = []
 
-    assert json.loads(paths.selector.read_text())["selected"] == RELEASE_A
-    assert paths.service_unit.read_text() == "old service\n"
-    target_identity_commands = [
-        command
-        for command in executor.commands
-        if "runuser" in command or "setpriv" in command
-    ]
-    assert len(target_identity_commands) == 3
-    assert all("-c" in command for command in target_identity_commands[1:])
-    assert all(
-        not any(argument.endswith(".py") for argument in command)
-        for command in target_identity_commands
-    )
-    assert deployer.evidence is not None
-    assert deployer.staged_wheel is not None
-    assert deployer.staged_wheel.name == request.wheel.name
-    evidence_modes = {
-        path.name: path.stat().st_mode & 0o777
-        for path in deployer.evidence.iterdir()
-        if path.is_file()
-    }
-    assert evidence_modes
-    assert set(evidence_modes.values()) == {0o600}
+    class Resolver:
+        def __init__(self, **_kwargs):
+            pass
+
+        def _read_selector_optional(self):
+            return SimpleNamespace(selected="b" * 40, previous=RELEASE_A)
+
+        def release_manifest(self, _release_id):
+            return SimpleNamespace(schema_version=3)
+
+        def rollback(self):
+            return SimpleNamespace(selected=RELEASE_A, previous="b" * 40)
+
+    class Executor:
+        def run(self, arguments, **_kwargs):
+            commands.append([str(value) for value in arguments])
+            return ""
+
+    monkeypatch.setattr(entry, "ImmutableReleaseResolver", Resolver)
+    monkeypatch.setattr(entry, "CommandExecutor", Executor)
+
+    assert entry._run_rollback(paths) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["result_code"] == "rolled_back"
+    assert ["systemctl", "restart", "timelocker-control.socket"] in commands
+    for unit in entry.REQUIRED_ACTIVE_UNITS:
+        assert ["systemctl", "is-active", "--quiet", unit] in commands
+    for unit in entry.REQUIRED_ENABLED_UNITS:
+        assert ["systemctl", "is-enabled", "--quiet", unit] in commands
 
 
-def test_backend_protocol_probe_must_match_validated_release_manifest(
-    tmp_path: Path,
-) -> None:
-    harness = _load_harness()
-    paths = _paths(harness, tmp_path)
-    _baseline(paths)
-    request = _request(harness, tmp_path)
-    packaged_unit = (
-        paths.releases_root
-        / RELEASE_B
-        / "venv/lib/python3.12/site-packages/TimeLocker/system_control/assets"
-        / "timelocker-control.service"
-    )
-    deployer = harness.T011LinuxDeployer(
-        request,
-        paths=paths,
-        executor=FakeExecutor(
-            harness,
-            packaged_unit,
-            backend_protocol="1:1",
-        ),
-        owner_uid=None,
-        owner_gid=None,
-    )
-    deployer.validate_request()
-    deployer.capture_baseline()
-    _staged_release(deployer, packaged_unit)
-
-    with pytest.raises(
-        harness.DeploymentFailure,
-        match=r"expected 2:1, got 1:1",
-    ):
-        deployer.preflight_staged_release()
-
-    assert json.loads(paths.selector.read_text())["selected"] == RELEASE_A
-    assert paths.service_unit.read_text() == "old service\n"
-    assert deployer.evidence is not None
-    assert (
-        deployer.evidence / "preflight-backend-protocol.txt"
-    ).read_text(encoding="utf-8") == "1:1\n"
-
-
-def test_invalid_wheel_filename_is_rejected_before_host_state(
-    tmp_path: Path,
-) -> None:
-    harness = _load_harness()
-    paths = _paths(harness, tmp_path)
-    _baseline(paths)
-    request = _request(harness, tmp_path)
-    invalid_wheel = tmp_path / "candidate.whl"
-    request.wheel.replace(invalid_wheel)
-    request = harness.DeploymentRequest(
-        release_id=request.release_id,
-        expected_current=request.expected_current,
-        wheel=invalid_wheel,
-        wheel_sha256=harness._sha256(invalid_wheel),
-        manifest=request.manifest,
-        operator_user=request.operator_user,
-    )
-    deployer = harness.T011LinuxDeployer(
-        request,
-        paths=paths,
-        executor=FakeExecutor(harness, tmp_path / "unused.service"),
-        owner_uid=None,
-        owner_gid=None,
-    )
-
-    with pytest.raises(harness.DeploymentFailure, match="valid wheel filename"):
-        deployer.validate_request()
-
-    assert list(paths.evidence_root.iterdir()) == []
-    assert not deployer.release.exists()
-
-
-def test_preflight_failure_never_calls_activation() -> None:
-    harness = _load_harness()
-    calls: list[str] = []
-
-    class FailingDeployer(harness.T011LinuxDeployer):
-        def validate_request(self):
-            calls.append("validate")
-
-        def capture_baseline(self):
-            calls.append("baseline")
-
-        def stage_release(self):
-            calls.append("stage")
-
-        def preflight_staged_release(self):
-            calls.append("preflight")
-            raise harness.DeploymentFailure("preflight rejected")
-
-        def activate(self):
-            calls.append("activate")
-
-        def recover(self):
-            calls.append("recover")
-
-    deployer = object.__new__(FailingDeployer)
-
-    with pytest.raises(harness.DeploymentFailure, match="preflight rejected"):
-        deployer.deploy()
-
-    assert calls == ["validate", "baseline", "stage", "preflight", "recover"]
-
-
-def test_interruption_after_mutation_runs_recovery() -> None:
-    harness = _load_harness()
-    calls: list[str] = []
-
-    class InterruptedDeployer(harness.T011LinuxDeployer):
-        def validate_request(self):
-            calls.append("validate")
-
-        def capture_baseline(self):
-            calls.append("baseline")
-
-        def stage_release(self):
-            calls.append("stage")
-
-        def preflight_staged_release(self):
-            calls.append("preflight")
-
-        def activate(self):
-            calls.append("activate")
-            raise KeyboardInterrupt
-
-        def recover(self):
-            calls.append("recover")
-
-    deployer = object.__new__(InterruptedDeployer)
-
-    with pytest.raises(KeyboardInterrupt):
-        deployer.deploy()
-
-    assert calls == [
-        "validate",
-        "baseline",
-        "stage",
-        "preflight",
-        "activate",
-        "recover",
-    ]
-
-
-@pytest.mark.parametrize("candidate_at_canonical_path", [False, True])
-def test_launcher_restore_uses_filesystem_state_across_swap_interruptions(
-    tmp_path: Path,
-    candidate_at_canonical_path: bool,
-) -> None:
-    harness = _load_harness()
-    paths = _paths(harness, tmp_path)
-    _baseline(paths)
-    deployer = harness.T011LinuxDeployer(
-        _request(harness, tmp_path),
-        paths=paths,
-        executor=FakeExecutor(harness, tmp_path / "unused.service"),
-        owner_uid=None,
-        owner_gid=None,
-    )
-    deployer.staged_launcher.mkdir()
-    candidate_python = deployer.staged_launcher / "python"
-    candidate_python.write_text("candidate launcher", encoding="utf-8")
-    os.replace(paths.launcher_venv, deployer.previous_launcher)
-    if candidate_at_canonical_path:
-        os.replace(deployer.staged_launcher, paths.launcher_venv)
-    deployer.launcher_prior_moved = True
-    deployer.launcher_swapped = False
-
-    deployer._restore_launcher()
-
-    assert "# old launcher" in (
-        paths.launcher_venv / "bin/python"
-    ).read_text(encoding="utf-8")
-    assert not deployer.previous_launcher.exists()
-    assert (deployer.staged_launcher / "python").read_text(
-        encoding="utf-8"
-    ) == "candidate launcher"
-
-
-def test_recovery_restores_selector_and_service_and_removes_candidate(
-    tmp_path: Path,
-) -> None:
-    harness = _load_harness()
-    paths = _paths(harness, tmp_path)
-    _baseline(paths)
-    request = _request(harness, tmp_path)
-    packaged_unit = tmp_path / "packaged/timelocker-control.service"
-    executor = FakeExecutor(harness, packaged_unit)
-    deployer = harness.T011LinuxDeployer(
-        request,
-        paths=paths,
-        executor=executor,
-        owner_uid=None,
-        owner_gid=None,
-    )
-    deployer.capture_baseline()
-    deployer.release.mkdir(parents=True)
-    (deployer.release / "inert").write_text("candidate", encoding="utf-8")
-    paths.selector.write_text(
-        json.dumps({"schema_version": 1, "selected": RELEASE_B}),
-        encoding="utf-8",
-    )
-    paths.service_unit.write_text("candidate service\n", encoding="utf-8")
-    deployer.mutation_started = True
-
-    deployer.recover()
-
-    assert json.loads(paths.selector.read_text())["selected"] == RELEASE_A
-    assert paths.service_unit.read_text() == "old service\n"
-    assert not deployer.release.exists()
-    assert [
-        command[:2]
-        for command in executor.commands[:4]
-    ] == [
-        ["systemctl", "daemon-reload"],
-        ["systemctl", "restart"],
-        ["systemctl", "restart"],
-        ["systemctl", "restart"],
-    ]
-    assert any("is-active" in command for command in executor.commands[4:])
-    assert any("is-enabled" in command for command in executor.commands[4:])
-
-
-def test_packaged_service_must_keep_event_socket_as_weak_dependency(
-    tmp_path: Path,
-) -> None:
-    harness = _load_harness()
-    paths = _paths(harness, tmp_path)
-    _baseline(paths)
-    request = _request(harness, tmp_path)
-    packaged_unit = (
-        paths.releases_root
-        / RELEASE_B
-        / "venv/lib/python3.12/site-packages/TimeLocker/system_control/assets"
-        / "timelocker-control.service"
-    )
-    packaged_unit.parent.mkdir(parents=True)
-    packaged_unit.write_text(
-        "\n".join(
-            (
-                "Requires=timelocker-control.socket timelocker-status-events.socket",
-                "Sockets=timelocker-control.socket timelocker-status-events.socket",
-            )
-        ),
-        encoding="utf-8",
-    )
-    deployer = harness.T011LinuxDeployer(
-        request,
-        paths=paths,
-        executor=FakeExecutor(harness, packaged_unit),
-        owner_uid=None,
-        owner_gid=None,
-    )
-
-    with pytest.raises(harness.DeploymentFailure, match="missing"):
-        deployer._validate_packaged_unit(packaged_unit)
-
-
-def test_packaged_service_cannot_escape_staged_release(tmp_path: Path) -> None:
-    harness = _load_harness()
-    paths = _paths(harness, tmp_path)
-    _baseline(paths)
-    request = _request(harness, tmp_path)
-    packaged_unit = tmp_path / "outside/timelocker-control.service"
-    packaged_unit.parent.mkdir()
-    packaged_unit.write_text(
-        "\n".join(
-            (
-                "Requires=timelocker-control.socket",
-                "Wants=timelocker-status-events.socket",
-                "Sockets=timelocker-control.socket timelocker-status-events.socket",
-            )
-        ),
-        encoding="utf-8",
-    )
-    deployer = harness.T011LinuxDeployer(
-        request,
-        paths=paths,
-        executor=FakeExecutor(harness, packaged_unit),
-        owner_uid=None,
-        owner_gid=None,
-    )
-
-    with pytest.raises(harness.DeploymentFailure, match="escapes"):
-        deployer._validate_packaged_unit(packaged_unit)
-
-
-def test_private_writer_overrides_permissive_umask(tmp_path: Path) -> None:
-    harness = _load_harness()
-    output = tmp_path / "evidence.json"
-    old_umask = os.umask(0)
-    try:
-        harness._write_private_text(output, "{}\n")
-    finally:
-        os.umask(old_umask)
-
-    assert output.stat().st_mode & 0o777 == 0o600
-
-
-def test_signal_handler_converts_termination_to_transaction_exception() -> None:
-    harness = _load_harness()
-
-    with pytest.raises(harness.DeploymentInterrupted, match="SIGTERM"):
-        harness._signal_handler(15, None)
-
-
-def test_full_simulated_transaction_runs_preflight_before_selection(
-    tmp_path: Path,
-) -> None:
-    harness = _load_harness()
-    paths = _paths(harness, tmp_path)
-    _baseline(paths)
-    request = _request(harness, tmp_path)
-    packaged_unit = (
-        paths.releases_root
-        / RELEASE_B
-        / "venv/lib/python3.12/site-packages/TimeLocker/system_control/assets"
-        / "timelocker-control.service"
-    )
-    executor = SimulatedHostExecutor(harness, packaged_unit, paths)
-    deployer = harness.T011LinuxDeployer(
-        request,
-        paths=paths,
-        executor=executor,
-        owner_uid=None,
-        owner_gid=None,
-    )
-    old_umask = os.umask(0o077)
-    try:
-        evidence = deployer.deploy()
-    finally:
-        os.umask(old_umask)
-
-    assert json.loads(paths.selector.read_text())["selected"] == RELEASE_B
-    denied_index = next(
-        index
-        for index, command in enumerate(executor.commands)
-        if command[-2:] == ["-c", harness.DENIED_EVENT_PROBE]
-    )
-    selection_index = next(
-        index
-        for index, command in enumerate(executor.commands)
-        if "TimeLocker.system_control.release_admin" in command
-        and "select" in command
-    )
-    version_index = next(
-        index
-        for index, command in enumerate(executor.commands)
-        if command[-2:] == ["version", "--short"]
-    )
-    system_read_indexes = [
-        index
-        for index, command in enumerate(executor.commands)
-        if command[-5:] == ["runs", "list", "--limit", "3", "--json"]
-    ]
-    pip_command = next(
-        command
-        for command in executor.commands
-        if len(command) >= 5 and command[1:4] == ["-m", "pip", "install"]
-    )
-    assert denied_index < selection_index
-    assert version_index < selection_index
-    assert system_read_indexes
-    assert all(index > selection_index for index in system_read_indexes)
-    assert Path(pip_command[-1]).name == request.wheel.name
-    assert deployer.release.exists()
-    assert (
-        "# old launcher"
-        not in (paths.launcher_venv / "bin/python").read_text(encoding="utf-8")
-    )
-    assert "# old launcher" in (
-        deployer.previous_launcher / "bin/python"
-    ).read_text(encoding="utf-8")
-    assert paths.service_unit.read_text() == packaged_unit.read_text()
-    assert all(
-        path.stat().st_mode & 0o022 == 0
-        for path in deployer.release.rglob("*")
-        if not path.is_symlink()
-    )
-    assert evidence.stat().st_mode & 0o777 == 0o750
-
-
-def test_full_simulated_post_activation_failure_rolls_back(
-    tmp_path: Path,
-) -> None:
-    harness = _load_harness()
-    paths = _paths(harness, tmp_path)
-    _baseline(paths)
-    request = _request(harness, tmp_path)
-    packaged_unit = (
-        paths.releases_root
-        / RELEASE_B
-        / "venv/lib/python3.12/site-packages/TimeLocker/system_control/assets"
-        / "timelocker-control.service"
-    )
-    executor = SimulatedHostExecutor(
-        harness,
-        packaged_unit,
-        paths,
-        fail_activated_event=True,
-    )
-    deployer = harness.T011LinuxDeployer(
-        request,
-        paths=paths,
-        executor=executor,
-        owner_uid=None,
-        owner_gid=None,
-    )
-
-    with pytest.raises(harness.DeploymentFailure, match="invalid JSON"):
-        deployer.deploy()
-
-    assert json.loads(paths.selector.read_text())["selected"] == RELEASE_A
-    assert paths.service_unit.read_text() == "old service\n"
-    assert not deployer.release.exists()
-    assert "# old launcher" in (
-        paths.launcher_venv / "bin/python"
-    ).read_text(encoding="utf-8")
-    assert not deployer.previous_launcher.exists()
-    assert not deployer.staged_launcher.exists()
+@pytest.mark.unit
+def test_compatibility_wrapper_routes_to_installed_entrypoint() -> None:
+    wrapper = Path("scripts/deploy_t011_linux.py").read_text()
+    assert "Deprecated Spec 010 compatibility wrapper" in wrapper
+    assert "deployment_entry" in wrapper

@@ -188,13 +188,9 @@ class SystemReleaseDeployment:
     ) -> SelectedRelease:
         """Select a release only after its complete compatibility probe passes."""
         manifest = self.resolver.release_manifest(release_id)
-        if manifest.event_protocol_version is None:
-            raise DeploymentError(
-                "staged release does not declare event protocol compatibility"
-            )
         targets = self._probe_targets(release_id, manifest)
         result = health_probe(targets)
-        if not self._probe_passed(result, targets, require_event=True):
+        if not self._probe_passed(result, targets, require_event=False):
             raise DeploymentError("staged release compatibility probe failed")
         return self.resolver.select(release_id)
 
@@ -230,6 +226,10 @@ class SystemReleaseDeployment:
         if current is None or current.previous is None:
             raise DeploymentError("no previous release is available")
         manifest = self.resolver.release_manifest(current.previous)
+        if manifest.schema_version < 3:
+            raise DeploymentError(
+                "rollback release requires the rejected resident status service"
+            )
         targets = self._probe_targets(current.previous, manifest)
         result = health_probe(targets)
         if not self._probe_passed(result, targets, require_event=False):
@@ -268,6 +268,7 @@ class SystemReleaseDeployment:
 def linux_asset_targets(
     *,
     bin_root: Path = Path("/usr/local/bin"),
+    admin_bin_root: Path = Path("/usr/local/sbin"),
     libexec_root: Path = Path("/usr/local/libexec"),
     unit_root: Path = Path("/etc/systemd/system"),
     config_root: Path = Path("/etc/timelocker"),
@@ -281,6 +282,11 @@ def linux_asset_targets(
         AssetTarget(
             "timelocker-release-select",
             bin_root / "timelocker-release-select",
+            0o750,
+        ),
+        AssetTarget(
+            "timelocker-deploy-launcher",
+            admin_bin_root / "timelocker-deploy",
             0o750,
         ),
         AssetTarget(
@@ -301,11 +307,6 @@ def linux_asset_targets(
         AssetTarget(
             "timelocker-control.socket",
             unit_root / "timelocker-control.socket",
-            0o644,
-        ),
-        AssetTarget(
-            "timelocker-status-events.socket",
-            unit_root / "timelocker-status-events.socket",
             0o644,
         ),
         AssetTarget(
@@ -372,9 +373,9 @@ def build_release_manifest(
     release_id: str,
     package_version: str,
 ) -> dict[str, object]:
-    """Build schema-2 metadata binding all selected process protocols."""
+    """Build daemonless schema-3 metadata for one selected release."""
     mapping: dict[str, object] = {
-        "schema_version": 2,
+        "schema_version": 3,
         "release_id": release_id,
         "package_version": require_safe_identifier(
             package_version,
@@ -382,7 +383,6 @@ def build_release_manifest(
             maximum=64,
         ),
         "control_protocol_version": PROTOCOL_VERSION,
-        "event_protocol_version": STATUS_EVENT_PROTOCOL_VERSION,
         "entrypoint": "venv/bin/timelocker",
     }
     ReleaseManifest.from_mapping(mapping)

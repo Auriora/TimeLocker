@@ -80,15 +80,16 @@ def test_artifact_smoke_covers_system_entrypoints_protocols_and_assets():
     smoke = (ROOT / "scripts/smoke_release_artifact.py").read_text()
     for expected in (
         "timelocker-system-control",
+        "timelocker-deploy",
         "timelocker-tray",
-        "STATUS_EVENT_PROTOCOL_VERSION",
-        "timelocker-status-events.socket",
+        '"schema_version": 3',
         "timelocker-retention.timer",
         "timelocker-icon-connecting.png",
         "timelocker-icon-idle.png",
         "timelocker-icon-error.png",
     ):
         assert expected in smoke
+    assert 'assert not assets.joinpath("timelocker-status-events.socket").is_file()' in smoke
 
 
 @pytest.mark.platform

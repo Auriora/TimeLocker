@@ -1,25 +1,14 @@
-"""Event-driven tray snapshot refresh tests."""
+"""Daemonless tray status snapshot observation tests."""
 
 from __future__ import annotations
 
 from threading import Event
 from uuid import UUID
 
-from TimeLocker.system_control.client import SystemControlClientError
-from TimeLocker.system_control.event_client import StatusEventAccessDenied
-from TimeLocker.system_control.models import (
-    StatusEvent,
-    StatusRevision,
-    StatusSnapshot,
-)
+from TimeLocker.system_control.models import StatusRevision, StatusSnapshot
+from TimeLocker.system_control.status_snapshot import StatusSnapshotUnavailable
 from TimeLocker.system_control.tray_client import TrayStatusSubscriptionClient
-from TimeLocker.system_control.types import (
-    BackendStatus,
-    ProtocolErrorCode,
-    ResponseStatus,
-    StatusEventConnectionState,
-    StatusEventKind,
-)
+from TimeLocker.system_control.types import BackendStatus
 
 
 SESSION_ONE = UUID("526719f9-4c46-42ac-b286-2623079bc335")
@@ -34,178 +23,70 @@ def _snapshot(session_id: UUID, sequence: int) -> StatusSnapshot:
     )
 
 
-class _ControlClient:
+class _Watcher:
     def __init__(self, snapshots: list[StatusSnapshot]) -> None:
-        self.snapshots = iter(snapshots)
-        self.calls = 0
+        self._snapshots = snapshots
 
-    def get_status_snapshot(self) -> StatusSnapshot:
-        self.calls += 1
-        return next(self.snapshots)
+    def snapshots(self, _stop_event: Event):
+        yield from self._snapshots
 
 
-class _EventClient:
-    def __init__(self, events: list[StatusEvent]) -> None:
-        self._events = events
-
-    def events(self, _stop_event: Event, *, on_connection_state=None):
-        if on_connection_state is not None:
-            on_connection_state(StatusEventConnectionState.CONNECTED)
-        yield from self._events
-
-
-def test_initial_gap_and_backend_restart_each_fetch_a_fresh_snapshot() -> None:
-    events = [
-        StatusEvent(
-            StatusRevision(SESSION_ONE, 0),
-            StatusEventKind.SNAPSHOT_REQUIRED,
-        ),
-        StatusEvent(StatusRevision(SESSION_ONE, 0), StatusEventKind.CHANGED),
-        StatusEvent(StatusRevision(SESSION_ONE, 2), StatusEventKind.CHANGED),
-        StatusEvent(StatusRevision(SESSION_ONE, 1), StatusEventKind.CHANGED),
-        StatusEvent(StatusRevision(SESSION_ONE, 2), StatusEventKind.HEARTBEAT),
-        StatusEvent(
-            StatusRevision(SESSION_TWO, 0),
-            StatusEventKind.SNAPSHOT_REQUIRED,
-        ),
-    ]
-    control = _ControlClient(
-        [
-            _snapshot(SESSION_ONE, 0),
-            _snapshot(SESSION_ONE, 2),
-            _snapshot(SESSION_TWO, 0),
-        ]
-    )
+def test_initial_snapshot_and_direct_changes_are_applied() -> None:
     applied: list[StatusSnapshot] = []
     TrayStatusSubscriptionClient(
-        control_client=control,
-        event_client=_EventClient(events),
+        watcher=_Watcher(
+            [
+                _snapshot(SESSION_ONE, 0),
+                _snapshot(SESSION_ONE, 1),
+                _snapshot(SESSION_TWO, 0),
+            ]
+        )
     ).serve(Event(), on_snapshot=applied.append)
 
-    assert control.calls == 3
     assert [snapshot.revision for snapshot in applied] == [
         StatusRevision(SESSION_ONE, 0),
-        StatusRevision(SESSION_ONE, 2),
+        StatusRevision(SESSION_ONE, 1),
         StatusRevision(SESSION_TWO, 0),
     ]
 
 
-def test_older_snapshot_never_regresses_presentation() -> None:
-    control = _ControlClient(
-        [
-            _snapshot(SESSION_ONE, 2),
-            _snapshot(SESSION_ONE, 1),
-        ]
-    )
+def test_duplicate_and_older_same_session_snapshots_do_not_regress() -> None:
     applied: list[StatusSnapshot] = []
     TrayStatusSubscriptionClient(
-        control_client=control,
-        event_client=_EventClient(
+        watcher=_Watcher(
             [
-                StatusEvent(
-                    StatusRevision(SESSION_ONE, 2),
-                    StatusEventKind.SNAPSHOT_REQUIRED,
-                ),
-                StatusEvent(
-                    StatusRevision(SESSION_ONE, 3),
-                    StatusEventKind.CHANGED,
-                ),
+                _snapshot(SESSION_ONE, 2),
+                _snapshot(SESSION_ONE, 2),
+                _snapshot(SESSION_ONE, 1),
             ]
-        ),
+        )
     ).serve(Event(), on_snapshot=applied.append)
 
     assert [snapshot.revision.sequence for snapshot in applied] == [2]
 
 
-def test_denied_subscription_projects_only_safe_unavailable_state() -> None:
-    class _DeniedClient:
-        def events(self, _stop_event: Event, *, on_connection_state=None):
-            if on_connection_state is not None:
-                on_connection_state(StatusEventConnectionState.DENIED)
-            raise StatusEventAccessDenied("secret backend detail")
+def test_untrusted_or_unavailable_status_file_projects_safe_state_once() -> None:
+    class _UnavailableWatcher:
+        def snapshots(self, _stop_event: Event):
+            raise StatusSnapshotUnavailable("secret path")
             yield
 
     unavailable: list[str] = []
-    TrayStatusSubscriptionClient(
-        control_client=_ControlClient([]),
-        event_client=_DeniedClient(),
-    ).serve(
+    TrayStatusSubscriptionClient(watcher=_UnavailableWatcher()).serve(
         Event(),
         on_snapshot=lambda _snapshot: None,
         on_unavailable=unavailable.append,
     )
-    assert unavailable == ["denied"]
-
-
-def test_event_transport_unavailability_projects_safe_state_once() -> None:
-    class _UnavailableThenConnectedClient:
-        def events(self, _stop_event: Event, *, on_connection_state=None):
-            assert on_connection_state is not None
-            on_connection_state(StatusEventConnectionState.UNAVAILABLE)
-            on_connection_state(StatusEventConnectionState.UNAVAILABLE)
-            on_connection_state(StatusEventConnectionState.CONNECTED)
-            yield StatusEvent(
-                StatusRevision(SESSION_ONE, 0),
-                StatusEventKind.SNAPSHOT_REQUIRED,
-            )
-
-    unavailable: list[str] = []
-    applied: list[StatusSnapshot] = []
-    TrayStatusSubscriptionClient(
-        control_client=_ControlClient([_snapshot(SESSION_ONE, 0)]),
-        event_client=_UnavailableThenConnectedClient(),
-    ).serve(
-        Event(),
-        on_snapshot=applied.append,
-        on_unavailable=unavailable.append,
-    )
 
     assert unavailable == ["unavailable"]
-    assert applied == [_snapshot(SESSION_ONE, 0)]
 
 
-def test_heartbeat_retries_initial_snapshot_only_while_not_current() -> None:
-    class _RecoveringControl:
-        def __init__(self) -> None:
-            self.calls = 0
-
-        def get_status_snapshot(self) -> StatusSnapshot:
-            self.calls += 1
-            if self.calls == 1:
-                raise SystemControlClientError(
-                    ProtocolErrorCode.SYSTEM_BACKEND_UNAVAILABLE,
-                    "unavailable",
-                    status=ResponseStatus.UNAVAILABLE,
-                )
-            return _snapshot(SESSION_ONE, 0)
-
-    control = _RecoveringControl()
+def test_pre_stopped_subscription_does_not_apply_snapshot() -> None:
+    stop = Event()
+    stop.set()
     applied: list[StatusSnapshot] = []
-    unavailable: list[str] = []
     TrayStatusSubscriptionClient(
-        control_client=control,
-        event_client=_EventClient(
-            [
-                StatusEvent(
-                    StatusRevision(SESSION_ONE, 0),
-                    StatusEventKind.SNAPSHOT_REQUIRED,
-                ),
-                StatusEvent(
-                    StatusRevision(SESSION_ONE, 0),
-                    StatusEventKind.HEARTBEAT,
-                ),
-                StatusEvent(
-                    StatusRevision(SESSION_ONE, 0),
-                    StatusEventKind.HEARTBEAT,
-                ),
-            ]
-        ),
-    ).serve(
-        Event(),
-        on_snapshot=applied.append,
-        on_unavailable=unavailable.append,
-    )
+        watcher=_Watcher([_snapshot(SESSION_ONE, 0)])
+    ).serve(stop, on_snapshot=applied.append)
 
-    assert unavailable == ["unavailable"]
-    assert control.calls == 2
-    assert applied == [_snapshot(SESSION_ONE, 0)]
+    assert applied == []

@@ -2,9 +2,9 @@
 title: Protected system deployment requirements
 doc_type: spec
 artifact_type: requirements
-status: draft
+status: implemented
 owner: Auriora Team
-last_reviewed: 2026-07-28
+last_reviewed: 2026-08-12
 ---
 
 # Requirements
@@ -193,8 +193,8 @@ protection.
 
 1. BEFORE changing a service unit, stable launcher, or selected release, THE
    ENTRYPOINT SHALL verify the staged CLI, backend, tray, packaged assets,
-   control protocol, event protocol, authorized access, denied access, and
-   required timer health.
+   control protocol, daemonless manifest schema, authorized access, denied
+   access, and required timer health.
 2. WHEN selecting a release, THE ENTRYPOINT SHALL use a locked
    expected-current compare-and-swap operation.
 3. IF the selected release changes after the transaction begins, THEN the
@@ -386,22 +386,21 @@ resources or create daemon-specific failure modes.
 - **SC-008:** Linux live acceptance shows no TimeLocker-owned privileged
   process during at least 90 seconds with no protected operation running.
 
-## Design Decisions Deferred To The Next Stage
+## Resolved Design Decisions
 
-- Administrator command name and whether it is a standalone bootstrap
-  executable or an installed `timelocker` subcommand.
-- Supported artifact sources for the first slice: committed local build,
-  downloaded GitHub release, or both.
-- Root-owned staging and retained-evidence directory layout.
-- Whether initial installation and later upgrades share one command or one
-  transaction engine behind separate verbs.
-- Linux packaging boundary and the minimum Windows adapter delivered in this
-  package.
+- The supported command is the installed standalone `timelocker-deploy`
+  entrypoint with install, upgrade, status, and rollback verbs.
+- The accepted initial artifact source is one local wheel.
+- Private inputs and retained evidence live below the protected deployment
+  evidence root; operator workflows do not use `/tmp`.
+- Install and upgrade share one transaction engine and expose separate verbs.
+- Linux/systemd is implemented; Windows remains an explicit future platform
+  implementation and acceptance boundary.
 
 ## Related Artifacts
 
 - Overview: [README.md](./README.md)
 - Canonical Context: [canonical-context.md](./canonical-context.md)
-- Design: to be created after requirements review
-- Tasks: to be created after design review
-- Verification: to be created with design and task traceability
+- Design: [design.md](./design.md)
+- Tasks: [tasks.md](./tasks.md)
+- Verification: [verification.md](./verification.md)

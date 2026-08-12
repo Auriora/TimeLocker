@@ -22,6 +22,10 @@ backup, retention, status, diagnostics, and tray operations.
 - Missing, incompatible, or untrusted release metadata must fail closed.
 - Activation and rollback must verify compatible CLI, backend, and tray
   entrypoints before changing the selected release.
+- `timelocker-deploy` is the supported root administration surface for local-
+  wheel install, upgrade, status, and rollback. It derives identity and
+  manifests, uses private staging, emits JSON results, and never triggers
+  backup or retention.
 
 ## Authorization Requirements
 
@@ -95,9 +99,10 @@ backup, retention, status, diagnostics, and tray operations.
 ## Platform Requirement
 
 The architecture must preserve portable contracts for Linux and Windows
-adapters. Linux Mint live acceptance for the protected installation and
-independent tray is in progress under Spec 010. This requirement does not yet
-claim an accepted Linux or Windows deployment.
+adapters. The daemonless Linux implementation is automated-test accepted.
+Protected host mutation and the 90-second live idle observation remain
+separately approved operational evidence; no live Windows deployment is
+claimed.
 
 ## References
 

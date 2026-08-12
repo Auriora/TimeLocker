@@ -1,8 +1,12 @@
-# Service Layer Integration Guide
+---
+title: "Service Layer Integration Guide"
+doc_type: implementation
+status: active
+owner: "Auriora Team"
+last_reviewed: 2026-08-12
+---
 
-**Document Type**: Implementation Guide  
-**Status**: Active  
-**Last Updated**: 2026-08-12
+# Service Layer Integration Guide
 
 ## Overview
 
@@ -42,12 +46,10 @@ command names remain unchanged.
 host-level backup, retention, status, and diagnostics. It is not part of the
 legacy compatibility facade described below.
 
-The deployed release currently serves this boundary through a continuously
-resident root process and a privileged status-event socket. That process model
-is rejected and transitional: protected requests must become bounded,
-socket-activated one-shot executions, and the optional tray must consume an
-atomically published sanitized snapshot directly. The accepted boundary is the
-authorization and allowlisted-operation contract, not daemon residency.
+The deployed contract uses bounded, socket-activated one-request executions.
+The optional tray consumes an atomically published sanitized snapshot directly;
+there is no privileged status-event socket, event broker, heartbeat, or
+resident TimeLocker service process.
 
 - `release_launcher.py` resolves the root-owned selected immutable release for
   CLI, backend, and tray entrypoints and fails closed on untrusted state.
@@ -63,9 +65,13 @@ authorization and allowlisted-operation contract, not daemon residency.
   the fixed retention command without returning backend output.
 - `storage.py` owns atomic run/diagnostic records and the shared repository
   mutation lock.
+- `status_snapshot.py` owns the exact `0640` sanitized status file and direct
+  filesystem observation. Read/open events are ignored so reads cannot notify
+  themselves.
+- `deployment_entry.py` owns the supported `timelocker-deploy` install,
+  upgrade, status, and rollback workflow; the Spec 010 script is deprecated.
 - `tray_entry.py` and `tray_client.py` own the independent user-session process;
-  normal CLI setup must not import or initialize tray integration. The current
-  privileged event subscription is a known non-conformance owned by Spec 011.
+  normal CLI setup must not import or initialize tray integration.
 
 The protected boundary returns safe summaries, result codes, states, and
 counters. It never returns passwords, environment contents, raw journal data,

@@ -37,17 +37,14 @@ def smoke_system_contract(python: Path, expected_version: str) -> None:
     contract = """
 import sys
 from importlib.resources import files
-from TimeLocker.system_control.models import (
-    PROTOCOL_VERSION,
-    STATUS_EVENT_PROTOCOL_VERSION,
-)
+from TimeLocker.system_control.models import PROTOCOL_VERSION
 from TimeLocker.system_control.release_launcher import ReleaseManifest
 
 assets = files("TimeLocker.system_control").joinpath("assets")
 for name in (
     "timelocker-control.service",
     "timelocker-control.socket",
-    "timelocker-status-events.socket",
+    "timelocker-deploy-launcher",
     "timelocker-retention.service",
     "timelocker-retention.timer",
     "timelocker-icon-connecting.png",
@@ -58,18 +55,18 @@ for name in (
     "timelocker-icon-error.png",
 ):
     assert assets.joinpath(name).is_file(), name
+assert not assets.joinpath("timelocker-status-events.socket").is_file()
 manifest = ReleaseManifest.from_mapping(
     {
-        "schema_version": 2,
+        "schema_version": 3,
         "release_id": "a" * 40,
         "package_version": sys.argv[1],
         "control_protocol_version": PROTOCOL_VERSION,
-        "event_protocol_version": STATUS_EVENT_PROTOCOL_VERSION,
         "entrypoint": "venv/bin/timelocker",
     }
 )
 assert manifest.control_protocol_version == PROTOCOL_VERSION
-assert manifest.event_protocol_version == STATUS_EVENT_PROTOCOL_VERSION
+assert manifest.event_protocol_version is None
 """
     run([str(python), "-c", contract, expected_version])
 
@@ -92,7 +89,11 @@ def main() -> None:
             command = executable(environment, command_name)
             run([str(command), "version", "--short"], expected=args.expected_version)
             run([str(command), "--help"])
-        for command_name in ("timelocker-system-control", "timelocker-tray"):
+        for command_name in (
+            "timelocker-system-control",
+            "timelocker-tray",
+            "timelocker-deploy",
+        ):
             run([str(executable(environment, command_name)), "--help"])
         smoke_system_contract(python, args.expected_version)
     print(f"Smoke contract passed for {artifact.name} on Python {sys.version.split()[0]}")

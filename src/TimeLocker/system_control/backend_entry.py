@@ -12,16 +12,20 @@ from pathlib import Path
 import signal
 import socket
 import stat
-from threading import Event, Thread
+from threading import Event
 from types import FrameType
 from typing import Protocol
 from uuid import UUID, uuid4
+
+try:
+    import grp
+except ImportError:  # pragma: no cover - Linux-only backend runtime.
+    grp = None  # type: ignore[assignment]
 
 from .dispatcher import AuditEvent, AuditSink, LocalControlDispatcher
 from .interfaces import GroupMembershipResolver
 from .linux_adapter import (
     LinuxNssGroupMembershipResolver,
-    LinuxStatusEventTransport,
     LinuxUnixSocketTransport,
 )
 from .models import (
@@ -68,16 +72,10 @@ from .storage import (
 )
 from .schedule_health import (
     BackupScheduleObservation,
-    ScheduleDeadlineMonitor,
     SystemdScheduleSummaryProvider,
     derive_backup_schedule_health,
 )
-from .status_events import (
-    BoundedStatusEventBroker,
-    FileSystemProtectedStateWatcher,
-    ProtectedStateChangeMonitor,
-    StatusChangeCoordinator,
-)
+from .status_snapshot import AtomicStatusSnapshotStore
 from .types import (
     BackendStatus,
     BackupScheduleHealth,
@@ -184,6 +182,7 @@ class LinuxBackendPaths:
     trigger_root: Path
     audit_log_path: Path
     expected_owner: int = 0
+    status_path: Path = Path("/run/timelocker/status.json")
 
     def __post_init__(self) -> None:
         for field_name in (
@@ -192,6 +191,7 @@ class LinuxBackendPaths:
             "lock_root",
             "trigger_root",
             "audit_log_path",
+            "status_path",
         ):
             value = getattr(self, field_name)
             if not isinstance(value, Path):
@@ -318,58 +318,17 @@ class LinuxBackendService:
     locks: RepositoryMutationLock
     dispatcher: LocalControlDispatcher
     transport: LinuxUnixSocketTransport
-    status_event_transport: LinuxStatusEventTransport | None
     audit_sink: AuditSink
     stop_event: Event
-    status_event_broker: BoundedStatusEventBroker
-    status_change_coordinator: StatusChangeCoordinator
     membership_resolver: GroupMembershipResolver
-    state_change_monitors: tuple[object, ...] = ()
     reconciled_run_ids: tuple[UUID, ...] = ()
 
-    def serve_forever(self, *, install_signal_handlers: bool = True) -> None:
-        if install_signal_handlers:
-            self.install_signal_handlers()
-        status_thread = None
-        monitor_threads: list[Thread] = []
-        if self.status_event_transport is not None:
-            status_thread = Thread(
-                target=self._serve_status_events,
-                name="timelocker-status-events",
-                daemon=True,
-            )
-            status_thread.start()
-        for index, monitor in enumerate(self.state_change_monitors):
-            monitor_thread = Thread(
-                target=monitor.run,
-                args=(self.stop_event,),
-                name=f"timelocker-state-monitor-{index}",
-                daemon=True,
-            )
-            monitor_thread.start()
-            monitor_threads.append(monitor_thread)
+    def serve_once(self) -> None:
+        """Serve one control request and release all process resources."""
         try:
-            self.transport.serve(self.dispatcher)
-        except OSError:
-            if not self.stop_event.is_set():
-                raise
+            self.transport.serve_once(self.dispatcher)
         finally:
             self.stop()
-            if status_thread is not None:
-                status_thread.join(timeout=1.0)
-            for monitor_thread in monitor_threads:
-                monitor_thread.join(timeout=1.0)
-
-    def _serve_status_events(self) -> None:
-        assert self.status_event_transport is not None
-        try:
-            self.status_event_transport.serve(
-                self.status_event_broker,
-                self.transport.identity_provider,
-                self.membership_resolver,
-            )
-        except OSError:
-            return
 
     def install_signal_handlers(self) -> None:
         def _handle_signal(_signum: int, _frame: FrameType | None) -> None:
@@ -386,16 +345,6 @@ class LinuxBackendService:
                 listener.close()
             except OSError:
                 pass
-        status_listener = (
-            getattr(self.status_event_transport, "listener", None)
-            if self.status_event_transport is not None
-            else None
-        )
-        if isinstance(status_listener, socket.socket):
-            try:
-                status_listener.close()
-            except OSError:
-                pass
 
 
 def build_linux_backend(
@@ -403,10 +352,7 @@ def build_linux_backend(
     paths: LinuxBackendPaths,
     socket_mode: str = "systemd",
     listener: socket.socket | None = None,
-    status_listener: socket.socket | None = None,
     systemd_descriptor: int = 3,
-    status_systemd_descriptor: int | None = 4,
-    status_socket_mode: str = "systemd",
     request_timeout_seconds: float = 5.0,
     membership_resolver: GroupMembershipResolver | None = None,
     backup_adapter: BackupMutationAdapter | None = None,
@@ -418,39 +364,56 @@ def build_linux_backend(
     max_diagnostics: int = 1_000,
     stop_event: Event | None = None,
     clock: Callable[[], datetime] | None = None,
+    status_snapshot_store: AtomicStatusSnapshotStore | None = None,
 ) -> LinuxBackendService:
     """Compose the Linux backend from strict local components."""
     if type(max_diagnostics) is not int or not 1 <= max_diagnostics <= 100_000:
         raise ValueError("max_diagnostics must be between 1 and 100000")
     if socket_mode not in {"systemd", "listener"}:
         raise ValueError("socket_mode must be 'systemd' or 'listener'")
-    if status_socket_mode not in {"systemd", "listener", "disabled"}:
-        raise ValueError(
-            "status_socket_mode must be 'systemd', 'listener', or 'disabled'"
-        )
     if socket_mode == "listener":
         if listener is None:
             raise ValueError("listener socket is required for listener mode")
     elif listener is not None:
         raise ValueError("listener socket can only be provided in listener mode")
-    if status_socket_mode == "listener":
-        if status_listener is None:
-            raise ValueError("status socket listener is required for listener mode")
-    elif status_listener is not None:
-        raise ValueError("status socket listener can only be provided in listener mode")
-    if status_socket_mode == "systemd" and status_systemd_descriptor is None:
-        raise ValueError("status systemd descriptor is required for systemd mode")
-
     now = clock or _utc_now
     stop_event = stop_event or Event()
     policy = load_system_policy(paths.policy_path, expected_owner=paths.expected_owner)
-    status_event_broker = BoundedStatusEventBroker()
-    status_change_coordinator = StatusChangeCoordinator(status_event_broker)
+    if status_snapshot_store is None:
+        if grp is None:
+            raise RuntimeError("system operator groups are unavailable")
+        try:
+            group_gid = grp.getgrnam(policy.operator_group).gr_gid
+        except KeyError as error:
+            raise RuntimeError("system operator group is unavailable") from error
+        status_snapshot_store = AtomicStatusSnapshotStore(
+            paths.status_path,
+            expected_owner_uid=paths.expected_owner,
+            group_gid=group_gid,
+        )
+    snapshot_session = uuid4()
+    snapshot_sequence = 0
+    store_ref: dict[str, AtomicRecordStore] = {}
+
+    def publish_status_change() -> None:
+        nonlocal snapshot_sequence
+        snapshot_sequence += 1
+        status_snapshot_store.write(
+            _build_status_snapshot(
+                store=store_ref["store"],
+                schedule_summary_provider=schedule_summary_provider,
+                backup_schedule_observer=backup_schedule_observer,
+                revision=StatusRevision(snapshot_session, snapshot_sequence),
+                clock=now,
+            )
+        )
+
     store = AtomicRecordStore(
         paths.record_root,
         max_diagnostics=max_diagnostics,
-        status_change_callback=status_change_coordinator.run_changed,
+        status_change_callback=publish_status_change,
     )
+    store_ref["store"] = store
     locks = RepositoryMutationLock(paths.lock_root)
     audit_sink = RootOnlyJsonlAuditSink(
         paths.audit_log_path,
@@ -502,17 +465,6 @@ def build_linux_backend(
         request_timeout_seconds=request_timeout_seconds,
         stop_event=stop_event,
     )
-    status_event_transport = (
-        None
-        if status_socket_mode == "disabled"
-        else _build_status_transport(
-            policy=policy,
-            socket_mode=status_socket_mode,
-            listener=status_listener if status_socket_mode == "listener" else None,
-            systemd_descriptor=status_systemd_descriptor,
-            stop_event=stop_event,
-        )
-    )
     dispatcher = LocalControlDispatcher(
         policy=policy,
         membership_resolver=membership_resolver,
@@ -525,47 +477,28 @@ def build_linux_backend(
             retention_plan_provider=retention_plan_provider,
             schedule_summary_provider=schedule_summary_provider,
             backup_schedule_observer=backup_schedule_observer,
-            status_change_coordinator=status_change_coordinator,
             trigger_root=paths.trigger_root,
             clock=now,
         ),
         audit_sink=audit_sink,
     )
-    state_change_monitors: list[object] = [
-        ProtectedStateChangeMonitor(
-            FileSystemProtectedStateWatcher((paths.record_root / "runs",)),
-            status_change_coordinator,
-        )
-    ]
-    if isinstance(backup_schedule_observer, SystemdScheduleSummaryProvider):
-        state_change_monitors.append(
-            ScheduleDeadlineMonitor(
-                backup_schedule_observer,
-                status_change_coordinator,
-                clock=now,
-            )
-        )
     return LinuxBackendService(
         policy=policy,
         store=store,
         locks=locks,
         dispatcher=dispatcher,
         transport=transport,
-        status_event_transport=status_event_transport,
         audit_sink=audit_sink,
         stop_event=stop_event,
-        status_event_broker=status_event_broker,
-        status_change_coordinator=status_change_coordinator,
         membership_resolver=membership_resolver,
-        state_change_monitors=tuple(state_change_monitors),
         reconciled_run_ids=tuple(record.run_id for record in reconciled),
     )
 
 
 def run_linux_backend(**kwargs: object) -> None:
-    """Build and serve the Linux backend until the process is stopped."""
+    """Build a socket-activated helper, serve one request, and exit."""
     service = build_linux_backend(**kwargs)
-    service.serve_forever()
+    service.serve_once()
 
 
 def run_scheduled_retention(
@@ -589,7 +522,13 @@ def run_scheduled_retention(
         paths.policy_path,
         expected_owner=paths.expected_owner,
     )
-    store = AtomicRecordStore(paths.record_root)
+    schedule_provider = SystemdScheduleSummaryProvider()
+    store = _record_store_with_status(
+        paths=paths,
+        policy=policy,
+        schedule_summary_provider=schedule_provider,
+        backup_schedule_observer=schedule_provider,
+    )
     locks = RepositoryMutationLock(paths.lock_root)
     adapter, provider = load_production_retention_components(
         target_path=production_target_path,
@@ -622,8 +561,18 @@ def run_backup_record_start(
         production_target_path,
         expected_owner=paths.expected_owner,
     )
+    policy = load_system_policy(
+        paths.policy_path,
+        expected_owner=paths.expected_owner,
+    )
+    schedule_provider = SystemdScheduleSummaryProvider()
     SystemBackupRunCoordinator(
-        store=AtomicRecordStore(paths.record_root),
+        store=_record_store_with_status(
+            paths=paths,
+            policy=policy,
+            schedule_summary_provider=schedule_provider,
+            backup_schedule_observer=schedule_provider,
+        ),
         target_id=target.target_id,
         worker_root=paths.record_root.parent / "backup-worker",
     ).start()
@@ -641,8 +590,18 @@ def run_backup_record_finish(
         production_target_path,
         expected_owner=paths.expected_owner,
     )
+    policy = load_system_policy(
+        paths.policy_path,
+        expected_owner=paths.expected_owner,
+    )
+    schedule_provider = SystemdScheduleSummaryProvider()
     SystemBackupRunCoordinator(
-        store=AtomicRecordStore(paths.record_root),
+        store=_record_store_with_status(
+            paths=paths,
+            policy=policy,
+            schedule_summary_provider=schedule_provider,
+            backup_schedule_observer=schedule_provider,
+        ),
         target_id=target.target_id,
         worker_root=paths.record_root.parent / "backup-worker",
     ).finish(result=result, exit_status=exit_status)
@@ -656,12 +615,12 @@ def _systemd_exit_status(value: str | None) -> int | None:
     return parsed if 0 <= parsed <= 255 else None
 
 
-def _systemd_socket_descriptors(
+def _systemd_socket_descriptor(
     environment: Mapping[str, str] | None = None,
     *,
     process_id: int | None = None,
-) -> tuple[int, int | None]:
-    """Resolve required control and optional event systemd descriptors."""
+) -> int:
+    """Resolve the single required control systemd descriptor."""
     environment = os.environ if environment is None else environment
     process_id = os.getpid() if process_id is None else process_id
     if type(process_id) is not int or process_id <= 0:
@@ -674,19 +633,13 @@ def _systemd_socket_descriptors(
         or int(listen_pid) != process_id
         or not listen_fds.isascii()
         or not listen_fds.isdecimal()
-        or int(listen_fds) not in {1, 2}
+        or int(listen_fds) != 1
     ):
         raise RuntimeError("required systemd socket for control is unavailable")
     names = environment.get("LISTEN_FDNAMES", "").split(":")
-    expected_names = (
-        {"control"}
-        if int(listen_fds) == 1
-        else {"control", "status-events"}
-    )
-    if len(names) != int(listen_fds) or set(names) != expected_names:
+    if names != ["control"]:
         raise RuntimeError("required systemd socket name for control is unavailable")
-    descriptors = {name: 3 + index for index, name in enumerate(names)}
-    return descriptors["control"], descriptors.get("status-events")
+    return 3
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -782,15 +735,11 @@ def main(argv: list[str] | None = None) -> None:
                 exit_status=_systemd_exit_status(os.environ.get("EXIT_STATUS")),
             )
         else:
-            control_descriptor, status_descriptor = _systemd_socket_descriptors()
+            control_descriptor = _systemd_socket_descriptor()
             run_linux_backend(
                 paths=paths,
                 socket_mode="systemd",
                 systemd_descriptor=control_descriptor,
-                status_systemd_descriptor=status_descriptor,
-                status_socket_mode=(
-                    "systemd" if status_descriptor is not None else "disabled"
-                ),
                 production_target_path=arguments.production_target,
                 schedule_summary_provider=SystemdScheduleSummaryProvider(),
             )
@@ -823,33 +772,6 @@ def _build_transport(
     )
 
 
-def _build_status_transport(
-    *,
-    policy: SystemPolicy,
-    socket_mode: str,
-    listener: socket.socket | None,
-    systemd_descriptor: int | None,
-    stop_event: Event,
-) -> LinuxStatusEventTransport:
-    if socket_mode == "listener":
-        assert listener is not None
-        return LinuxStatusEventTransport(
-            listener,
-            max_frame_bytes=policy.max_request_bytes,
-            heartbeat_interval_seconds=5.0,
-            operator_group=policy.operator_group,
-            stop_event=stop_event,
-        )
-    assert systemd_descriptor is not None
-    return LinuxStatusEventTransport.from_systemd(
-        descriptor=systemd_descriptor,
-        heartbeat_interval_seconds=5.0,
-        max_frame_bytes=policy.max_request_bytes,
-        operator_group=policy.operator_group,
-        stop_event=stop_event,
-    )
-
-
 def _build_handlers(
     *,
     policy: SystemPolicy,
@@ -859,16 +781,13 @@ def _build_handlers(
     retention_adapter: RetentionAdapter,
     retention_plan_provider: RetentionPlanProvider,
     schedule_summary_provider: ScheduleSummaryProvider,
-    status_change_coordinator: StatusChangeCoordinator | None = None,
     trigger_root: Path,
     clock: Callable[[], datetime],
     backup_schedule_observer: BackupScheduleObserver | None = None,
 ) -> Mapping[SystemAction, Callable[[object], object]]:
     from .protocol import RequestEnvelope
 
-    status_change_coordinator = status_change_coordinator or StatusChangeCoordinator(
-        BoundedStatusEventBroker()
-    )
+    query_revision = StatusRevision(uuid4(), 0)
 
     def health(_request: object) -> Mapping[str, object]:
         return {
@@ -932,36 +851,13 @@ def _build_handlers(
         return _schedule_to_wire(summary)
 
     def status_snapshot(_request: object) -> Mapping[str, object]:
-        def build_snapshot(revision: StatusRevision) -> StatusSnapshot:
-            summary = schedule_summary_provider.get_schedule_summary()
-            if not isinstance(summary, ScheduleSummary):
-                raise TypeError(
-                    "schedule_summary_provider returned an invalid summary"
-                )
-            runs = store.list_status_runs()
-            schedule_health = (
-                derive_backup_schedule_health(
-                    backup_schedule_observer.observe_backup_schedule(),
-                    runs,
-                    now=clock(),
-                )
-                if backup_schedule_observer is not None
-                else BackupScheduleHealth.HEALTHY
-            )
-            return StatusSnapshot.from_run_history(
-                revision=revision,
-                backend_status=BackendStatus.AVAILABLE,
-                active_operations=sum(
-                    record.state in {RunState.QUEUED, RunState.RUNNING}
-                    for record in runs
-                ),
-                runs=runs,
-                backup_schedule_health=schedule_health,
-                next_backup_at=summary.next_backup_at,
-                next_retention_at=summary.next_retention_at,
-            )
-
-        return status_change_coordinator.snapshot(build_snapshot).to_wire()
+        return _build_status_snapshot(
+            store=store,
+            schedule_summary_provider=schedule_summary_provider,
+            backup_schedule_observer=backup_schedule_observer,
+            revision=query_revision,
+            clock=clock,
+        ).to_wire()
 
     def ui_availability(_request: object) -> Mapping[str, object]:
         return {"available": False}
@@ -998,6 +894,82 @@ def _build_handlers(
             plan=plan,
         )
     return handlers
+
+
+def _record_store_with_status(
+    *,
+    paths: LinuxBackendPaths,
+    policy: SystemPolicy,
+    schedule_summary_provider: ScheduleSummaryProvider,
+    backup_schedule_observer: BackupScheduleObserver | None,
+) -> AtomicRecordStore:
+    """Build a run store whose durable mutations refresh sanitized status."""
+    if grp is None:
+        raise RuntimeError("system operator groups are unavailable")
+    try:
+        group_gid = grp.getgrnam(policy.operator_group).gr_gid
+    except KeyError as error:
+        raise RuntimeError("system operator group is unavailable") from error
+    snapshot_store = AtomicStatusSnapshotStore(
+        paths.status_path,
+        expected_owner_uid=paths.expected_owner,
+        group_gid=group_gid,
+    )
+    session_id = uuid4()
+    sequence = 0
+    store_ref: dict[str, AtomicRecordStore] = {}
+
+    def publish() -> None:
+        nonlocal sequence
+        sequence += 1
+        snapshot_store.write(
+            _build_status_snapshot(
+                store=store_ref["store"],
+                schedule_summary_provider=schedule_summary_provider,
+                backup_schedule_observer=backup_schedule_observer,
+                revision=StatusRevision(session_id, sequence),
+                clock=_utc_now,
+            )
+        )
+
+    store = AtomicRecordStore(paths.record_root, status_change_callback=publish)
+    store_ref["store"] = store
+    return store
+
+
+def _build_status_snapshot(
+    *,
+    store: AtomicRecordStore,
+    schedule_summary_provider: ScheduleSummaryProvider,
+    backup_schedule_observer: BackupScheduleObserver | None,
+    revision: StatusRevision,
+    clock: Callable[[], datetime],
+) -> StatusSnapshot:
+    """Project protected records into the exact sanitized status contract."""
+    summary = schedule_summary_provider.get_schedule_summary()
+    if not isinstance(summary, ScheduleSummary):
+        raise TypeError("schedule_summary_provider returned an invalid summary")
+    runs = store.list_status_runs()
+    schedule_health = (
+        derive_backup_schedule_health(
+            backup_schedule_observer.observe_backup_schedule(),
+            runs,
+            now=clock(),
+        )
+        if backup_schedule_observer is not None
+        else BackupScheduleHealth.HEALTHY
+    )
+    return StatusSnapshot.from_run_history(
+        revision=revision,
+        backend_status=BackendStatus.AVAILABLE,
+        active_operations=sum(
+            record.state in {RunState.QUEUED, RunState.RUNNING} for record in runs
+        ),
+        runs=runs,
+        backup_schedule_health=schedule_health,
+        next_backup_at=summary.next_backup_at,
+        next_retention_at=summary.next_retention_at,
+    )
 
 
 def _apply_policy_defaults(

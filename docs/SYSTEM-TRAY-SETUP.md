@@ -12,11 +12,14 @@ The TimeLocker tray is an optional, independent user-session process. Normal
 CLI startup never initializes the tray, and the tray can disappear or restart
 without affecting an active backup or retention run.
 
-The currently deployed tray communicates with a resident protected backend.
-That process model is rejected because it violates TimeLocker's zero-idle-
-residency constraint and exhibited an idle read-notify-read CPU loop. Spec 011
-owns the replacement: direct observation of an atomically published sanitized
-status snapshot plus short-lived protected helpers for explicit actions.
+On launch, the tray performs one explicit protected status request; the helper
+answers and exits. The tray then reads `/run/timelocker/status.json` and watches
+that file directly, including waiting for its first creation after a clean boot.
+Backup and retention workers replace the sanitized snapshot atomically after
+durable state changes. Read/open filesystem notifications are ignored, so a
+read cannot trigger another read. Explicit actions use the control socket and
+start one short-lived protected helper; no privileged tray event service,
+heartbeat, or resident backend is required.
 
 ## Accepted Presentation Contract
 
@@ -98,10 +101,9 @@ timelocker-tray serve
 ## Platform Status
 
 The presentation contract is platform-neutral and the source contains a
-Windows adapter. Spec 010 validated the presentation semantics but rejected
-the resident backend during Linux Mint acceptance. Spec 011 owns daemonless
-Linux deployment and acceptance. This document does not claim a live-accepted
-Windows installation.
+Windows adapter. The daemonless Linux implementation has automated acceptance;
+the protected 90-second live-host observation remains separately approved.
+This document does not claim a live-accepted Windows installation.
 
 ## References
 
