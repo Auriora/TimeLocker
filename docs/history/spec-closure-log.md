@@ -20,7 +20,7 @@ final spec commit preserves the complete package.
 - **Spec:** `docs/specs/010-event-driven-tray-status/`
 - **Title:** Event-driven tray status requirements
 - **Final spec commit:** `8820e65`
-- **Closure cleanup commit:** `pending-cleanup-commit`
+- **Closure cleanup commit:** `4122746`
 - **Closure action:** removed
 - **Durable docs updated:**
   - `CHARTER.md`
