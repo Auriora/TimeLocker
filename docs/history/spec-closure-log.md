@@ -20,7 +20,7 @@ final spec commit preserves the complete package.
 - **Spec:** `docs/specs/011-protected-system-deployment/`
 - **Title:** Protected system deployment requirements
 - **Final spec commit:** `b91c0ff7a644aa0d0343b112b17c700bce820952`
-- **Closure cleanup commit:** `pending-cleanup-commit`
+- **Closure cleanup commit:** `b43acc57a00e854cb8b8d328590316c9cb959ba8`
 - **Closure action:** removed
 - **Durable docs updated:**
   - `CHARTER.md`
@@ -48,7 +48,6 @@ final spec commit preserves the complete package.
   - `docs/3-implementation/service-layer-integration.md`
   - `docs/SYSTEM-TRAY-SETUP.md`
   - `docs/guides/user/backup-operations-troubleshooting.md`
-  - `docs/specs/011-protected-system-deployment/requirements.md`
 - **Verification summary:** Closure validation not yet executed.
 - **Residual risks:**
   - none
