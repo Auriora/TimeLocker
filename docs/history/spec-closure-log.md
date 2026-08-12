@@ -15,6 +15,25 @@ final spec commit preserves the complete package.
 
 ## Entries
 
+### 2026-08-12 - 011-protected-system-deployment
+
+- **Spec:** `docs/specs/011-protected-system-deployment/`
+- **Title:** Protected system deployment requirements
+- **Final spec commit:** `b91c0ff7a644aa0d0343b112b17c700bce820952`
+- **Closure cleanup commit:** `pending-cleanup-commit`
+- **Closure action:** removed
+- **Durable docs updated:**
+  - `CHARTER.md`
+  - `docs/1-requirements/system-operations.md`
+  - `docs/2-architecture/system-architecture.md`
+  - `docs/guides/user/installation.md`
+  - `docs/processes/version-management.md`
+  - `docs/guides/user/backup-operations-troubleshooting.md`
+  - `docs/reference/timelocker-cli-command-hierarchy.md`
+- **Verification summary:** Closure validation not yet executed.
+- **Residual risks:**
+  - none
+- **Follow-up:** none
 ### 2026-08-12 - 010-event-driven-tray-status
 
 - **Spec:** `docs/specs/010-event-driven-tray-status/`
