@@ -2,7 +2,7 @@
 
 **Document Type**: Implementation Guide  
 **Status**: Active  
-**Last Updated**: 2026-07-18
+**Last Updated**: 2026-08-12
 
 ## Overview
 
@@ -42,10 +42,17 @@ command names remain unchanged.
 host-level backup, retention, status, and diagnostics. It is not part of the
 legacy compatibility facade described below.
 
+The deployed release currently serves this boundary through a continuously
+resident root process and a privileged status-event socket. That process model
+is rejected and transitional: protected requests must become bounded,
+socket-activated one-shot executions, and the optional tray must consume an
+atomically published sanitized snapshot directly. The accepted boundary is the
+authorization and allowlisted-operation contract, not daemon residency.
+
 - `release_launcher.py` resolves the root-owned selected immutable release for
   CLI, backend, and tray entrypoints and fails closed on untrusted state.
-- `client.py` exposes the typed local client used by protected CLI reads and the
-  tray.
+- `client.py` exposes the typed local client used for bounded protected CLI and
+  tray actions. Each request must allow the protected helper to exit.
 - `linux_adapter.py` obtains peer credentials from the AF_UNIX connection and
   rechecks current NSS group membership for every request.
 - `dispatcher.py` validates the versioned protocol and dispatches only
@@ -57,7 +64,8 @@ legacy compatibility facade described below.
 - `storage.py` owns atomic run/diagnostic records and the shared repository
   mutation lock.
 - `tray_entry.py` and `tray_client.py` own the independent user-session process;
-  normal CLI setup must not import or initialize tray integration.
+  normal CLI setup must not import or initialize tray integration. The current
+  privileged event subscription is a known non-conformance owned by Spec 011.
 
 The protected boundary returns safe summaries, result codes, states, and
 counters. It never returns passwords, environment contents, raw journal data,

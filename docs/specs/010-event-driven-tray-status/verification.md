@@ -53,13 +53,13 @@ closure.
 
 | Requirement | Acceptance criteria covered | Evidence | Residual risk |
 |-------------|-----------------------------|----------|---------------|
-| Requirement 1 | AC1-AC5 | T001, T003-T005, T007, T011 | pending |
-| Requirement 2 | AC1-AC5 | T001-T005, T008, T011-T012 | pending |
-| Requirement 3 | AC1-AC5 | T001-T002, T006-T007, T011 | pending |
-| Requirement 4 | AC1-AC5 | T002-T005, T007-T011 | pending |
-| Requirement 5 | AC1-AC7 | T006-T007, T010-T011 | partial-pass; exact three-row health/activity projection, deterministic Linux badges, and honest never-run/failure/missed projection passed; live acceptance pending |
-| Requirement 6 | AC1-AC4 | T006-T007, T011 | pending |
-| Requirement 7 | AC1-AC5 | T001, T005, T008-T011 | pending |
+| Requirement 1 | AC1-AC5 | T001, T003-T005, T007, T011 | partial-routed; resident delivery was human-superseded and daemonless delivery belongs to Spec 011 |
+| Requirement 2 | AC1-AC5 | T001-T005, T008, T011-T012 | partial-routed; reusable authorization contracts remain, bounded activation belongs to Spec 011 |
+| Requirement 3 | AC1-AC5 | T001-T002, T006-T007, T011 | pass; health/activity/last-success and schedule semantics are regression-covered |
+| Requirement 4 | AC1-AC5 | T002-T005, T007-T011 | partial-routed; resident reconnect/heartbeat acceptance was human-superseded by the zero-idle decision |
+| Requirement 5 | AC1-AC7 | T006-T007, T010-T011 | pass; exact three-row health/activity projection, deterministic Linux badges, and honest never-run/failure/missed projection passed |
+| Requirement 6 | AC1-AC4 | T006-T007, T011 | partial-routed; one-shot silence passed and idle resident operation was rejected |
+| Requirement 7 | AC1-AC5 | T001, T005, T008-T011 | partial-routed; resident rollout was human-superseded and daemonless deployment belongs to Spec 011 |
 
 ## Correctness Property Coverage
 
@@ -80,7 +80,7 @@ closure.
 | Event-driven Linux tray status | T001-T007, T009-T011 | partial | none | rollout tasks T009-T011 | yes | T001-T007 implementation and Phase 2 checkpoint passed |
 | Continuous authorization/privacy | T001-T005, T008, T011-T012 | partial | Windows live revocation | Windows follow-up spec | yes for Linux; no for Windows live |
 | Accurate and quiet tray UX | T001-T002, T006-T007, T011 | partial | Live desktop acceptance remains | T007, T011 | yes | Correct local last-success rows and silent serve passed in T006 |
-| Portable Windows architecture | T001, T008 | covered | Concrete Windows service and live acceptance | follow-up spec or issue | no after routing | Injected token-derived named-pipe event contract passed 232-test checkpoint |
+| Portable Windows architecture | T001, T008 | covered | Concrete Windows service and live acceptance | `docs/specs/011-protected-system-deployment/requirements.md` | no after routing | Injected token-derived named-pipe event contract passed 232-test checkpoint |
 | Full desktop application | none | out-of-scope | Product UI | backlog/roadmap | no | charter and requirements |
 
 ## Agent Readiness Evidence
@@ -204,8 +204,10 @@ silently folding graceful shutdown time into that latency result.
 
 ## Residual Risks
 
-- A long-lived subscription expands denial-of-service and revocation concerns;
-  bound subscribers and reauthorize each event/heartbeat.
+- The long-lived privileged backend and subscription are rejected architecture,
+  not residual accepted risk. Live T011 evidence showed a read-notify-read loop
+  that accumulated more than five CPU-hours during roughly eight hours of
+  uptime without backup or retention work.
 - Cross-process record changes may race event publication; watcher uncertainty
   and session/snapshot recovery are mandatory.
 - Desktop toolkits differ in dynamic menu behavior; keep platform tests and
@@ -218,33 +220,34 @@ silently folding graceful shutdown time into that latency result.
 
 | Spec content | Durable destination or deferral | Status | Evidence |
 |--------------|---------------------------------|--------|----------|
-| Requirements and security behavior | `docs/1-requirements/system-operations.md` | pending | |
-| Architecture and platform contract | `docs/2-architecture/system-architecture.md` | pending | |
-| Component/interface ownership | `docs/3-implementation/service-layer-integration.md` | pending | |
-| Tray setup, menu, reconnect, rollback | `docs/SYSTEM-TRAY-SETUP.md` | pending | |
-| Command/action reference | `docs/reference/timelocker-cli-command-hierarchy.md` | pending | |
-| Troubleshooting and installation | user guides and version process | pending | |
-| Windows live implementation | follow-up spec or issue | pending routing | |
-| Full desktop UI | product backlog/roadmap | excluded | |
+| Requirements and security behavior | `docs/1-requirements/system-operations.md` | complete | Zero-idle authorization and resource-residency contracts promoted 2026-08-12. |
+| Architecture and platform contract | `docs/2-architecture/system-architecture.md` | complete | Rejected resident implementation and accepted daemonless target promoted 2026-08-12. |
+| Component/interface ownership | `docs/3-implementation/service-layer-integration.md` | complete | Transitional resident seams and bounded target ownership documented. |
+| Tray setup, menu, reconnect, rollback | `docs/SYSTEM-TRAY-SETUP.md` | complete | Accepted three-row semantics separated from rejected transport. |
+| Command/action reference | `docs/reference/timelocker-cli-command-hierarchy.md` | no change | Existing public commands remain unchanged in the accepted Spec 010 slice. |
+| Troubleshooting and installation | user guides and version process | complete | Temporary resident-backend shutdown and consequences documented. |
+| Windows live implementation | Spec 011 | routed | Platform acceptance belongs to the daemonless implementation. |
+| Full desktop UI | `CHARTER.md` current-scope exclusion | excluded | |
 
 ### Spec Cleanup Decision
 
 - **Cleanup action:** remove after final spec commit and promotion
 - **Reason:** Repository policy uses Git plus compact history indexes.
-- **Final spec commit:** pending
+- **Final spec commit:** recorded by closure workflow
 - **Closure log path:** `docs/history/spec-closure-log.md`
-- **Closure log entry updated:** no
-- **Closure cleanup commit:** pending
-- **Active indexes updated:** no
-- **Durable docs linked back to evidence where useful:** no
+- **Closure log entry updated:** by closure workflow
+- **Closure cleanup commit:** recorded by closure workflow
+- **Active indexes updated:** by closure workflow
+- **Durable docs linked back to evidence where useful:** yes
 - **Residual spec-only content:** none expected
 
 ## Ship Or Closure Risk
 
-- **Risk level:** high until security review and live acceptance; expected
-  medium after all gates
+- **Risk level:** high; the deployed resident backend is explicitly rejected
+  and must not proceed to acceptance or release
 - **Breaking change:** coherent local protocol/release upgrade required
-- **Blast radius checked:** no
+- **Blast radius checked:** yes - bounded to system-control/tray documentation and
+  the 274-test system-control regression
 - **Rollback path:** designed, not yet verified
 - **Requires human review:** yes
 - **Release notes needed:** yes if shipped in a release
@@ -261,11 +264,12 @@ weaken those boundaries.
 
 ## Readiness Decision
 
-- **Ready to implement:** yes - lifecycle review passed and user approval was
-  recorded on 2026-07-27
-- **Ready for promotion:** no
+- **Ready to implement:** no - the 2026-07-27 approval does not cover continued
+  implementation of the resident backend after the 2026-07-28 architecture
+  decision
+- **Ready for promotion:** yes - accepted content is in durable documents
 - **Ready for release:** no
-- **Ready for closure:** no
+- **Ready for closure:** yes - final commit and cleanup remain lifecycle actions
 
 ## Related Artifacts
 

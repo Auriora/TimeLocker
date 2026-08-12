@@ -28,9 +28,9 @@ or live system evidence.
 | Source | Authority reason | Handling |
 |--------|------------------|----------|
 | `AGENTS.md` and `docs/guides/ai-agent/` | Repository workflow and operational instructions | Read before authoring, implementation, validation, or deployment. |
-| `CHARTER.md` | Project mandate, boundaries, governance, and approval rights | Stop if deployment work expands into a remote management service or unattended product update policy. |
+| `CHARTER.md` | Project mandate, boundaries, governance, approval rights, and zero-idle-residency constraint | Reject any design that requires a continuously resident TimeLocker daemon; also stop if work expands into a remote management service or unattended product update policy. |
 | Current source, tests, package metadata, and live host evidence | Implementation and runtime truth | Reconcile conflicts; proposed prose does not override current behavior. |
-| `docs/1-requirements/system-operations.md` | Accepted protected-operation and administrator boundary | Extend without weakening authorization, immutable release, or fail-closed requirements. |
+| `docs/1-requirements/system-operations.md` | Accepted protected-operation, administrator, and resource-residency boundary | Extend without weakening authorization, immutable release, fail-closed behavior, or zero idle service residency. |
 | `docs/processes/version-management.md` | Accepted release preparation, publication, activation, and rollback separation | Preserve the publication/deployment boundary. |
 
 ## Spec-Canonical Working Sources
@@ -50,6 +50,7 @@ or live system evidence.
 | requirements | `docs/1-requirements/system-operations.md` | reviewed 2026-07-26 | adapted | Root-only maintenance and immutable release requirements | same path |
 | requirements | `scripts/deploy_t011_linux.py` | commit `a67c83ac09ac29b94a3ed481ee536b3380db3337` | background | Proven acceptance transaction and failure lessons | future supported deployment implementation |
 | requirements | Spec 010 T011 live evidence | 2026-07-27 to 2026-07-28 | summarized | Successful Linux Mint activation and retained rollback state | verification and operator runbook |
+| requirements | Spec 010 T011 idle-resource diagnosis | 2026-07-28 | supersedes resident-runtime acceptance | Read-only JSON access was observed to emit a change and sustain a tray snapshot loop; the deployed unit accumulated more than five CPU-hours in roughly eight hours | daemonless design, regression tests, and live idle acceptance |
 
 ## Non-Canonical Background Sources
 
@@ -64,6 +65,7 @@ or live system evidence.
 | Spec-local content | Durable destination or route | Required before closure |
 |--------------------|------------------------------|-------------------------|
 | Supported install, upgrade, status, and rollback behavior | `docs/1-requirements/system-operations.md` | yes |
+| Zero-idle-residency and short-lived protected execution | `CHARTER.md`, `docs/1-requirements/system-operations.md`, and `docs/2-architecture/system-architecture.md` | yes |
 | Deployment components, trust boundaries, and platform adapters | `docs/2-architecture/system-architecture.md` | yes |
 | Administrator procedure and troubleshooting | `docs/guides/user/installation.md` and a durable deployment runbook | yes |
 | Release artifact and host activation relationship | `docs/processes/version-management.md` | yes |

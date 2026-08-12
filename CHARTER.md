@@ -9,7 +9,7 @@ audience:
   - contributors
   - maintainers
   - ai-developers
-last_reviewed: 2026-07-18
+last_reviewed: 2026-08-12
 source_of_truth: true
 ---
 
@@ -74,6 +74,11 @@ something goes wrong.
 7. **Current documentation over visible history.** Durable docs describe the
    accepted state; Git and lifecycle history preserve completed delivery
    context.
+8. **Zero idle residency.** TimeLocker must not require a continuously resident
+   daemon or privileged background process. Scheduled and explicit work should
+   use bounded, short-lived processes that exit when the operation or request
+   completes. Optional user-session presentation may remain open only by
+   explicit operator choice and must not require a resident privileged backend.
 
 ## Current Scope
 

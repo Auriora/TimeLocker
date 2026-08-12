@@ -3,7 +3,7 @@ title: "Backup Operations Troubleshooting Guide"
 doc_type: guide
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-26
+last_reviewed: 2026-08-12
 ---
 
 # Backup Operations Troubleshooting Guide
@@ -53,6 +53,31 @@ ls -l /run/timelocker/control.sock
 The socket should be owned by root and the operator group with group read/write
 access. The public CLI returns a bounded backend-unavailable error; it does not
 fall back to a checkout, pyenv shim, root home, or legacy configuration.
+
+### Temporarily Stop The Resident Backend
+
+The continuously resident backend is a known architectural non-conformance
+pending the daemonless replacement in Spec 011. To stop it for the current boot,
+first stop the user tray so that it does not reconnect, then stop the service
+and both activation sockets:
+
+```bash
+pkill -TERM -x timelocker-tray
+sudo systemctl stop timelocker-control.service \
+  timelocker-control.socket timelocker-status-events.socket
+```
+
+This does not stop or disable the independent backup and retention timers.
+Protected interactive status and tray actions are unavailable while these
+sockets are stopped; scheduled one-shot backup and retention remain independent.
+Because the sockets remain enabled, they return on the next boot. To restore
+protected interactive access before then:
+
+```bash
+sudo systemctl start timelocker-control.socket \
+  timelocker-status-events.socket
+timelocker-tray
+```
 
 ## Scheduled Backup Did Not Run
 

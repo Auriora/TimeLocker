@@ -3,7 +3,7 @@ title: "System Operations Requirements"
 doc_type: requirements
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-26
+last_reviewed: 2026-08-12
 ---
 
 # System Operations Requirements
@@ -25,7 +25,10 @@ backup, retention, status, diagnostics, and tray operations.
 
 ## Authorization Requirements
 
-- Protected reads and actions must use a local authenticated backend.
+- Protected reads and actions must use a local authenticated, least-privilege
+  boundary. That boundary must be activated for a bounded request or operation
+  and must exit when its work is complete; authorization does not justify a
+  continuously resident TimeLocker daemon.
 - Only current members of the configured operator group may read system run
   records, read structured system diagnostics, or trigger the allowlisted
   backup and retention actions.
@@ -34,6 +37,21 @@ backup, retention, status, diagnostics, and tray operations.
 - Administrator maintenance, including installation, operator-group changes,
   policy approval, service changes, activation, and rollback, remains root-only.
 - Denial and unavailability must not fall back to direct privileged execution.
+
+## Resource Residency Requirements
+
+- TimeLocker must consume no CPU and retain no service process while no backup,
+  retention, restore, explicit query, or explicit control action is running.
+- Scheduled backup and retention must use one-shot scheduler jobs rather than a
+  continuously resident TimeLocker scheduler or control daemon.
+- Protected queries and manual actions must use short-lived authenticated
+  helpers or one-shot service activation.
+- A sanitized status snapshot may be written atomically for unprivileged
+  readers. Reading status must not wake a privileged process repeatedly or
+  create a read-notify-read feedback loop.
+- The optional user-session tray may remain open only by explicit operator
+  choice. It must observe sanitized state directly and must not require a
+  resident privileged event broker, heartbeat, or status service.
 
 ## Operation Requirements
 
@@ -71,6 +89,7 @@ backup, retention, status, diagnostics, and tray operations.
 - It may request only allowlisted actions through the protected backend.
 - Tray failure, exit, or restart must not affect backend services or active
   operations.
+- Tray operation must not keep a privileged TimeLocker process resident.
 - A full desktop UI is not part of the current product surface.
 
 ## Platform Requirement

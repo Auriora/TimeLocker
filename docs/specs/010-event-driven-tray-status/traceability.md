@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: traceability
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-27
+last_reviewed: 2026-08-12
 ---
 
 # Traceability Matrix
@@ -29,15 +29,15 @@ last_reviewed: 2026-07-27
 
 ## Requirement To Delivery Matrix
 
-| Requirement | Priority | Tasks | Verification gates | Durable targets | Coverage state | Residual destination |
+| Requirement | Priority | Tasks | Verification gates | Durable targets | Coverage State | Residual Destination |
 |-------------|----------|-------|--------------------|-----------------|----------------|----------------------|
-| Requirement 1 | must-have | T001, T003-T005, T007, T011-T013 | V1, V2, V4, V5, V10 | requirements, architecture, tray setup | partial | Contracts through event-driven tray integration complete; deployment and live acceptance remain |
-| Requirement 2 | must-have | T001-T005, T007-T008, T011-T013 | V1-V5, V7, V10-V11 | requirements, architecture | partial | Allowlisted models and Linux continuous authorization complete; Windows contract and live acceptance remain |
-| Requirement 3 | must-have | T001-T002, T006-T007, T011-T013 | V1, V5-V6, V10 | requirements, tray setup | partial | Last-success contract, backend snapshot, local tray projection, and `Never` fallback complete; live acceptance remains |
-| Requirement 4 | must-have | T002-T005, T007-T011, T013 | V2-V5, V7-V10 | architecture, troubleshooting | partial | Immediate connecting presentation, Linux reconnect, bounds, and event/control independence pass local regression; installed startup and remaining live acceptance remain |
-| Requirement 5 | must-have | T006-T007, T010-T013 | V5, V6, V8-V10 | tray setup, command reference | partial | Honest rows, actions, and deterministic non-colour-only Linux logo badges, including connecting, pass local checks; installed connecting-state and remaining live acceptance remain |
-| Requirement 6 | must-have | T006-T007, T011-T013 | V6, V10 | tray setup, troubleshooting | partial | Healthy serve silence and explicit one-shot output passed; live idle capture remains |
-| Requirement 7 | must-have | T001, T005, T008-T013 | V1-V3, V7-V11, V13 | requirements, architecture, installation | partial | Linux activation passed; remaining live acceptance stays in T011, while the supported general deployment workflow is routed to Spec 011 |
+| Requirement 1 | must-have | T001, T003-T005, T007, T011-T013 | V1, V2, V4, V5, V10 | requirements, architecture, tray setup | partial-routed | Human decision superseded resident event delivery; reusable snapshot semantics are retained and daemonless delivery is routed to Spec 011 Requirement 9. |
+| Requirement 2 | must-have | T001-T005, T007-T008, T011-T013 | V1-V5, V7, V10-V11 | requirements, architecture | partial-routed | Human decision superseded continuous resident authorization; allowlisted models are retained and bounded authentication is routed to Spec 011. |
+| Requirement 3 | must-have | T001-T002, T006-T007, T011-T013 | V1, V5-V6, V10 | requirements, tray setup | complete | Last-success, health/activity separation, schedule health, local tray projection, and `Never` fallback are implemented and regression-tested. |
+| Requirement 4 | must-have | T002-T005, T007-T011, T013 | V2-V5, V7-V10 | architecture, troubleshooting | partial-routed | Human decision superseded resident reconnect and heartbeat behavior; process independence and daemonless resilience are routed to Spec 011. |
+| Requirement 5 | must-have | T006-T007, T010-T013 | V5, V6, V8-V10 | tray setup, command reference | complete | Honest three-row presentation, actions, deterministic non-colour-only badges, and connecting state passed local and package checks. |
+| Requirement 6 | must-have | T006-T007, T011-T013 | V6, V10 | tray setup, troubleshooting | partial-routed | One-shot output silence is retained; human decision superseded idle resident service operation and zero-idle acceptance is routed to Spec 011 Requirement 9. |
+| Requirement 7 | must-have | T001, T005, T008-T013 | V1-V3, V7-V11, V13 | requirements, architecture, installation | partial-routed | Human decision superseded rollout of the resident architecture; supported daemonless deployment and remaining platform acceptance are routed to Spec 011. |
 
 ## Correctness Property Coverage
 
@@ -65,9 +65,16 @@ last_reviewed: 2026-07-27
 
 ## Open Decision Impact
 
-There are no open decisions. Changing the dedicated event channel,
-invalidation-plus-snapshot approach, continuous authorization, or Linux-now/
-Windows-contract slice requires explicit design reconciliation and approval.
+The dedicated privileged event channel, continuous resident backend, and
+heartbeat design were rejected by explicit user direction on 2026-07-28 after
+T011 live diagnosis demonstrated an idle CPU feedback loop. This is a resolved
+project-direction decision, not an open implementation choice.
+
+Spec 010 may preserve independently valid snapshot semantics, last-success
+meaning, and tray presentation. It must not promote or resume acceptance of the
+resident backend. Spec 011 owns traceability for zero idle residency,
+short-lived authenticated helpers, atomically published sanitized status, and
+daemonless live acceptance.
 
 ## Verification Gate Key
 

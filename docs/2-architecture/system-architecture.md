@@ -4,7 +4,7 @@ id: "arch-system-architecture"
 type: [ architecture ]
 status: [ approved ]
 owner: "Architecture Team"
-last_reviewed: "2026-07-26"
+last_reviewed: "2026-08-12"
 tags: [architecture, system, layers]
 links:
     tooling: []
@@ -50,6 +50,29 @@ user CLI                         user-session tray
              Restic command adapter
 ```
 
+## Approved Residency Constraint And Current Non-Conformance
+
+The root-owned continuously resident system-control backend shown above is the
+currently deployed implementation, not the accepted long-term operating model.
+On 2026-07-28 the project direction was clarified: TimeLocker must not require
+a resident daemon. The deployed backend also demonstrated the reason for that
+constraint by entering a read-notify-read status loop and consuming substantial
+CPU while no backup or retention operation was running.
+
+The replacement architecture must use:
+
+- existing one-shot scheduler units for scheduled backup and retention;
+- bounded, short-lived authenticated helpers for protected queries and manual
+  actions;
+- atomically written sanitized status state for unprivileged readers; and
+- direct filesystem notification in the optional tray, without a privileged
+  event broker or heartbeat process.
+
+Until that replacement is implemented, the diagram remains implementation
+truth but records a known architectural non-conformance. Spec 010 acceptance of
+the resident backend is halted, and Spec 011 owns the daemonless protected
+deployment boundary.
+
 ## Component Boundaries
 
 - **CLI boundary** — `src/TimeLocker/cli.py` owns the installed entry point;
@@ -63,10 +86,14 @@ user CLI                         user-session tray
 - **System-control boundary** — `src/TimeLocker/system_control/` owns the
   versioned local protocol, peer identity, current group authorization,
   allowlisted dispatch, protected adapters, repository locking, durable run
-  records, safe diagnostics, deployment assets, and release activation.
+  records, safe diagnostics, deployment assets, and release activation. Its
+  current resident backend is transitional and must be replaced by bounded
+  one-shot execution.
 - **Tray boundary** — `timelocker-tray` is an independent unprivileged
-  user-session process. It polls and requests allowlisted actions through the
-  same protected backend; CLI startup never initializes it.
+  user-session process. The current release requests status and allowlisted
+  actions through the protected backend; the accepted replacement observes
+  sanitized state directly and invokes only short-lived protected helpers. CLI
+  startup never initializes it.
 - **Application boundary** — managers, orchestrators, and focused services
   coordinate repositories, backups, snapshots, recovery, policies, schedules,
   validation, and monitoring. CLI modules should delegate domain work here.
@@ -87,6 +114,7 @@ user CLI                         user-session tray
 ## Invariants
 
 - The CLI is the public application interface.
+- No TimeLocker-owned privileged process remains resident while idle.
 - Protected reads and actions fail closed if the authenticated backend,
   authorization, selected release, policy approval, or protected target cannot
   be validated.

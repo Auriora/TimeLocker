@@ -16,21 +16,23 @@ accepted content has been promoted and the package is closed.
 ## Current Packages
 
 - [`010-event-driven-tray-status`](./010-event-driven-tray-status/README.md) -
-  active implementation package for replacing tray status polling with an
-  authenticated event subscription and accurate, quiet status presentation.
-  Implementation was approved on 2026-07-27; T011 live acceptance is in
-  progress.
+  active implementation package whose resident-backend acceptance is halted.
+  The status semantics remain useful, but the privileged event-broker design
+  conflicts with the approved zero-idle-residency constraint discovered during
+  T011 live acceptance.
 - [`011-protected-system-deployment`](./011-protected-system-deployment/README.md) -
   draft requirements package for replacing acceptance-specific deployment
-  commands and temporary operator inputs with one supported transactional
-  install, upgrade, status, and rollback workflow.
+  commands and the resident control backend with a daemonless transactional
+  install, upgrade, status, rollback, query, and action workflow.
 
 ## Active-Package Sequencing
 
-Spec 010 remains the only implementation-approved package. Spec 011 may proceed
-through requirements and design concurrently because those documentation stages
-do not change the runtime surface under live acceptance. Spec 011 implementation
-must wait until Spec 010 completes T013 promotion and closure.
+Further live acceptance of Spec 010's resident backend is halted. Spec 010 must
+record the rejected runtime design and preserve only independently valid status
+semantics before it can be dispositioned. Spec 011 is the owning package for
+the daemonless protected-operation and deployment design. Its requirements and
+design may proceed now; implementation still requires explicit approval after
+the revised design and task package are reviewed.
 
 Specs 007, 008, and 009 are closed. Their final package commits, cleanup
 commits, verification summaries, and residual follow-up are recorded in

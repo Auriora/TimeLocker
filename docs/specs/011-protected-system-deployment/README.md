@@ -12,9 +12,10 @@ last_reviewed: 2026-07-28
 ## Purpose
 
 Replace acceptance-specific deployment commands, operator-authored manifests,
-and externally managed temporary artifacts with one supported, repeatable,
-transactional workflow for installing, upgrading, inspecting, and rolling back
-protected TimeLocker releases.
+externally managed temporary artifacts, and the continuously resident protected
+backend with one supported, repeatable, daemonless workflow for installing,
+upgrading, inspecting, rolling back, querying, and invoking bounded protected
+TimeLocker operations.
 
 The package exists because Spec 010 proved the immutable-release architecture
 but also demonstrated that its T011 acceptance harness is not a general
@@ -22,13 +23,14 @@ administrator deployment interface.
 
 ## Current Stage
 
-- Requirements are drafted for review.
+- Requirements are being reconciled with the approved zero-idle-residency
+  constraint.
 - Design and task authoring have not started.
 - Implementation is not approved.
-- Spec 010 remains the active implementation and acceptance package.
-- Spec 011 requirements and design may proceed concurrently because they do not
-  change runtime behavior. Implementation must wait until Spec 010 completes
-  T013 closure and promotes its accepted deployment behavior.
+- Spec 010 resident-backend acceptance is halted; only independently valid
+  status semantics may be retained.
+- Spec 011 now owns removal of the resident privileged backend as well as the
+  supported deployment transaction.
 
 ## Package
 

@@ -20,7 +20,11 @@ repeatable rollback.
 Spec 010 therefore used a repository-owned T011 acceptance harness plus
 manually supplied commit IDs, hashes, manifests, and temporary artifact paths.
 That harness successfully activated the accepted Linux Mint release, but it is
-not an appropriate long-term installation or upgrade interface.
+not an appropriate long-term installation or upgrade interface. Live operation
+also showed that its continuously resident privileged backend can enter a
+read-notify-read feedback loop and consume CPU while no backup or retention
+operation is running. A resident TimeLocker daemon is therefore rejected as an
+architectural requirement, not merely scheduled for performance tuning.
 
 ## Goals
 
@@ -34,12 +38,16 @@ not an appropriate long-term installation or upgrade interface.
   execution as distinct approval boundaries.
 - Preserve a portable deployment model while delivering and accepting Linux
   systemd behavior first.
+- Replace the resident privileged backend with bounded one-shot helpers and
+  sanitized atomically written status state.
 
 ## Non-Goals
 
 - Publishing TimeLocker to PyPI or automatically creating a GitHub release.
 - An unattended update daemon, silent automatic upgrades, or remote fleet
   management.
+- A continuously resident TimeLocker-owned privileged control daemon, event
+  broker, heartbeat process, or status service.
 - Changing backup, restore, selection-set, retention-policy, or repository
   credential semantics.
 - Triggering backup or retention as a side effect of deployment.
@@ -263,8 +271,8 @@ reading implementation-specific scratch files.
    whether protected mutation began, and provide the evidence location and safe
    next action.
 4. THE STATUS OPERATION SHALL report selected and previous releases, transaction
-   attention state, service/socket state, and backup/retention timer health
-   without triggering any operation.
+   attention state, one-shot helper readiness, and backup/retention timer health
+   without leaving a TimeLocker service process resident.
 5. THE ENTRYPOINT SHALL distinguish warnings, failed validation, failed
    activation with successful recovery, and failed recovery through stable
    result codes.
@@ -282,7 +290,8 @@ support.
 1. THE ARTIFACT, manifest, transaction state, evidence, activation, status, and
    rollback contracts SHALL be platform-neutral.
 2. Linux SHALL implement root-owned paths, stable launchers, peer-authorized
-   local services, and systemd unit/timer verification through a Linux adapter.
+   short-lived helpers or one-shot services, and systemd unit/timer verification
+   through a Linux adapter.
 3. Windows-specific service control, named-pipe authorization, installation
    paths, and elevation SHALL remain behind injectable platform contracts.
 4. THIS PACKAGE SHALL NOT claim live Windows deployment until install, upgrade,
@@ -290,6 +299,35 @@ support.
    Windows host.
 5. WHERE a platform operation is unsupported, THE ENTRYPOINT SHALL fail
    explicitly without partial installation.
+
+### Requirement 9: Zero Idle Service Residency
+
+**User Story:** As an operator, I want TimeLocker to consume no service CPU or
+resident memory while idle, so that backup tooling does not waste host
+resources or create daemon-specific failure modes.
+
+**Priority:** must-have
+
+#### Acceptance Criteria
+
+1. WHILE no backup, retention, restore, explicit query, or explicit control
+   action is running, THE SYSTEM SHALL have no TimeLocker-owned privileged
+   process resident.
+2. Scheduled backup and retention SHALL execute as bounded one-shot jobs and
+   SHALL NOT depend on a continuously resident TimeLocker scheduler or control
+   service.
+3. Protected queries and manual actions SHALL activate a short-lived
+   authenticated helper that exits after one bounded request or operation.
+4. Protected workers SHALL atomically publish a sanitized status snapshot that
+   an authorized unprivileged tray can read without invoking a privileged
+   status service.
+5. The optional tray SHALL observe status-file changes directly and SHALL NOT
+   require a privileged event socket, heartbeat, or resident event broker.
+6. Reading status or run records SHALL NOT itself publish a change event or
+   cause an unbounded read-notify-read cycle.
+7. Automated and live acceptance SHALL prove zero TimeLocker privileged
+   processes and zero TimeLocker service CPU consumption during an idle
+   observation interval of at least 90 seconds.
 
 ## Correctness Properties
 
@@ -309,6 +347,8 @@ support.
   manifests, and transaction records for every success and failure path.
 - **CP-007:** Platform-specific paths, service management, identity, and
   elevation are reachable only through the selected platform adapter.
+- **CP-008:** When the set of active protected operations is empty, the set of
+  resident TimeLocker-owned privileged processes is also empty.
 
 ## Technical Context
 
@@ -319,9 +359,10 @@ support.
   contract retained
 - **Constraints:** root-only mutation; offline/local artifact support; no
   credential disclosure; no caller pyenv, home, checkout, or working-directory
-  dependency after installation
+  dependency after installation; no resident TimeLocker daemon
 - **Performance Goals:** local validation and status should complete promptly;
-  network artifact acquisition, when supported, must have explicit timeouts
+  network artifact acquisition, when supported, must have explicit timeouts;
+  idle privileged CPU and resident memory are both zero
 
 ## Success Criteria
 
@@ -342,6 +383,8 @@ support.
   troubleshooting documentation contains no `/tmp`-based operator workflow.
 - **SC-007:** Linux live acceptance is recorded; Windows support remains
   explicitly contractual until separately accepted.
+- **SC-008:** Linux live acceptance shows no TimeLocker-owned privileged
+  process during at least 90 seconds with no protected operation running.
 
 ## Design Decisions Deferred To The Next Stage
 

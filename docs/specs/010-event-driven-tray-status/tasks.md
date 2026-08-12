@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: tasks
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-27
+last_reviewed: 2026-08-12
 ---
 
 # Tasks
@@ -239,7 +239,7 @@ T009 -> T010 -> T011 -> T012 -> T013
   - Evidence mode: implementation
 ## Phase 4: Acceptance, Review, Promotion, And Closure
 
-- [~] T011 Perform approved Linux Mint acceptance.
+- [x] T011 Disposition Linux Mint acceptance after the resident design was rejected.
   - Depends on: T010
   - Requirements: Requirement 1-Requirement 7
   - Properties: CP-001-CP-006
@@ -346,11 +346,23 @@ T009 -> T010 -> T011 -> T012 -> T013
     authorized event subscription received its initial event in approximately
     0.10 seconds.
 
-  - Status: Corrected protocol-2 release
-    `18990e168108e23479193563a35a72f773120aec` is active and healthy. The
-    remaining installed T011 acceptance checks, including visible
-    connecting-state startup, event mutation latency, idle silence, restart,
-    rollback/reselection, and evidence validation, are in progress.
+  - Status: routed - independently valid status and tray semantics are retained;
+    further resident-backend acceptance is superseded by human decision and
+    transferred to Spec 011's daemonless acceptance contract.
+  - Decision update, 2026-07-28: Further acceptance is halted. Live diagnosis
+    showed that reading a protected JSON run record is reported as a filesystem
+    change; the tray then requests another snapshot, which reads the record
+    again and sustains a read-notify-read loop. The unit accumulated more than
+    five CPU-hours during roughly eight hours of uptime without backup or
+    retention work. An isolated reproduction confirmed that a read alone emits
+    `CHANGED`. The installed release and current checkout use identical
+    relevant watcher, snapshot, and schedule-observer source. The user rejected
+    the resident daemon architecture and restored the zero-idle-residency
+    constraint. Spec 011 owns the daemonless replacement; this task must not
+    resume under the current architecture.
+  - Evidence mode: reasoned and live runtime observation
+  - Destination: Spec 011, Requirement 9 and its daemonless implementation and
+    acceptance tasks.
   - [x] T011.1 Reconcile and test backup-health and tray-row contracts.
     - Acceptance: State is health-only; Activity is transient; Last Backup is
       successful completion or Never; exact wire and menu tests fail before the
@@ -386,7 +398,7 @@ T009 -> T010 -> T011 -> T012 -> T013
       tray, deployment, artifact, backup, and CLI regression passed; scoped
       Ruff, compileall, patch integrity, wheel/sdist build, and installed-wheel
       smoke passed. No protected host mutation or live backup/retention ran.
-- [ ] T012 Run the TimeLocker expert review and address findings.
+- [x] T012 Run the TimeLocker expert review and address findings.
   - Depends on: T011
   - Requirements: Requirement 1-Requirement 7
   - Review: Use `$review-timelocker` with project stewardship, Restic,
@@ -394,9 +406,22 @@ T009 -> T010 -> T011 -> T012 -> T013
     operations/portability, and documentation lifecycle perspectives.
   - Acceptance: Blocking findings are fixed; advisory findings are fixed,
     rejected with rationale, or routed to one owned destination.
-  - Evidence: Pending.
+  - Evidence: Completed a bounded implementation-and-closure review on
+    2026-08-12 using all seven TimeLocker expert roles. TLR-010-001 found that
+    lower-case traceability column names prevented lifecycle coverage parsing;
+    the headings were normalized and closure parsing was rerun. TLR-010-002
+    found stale review dates and ambiguous current-versus-accepted backend
+    wording in promoted documents; the dates, transitional status, tray
+    contract, and shutdown consequences were corrected. No Restic command,
+    credential, backup, restore, retention, or protected host behavior changed
+    in this documentation-only closure slice. Remaining daemon-removal risk is
+    owned by Spec 011 rather than accepted here. Post-remediation evidence:
+    `lint_spec_package(mode=full)` reported 0 errors, warnings, or information
+    findings; `closure_check` accepted all seven requirement dispositions and
+    reported only pending T013.
+  - Evidence mode: review and direct documentation correction
 
-- [ ] T013 Promote durable documentation, run final validation, and close.
+- [x] T013 Promote durable documentation, run final validation, and prepare closure.
   - Depends on: T012
   - Requirements: Requirement 1-Requirement 7
   - Files: promotion targets in `change-impact.md`, `verification.md`,
@@ -406,7 +431,19 @@ T009 -> T010 -> T011 -> T012 -> T013
     work has one follow-up destination; general protected deployment workflow
     debt is owned by Spec 011; lifecycle evidence, traceability, closure,
     final-spec commit, cleanup, and history indexes are complete.
-  - Evidence: Pending.
+  - Evidence: Promoted the zero-idle-residency mandate, authorization and
+    resource requirements, current architecture non-conformance, component
+    ownership, accepted tray semantics, and temporary shutdown procedure to
+    durable documentation. Spec 011 owns every resident-runtime residual.
+    `python3 -m pytest tests/TimeLocker/system_control -q` with the configured
+    non-coverage test options completed with 274 passed in 29.39 seconds;
+    `git diff --check` passed. Agent Workbench checked all 14 changed Markdown
+    documents: ten were clean and the remaining findings were advisory
+    pre-existing table-width warnings. Spec Lifecycle Manager full lint reported
+    0 findings, active-spec scan reported both packages healthy, promotion found
+    no missing targets, and closure accepted all requirement dispositions.
+    Final-spec and cleanup commit hashes are recorded by the closure workflow.
+  - Evidence mode: documentation promotion and executed validation
 
 ## Execution Rules
 

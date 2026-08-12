@@ -3,28 +3,35 @@ title: Independent System Tray Setup
 doc_type: guide
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-27
+last_reviewed: 2026-08-12
 ---
 
 # Independent System Tray Setup
 
 The TimeLocker tray is an optional, independent user-session process. Normal
-CLI startup never initializes the tray. The tray communicates with the
-protected local backend and can disappear or restart without affecting an
-active backup or retention run.
+CLI startup never initializes the tray, and the tray can disappear or restart
+without affecting an active backup or retention run.
 
-## Current Capability
+The currently deployed tray communicates with a resident protected backend.
+That process model is rejected because it violates TimeLocker's zero-idle-
+residency constraint and exhibited an idle read-notify-read CPU loop. Spec 011
+owns the replacement: direct observation of an atomically published sanitized
+status snapshot plus short-lived protected helpers for explicit actions.
 
-The tray can:
+## Accepted Presentation Contract
+
+The reusable tray behavior can:
 
 - show backend availability;
-- show active operation count;
-- show the latest backup and retention status;
-- show the next known backup and retention times;
+- show State, Activity, and Last Backup as three distinct rows;
 - request the allowlisted system backup;
 - request retention when supplied the exact approved policy fingerprint; and
-- degrade to a warning state when the backend is unavailable or access is
+- degrade to a warning state when protected state is unavailable or access is
   denied.
+
+State describes backup health only. Activity describes transient backup or
+retention work. Last Backup is the latest successful completion time, or
+`Never`; a failed or interrupted run must not replace the last-success value.
 
 `open_ui` is a reserved no-op. TimeLocker does not currently provide a full
 desktop UI. The default system autostart does not contain the approved
@@ -35,9 +42,11 @@ future managed tray configuration may enable the same action.
 ## Authorization
 
 The tray runs as the signed-in desktop user, never as root. The user must be a
-current member of `timelocker-operators`; the backend rechecks group membership
-for each request. After adding a user to the group, start a new login session
-before relying on the tray.
+current member of `timelocker-operators`. Protected explicit actions must
+reauthorize the caller for each bounded request. Status observation must expose
+only the sanitized snapshot and must not wake or retain a privileged process.
+After adding a user to the group, start a new login session before relying on
+the tray.
 
 ## Linux Setup
 
@@ -79,18 +88,19 @@ timelocker-tray serve
 ## Failure Behavior
 
 - `Access denied` means the desktop user is not currently authorized.
-- `System backend unavailable` means the local socket/backend is unavailable;
-  the tray retries with bounded backoff.
+- `System status unavailable` means the sanitized snapshot cannot be read or
+  validated. It must not cause the tray to poll or keep a privileged service
+  alive.
 - A backup or retention conflict is reported by the backend and does not start
   overlapping repository work.
-- Quitting the tray does not stop backend services, timers, or operations.
+- Quitting the tray does not stop timers or active one-shot operations.
 
 ## Platform Status
 
-The process boundary is platform-neutral and the source contains a Windows
-adapter. Linux Mint live acceptance is in progress under Spec 010; package and
-installed-artifact checks have passed, but this document does not yet claim a
-live-accepted protected deployment. It also does not claim a live-accepted
+The presentation contract is platform-neutral and the source contains a
+Windows adapter. Spec 010 validated the presentation semantics but rejected
+the resident backend during Linux Mint acceptance. Spec 011 owns daemonless
+Linux deployment and acceptance. This document does not claim a live-accepted
 Windows installation.
 
 ## References

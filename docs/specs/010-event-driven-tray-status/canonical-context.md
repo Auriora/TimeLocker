@@ -65,9 +65,10 @@ or live system evidence.
 | Event-driven tray behavior and authorization | `docs/1-requirements/system-operations.md` | yes |
 | Snapshot/event architecture and platform split | `docs/2-architecture/system-architecture.md` | yes |
 | Component ownership and interfaces | `docs/3-implementation/service-layer-integration.md` | yes |
-| Setup, status rows, failure, reconnect, and rollback | `docs/SYSTEM-TRAY-SETUP.md` and user/developer guides | yes |
-| Concrete Windows live service and acceptance | follow-up spec or issue | yes, as routed work |
-| Full desktop application | product backlog/roadmap | no implementation; retain exclusion |
+| Setup and accepted status-row behavior | `docs/SYSTEM-TRAY-SETUP.md` | yes |
+| Failure and temporary shutdown behavior | `docs/guides/user/backup-operations-troubleshooting.md` | yes |
+| Concrete Windows live service and acceptance | `docs/specs/011-protected-system-deployment/requirements.md` | yes, as routed work |
+| Full desktop application exclusion | `CHARTER.md` | no implementation; retain exclusion |
 
 ## Worktree Caution
 
