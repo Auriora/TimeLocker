@@ -3,7 +3,7 @@ title: "Active Specification Packages"
 doc_type: reference
 status: active
 owner: "Auriora Team"
-last_reviewed: 2026-07-28
+last_reviewed: 2026-08-12
 ---
 
 # Active Specification Packages
@@ -15,26 +15,20 @@ accepted content has been promoted and the package is closed.
 
 ## Current Packages
 
-- [`010-event-driven-tray-status`](./010-event-driven-tray-status/README.md) -
-  active implementation package whose resident-backend acceptance is halted.
-  The status semantics remain useful, but the privileged event-broker design
-  conflicts with the approved zero-idle-residency constraint discovered during
-  T011 live acceptance.
 - [`011-protected-system-deployment`](./011-protected-system-deployment/README.md) -
-  draft requirements package for replacing acceptance-specific deployment
-  commands and the resident control backend with a daemonless transactional
-  install, upgrade, status, rollback, query, and action workflow.
+  active package for replacing acceptance-specific deployment commands and the
+  resident control backend with a daemonless transactional install, upgrade,
+  status, rollback, query, and action workflow.
 
 ## Active-Package Sequencing
 
-Further live acceptance of Spec 010's resident backend is halted. Spec 010 must
-record the rejected runtime design and preserve only independently valid status
-semantics before it can be dispositioned. Spec 011 is the owning package for
-the daemonless protected-operation and deployment design. Its requirements and
-design may proceed now; implementation still requires explicit approval after
-the revised design and task package are reviewed.
+Spec 010 is closed. Its accepted status semantics are promoted to durable docs,
+and its rejected resident-runtime work is routed to Spec 011. The user approved
+Spec 011 implementation on 2026-08-12; live protected-host mutation, backup or
+retention execution, publication, and rollback remain separate operational
+approval boundaries.
 
-Specs 007, 008, and 009 are closed. Their final package commits, cleanup
+Specs 007, 008, 009, and 010 are closed. Their final package commits, cleanup
 commits, verification summaries, and residual follow-up are recorded in
 `docs/history/`. Closed packages remain recoverable from Git rather than kept
 in this active path. Spec 010 may rely on the durable behavior promoted by Spec

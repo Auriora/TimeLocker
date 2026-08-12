@@ -15,6 +15,25 @@ final spec commit preserves the complete package.
 
 ## Entries
 
+### 2026-08-12 - 010-event-driven-tray-status
+
+- **Spec:** `docs/specs/010-event-driven-tray-status/`
+- **Title:** Event-driven tray status requirements
+- **Final spec commit:** `8820e65`
+- **Closure cleanup commit:** `pending-cleanup-commit`
+- **Closure action:** removed
+- **Durable docs updated:**
+  - `CHARTER.md`
+  - `docs/1-requirements/system-operations.md`
+  - `docs/2-architecture/system-architecture.md`
+  - `docs/3-implementation/service-layer-integration.md`
+  - `docs/SYSTEM-TRAY-SETUP.md`
+  - `docs/guides/user/backup-operations-troubleshooting.md`
+  - `docs/specs/011-protected-system-deployment/requirements.md`
+- **Verification summary:** Closure validation not yet executed.
+- **Residual risks:**
+  - none
+- **Follow-up:** none
 ### 2026-07-26 - 009-system-cli-tray-retention
 
 - **Spec:** removed; recover from Git
