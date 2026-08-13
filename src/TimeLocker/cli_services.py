@@ -185,6 +185,11 @@ class CLIBackupRequest:
     tags: List[str] = None
     include_patterns: List[str] = None
     exclude_patterns: List[str] = None
+    compression: Optional[str] = None
+    one_file_system: bool = False
+    exclude_files: List[Path] = None
+    exclude_caches: bool = False
+    backend_options: List[str] = None
     dry_run: bool = False
 
     def __post_init__(self):
@@ -194,6 +199,10 @@ class CLIBackupRequest:
             self.include_patterns = []
         if self.exclude_patterns is None:
             self.exclude_patterns = []
+        if self.exclude_files is None:
+            self.exclude_files = []
+        if self.backend_options is None:
+            self.backend_options = []
 
 
 class CLIServiceManager:
@@ -772,8 +781,11 @@ class CLIServiceManager:
         Raises:
             ConfigurationError: If repository cannot be resolved
         """
-        # Check if it's already a URI (contains scheme)
-        if "://" in repository_input or repository_input.startswith("/"):
+        # Restic supports both conventional URIs (``s3://...``) and native
+        # backend syntax (``s3:host/bucket``). Preserve either form here: this
+        # method is also called after the CLI has already resolved a configured
+        # repository name to its stored location.
+        if self._looks_like_uri(repository_input):
             return repository_input
 
         # Try to resolve as repository name from configuration
@@ -837,7 +849,10 @@ class CLIServiceManager:
             return False
         if "://" in candidate:
             return True
-        prefixes = ("s3:", "b2:", "gs:", "azure:", "rest:", "rclone:", "local:", "minio:", "swift:", "/")
+        prefixes = (
+            "s3:", "b2:", "sftp:", "gs:", "azure:", "rest:",
+            "rclone:", "local:", "minio:", "swift:", "/",
+        )
         return candidate.startswith(prefixes)
 
     def _create_repository_instance(self,
@@ -1010,6 +1025,7 @@ class CLIServiceManager:
                                keep_monthly: int = 12,
                                keep_yearly: int = 3,
                                dry_run: bool = False,
+                               group_by: str = "host,paths",
                                password: Optional[str] = None,
                                **_) -> Dict[str, Any]:
         """Apply forget/retention policy to repository."""
@@ -1025,7 +1041,8 @@ class CLIServiceManager:
                 keep_weekly=keep_weekly,
                 keep_monthly=keep_monthly,
                 keep_yearly=keep_yearly,
-                dry_run=dry_run
+                dry_run=dry_run,
+                group_by=group_by
         )
 
     def prune_repository(self,
@@ -1126,7 +1143,12 @@ class CLIServiceManager:
                             'name':             request.target_name,
                             'paths':            [str(p) for p in request.sources],
                             'include_patterns': request.include_patterns,
-                            'exclude_patterns': request.exclude_patterns
+                            'exclude_patterns': request.exclude_patterns,
+                            'compression':      request.compression,
+                            'one_file_system':  request.one_file_system,
+                            'exclude_files':    [str(path) for path in request.exclude_files],
+                            'exclude_caches':   request.exclude_caches,
+                            'backend_options':  request.backend_options,
                     }
                     self._config_service.add_backup_target(target_config)
                 else:
@@ -1169,7 +1191,12 @@ class CLIServiceManager:
                 'name':             target_name,
                 'paths':            [str(p) for p in request.sources],
                 'include_patterns': request.include_patterns,
-                'exclude_patterns': request.exclude_patterns
+                'exclude_patterns': request.exclude_patterns,
+                'compression':      request.compression,
+                'one_file_system':  request.one_file_system,
+                'exclude_files':    [str(path) for path in request.exclude_files],
+                'exclude_caches':   request.exclude_caches,
+                'backend_options':  request.backend_options,
         }
 
         # Add to configuration temporarily

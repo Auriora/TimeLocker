@@ -6,6 +6,7 @@ collection so integration suites can rely on the same configuration a developer
 uses locally. Values already present in ``os.environ`` take precedence, allowing
 CI pipelines to inject secrets without modifying the files.
 """
+
 from __future__ import annotations
 
 import os
@@ -50,12 +51,16 @@ def _load_env_file(path: Path, *, override: bool = False) -> None:
         os.environ[key] = _parse_env_value(value_part)
 
 
+def _load_project_env(project_root: Path) -> None:
+    """Load project test files while preserving explicit process values."""
+    env_files: Iterable[Path] = (
+        project_root / ".env",
+        project_root / ".env.test",
+    )
+    for env_path in env_files:
+        _load_env_file(env_path, override=False)
+
+
 def pytest_configure() -> None:  # noqa: D401 - hook invoked by pytest
     """Load environment configuration before tests start."""
-    project_root = Path(__file__).resolve().parents[1]
-    env_files: Iterable[tuple[Path, bool]] = (
-            (project_root / ".env", False),
-            (project_root / ".env.test", True),
-    )
-    for env_path, override in env_files:
-        _load_env_file(env_path, override=override)
+    _load_project_env(Path(__file__).resolve().parents[1])

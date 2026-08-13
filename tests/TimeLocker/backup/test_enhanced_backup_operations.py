@@ -234,6 +234,20 @@ class TestEnhancedBackupOperations:
 
         assert mock_subprocess.call_count == 3  # Initial + 2 retries
 
+    @pytest.mark.backup
+    @pytest.mark.unit
+    def test_invalid_target_does_not_enter_retry_loop(self):
+        """Deterministic target validation failures are reported immediately."""
+        repository = Mock()
+        target = Mock()
+        target.validate.side_effect = ValueError("invalid source")
+
+        with pytest.raises(BackupManagerError, match="Invalid backup target"):
+            self.manager.execute_backup_with_retry(repository, [target])
+
+        target.validate.assert_called_once_with()
+        repository.backup_target.assert_not_called()
+
     @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
     @patch('subprocess.run')
     @pytest.mark.backup
@@ -494,14 +508,14 @@ class TestEnhancedBackupOperations:
         selection = FileSelection()
 
         # Should raise error with no included paths
-        with pytest.raises(ValueError, match="At least one folder must be included"):
+        with pytest.raises(ValueError, match="At least one path must be included"):
             selection.validate()
 
         # Should pass with directory path
         selection.add_path(self.source_path, SelectionType.INCLUDE)
         assert selection.validate() is True
 
-        # Should pass with file that looks like directory (no extension)
+        # Files are valid direct backup sources.
         selection2 = FileSelection()
-        selection2.add_path(Path("/some/directory"), SelectionType.INCLUDE)
+        selection2.add_path(self.source_path / "file1.txt", SelectionType.INCLUDE)
         assert selection2.validate() is True

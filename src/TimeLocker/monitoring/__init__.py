@@ -17,25 +17,19 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 from .status_reporter import StatusReporter, OperationStatus, StatusLevel
 from .notification_service import (
-    NotificationService, 
-    NotificationError, 
+    NotificationService,
+    NotificationError,
     NotificationType,
     NotificationEventType,
     NotificationPreferences,
-    NotificationConfig
-)
-from .system_tray_integration import (
-    SystemTrayIntegration,
-    SystemTrayError,
-    TrayStatus,
-    TrayStatusInfo
+    NotificationConfig,
 )
 from .progress_monitor import (
     ProgressMonitor,
     ProgressData,
     ProgressReport,
     ProgressState,
-    PerformanceMetrics
+    PerformanceMetrics,
 )
 from .recovery_progress_notifier import RecoveryProgressNotifier
 from .monitoring_service import (
@@ -44,7 +38,7 @@ from .monitoring_service import (
     BackupEvent,
     RecoveryEvent,
     MonitoringSummary,
-    MonitoringPreferences
+    MonitoringPreferences,
 )
 from .activity_logger import ActivityLogger, LogLevel, LogEntry
 from .backup_history import (
@@ -52,7 +46,7 @@ from .backup_history import (
     BackupRecord,
     BackupStatus,
     HistoryFilters,
-    PerformanceTrends
+    PerformanceTrends,
 )
 from .storage_monitor import (
     StorageMonitor,
@@ -60,7 +54,7 @@ from .storage_monitor import (
     CapacityWarning,
     StorageTrends,
     OptimizationRecommendation,
-    WarningLevel
+    WarningLevel,
 )
 from .integrity_checker import (
     IntegrityChecker,
@@ -69,21 +63,21 @@ from .integrity_checker import (
     IntegrityCheckResult,
     IntegrityIssue,
     RemediationGuide,
-    CheckInterval
+    CheckInterval,
 )
 from .performance_tracker import (
     PerformanceTracker,
     BackupPerformanceMetrics,
     PerformanceTrend,
     PerformanceSummary,
-    PerformanceLevel
+    PerformanceLevel,
 )
 from .performance_optimizer import (
     PerformanceOptimizer,
     PerformanceRecommendation,
     PerformanceIssue,
     RecommendationType,
-    RecommendationPriority
+    RecommendationPriority,
 )
 from .troubleshooting_service import (
     TroubleshootingService,
@@ -97,11 +91,11 @@ from .troubleshooting_service import (
     BackupFailure,
     TroubleshootingReport,
     EventCorrelator,
-    IssueDetector
+    IssueDetector,
 )
 from .configuration_troubleshooter import (
     ConfigurationTroubleshooter,
-    ConfigurationIssue
+    ConfigurationIssue,
 )
 from .monitoring_dashboard import (
     MonitoringDashboard,
@@ -110,7 +104,7 @@ from .monitoring_dashboard import (
     BackupHistoryWidget,
     StorageUsageWidget,
     PerformanceTrendsWidget,
-    TroubleshootingWidget
+    TroubleshootingWidget,
 )
 from .webhook_handler import (
     WebhookHandler,
@@ -118,7 +112,7 @@ from .webhook_handler import (
     WebhookResult,
     WebhookError,
     PayloadFormat,
-    RetryHandler
+    RetryHandler,
 )
 from .health_check_integration import (
     HealthCheckIntegration,
@@ -127,38 +121,94 @@ from .health_check_integration import (
     HealthCheckServiceType,
     HealthStatus as HealthCheckHealthStatus,
     PingResult,
-    HealthCheckError
+    HealthCheckError,
 )
 
 __all__ = [
-        'StatusReporter', 'OperationStatus', 'StatusLevel',
-        'NotificationService', 'NotificationError', 'NotificationType', 
-        'NotificationEventType', 'NotificationPreferences', 'NotificationConfig',
-        'SystemTrayIntegration', 'SystemTrayError', 'TrayStatus', 'TrayStatusInfo',
-        'ProgressMonitor', 'ProgressData', 'ProgressReport', 'ProgressState', 'PerformanceMetrics',
-        'RecoveryProgressNotifier',
-        'MonitoringService', 'HealthStatus', 'BackupEvent', 'RecoveryEvent', 
-        'MonitoringSummary', 'MonitoringPreferences',
-        'ActivityLogger', 'LogLevel', 'LogEntry',
-        'BackupHistory', 'BackupRecord', 'BackupStatus', 'HistoryFilters', 'PerformanceTrends',
-        'StorageMonitor', 'StorageUsage', 'CapacityWarning', 'StorageTrends', 
-        'OptimizationRecommendation', 'WarningLevel',
-        'IntegrityChecker', 'IntegrityLevel', 'IntegrityStatus', 'IntegrityCheckResult',
-        'IntegrityIssue', 'RemediationGuide', 'CheckInterval',
-        'PerformanceTracker', 'BackupPerformanceMetrics', 'PerformanceTrend', 
-        'PerformanceSummary', 'PerformanceLevel',
-        'PerformanceOptimizer', 'PerformanceRecommendation', 'PerformanceIssue',
-        'RecommendationType', 'RecommendationPriority',
-        'TroubleshootingService', 'IssueType', 'IssueSeverity', 'DetectedIssue',
-        'TroubleshootingStep', 'TroubleshootingGuide', 'EventCorrelation',
-        'ProactiveRecommendation', 'BackupFailure', 'TroubleshootingReport',
-        'EventCorrelator', 'IssueDetector',
-        'ConfigurationTroubleshooter', 'ConfigurationIssue',
-        'MonitoringDashboard', 'WidgetType', 'HealthOverviewWidget',
-        'BackupHistoryWidget', 'StorageUsageWidget', 'PerformanceTrendsWidget',
-        'TroubleshootingWidget',
-        'WebhookHandler', 'WebhookConfig', 'WebhookResult', 'WebhookError',
-        'PayloadFormat', 'RetryHandler',
-        'HealthCheckIntegration', 'HealthCheckConfig', 'HealthCheckServiceConfig',
-        'HealthCheckServiceType', 'HealthCheckHealthStatus', 'PingResult', 'HealthCheckError'
+    "StatusReporter",
+    "OperationStatus",
+    "StatusLevel",
+    "NotificationService",
+    "NotificationError",
+    "NotificationType",
+    "NotificationEventType",
+    "NotificationPreferences",
+    "NotificationConfig",
+    "ProgressMonitor",
+    "ProgressData",
+    "ProgressReport",
+    "ProgressState",
+    "PerformanceMetrics",
+    "RecoveryProgressNotifier",
+    "MonitoringService",
+    "HealthStatus",
+    "BackupEvent",
+    "RecoveryEvent",
+    "MonitoringSummary",
+    "MonitoringPreferences",
+    "ActivityLogger",
+    "LogLevel",
+    "LogEntry",
+    "BackupHistory",
+    "BackupRecord",
+    "BackupStatus",
+    "HistoryFilters",
+    "PerformanceTrends",
+    "StorageMonitor",
+    "StorageUsage",
+    "CapacityWarning",
+    "StorageTrends",
+    "OptimizationRecommendation",
+    "WarningLevel",
+    "IntegrityChecker",
+    "IntegrityLevel",
+    "IntegrityStatus",
+    "IntegrityCheckResult",
+    "IntegrityIssue",
+    "RemediationGuide",
+    "CheckInterval",
+    "PerformanceTracker",
+    "BackupPerformanceMetrics",
+    "PerformanceTrend",
+    "PerformanceSummary",
+    "PerformanceLevel",
+    "PerformanceOptimizer",
+    "PerformanceRecommendation",
+    "PerformanceIssue",
+    "RecommendationType",
+    "RecommendationPriority",
+    "TroubleshootingService",
+    "IssueType",
+    "IssueSeverity",
+    "DetectedIssue",
+    "TroubleshootingStep",
+    "TroubleshootingGuide",
+    "EventCorrelation",
+    "ProactiveRecommendation",
+    "BackupFailure",
+    "TroubleshootingReport",
+    "EventCorrelator",
+    "IssueDetector",
+    "ConfigurationTroubleshooter",
+    "ConfigurationIssue",
+    "MonitoringDashboard",
+    "WidgetType",
+    "HealthOverviewWidget",
+    "BackupHistoryWidget",
+    "StorageUsageWidget",
+    "PerformanceTrendsWidget",
+    "TroubleshootingWidget",
+    "WebhookHandler",
+    "WebhookConfig",
+    "WebhookResult",
+    "WebhookError",
+    "PayloadFormat",
+    "RetryHandler",
+    "HealthCheckIntegration",
+    "HealthCheckConfig",
+    "HealthCheckServiceConfig",
+    "HealthCheckServiceType",
+    "HealthCheckHealthStatus",
+    "PingResult",
+    "HealthCheckError",
 ]

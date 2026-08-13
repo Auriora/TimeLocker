@@ -174,6 +174,7 @@ class ProgressService:
             yield self._create_noop_context(description)
             return
         
+        body_entered = False
         try:
             # Build progress columns for spinner
             columns = [
@@ -195,13 +196,26 @@ class ProgressService:
                 self._active_contexts.append(context)
                 
                 try:
+                    body_entered = True
                     yield context
-                finally:
+                except BaseException:
+                    try:
+                        context.complete()
+                    except Exception as cleanup_error:
+                        logger.warning(
+                            "Progress cleanup failed while preserving the operation error: %s",
+                            cleanup_error,
+                        )
+                    raise
+                else:
                     context.complete()
+                finally:
                     if context in self._active_contexts:
                         self._active_contexts.remove(context)
                     
         except Exception as e:
+            if body_entered:
+                raise
             logger.error(f"Failed to create spinner progress: {e}")
             # Graceful degradation - continue without progress
             yield self._create_noop_context(description)
@@ -242,6 +256,7 @@ class ProgressService:
             yield self._create_noop_context(description, total)
             return
         
+        body_entered = False
         try:
             # Build progress columns for bar
             columns = [
@@ -268,13 +283,26 @@ class ProgressService:
                 self._active_contexts.append(context)
                 
                 try:
+                    body_entered = True
                     yield context
-                finally:
+                except BaseException:
+                    try:
+                        context.complete()
+                    except Exception as cleanup_error:
+                        logger.warning(
+                            "Progress cleanup failed while preserving the operation error: %s",
+                            cleanup_error,
+                        )
+                    raise
+                else:
                     context.complete()
+                finally:
                     if context in self._active_contexts:
                         self._active_contexts.remove(context)
                     
         except Exception as e:
+            if body_entered:
+                raise
             logger.error(f"Failed to create bar progress: {e}")
             # Graceful degradation - continue without progress
             yield self._create_noop_context(description, total)

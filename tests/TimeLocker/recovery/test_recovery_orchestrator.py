@@ -15,6 +15,7 @@ from TimeLocker.interfaces.recovery_models import (
     RecoveryOptions,
     RecoveryType,
     OperationStatus,
+    ProgressStatus,
     SelectionCriteria
 )
 from TimeLocker.recovery_errors import (
@@ -66,6 +67,7 @@ class TestRecoveryOrchestrator:
         assert operation is not None
         assert operation.snapshot_id == "abc123"
         assert operation.recovery_type == RecoveryType.FULL
+        assert operation.progress == ProgressStatus(0, 0, 0, 0)
         assert operation.target_path == target_path
         # Operation should be initiated (any status is acceptable for this test)
         assert operation.status in [
@@ -127,7 +129,13 @@ class TestRecoveryOrchestrator:
         assert operation is not None
         assert operation.snapshot_id == "abc123"
         assert operation.recovery_type == RecoveryType.SELECTIVE
+        assert operation.progress == ProgressStatus(0, 0, 0, 0)
         assert operation.target_path == target_path
+        assert operation.status == OperationStatus.COMPLETED
+        assert self.repository._restore_results["abc123"]["include_paths"] == [
+            Path("*.txt"),
+            Path("*.pdf"),
+        ]
 
     @pytest.mark.recovery
     @pytest.mark.unit

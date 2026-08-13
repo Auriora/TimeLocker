@@ -3,7 +3,7 @@ title: Spec archive index
 doc_type: history
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-18
+last_reviewed: 2026-07-26
 ---
 
 # Spec Archive Index
@@ -16,6 +16,11 @@ contracts.
 
 | Spec ID | Title | Package path | Status | Final spec commit | Cleanup commit | Closure action | Durable destinations | Verification |
 |---------|-------|--------------|--------|-------------------|----------------|----------------|----------------------|--------------|
+| 011-protected-system-deployment | Protected system deployment requirements | `docs/specs/011-protected-system-deployment/` | removed | b91c0ff7a644aa0d0343b112b17c700bce820952 | b43acc57a00e854cb8b8d328590316c9cb959ba8 | removed | `CHARTER.md`; `docs/1-requirements/system-operations.md`; `docs/2-architecture/system-architecture.md`; `docs/guides/user/installation.md`; `docs/processes/version-management.md`; `docs/guides/user/backup-operations-troubleshooting.md`; `docs/reference/timelocker-cli-command-hierarchy.md` | `docs/history/spec-closure-log.md` |
+| 010-event-driven-tray-status | Event-driven tray status requirements | `docs/specs/010-event-driven-tray-status/` | removed | 8820e65 | 4122746 | removed | `CHARTER.md`; `docs/1-requirements/system-operations.md`; `docs/2-architecture/system-architecture.md`; `docs/3-implementation/service-layer-integration.md`; `docs/SYSTEM-TRAY-SETUP.md`; `docs/guides/user/backup-operations-troubleshooting.md` | `docs/history/spec-closure-log.md` |
+| 009-system-cli-tray-retention | System CLI, independent tray, retention, and control | removed; recover from Git | removed | `d4ce71dd05cb5d7278bf36a9fc43e557d68e1e31` | aba95875f453dd6abf39a1fdc6af25fd38c62db4 | removed | `docs/1-requirements/system-operations.md`; `docs/2-architecture/system-architecture.md`; `docs/2-architecture/scheduling-system.md`; `docs/3-implementation/service-layer-integration.md`; `docs/guides/user/installation.md`; `docs/guides/developer/scheduling-guide.md`; `docs/SYSTEM-TRAY-SETUP.md`; `docs/reference/timelocker-cli-command-hierarchy.md`; `docs/guides/user/backup-operations-troubleshooting.md`; `docs/processes/version-management.md`; `docs/README.md`; `docs/DOCUMENTATION-STATUS.md`; `docs/specs/README.md` | `docs/history/spec-closure-log.md` |
+| 007-release-readiness-stabilization | Release readiness stabilization requirements | removed; recover from Git | removed | `7fd11f9aa1cbc670d5e8b429aede4a7c01e185a4` | `6334af0690b5b9e8b6575042269e5b73914a9295` | removed | `README.md`; `CHANGELOG.md`; `.github/workflows/test-suite.yml`; `.github/workflows/artifact-smoke.yml`; `.github/workflows/release-validation.yml`; `.github/workflows/release.yml`; `docs/4-testing/README.md`; `docs/guides/user/installation.md`; `docs/guides/user/recovery-operations-guide.md`; `docs/guides/developer/scheduling-guide.md`; `docs/processes/version-management.md`; `docs/processes/README.md` | `docs/history/spec-closure-log.md` |
+| 008-npbackup-migration-parity | NPBackup migration parity requirements | removed; recover from Git | removed | `5830194` | `1bfea08` | removed | `docs/guides/user/recovery-operations-guide.md`; `docs/guides/developer/scheduling-guide.md` | `docs/history/spec-closure-log.md` |
 | 001-cli-consolidation-stabilization | CLI Consolidation Stabilization | removed; recover from Git | removed | `a1bb654` | `b8df9e9` | removed | `docs/3-implementation/service-layer-integration.md`; `docs/reference/repo-orientation-and-change-map.md`; `docs/specs/README.md`; `docs/history/` | `docs/history/spec-closure-log.md` |
 | 002-repository-safety-release-readiness | Repository Safety and Release Readiness | removed; recover from Git | removed | `4aff166` | `c6ed9ee` | removed | `README.md`; `docs/2-architecture/`; `docs/guides/user/installation.md`; `docs/guides/user/per-repo-credentials.md`; `docs/processes/version-management.md`; `docs/DOCUMENTATION-STATUS.md`; `docs/specs/README.md` | `docs/history/spec-closure-log.md` |
 | 006-repository-review-skill | Repository Review Skill | removed; recover from Git | removed | `62dac67` | `82f0247` | removed | `.agents/skills/review-timelocker/`; `AGENTS.md` | `docs/history/spec-closure-log.md` |

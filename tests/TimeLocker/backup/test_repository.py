@@ -79,7 +79,15 @@ class MockTestBackupRepository(BackupRepository):
         self._snapshots[snapshot_id] = snapshot
         return {"status": "success", "snapshot_id": snapshot_id}
 
-    def restore(self, snapshot_id: str, target_path: Optional[Path] = None) -> str:
+    def restore(
+            self,
+            snapshot_id: str,
+            target_path: Optional[Path] = None,
+            *,
+            overwrite: str = "never",
+            include_paths: Optional[List[Path]] = None,
+            exclude_paths: Optional[List[Path]] = None,
+    ) -> str:
         if snapshot_id in self._snapshots:
             return f"Snapshot {snapshot_id} restored to {target_path}"
         return "Snapshot not found"

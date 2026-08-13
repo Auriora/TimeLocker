@@ -352,6 +352,8 @@ class RestoreManager:
             restore_output = snapshot.restore(
                 options.target_path,
                 overwrite=overwrite,
+                include_paths=options.include_paths,
+                exclude_paths=options.exclude_paths,
             )
 
             # Parse restore output for statistics (implementation depends on repository type)

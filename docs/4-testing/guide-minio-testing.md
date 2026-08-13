@@ -1,358 +1,120 @@
-# MinIO Testing Setup for TimeLocker
+---
+title: MinIO integration testing
+doc_type: guide
+status: active
+owner: Auriora Team
+last_reviewed: 2026-07-18
+---
 
-This guide explains how to use the existing MinIO deployment at `minio.lan` for S3 integration testing with TimeLocker.
+# MinIO Integration Testing
 
-## Overview
+Use this guide for the four live S3 integration tests marked `minio`. Mocked
+credential, backend-environment, and protocol-contract tests belong to the
+normal CI profile and do not require a service.
 
-MinIO is an S3-compatible object storage server that allows you to test S3 functionality without needing AWS credentials or incurring cloud costs.
+## Requirements
 
-**This project uses an existing MinIO deployment (proxied behind Traefik) at:**
+- Python 3.12 with `pip install -e .[dev]`;
+- Restic 0.18.0 or later;
+- an isolated MinIO service and disposable bucket;
+- non-production credentials supplied through environment variables.
 
-- **API**: `minio.lan` (port 80, proxied via Traefik)
-- **Console**: `minio-console.local` (port 80, proxied via Traefik)
-
-## Prerequisites
-
-- Access to MinIO deployment at `minio.lan`
-- Python 3.11+ with TimeLocker development dependencies
-- boto3 installed (`pip install boto3`)
-- `/etc/hosts` configured with MinIO hostnames
-
-## Quick Start
-
-### 1. Verify MinIO Access
-
-```bash
-# Run the setup script to verify access
-./scripts/setup_minio_test.sh
-```
-
-This will:
-
-- ✅ Check `/etc/hosts` for `minio.lan` entry
-- ✅ Verify MinIO API is accessible
-- ✅ Create `.env.test` configuration file
-- ✅ Install boto3 if needed
-
-### 2. Verify /etc/hosts Configuration
-
-Ensure your `/etc/hosts` file contains entries for MinIO:
+Required variables:
 
 ```bash
-# Check current entries
-grep minio /etc/hosts
+export MINIO_ENDPOINT_URL=http://127.0.0.1:9000
+export AWS_S3_ENDPOINT="$MINIO_ENDPOINT_URL"
+export MINIO_ACCESS_KEY=timelocker-local
+export MINIO_SECRET_KEY=timelocker-local-secret
+export MINIO_BUCKET=timelocker-test
+export MINIO_REGION=us-east-1
+export MINIO_VERIFY_SSL=false
 ```
 
-You should see something like:
+Use `MINIO_VERIFY_SSL=false` only for a trusted local HTTP service. Never use
+production credentials or a production bucket.
 
-```
-<minio-ip> minio.lan minio-console.local
-```
+## Run the Profile
 
-If not present, contact your system administrator or add them if you have access.
-
-### 3. Access MinIO Console
-
-Open your browser and navigate to:
-
-- **Console URL**: http://minio-console.local
-- **Username**: minioadmin (or your configured credentials)
-- **Password**: minioadmin (or your configured credentials)
-
-Note: The console is proxied through Traefik on port 80, so no port number is needed.
-
-### 4. Create Test Bucket (if needed)
-
-If the `timelocker-test` bucket doesn't exist, create it via the console or CLI.
-
-### 5. Run Integration Tests
+Start a disposable service:
 
 ```bash
-# Activate virtual environment
-source .venv/bin/activate
-
-# Run S3/MinIO integration tests
-pytest tests/TimeLocker/integration/test_s3_minio.py -v -m "integration and network"
-
-# Run all integration tests
-pytest tests/TimeLocker/integration/ -v -m integration
+docker run --detach --rm \
+  --name timelocker-minio \
+  --publish 127.0.0.1:9000:9000 \
+  --env MINIO_ROOT_USER="$MINIO_ACCESS_KEY" \
+  --env MINIO_ROOT_PASSWORD="$MINIO_SECRET_KEY" \
+  quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z \
+  server /data --address :9000
 ```
 
-## Configuration
-
-### Environment Variables
-
-You can customize MinIO settings using environment variables:
+Wait for the service and create the bucket before pytest:
 
 ```bash
-export MINIO_ENDPOINT="minio.lan"
-export MINIO_ACCESS_KEY="minioadmin"
-export MINIO_SECRET_KEY="minioadmin"
-export MINIO_BUCKET="timelocker-test"
-export MINIO_REGION="us-east-1"
+curl --fail "$MINIO_ENDPOINT_URL/minio/health/live"
+python - <<'PY'
+import os
+
+import boto3
+from botocore.config import Config
+
+client = boto3.client(
+    "s3",
+    endpoint_url=os.environ["MINIO_ENDPOINT_URL"],
+    aws_access_key_id=os.environ["MINIO_ACCESS_KEY"],
+    aws_secret_access_key=os.environ["MINIO_SECRET_KEY"],
+    region_name=os.environ["MINIO_REGION"],
+    config=Config(s3={"addressing_style": "path"}),
+)
+bucket = os.environ["MINIO_BUCKET"]
+existing = {item["Name"] for item in client.list_buckets()["Buckets"]}
+if bucket not in existing:
+    client.create_bucket(Bucket=bucket)
+PY
+python -m pytest -m minio --no-cov
 ```
 
-Note: No port number needed - MinIO is proxied through Traefik on port 80.
-
-Or use the `.env.test` file:
+Remove the disposable service:
 
 ```bash
-# Copy and customize
-cp .env.test.example .env.test
-
-# Load environment
-source .env.test
+docker rm --force timelocker-minio
 ```
 
-### Test Configuration File
+The profile uses `--no-cov` because the normal correctness profile owns the
+repository's 50 percent coverage gate.
 
-A sample test configuration is provided in `test-config.json`:
+## Failure Contract
+
+Collection does not load MinIO configuration or contact the network. The live
+profile loads its settings at runtime and fails with
+`MinIO profile dependency error` when configuration is missing or the service
+is unavailable. A missing service is not a skip.
+
+If readiness fails:
+
+1. confirm `curl --fail "$MINIO_ENDPOINT_URL/minio/health/live"` succeeds;
+2. confirm all required variables are exported in the pytest process;
+3. confirm the bucket exists and credentials can list it;
+4. inspect `docker logs timelocker-minio` for service startup errors.
+
+Do not print credential values while troubleshooting.
+
+## GitHub Actions Ownership
+
+The `minio-test` job in `.github/workflows/test-suite.yml` owns provisioning,
+readiness, bucket creation, the live pytest selector, and container cleanup. The
+normal job excludes `minio`, `performance`, and `stress`; the extended job
+owns the latter two profiles.
+
+## Related Commands
 
 ```bash
-# Use test configuration
-export TIMELOCKER_CONFIG_FILE="./test-config.json"
+# Normal correctness and coverage
+python -m pytest -m "not performance and not stress and not minio"
 
-# Run TimeLocker CLI with test config
-tl repos list
+# Live service only
+python -m pytest -m minio --no-cov
+
+# Performance and stress
+python -m pytest -m "performance or stress" --no-cov
 ```
-
-## Testing Workflow
-
-### 1. Initialize Test Repository
-
-```bash
-# Load environment variables
-source .env.test
-
-# Using TimeLocker CLI
-tl repos add minio-test "s3:https://minio.lan/timelocker-test/my-repo" \
-  --description "MinIO test repository"
-
-# Initialize repository
-tl repos init minio-test --password "test-password-123"
-```
-
-### 2. Create Test Backup
-
-```bash
-# Create test data
-mkdir -p /tmp/test-backup-source
-echo "Test file 1" > /tmp/test-backup-source/file1.txt
-echo "Test file 2" > /tmp/test-backup-source/file2.txt
-
-# Create data selection
-tl selections create test-backup \
-  --include '/tmp/test-backup-source/**' \
-  --description "Test backup selection"
-
-# Run backup
-tl backup create --selection test-backup --repository minio-test
-```
-
-### 3. List Snapshots
-
-```bash
-# List all snapshots
-tl snapshots list --repository minio-test
-
-# Get snapshot details
-tl snapshot <snapshot-id> show
-```
-
-### 4. Restore from Backup
-
-```bash
-# Restore to directory
-mkdir -p /tmp/test-restore
-tl snapshot <snapshot-id> restore /tmp/test-restore
-
-# Verify restored files
-ls -la /tmp/test-restore
-```
-
-## Integration Test Details
-
-The integration tests in `tests/TimeLocker/integration/test_s3_minio.py` cover:
-
-1. **Repository Initialization**: Creating and initializing S3 repositories
-2. **Backup Operations**: Creating backups with real data
-3. **Restore Operations**: Restoring files from snapshots
-4. **Snapshot Management**: Listing and managing snapshots
-5. **Incremental Backups**: Testing deduplication and incremental changes
-6. **Error Handling**: Testing credential errors and edge cases
-
-### Test Markers
-
-Tests are marked with:
-
-- `@pytest.mark.integration` - Integration tests
-- `@pytest.mark.network` - Tests requiring network access
-
-### Running Specific Tests
-
-```bash
-# Run only S3/MinIO tests
-pytest tests/TimeLocker/integration/test_s3_minio.py -v
-
-# Run specific test
-pytest tests/TimeLocker/integration/test_s3_minio.py::test_s3_backup_and_restore -v
-
-# Skip integration tests
-pytest -m "not integration"
-```
-
-## Optional: Local MinIO Deployment
-
-If you need to run your own local MinIO instance instead of using the shared deployment:
-
-```bash
-# Start local MinIO using Docker Compose
-docker-compose -f docker-compose.local.yml up -d
-
-# This will start MinIO on localhost:9000
-# Update your .env.test to use localhost instead of minio.lan
-export MINIO_ENDPOINT="localhost:9000"
-export AWS_S3_ENDPOINT="http://localhost:9000"
-```
-
-## Troubleshooting
-
-### Cannot Access minio.lan
-
-```bash
-# Check /etc/hosts
-grep minio /etc/hosts
-
-# Test DNS resolution
-ping minio.lan
-
-# Test connection
-curl https://minio.lan/minio/health/live
-```
-
-If you get "Could not resolve host", add to `/etc/hosts`:
-
-```bash
-<minio-server-ip> minio.lan minio-console.local
-```
-
-### Connection Refused
-
-Ensure MinIO is running and accessible:
-
-```bash
-# Test connection (Traefik proxy on port 80)
-curl https://minio.lan/minio/health/live
-
-# Check if Traefik is accessible
-curl -I https://minio.lan
-
-# Check firewall
-sudo ufw status
-```
-
-### Bucket Not Found
-
-The bucket should be created automatically. If not:
-
-```bash
-# Use MinIO client to create bucket
-docker run --rm --network timelocker-test \
-  minio/mc alias set myminio http://minio:9000 minioadmin minioadmin
-
-docker run --rm --network timelocker-test \
-  minio/mc mb myminio/timelocker-test
-```
-
-### Tests Skipped
-
-If tests are skipped with "MinIO not available":
-
-1. Verify MinIO is running: `docker-compose ps`
-2. Check boto3 is installed: `pip install boto3`
-3. Verify network connectivity: `curl http://localhost:9000`
-
-## Cleanup
-
-### Remove Test Data
-
-```bash
-# Stop and remove containers
-docker-compose down
-
-# Remove volumes (deletes all data)
-docker-compose down -v
-
-# Remove test directories
-rm -rf /tmp/test-backup-source /tmp/test-restore
-```
-
-### Reset MinIO
-
-```bash
-# Complete reset
-docker-compose down -v
-docker volume rm timelocker_minio-data
-docker-compose up -d
-```
-
-## Advanced Usage
-
-### Custom MinIO Configuration
-
-Edit `docker-compose.yml` to customize:
-
-```yaml
-environment:
-  MINIO_ROOT_USER: custom-user
-  MINIO_ROOT_PASSWORD: custom-password
-  MINIO_REGION: eu-west-1
-```
-
-### Multiple Buckets
-
-```bash
-# Create additional buckets
-docker run --rm --network timelocker-test \
-  minio/mc mb myminio/another-bucket
-```
-
-### TLS/HTTPS Setup
-
-For testing with HTTPS, you'll need to:
-
-1. Generate certificates
-2. Mount certificates in docker-compose.yml
-3. Update MinIO command to use certificates
-4. Update test configuration to use https://
-
-See MinIO documentation for detailed TLS setup.
-
-## CI/CD Integration
-
-For GitHub Actions or other CI systems:
-
-```yaml
-# .github/workflows/test.yml
-services:
-  minio:
-    image: minio/minio
-    ports:
-      - 9000:9000
-    env:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    options: >-
-      --health-cmd "curl -f http://localhost:9000/minio/health/live"
-      --health-interval 10s
-      --health-timeout 5s
-      --health-retries 5
-```
-
-## Resources
-
-- [MinIO Documentation](https://min.io/docs/minio/linux/index.html)
-- [MinIO Docker Hub](https://hub.docker.com/r/minio/minio)
-- [Restic S3 Backend](https://restic.readthedocs.io/en/stable/030_preparing_a_new_repo.html#amazon-s3)
-- [boto3 Documentation](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html)
-

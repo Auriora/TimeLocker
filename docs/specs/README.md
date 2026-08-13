@@ -3,7 +3,7 @@ title: "Active Specification Packages"
 doc_type: reference
 status: active
 owner: "Auriora Team"
-last_reviewed: 2026-07-18
+last_reviewed: 2026-08-13
 ---
 
 # Active Specification Packages
@@ -15,12 +15,16 @@ accepted content has been promoted and the package is closed.
 
 ## Current Packages
 
-None.
+There are no active specification packages.
 
 ## Active-Package Sequencing
 
-There are no active packages. Closed package identity and recovery commits are
-recorded in `docs/history/` rather than kept in this active documentation path.
+Specs 007 through 011 are closed. Their final package commits, cleanup commits,
+verification summaries, and residual follow-up are recorded in `docs/history/`.
+Closed packages remain recoverable from Git rather than kept in this active
+path. Repository implementation approval does not authorize release
+publication or protected-host deployment; those remain separately approved
+operational boundaries.
 
 ## When a Spec Is Needed
 
@@ -59,6 +63,8 @@ corrections may proceed directly when their scope and validation are clear.
   readiness.
 - `traceability.md` maps requirements, design, tasks, verification, and durable
   destinations for larger packages.
+- `canonical-context.md` distinguishes current durable authority from
+  spec-local future behavior when both must be consulted during implementation.
 
 Tasks use `[ ]` pending, `[~]` in progress, `[/]` partial, `[>]` routed,
 `[-]` deferred/no-op, `[?]` decision needed, `[!]` attention needed, and `[x]`

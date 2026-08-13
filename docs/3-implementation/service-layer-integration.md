@@ -1,8 +1,12 @@
-# Service Layer Integration Guide
+---
+title: "Service Layer Integration Guide"
+doc_type: implementation
+status: active
+owner: "Auriora Team"
+last_reviewed: 2026-08-12
+---
 
-**Document Type**: Implementation Guide  
-**Status**: Active  
-**Last Updated**: 2026-07-18
+# Service Layer Integration Guide
 
 ## Overview
 
@@ -35,6 +39,44 @@ These are internal ownership boundaries. The public command hierarchy and
 command names remain unchanged.
 
 ## Components
+
+### Protected System-Control Boundary
+
+`src/TimeLocker/system_control/` is a separate local service boundary for
+host-level backup, retention, status, and diagnostics. It is not part of the
+legacy compatibility facade described below.
+
+The deployed contract uses bounded, socket-activated one-request executions.
+The optional tray consumes an atomically published sanitized snapshot directly;
+there is no privileged status-event socket, event broker, heartbeat, or
+resident TimeLocker service process.
+
+- `release_launcher.py` resolves the root-owned selected immutable release for
+  CLI, backend, and tray entrypoints and fails closed on untrusted state.
+- `client.py` exposes the typed local client used for bounded protected CLI and
+  tray actions. Each request must allow the protected helper to exit.
+- `linux_adapter.py` obtains peer credentials from the AF_UNIX connection and
+  rechecks current NSS group membership for every request.
+- `dispatcher.py` validates the versioned protocol and dispatches only
+  allowlisted structured actions.
+- `production_backup.py` binds the approved systemd backup unit to durable run
+  start/finish hooks.
+- `production_retention.py` resolves root-owned target references and invokes
+  the fixed retention command without returning backend output.
+- `storage.py` owns atomic run/diagnostic records and the shared repository
+  mutation lock.
+- `status_snapshot.py` owns the exact `0640` sanitized status file and direct
+  filesystem observation. Read/open events are ignored so reads cannot notify
+  themselves.
+- `deployment_entry.py` owns the supported `timelocker-deploy` install,
+  upgrade, status, and rollback workflow; the Spec 010 script is deprecated.
+- `tray_entry.py` and `tray_client.py` own the independent user-session process;
+  normal CLI setup must not import or initialize tray integration.
+
+The protected boundary returns safe summaries, result codes, states, and
+counters. It never returns passwords, environment contents, raw journal data,
+raw Restic output, or arbitrary protected paths. Public action routing is
+centralized in `action_policy.py`; unknown actions fail closed.
 
 ### ConfigurationService
 

@@ -42,15 +42,30 @@ class BackupSnapshot:
         self.paths = paths
         self.tags = []
         self.size = 0
+        self.hostname = ""
+        self.username = ""
+
+    @property
+    def time(self) -> datetime:
+        """Backward-compatible alias for the canonical snapshot timestamp."""
+        return self.timestamp
 
     def restore(
             self,
             target_path: Optional[Path] = None,
             *,
             overwrite: str = "never",
+            include_paths: Optional[list[Path]] = None,
+            exclude_paths: Optional[list[Path]] = None,
     ) -> str:
         """Restore this snapshot"""
-        return self.repo.restore(self.id, target_path, overwrite=overwrite)
+        return self.repo.restore(
+            self.id,
+            target_path,
+            overwrite=overwrite,
+            include_paths=include_paths,
+            exclude_paths=exclude_paths,
+        )
 
     def restore_file(self, target_path: Optional[Path] = None) -> bool:
         """Restore a single file from this snapshot"""
@@ -89,10 +104,19 @@ class BackupSnapshot:
     @classmethod
     def from_dict(cls, repository: 'BackupRepository', data: Mapping[str, object]) -> Self:
         """Create a snapshot instance from dictionary data"""
-        raw_path = Path(str(data['path']))
+        if 'paths' not in data and 'path' not in data:
+            raise KeyError('path')
+        raw_paths = data.get('paths', data.get('path'))
+        if isinstance(raw_paths, (str, Path)):
+            paths = [Path(str(raw_paths))]
+        else:
+            paths = [Path(str(path)) for path in raw_paths]
+        timestamp_value = data.get('timestamp', data.get('time'))
+        if timestamp_value is None:
+            raise ValueError("Snapshot timestamp is required")
         return cls(
             repo=repository,
             snapshot_id=str(data['id']),
-            timestamp=datetime.fromisoformat(str(data['timestamp'])),
-            paths=raw_path
+            timestamp=datetime.fromisoformat(str(timestamp_value).replace('Z', '+00:00')),
+            paths=paths
         )

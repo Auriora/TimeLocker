@@ -4,53 +4,79 @@ All notable changes to TimeLocker are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-TimeLocker currently declares package version `0.9.0` and Beta status. The
-repository has no release tags, so this file does not present an untagged
-version as a published release. Git history retains implementation detail;
-[`docs/history/spec-closure-log.md`](docs/history/spec-closure-log.md) provides
-compact discovery for closed specification packages.
+A version section records the evidence-backed contents of a release. GitHub is
+the authority for whether its corresponding tag and release were published.
 
 ## [Unreleased]
 
+No changes have been assigned beyond `0.9.1`.
+
+## [0.9.1] - 2026-08-13
+
 ### Added
 
-- Active specification lifecycle governance, deterministic readiness checks,
-  durable-document promotion, and compact closure history.
-- Automatic test workflow triggers for pushes and pull requests to `main` and
-  `staging`.
+- Deterministic normal and provisioned-MinIO CI profiles, with explicit
+  dependency ownership and failure preflight.
+- Reproducible wheel and source-distribution validation for package metadata,
+  both CLI entry points, packaged data, and SHA-256 hashes.
+- Clean-install smoke coverage for wheel and source distributions on Linux,
+  macOS, and Windows with Python 3.12 and 3.13.
+- A reusable, read-only release rehearsal that derives its release-body preview
+  from this changelog section.
+- NPBackup-compatible selection, exclusion, scheduling, and recovery migration
+  with a retained rollback path.
+- Protected system backup, run-status, retention, and tray workflows with
+  authenticated local requests and sanitized durable status.
+- Transactional local-wheel install, upgrade, status, and rollback through
+  `timelocker-deploy`, including immutable release selection and evidence.
+- Branded tray states for connecting, idle, running, success, warning, and
+  failure conditions.
 
 ### Changed
 
-- Consolidated pytest configuration in `pyproject.toml` as the source of truth,
-  including the 50 percent coverage gate.
-- Reorganized documentation around current requirements, architecture,
-  implementation, testing, guides, references, and temporary active specs.
-- Centralized repository agent instructions under `docs/guides/ai-agent/`.
+- Bounded supported Python versions to `>=3.12,<3.14` and documented Restic
+  0.18.0 or later as the runtime prerequisite.
+- Replaced the host-sensitive fixed-iteration selection stress gate with a
+  calibrated correctness and timing contract.
+- Isolated GitHub release creation behind successful validation and a single
+  job-scoped `contents: write` permission.
+- Replaced the resident privileged event backend with socket-activated,
+  one-request execution that exits after each explicit request.
+- Preserved independent backup and retention timers while making tray status
+  observation daemonless and filesystem-based.
 
 ### Fixed
 
-- Removed stale navigation to deleted plans, update diaries, archives, and
-  superseded requirement/design packages.
-- Aligned package and version-bump configuration with the declared `0.9.0`
-  project version.
-- Stopped representing historical `v1.0.0` design inventory as a released
-  implementation.
+- Prevented normal CI from contacting an unprovisioned MinIO service.
+- Made root CLI help safe for the Windows default `cp1252` encoding.
+- Aligned package, source, and version-bump metadata at `0.9.1`.
+- Preserved native Restic repository URIs and selective recovery paths during
+  migration.
+- Prevented headless commands from initializing the system tray and prevented
+  schedule installation from immediately starting its backup service.
+- Hardened protected release staging, protocol upgrades, rollback, offline
+  dependency installation, and unprivileged read-only deployment status.
+- Made the Linux-only system-control entry point importable for `--help` and
+  package smoke validation on Windows.
 
-## Current Beta Baseline
+### Known Limitations
 
-The current `0.9.0` codebase includes CLI support for repository management,
-backup and recovery, file selection, scheduling, credentials, monitoring, and
-service integration. Policy management is partially implemented. The REST API,
-desktop GUI, and database-backed storage remain design ideas rather than
-released features.
+- TimeLocker is distributed through GitHub Releases and is not published to
+  PyPI.
+- Protected system deployment is accepted on Linux Mint/systemd. Windows has
+  package and adapter coverage but no live protected-service acceptance.
+- Optional tray presentation remains a user-session process by operator choice;
+  no continuously resident privileged TimeLocker backend is required.
+- GitHub Actions currently reports a non-blocking upstream Node.js runtime
+  deprecation advisory for pinned actions.
+
+## Current Beta Feature Boundary
+
+TimeLocker includes CLI support for repository management, backup and recovery,
+file selection, scheduling, credentials, monitoring, and service integration.
+Policy management is partially implemented. The REST API, desktop GUI, and
+database-backed storage remain design ideas rather than released features.
 
 See the [documentation status](docs/DOCUMENTATION-STATUS.md) for the current
 feature boundary and the [active specification index](docs/specs/README.md) for
 approved work in progress.
-
-## Historical Design Material
-
-The former `v1.0.0` changelog entry was an initial design specification, not
-evidence of a tagged or published release. Current design belongs under
-`docs/2-architecture/`; superseded plans, reports, and implementation diaries
-remain recoverable through Git history.

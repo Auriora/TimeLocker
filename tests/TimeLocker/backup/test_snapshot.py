@@ -41,7 +41,24 @@ def test___init___initializes_attributes_correctly():
     assert snapshot.repo == repo
     assert snapshot.id == snapshot_id
     assert snapshot.timestamp == timestamp
+    assert snapshot.time == timestamp
     assert snapshot.paths == paths
+
+
+@pytest.mark.backup
+@pytest.mark.unit
+def test_from_restic_dict_uses_canonical_time_and_paths():
+    """Restic's canonical JSON fields map directly to the snapshot model."""
+    repo = MockBackupRepository()
+    snapshot = BackupSnapshot.from_dict(repo, {
+        'id': 'full-snapshot-id',
+        'time': '2026-07-19T10:30:00Z',
+        'paths': ['/home/user/file.txt', '/etc'],
+    })
+
+    assert snapshot.id == 'full-snapshot-id'
+    assert snapshot.timestamp.isoformat() == '2026-07-19T10:30:00+00:00'
+    assert snapshot.paths == [Path('/home/user/file.txt'), Path('/etc')]
 
 @pytest.mark.backup
 @pytest.mark.filesystem
@@ -121,7 +138,7 @@ def test_from_dict_1():
     assert snapshot.repo == mock_repo
     assert snapshot.id == 'test_snapshot_id'
     assert snapshot.timestamp == datetime(2023, 5, 20, 12, 34, 56)
-    assert snapshot.paths == Path('/test/backup/path')
+    assert snapshot.paths == [Path('/test/backup/path')]
 
 @pytest.mark.backup
 @pytest.mark.filesystem

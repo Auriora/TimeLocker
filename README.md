@@ -2,7 +2,7 @@
 
 <!-- Project Info Badges -->
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?logo=gnu)](https://www.gnu.org/licenses/gpl-3.0)
-[![Python 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg?logo=python&logoColor=white)](https://www.python.org/downloads/)
+[![Python 3.12–3.13](https://img.shields.io/badge/Python-3.12%E2%80%933.13-blue.svg?logo=python&logoColor=white)](https://www.python.org/downloads/)
 [![Status: Beta](https://img.shields.io/badge/Status-Beta-yellow.svg?logo=git)](https://github.com/Auriora/TimeLocker)
 [![GitHub Actions CI](https://img.shields.io/github/actions/workflow/status/Auriora/TimeLocker/test-suite.yml?branch=main&label=CI&logo=github)](https://github.com/Auriora/TimeLocker/actions/workflows/test-suite.yml)
 [![Quality Gate](https://img.shields.io/badge/Quality%20Gate-50%25%20Coverage-brightgreen?logo=sonarqube)](https://github.com/Auriora/TimeLocker/actions)
@@ -25,8 +25,8 @@ measures of success. Read it when deciding whether proposed work belongs in
 TimeLocker; use active specs for approved delivery details.
 
 > **Note**: TimeLocker is a **CLI-based application**. It does not provide a
-> desktop GUI or REST API. Optional desktop integration is limited to system
-> tray notifications.
+> full desktop GUI or REST API. A protected Linux deployment adds an independent
+> optional tray for status and allowlisted backup/retention requests.
 
 ## Table of Contents
 
@@ -84,6 +84,7 @@ This project is intended for:
 │   ├── config/                       # Filesystem-backed configuration
 │   ├── monitoring/                   # Telemetry, progress, notifications
 │   ├── scheduling/                   # Scheduling integrations
+│   ├── system_control/                # Protected backend, launcher, tray, runs
 │   ├── security/                     # Credentials and privacy controls
 │   ├── policy/                       # Policy models and persistence
 │   └── restic/                       # Restic repositories and commands
@@ -108,7 +109,7 @@ This project is intended for:
 
 ### Project dependencies
 
-- Python 3.12 or higher
+- Python 3.12 or 3.13
 - Restic backup tool installed and accessible in PATH
 - For cloud storage:
     - S3: boto3 package (`pip install boto3`)
@@ -138,6 +139,13 @@ python -m pip install -e '.[dev]'
 
 For detailed installation instructions, including platform-specific guidance, configuration, and troubleshooting, please refer to
 our [Installation Guide](docs/guides/user/installation.md).
+
+Administrators deploying host-level backup and retention should also read the
+[System Operations Requirements](docs/1-requirements/system-operations.md),
+[Scheduling Guide](docs/guides/developer/scheduling-guide.md), and
+[Independent Tray Setup](docs/SYSTEM-TRAY-SETUP.md). The protected deployment
+uses stable `/usr/local/bin/timelocker` and `/usr/local/bin/tl` launchers and
+does not depend on pyenv or a source checkout.
 
 ### Quick Start
 
@@ -337,7 +345,8 @@ For detailed documentation, please refer to:
 - [**Implementation Guides**](docs/3-implementation/README.md) - Implementation details and patterns
 - [**API References**](docs/reference/README.md) - API references for backup and recovery operations
 - [**Testing Documentation**](docs/4-testing/README.md) - Testing guides and strategies
-- [**System Tray Setup**](docs/SYSTEM-TRAY-SETUP.md) - Optional system tray integration
+- [**System Tray Setup**](docs/SYSTEM-TRAY-SETUP.md) - Independent status and
+  allowlisted-action tray
 - [**User Guides**](docs/guides/user/README.md) - End-user documentation
 - [**Developer Guides**](docs/guides/developer/README.md) - Developer documentation
 
@@ -385,7 +394,7 @@ This is particularly suitable for libraries and applications that you want to re
 
 ## Document Information
 
-- Version: 0.9.0
-- Last Updated: 2026-07-18
+- Version: 0.9.1
+- Last Updated: 2026-08-13
 - Author: Bruce Cherrington
 - Copyright © Bruce Cherrington

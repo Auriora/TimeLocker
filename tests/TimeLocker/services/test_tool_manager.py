@@ -34,6 +34,7 @@ from TimeLocker.interfaces.data_models import (
     ToolConfiguration,
     ExecutionContext
 )
+from TimeLocker.services.parallel_execution_optimizer import SystemResources
 
 
 class TestToolManager:
@@ -133,6 +134,15 @@ class TestToolManager:
     def test_configure_tool_high_priority_job(self):
         """Test configuration for high priority job"""
         manager = ToolManager()
+        manager._parallel_optimizer.get_system_resources = Mock(
+            return_value=SystemResources(
+                cpu_count=8,
+                cpu_usage_percent=20.0,
+                memory_total_gb=16.0,
+                memory_available_gb=12.0,
+                memory_usage_percent=25.0,
+            )
+        )
         
         job_config = BackupJobConfig(
             job_id="high-priority-job",
@@ -149,7 +159,9 @@ class TestToolManager:
         
         config = manager.configure_tool_for_job('restic', job)
         
-        # High priority should get more parallel operations
+        # With explicitly unconstrained resources, high priority gets more
+        # parallel operations. Do not make this unit contract depend on live
+        # host load observed while the suite is running.
         assert config.parallel_operations > 1
         # High priority should get lower compression
         assert config.compression_level is not None

@@ -206,13 +206,17 @@ class TestBackupCreateWithSelectionTemplate:
         result = runner.invoke(app, [
             "backup", "create",
             "--selection", "docs",
-            "--repository", "test-repo"
+            "--repository", "test-repo",
+            "--compression", "max",
+            "--one-file-system",
         ])
         
         assert_exit_code(result, 0)
         cli_options = service_manager.run_selection_backup.call_args[1]["cli_options"]
         assert cli_options["tool_type"] == "restic"
         assert cli_options["max_retries"] == 3
+        assert cli_options["compression"] == "max"
+        assert cli_options["one_file_system"] is True
 
 class TestBackupSelectionErrors:
     """Test error handling paths for selection-driven backups."""

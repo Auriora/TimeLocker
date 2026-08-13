@@ -15,53 +15,66 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
-# Core components
-from .backup_manager import BackupManager
-from .backup_repository import BackupRepository
-from .backup_snapshot import BackupSnapshot
-from .backup_target import BackupTarget
-from .restore_manager import RestoreManager
-from .snapshot_manager import SnapshotManager
-from .file_selections import FileSelection, PatternGroup
+from __future__ import annotations
 
-# Security components
-from .security import SecurityService, CredentialManager, SecurityLogger
+from importlib import import_module
+from typing import Any
 
-# Monitoring components
-from .monitoring import StatusReporter, NotificationService
+__version__ = "0.9.1"
 
-# Configuration components
-from .config import ConfigurationModule
-from .config.configuration_manager import ConfigurationManager
+_LAZY_EXPORTS = {
+    "BackupManager": (".backup_manager", "BackupManager"),
+    "BackupRepository": (".backup_repository", "BackupRepository"),
+    "BackupSnapshot": (".backup_snapshot", "BackupSnapshot"),
+    "BackupTarget": (".backup_target", "BackupTarget"),
+    "RestoreManager": (".restore_manager", "RestoreManager"),
+    "SnapshotManager": (".snapshot_manager", "SnapshotManager"),
+    "FileSelection": (".file_selections", "FileSelection"),
+    "PatternGroup": (".file_selections", "PatternGroup"),
+    "SecurityService": (".security", "SecurityService"),
+    "CredentialManager": (".security", "CredentialManager"),
+    "SecurityLogger": (".security", "SecurityLogger"),
+    "StatusReporter": (".monitoring", "StatusReporter"),
+    "NotificationService": (".monitoring", "NotificationService"),
+    "ConfigurationModule": (".config", "ConfigurationModule"),
+    "ConfigurationManager": (
+        ".config.configuration_manager",
+        "ConfigurationManager",
+    ),
+    "IntegrationService": (".integration", "IntegrationService"),
+}
 
-# Integration components
-from .integration import IntegrationService
 
-__version__ = "0.9.0"
+def __getattr__(name: str) -> Any:
+    """Load legacy package exports only when callers request them."""
+    try:
+        module_name, attribute_name = _LAZY_EXPORTS[name]
+    except KeyError:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}") from None
+    value = getattr(import_module(module_name, __name__), attribute_name)
+    globals()[name] = value
+    return value
+
+
+def __dir__() -> list[str]:
+    """Include lazy compatibility exports in interactive discovery."""
+    return sorted({*globals(), *_LAZY_EXPORTS})
+
 
 __all__ = [
-        # Core components
-        'BackupManager',
-        'BackupRepository',
-        'BackupSnapshot',
-        'BackupTarget',
-        'RestoreManager',
-        'SnapshotManager',
-        'FileSelection',
-        'PatternGroup',
-
-        # Security components
-        'SecurityService',
-        'CredentialManager',
-        'SecurityLogger',
-
-        # Monitoring components
-        'StatusReporter',
-        'NotificationService',
-
-        # Configuration components
-        'ConfigurationManager',
-
-        # Integration components
-        'IntegrationService',
+    "BackupManager",
+    "BackupRepository",
+    "BackupSnapshot",
+    "BackupTarget",
+    "RestoreManager",
+    "SnapshotManager",
+    "FileSelection",
+    "PatternGroup",
+    "SecurityService",
+    "CredentialManager",
+    "SecurityLogger",
+    "StatusReporter",
+    "NotificationService",
+    "ConfigurationManager",
+    "IntegrationService",
 ]

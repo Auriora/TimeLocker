@@ -29,6 +29,7 @@ from TimeLocker.selection_template_manager import SelectionTemplateManager
 from TimeLocker.pattern_engine import PatternEngine
 from TimeLocker.selection_validation_service import SelectionValidationService
 from TimeLocker.selection_performance_optimizer import SelectionPerformanceOptimizer
+from TimeLocker.selection_testing_harness import PerformanceBaseline
 from TimeLocker.selection_models import (
     SelectionConfig,
     PatternRule,
@@ -36,6 +37,33 @@ from TimeLocker.selection_models import (
     PathComponent,
     PrecedenceConfig
 )
+
+
+class TestPerformanceBaselineContract:
+    """Deterministic tests for the shared timing-threshold contract."""
+
+    def test_accepts_observations_at_or_below_tolerance(self):
+        baseline = PerformanceBaseline("selection", 1.0, 2.0)
+
+        assert baseline.accepts(0.5)
+        assert baseline.accepts(2.0)
+        assert not baseline.accepts(2.01)
+
+    @pytest.mark.parametrize(
+        ("seconds_per_operation", "tolerance_multiplier"),
+        [(0.0, 2.0), (float("inf"), 2.0), (1.0, 0.99), (1.0, float("nan"))],
+    )
+    def test_rejects_invalid_thresholds(
+        self,
+        seconds_per_operation,
+        tolerance_multiplier,
+    ):
+        with pytest.raises(ValueError):
+            PerformanceBaseline(
+                "selection",
+                seconds_per_operation,
+                tolerance_multiplier,
+            )
 
 
 @pytest.fixture

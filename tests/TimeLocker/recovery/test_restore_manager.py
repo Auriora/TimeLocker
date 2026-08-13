@@ -149,6 +149,7 @@ class TestRestoreManager:
 
         assert result.success is True
         assert options.include_paths == include_paths
+        assert self.repository._restore_results["abc123"]["include_paths"] == include_paths
 
     @pytest.mark.restore
     @pytest.mark.unit
@@ -163,6 +164,7 @@ class TestRestoreManager:
         result = self.restore_manager.restore_snapshot("abc123", options)
 
         assert result.success is True
+        assert self.repository._restore_results["abc123"]["exclude_paths"] == exclude_paths
         assert options.exclude_paths == exclude_paths
 
     @pytest.mark.restore

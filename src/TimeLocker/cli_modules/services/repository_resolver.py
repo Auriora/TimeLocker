@@ -288,7 +288,8 @@ class RepositoryResolver:
         self,
         repository_name: str,
         explicit_password: Optional[str] = None,
-        allow_prompt: bool = False
+        allow_prompt: bool = False,
+        repository_uri: Optional[str] = None,
     ) -> Optional[str]:
         """
         Public method to resolve credentials for a repository.
@@ -297,15 +298,16 @@ class RepositoryResolver:
             repository_name: Repository name
             explicit_password: Optional explicit password
             allow_prompt: Whether to prompt for password if not found
+            repository_uri: Already-resolved repository URI, when available
             
         Returns:
             Optional[str]: Resolved password or None
         """
         try:
-            repository_uri = self.resolve_repository_uri(repository_name)
+            resolved_uri = repository_uri or self.resolve_repository_uri(repository_name)
             return self._resolve_credentials(
                 repository_name=repository_name,
-                repository_uri=repository_uri,
+                repository_uri=resolved_uri,
                 explicit_password=explicit_password,
                 allow_prompt=allow_prompt
             )

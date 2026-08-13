@@ -1,0 +1,30 @@
+[Unit]
+Description=TimeLocker privileged local system-control backend
+Requires=timelocker-control.socket
+After=local-fs.target
+
+[Service]
+Type=exec
+Sockets=timelocker-control.socket
+User=root
+Group=timelocker-operators
+UMask=0077
+EnvironmentFile=-/etc/timelocker/retention.env
+RuntimeDirectory=timelocker
+RuntimeDirectoryMode=0750
+RuntimeDirectoryPreserve=yes
+StateDirectory=timelocker
+StateDirectoryMode=0750
+ExecStart=/usr/local/libexec/timelocker-system-control --systemd-socket
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/run/timelocker /var/lib/timelocker

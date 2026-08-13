@@ -1,0 +1,10 @@
+[Unit]
+Description=TimeLocker independent retention catch-up timer
+
+[Timer]
+OnCalendar=daily
+Persistent=false
+Unit=timelocker-retention.service
+
+[Install]
+WantedBy=timers.target

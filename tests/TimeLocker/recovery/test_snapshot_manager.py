@@ -91,6 +91,14 @@ class TestSnapshotManager:
 
     @pytest.mark.restore
     @pytest.mark.unit
+    def test_get_snapshot_by_id_latest_alias(self):
+        """Test that the CLI's latest alias resolves to the newest snapshot."""
+        snapshot = self.manager.get_snapshot_by_id("latest")
+
+        assert snapshot.id == "abc123"
+
+    @pytest.mark.restore
+    @pytest.mark.unit
     def test_get_latest_snapshot(self):
         """Test retrieving the most recent snapshot"""
         latest = self.manager.get_latest_snapshot()

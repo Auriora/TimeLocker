@@ -128,6 +128,78 @@ class TestBackupOperations:
     @pytest.mark.backup
     @pytest.mark.filesystem
     @pytest.mark.unit
+    def test_backup_target_emits_migration_parity_options(self, mock_subprocess, mock_verify):
+        """Restic receives explicit compression and traversal options."""
+        mock_verify.return_value = "0.18.0"
+        mock_subprocess.return_value = Mock(
+            stdout=json.dumps({"message_type": "summary", "snapshot_id": "parity123"}),
+            returncode=0,
+        )
+        repository = LocalResticRepository(
+            location=str(self.repo_path),
+            password="test_password",
+        )
+        selection = FileSelection()
+        selection.add_path(self.source_path, SelectionType.INCLUDE)
+        exclude_file = self.source_path / "excludes.txt"
+        exclude_file.write_text("*.cache\n")
+
+        repository.backup_target([BackupTarget(
+            selection=selection,
+            compression="max",
+            one_file_system=True,
+            exclude_files=[str(exclude_file)],
+            exclude_caches=True,
+            backend_options=["s3.storage-class=INTELLIGENT_TIERING"],
+        )])
+
+        command = mock_subprocess.call_args.args[0]
+        assert command[command.index("--compression") + 1] == "max"
+        assert command.count("--one-file-system") == 1
+        assert command[command.index("--exclude-file") + 1] == str(exclude_file)
+        assert command.count("--exclude-caches") == 1
+        assert command[command.index("--option") + 1] == "s3.storage-class=INTELLIGENT_TIERING"
+
+    @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
+    def test_backup_target_rejects_invalid_or_conflicting_options(self, mock_verify):
+        """Programmatic callers cannot bypass invocation-wide option checks."""
+        mock_verify.return_value = "0.18.0"
+        repository = LocalResticRepository(
+            location=str(self.repo_path),
+            password="test_password",
+        )
+        selection = FileSelection()
+        selection.add_path(self.source_path, SelectionType.INCLUDE)
+
+        with pytest.raises(RepositoryError, match="Unsupported Restic compression"):
+            repository.backup_target([BackupTarget(selection, compression="gzip")])
+
+        with pytest.raises(RepositoryError, match="conflicting Restic compression"):
+            repository.backup_target([
+                BackupTarget(selection, compression="auto"),
+                BackupTarget(selection, compression="max"),
+            ])
+
+        with pytest.raises(RepositoryError, match="conflicting filesystem"):
+            repository.backup_target([
+                BackupTarget(selection, one_file_system=True),
+                BackupTarget(selection, one_file_system=False),
+            ])
+
+        with pytest.raises(RepositoryError, match="Unsupported Restic backend option"):
+            repository.backup_target([BackupTarget(
+                selection,
+                backend_options=["s3.storage-class=GLACIER"],
+            )])
+
+    @patch('TimeLocker.restic.restic_repository.ResticRepository._verify_restic_executable')
+    @patch('subprocess.run')
+    @pytest.mark.backup
+    @pytest.mark.filesystem
+    @pytest.mark.unit
     def test_backup_target_with_multiple_targets(self, mock_subprocess, mock_verify):
         """Test backup with multiple targets"""
         mock_verify.return_value = "0.18.0"

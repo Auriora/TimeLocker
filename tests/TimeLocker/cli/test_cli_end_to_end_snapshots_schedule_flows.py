@@ -170,7 +170,7 @@ class TestCLIScheduleEndToEndFlows:
 
     def test_schedule_create_list_and_toggle_flow(self, isolated_cli_environment):
         schedule_name = "nightly-docs"
-        policy_name = "docs-backup-policy"
+        repository_name = "docs-repository"
         scripts_dir = Path(isolated_cli_environment["config_dir"]) / "scripts-out"
 
         _invoke(
@@ -178,7 +178,8 @@ class TestCLIScheduleEndToEndFlows:
                 [
                         "schedule", "create",
                         schedule_name,
-                        policy_name,
+                        "--repository", repository_name,
+                        "--source", str(Path(isolated_cli_environment["config_dir"])),
                         "--frequency", "daily",
                         "--enabled",
                         "--config-dir", str(isolated_cli_environment["config_dir"]),
@@ -196,7 +197,8 @@ class TestCLIScheduleEndToEndFlows:
                 label="tl schedule list --json",
         )
         assert schedule_name in schedules
-        assert schedules[schedule_name]["policy"] == policy_name
+        assert schedules[schedule_name]["repository"] == repository_name
+        assert schedules[schedule_name]["sources"] == [str(Path(isolated_cli_environment["config_dir"]).resolve())]
 
         _invoke(
                 isolated_cli_environment,

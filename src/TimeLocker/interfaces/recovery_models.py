@@ -38,6 +38,7 @@ class RecoveryType(Enum):
 class OperationStatus(Enum):
     """Status of recovery operation"""
     PENDING = "pending"
+    VALIDATING = "validating"
     RUNNING = "running"
     COMPLETED = "completed"
     FAILED = "failed"
@@ -486,6 +487,7 @@ class RecoveryOperation:
         """Check if operation is currently active"""
         return self.status in (
             OperationStatus.PENDING,
+            OperationStatus.VALIDATING,
             OperationStatus.RUNNING
         )
     

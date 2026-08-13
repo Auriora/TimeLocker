@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "timelocker"
-version = "0.9.0"
+version = "0.9.1"
 description = "High-level Python interface for backup operations using Restic"
 readme = "README.md"
 license = "GPL-3.0-or-later"
@@ -32,7 +32,6 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Utilities",
     # Operating System
-    "Operating System :: OS Independent",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",
     "Operating System :: Microsoft :: Windows",
@@ -47,7 +46,7 @@ classifiers = [
     # Natural Language
     "Natural Language :: English",
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "packaging~=25.0",
     "b2sdk~=2.10.1",
@@ -74,6 +73,7 @@ dev = [
     "pytest-benchmark~=5.2.3",
     "pytest-timeout>=2.4.0",
     "pytest-asyncio~=1.3.0",
+    "Pillow>=12.0.0",
     "plantuml~=0.3.0",
     "bump2version>=1.0.1",
     "safety>=3.0.0",
@@ -88,6 +88,9 @@ gui = [
 [project.scripts]
 timelocker = "TimeLocker.cli:main"
 tl = "TimeLocker.cli:main"
+timelocker-tray = "TimeLocker.system_control.tray_entry:main"
+timelocker-system-control = "TimeLocker.system_control.backend_entry:main"
+timelocker-deploy = "TimeLocker.system_control.deployment_entry:main"
 
 [project.urls]
 Homepage = "https://github.com/Auriora/TimeLocker"
@@ -106,7 +109,18 @@ where = ["src"]
 TimeLocker = [
     "restic/*.json",
     "config/*.json",
-    "*.md",
+    "cli_modules/*.md",
+    "cli_modules/helpers/*.md",
+    "cli_modules/testing/*.md",
+    "cli_modules/validation/*.md",
+    "policy/*.md",
+    "services/plugins/*.md",
+    "system_control/assets/*.json",
+    "system_control/assets/*.service",
+    "system_control/assets/*.socket",
+    "system_control/assets/*.timer",
+    "system_control/assets/timelocker-*",
+    "system_control/assets/tl-launcher",
 ]
 
 [tool.pytest.ini_options]
@@ -139,6 +153,7 @@ markers = [
     "critical: Critical path tests that must pass",
     "slow: Tests that take a long time to run",
     "network: Tests that require network access",
+    "minio: Tests that contact a live, explicitly provisioned MinIO service",
     "filesystem: Tests that interact with the filesystem",
     "backup: Tests related to backup operations",
     "restore: Tests related to restore operations",

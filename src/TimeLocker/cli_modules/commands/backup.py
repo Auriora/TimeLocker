@@ -51,7 +51,7 @@ backup_app = typer.Typer(
     no_args_is_help=True,
     context_settings=CLI_CONTEXT_SETTINGS
 )
-backup_app.info.options_metavar = "⟨OPTIONS⟩"
+backup_app.info.options_metavar = "<OPTIONS>"
 
 BackupDisplayValue: TypeAlias = str | int | float | bool | list[object] | dict[str, object] | tuple[object, ...]
 
@@ -105,6 +105,18 @@ def backup_create(
         exclude: Annotated[Optional[List[str]], typer.Option("--exclude", "-e", help="Exclude pattern")] = None,
         include: Annotated[Optional[List[str]], typer.Option("--include", "-i", help="Include pattern")] = None,
         tags: Annotated[Optional[List[str]], typer.Option("--tags", help="Backup tags")] = None,
+        compression: Annotated[Optional[str], typer.Option(
+            "--compression",
+            help="Restic compression mode: auto, off, or max",
+            click_type=click.Choice(["auto", "off", "max"], case_sensitive=False),
+        )] = None,
+        one_file_system: Annotated[bool, typer.Option(
+            "--one-file-system/--cross-filesystems",
+            help="Do not cross filesystem boundaries while backing up",
+        )] = False,
+        exclude_file: Annotated[Optional[List[Path]], typer.Option("--exclude-file", help="Restic exclusion file (repeatable)")] = None,
+        exclude_caches: Annotated[bool, typer.Option("--exclude-caches", help="Exclude directories marked with CACHEDIR.TAG")] = False,
+        backend_option: Annotated[Optional[List[str]], typer.Option("--backend-option", help="Allowlisted Restic backend option (repeatable)")] = None,
         dry_run: Annotated[bool, typer.Option("--dry-run", help="Show what would be backed up without actually performing backup")] = False,
         config_dir: Annotated[Optional[Path], typer.Option("--config-dir", help="Configuration directory")] = None,
         verbose: Annotated[bool, typer.Option("--verbose", "-v", help="Enable verbose output")] = False,
@@ -236,7 +248,12 @@ def backup_create(
                 'notify_on_success': True,
                 'notify_on_failure': True,
                 'notifications_enabled': True,
-                'priority': 0
+                'priority': 0,
+                'compression': compression,
+                'one_file_system': one_file_system,
+                'exclude_files': exclude_file or [],
+                'exclude_caches': exclude_caches,
+                'backend_options': backend_option or [],
             }
             
             try:
@@ -281,7 +298,7 @@ def backup_create(
             if result.status.value in ['completed', 'success']:
                 details = {
                     "Snapshot ID": result.snapshot_id or "Unknown",
-                    "Files processed": f"{result.files_processed:,}" if result.files_processed else "Unknown",
+                    "Files processed": f"{result.files_processed:,}",
                     "Data processed": f"{result.bytes_transferred:,} bytes" if result.bytes_transferred else "Unknown",
                     "Duration": f"{result.duration.total_seconds():.1f}s" if result.duration else "Unknown"
                 }
@@ -321,6 +338,15 @@ def backup_create(
     if not sources:
         show_error_panel("No Sources", "No source paths specified for backup")
         console.print("💡 Either provide source paths or use --selection to specify a data selection template")
+        raise typer.Exit(1)
+
+    invalid_sources = [str(source) for source in sources if not source.exists()]
+    if invalid_sources:
+        show_error_panel(
+            "Invalid Sources",
+            "The following backup source paths do not exist:",
+            invalid_sources,
+        )
         raise typer.Exit(1)
 
     repository_uri = repository
@@ -401,6 +427,11 @@ def backup_create(
                     tags=tags or [],
                     include_patterns=include or [],
                     exclude_patterns=exclude or [],
+                    compression=compression,
+                    one_file_system=one_file_system,
+                    exclude_files=exclude_file or [],
+                    exclude_caches=exclude_caches,
+                    backend_options=backend_option or [],
                     dry_run=dry_run
             )
             logger.debug("CLIBackupRequest created successfully")

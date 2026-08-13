@@ -23,6 +23,7 @@ class MockRecoveryRepository(BackupRepository):
 
     def __init__(self):
         self._initialized = True  # Initialize by default for testing
+        self._password = "test_password"
         self._snapshots = {}
         self._location = "/mock/recovery/repository"
         self._restore_results = {}
@@ -110,6 +111,8 @@ class MockRecoveryRepository(BackupRepository):
             target_path: Optional[Path] = None,
             *,
             overwrite: str = "never",
+            include_paths: Optional[List[Path]] = None,
+            exclude_paths: Optional[List[Path]] = None,
     ) -> str:
         """Mock restore operation"""
         if self._should_fail_restore:
@@ -123,6 +126,8 @@ class MockRecoveryRepository(BackupRepository):
         self._restore_results[snapshot_id] = {
                 "target_path": str(target_path) if target_path else None,
                 "overwrite": overwrite,
+                "include_paths": list(include_paths or []),
+                "exclude_paths": list(exclude_paths or []),
                 "timestamp":   datetime.now(),
                 "success":     True
         }

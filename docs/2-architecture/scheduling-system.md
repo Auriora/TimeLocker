@@ -4,343 +4,129 @@ id: "arch-scheduling-system"
 type: [ architecture ]
 status: [ approved ]
 owner: "Architecture Team"
-last_reviewed: "18-07-2026"
-tags: [architecture, scheduling, automation, platform-integration]
+last_reviewed: "2026-07-26"
+tags: [architecture, scheduling, backup, retention]
 links:
-    tooling: []
+  tooling: []
 ---
 
 # Architecture Document: Scheduling System
 
-- **Owner**: Architecture Team
-- **Status**: Approved
-- **Created Date**: 13-11-2025
-- **Last Updated**: 13-11-2025
-- **Audience**: Engineering Teams, Platform Integration Developers
+## Purpose
 
-## 1. Context
+Describe the implemented scheduling boundaries for user-managed backup
+schedules and protected system backup and retention operations.
 
-The Scheduling System provides comprehensive automated backup scheduling capabilities for TimeLocker through platform-appropriate system schedulers. It enables
-unattended backup operations by integrating with native OS scheduling systems (systemd timers, cron, Windows Task Scheduler, launchd) while coordinating with
-Policy Management, Data Selection, Repository Management, and Monitoring systems.
+## Scheduling Surfaces
 
-The design emphasizes cross-platform compatibility, secure credential management, and seamless integration with existing TimeLocker architecture. The system
-automatically detects the appropriate platform scheduler and generates native configurations while maintaining consistent behavior across all supported
-platforms.
+TimeLocker has two distinct scheduling surfaces:
 
-## 2. Architecture
+1. `tl schedule` stores schedule definitions and generates native scheduler
+   assets for user-managed backups. Generation is non-mutating; an operator
+   must review and install the assets.
+2. A protected Linux deployment uses root-owned systemd units for the approved
+   system backup and retention target. These units execute through the selected
+   immutable TimeLocker release and write structured run records through the
+   system-control layer.
 
-### 2.1 Component Overview
+The source package contains adapters for systemd, cron, launchd, and Windows
+Task Scheduler. The protected system-control deployment has live acceptance
+evidence on Linux Mint with systemd. Other protected-host adapters are not
+claimed as live-accepted by this document.
 
-The Scheduling System consists of four primary layers:
+## Protected Operation Flow
 
-1. **Schedule Manager**: Central orchestrator for all scheduling operations
-2. **Platform Adapters**: Platform-specific scheduling implementations
-3. **Script Generator**: Generates platform-specific wrapper scripts
-4. **Automation Engine**: Handles execution of scheduled backups
-
-### 2.2 Implementation Location
-
-- **Base Directory**: `/src/TimeLocker/scheduling/`
-- **CLI Integration**: `/src/TimeLocker/cli_modules/commands/schedule.py`
-
-### 2.3 Core Components
-
-#### Schedule Manager (`schedule_manager.py`)
-
-Central manager for backup scheduling operations with responsibilities:
-
-- Schedule creation and management
-- Platform adapter coordination
-- Integration with TimeLocker systems
-- Audit trail maintenance
-
-**Key Methods**:
-
-- `create_scheduled_backup()` - Create new scheduled backup from policy
-- `update_scheduled_backup()` - Update existing schedule configuration
-- `delete_scheduled_backup()` - Remove schedule and cleanup platform scheduler
-- `list_scheduled_backups()` - List all scheduled backups with filtering
-- `get_schedule_status()` - Get current status and next run time
-
-#### Platform Adapters
-
-Platform-specific scheduling implementations with unified interface:
-
-- **systemd Adapter** (`systemd_adapter.py`) - systemd timer adapter for Linux
-- **Cron Adapter** (`cron_adapter.py`) - cron adapter for Unix-like systems
-- **Windows Task Scheduler Adapter** (`windows_adapter.py`) - Windows scheduled task adapter
-- **launchd Adapter** (`launchd_adapter.py`) - launchd adapter for macOS
-
-**Common Interface**:
-
-- `create_schedule()` - Create platform-specific scheduled task
-- `update_schedule()` - Update existing scheduled task
-- `delete_schedule()` - Remove scheduled task
-- `get_schedule_status()` - Get platform-specific status
-- `list_schedules()` - List all scheduled tasks
-
-#### Platform Detection (`platform_detector.py`)
-
-Detects platform capabilities and selects appropriate scheduler:
-
-- Automatic detection of best available scheduler
-- Capability checking (systemd, cron, Task Scheduler, launchd)
-- Fallback mechanism for unsupported platforms
-
-#### Script Generator (`script_generator.py`)
-
-Generates platform-specific wrapper scripts with:
-
-- Environment setup and credential loading
-- Error handling and logging integration
-- Monitoring integration
-- Retry logic and timeout handling
-
-#### Automation Engine (`automation_engine.py`)
-
-Handles execution of scheduled backup operations:
-
-- Backup execution coordination
-- Integration with all TimeLocker systems
-- Error handling and retry logic
-- Monitoring and audit logging
-
-### 2.4 Integration Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Scheduling System                        │
-│                                                             │
-│  ┌─────────────────┐  ┌────────────────┐  ┌──────────────┐ │
-│  │ Schedule        │  │ Platform       │  │ Script       │ │
-│  │ Manager         │  │ Adapters       │  │ Generator    │ │
-│  └─────────────────┘  └────────────────┘  └──────────────┘ │
-│                                                             │
-│  ┌─────────────────┐  ┌────────────────┐  ┌──────────────┐ │
-│  │ Automation      │  │ Credential     │  │ Audit        │ │
-│  │ Engine          │  │ Integration    │  │ Logger       │ │
-│  └─────────────────┘  └────────────────┘  └──────────────┘ │
-└─────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│                Platform Schedulers                          │
-│                                                             │
-│  ┌─────────────────┐  ┌────────────────┐  ┌──────────────┐ │
-│  │ systemd Timers  │  │ Cron           │  │ Task         │ │
-│  │ (Linux)         │  │ (Unix-like)    │  │ Scheduler    │ │
-│  └─────────────────┘  └────────────────┘  │ (Windows)    │ │
-│                                            └──────────────┘ │
-│  ┌─────────────────┐                                        │
-│  │ launchd         │                                        │
-│  │ (macOS)         │                                        │
-│  └─────────────────┘                                        │
-└─────────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────────┐
-│              TimeLocker Core Systems                        │
-│                                                             │
-│  ┌─────────────────┐  ┌────────────────┐  ┌──────────────┐ │
-│  │ Policy          │  │ Data           │  │ Repository   │ │
-│  │ Management      │  │ Selection      │  │ Management   │ │
-│  └─────────────────┘  └────────────────┘  └──────────────┘ │
-│                                                             │
-│  ┌─────────────────┐  ┌────────────────┐                   │
-│  │ Backup          │  │ Monitoring &   │                   │
-│  │ Operations      │  │ Reporting      │                   │
-│  └─────────────────┘  └────────────────┘                   │
-└─────────────────────────────────────────────────────────────┘
+```text
+backup timer or authorized request
+              |
+              v
+      allowlisted backup unit
+              |
+              v
+ durable backup RunRecord + repository lock
+              |
+       backup completes
+        /           \
+   success          failure
+      |                |
+      v                v
+release lock      terminal backup record
+      |
+      v
+separate retention RunRecord (backup-success trigger)
 ```
 
-## 3. Data Models
+Retention may also start from its independent timer or from an authorized
+operator request. It does not require a preceding successful backup. When it
+follows a successful backup, it starts as a separate run only after the backup
+has reached a terminal success state and released the shared repository lock.
 
-### Core Models (`scheduling_models.py`)
+## Retention Contract
 
-**ScheduleConfig**: Configuration for a scheduled backup
+The packaged production policy keeps 5 daily, 4 weekly, 12 monthly, and
+3 yearly snapshots, grouped by `host,paths`. Prune is disabled. A production
+retention mutation is accepted only when all of the following are true:
 
-- schedule_id, name, description
-- policy_id reference
-- schedule_pattern (cron, interval, calendar)
-- enabled flag, timeouts, retry config
-- monitoring configuration
-- platform-specific settings
+- the root-owned enable marker exists;
+- the requested policy fingerprint matches the protected approved policy;
+- the protected repository and credential references still match the approved
+  target; and
+- the shared repository mutation lock is available.
 
-**SchedulePattern**: Defines when backup should execute
+Dry runs do not remove snapshots. A lock conflict produces a structured skipped
+run rather than overlapping a backup or another retention operation.
 
-- pattern_type (cron, interval, calendar)
-- cron_expression, interval_minutes
-- calendar_config for day/time scheduling
-- backup_window for time restrictions
+## Run State and Recovery
 
-**ExecutionContext**: Context information for backup execution
+Backup and retention runs use durable states: queued, running, succeeded,
+failed, skipped, or interrupted. Start and finish hooks bind systemd backup
+execution to one run identifier. On startup, an unfinished active record is
+reconciled to interrupted before new work proceeds.
 
-- execution_id, schedule_id
-- triggered_by (scheduled, manual, retry, test)
-- start_time, platform, user_context
-
-**ExecutionResult**: Result of scheduled backup execution
-
-- execution_id, schedule_id, status
-- backup_result, execution_time
-- error_details, retry information
-
-## 4. Security Features
-
-### Credential Management (`credential_integration.py`)
-
-Integrates with platform-specific credential stores:
-
-- **Windows**: Windows Credential Manager + DPAPI
-- **macOS**: Keychain Services
-- **Linux**: Secret Service API (libsecret)
-- **Fallback**: Encrypted file-based storage
-
-### Audit Logging (`audit_logger.py`)
-
-Comprehensive audit trails for compliance:
-
-- Schedule creation/modification/deletion events
-- Execution start/completion/failure events
-- Credential access events
-- Platform scheduler interactions
-
-## 5. Testing and Validation
-
-### Testing Components
-
-**Schedule Testing** (`schedule_testing.py`):
-
-- Schedule validation testing
-- Execution simulation
-- Platform adapter testing
-
-**Integration Testing** (`integration_testing.py`):
-
-- End-to-end scheduling workflow
-- Cross-platform compatibility
-- TimeLocker system integration
-- External integration client testing
-
-### Validation (`schedule_validator.py`)
-
-Validates schedule configurations:
-
-- Schedule pattern validation
-- Policy compatibility checks
-- Platform capability verification
-- Conflict detection
-
-## 6. Configuration
-
-### Scheduling Configuration (`scheduling_configuration.py`)
-
-Master configuration for scheduling system:
-
-- Platform preferences and defaults
-- Retry configuration defaults
-- Monitoring configuration defaults
-- Audit retention settings
-- Execution limits and timeouts
-
-## 7. Error Handling
-
-### Exception Hierarchy (`scheduling_exceptions.py`)
-
-- `SchedulingError` - Base exception
-- `PlatformSchedulerError` - Platform operation failed
-- `PolicyValidationError` - Policy validation failed
-- `DataSelectionValidationError` - Selection validation failed
-- `RepositoryValidationError` - Repository access failed
-- `CredentialAccessError` - Credential access failed
-- `ExecutionTimeoutError` - Execution timeout
-- `ScheduleConflictError` - Schedule conflict detected
-
-### Recovery Strategies
-
-1. **Platform Scheduler Failures**: Retry with exponential backoff
-2. **Credential Access Failures**: Secure retry with user notification
-3. **Validation Failures**: Skip execution with detailed logging
-4. **Repository Access Failures**: Retry with backoff
-5. **Execution Timeouts**: Graceful termination with cleanup
-6. **Schedule Conflicts**: Automatic rescheduling
-
-## 8. Performance Considerations
-
-### Schedule Storage (`schedule_storage.py`)
-
-Efficient storage and retrieval:
-
-- JSON-based configuration storage
-- XDG-compliant directory structure
-- Indexed schedule lookups
-- Efficient list operations
-
-### Utilities (`schedule_utilities.py`)
-
-Performance-optimized utilities:
-
-- Schedule pattern parsing
-- Next run time calculation
-- Time window validation
-- Conflict detection algorithms
-
-## 9. Monitoring and Compliance
-
-### Compliance Reporting (`compliance_reporter.py`)
-
-Generates compliance reports:
-
-- Execution history tracking
-- Success/failure rate analysis
-- SLA compliance monitoring
-- Audit trail export
-
-### Integration with Monitoring System
-
-Deep integration with TimeLocker monitoring:
-
-- Real-time execution status
-- Performance metrics collection
-- Alert generation for failures
-- Dashboard integration
-
-## 10. CLI Integration
-
-Accessible through `schedule` command namespace:
+System run history is read with:
 
 ```bash
-# Create schedule from policy
-timelocker schedule create --policy-id <id> --pattern "0 2 * * *"
-
-# List schedules
-timelocker schedule list
-
-# Get schedule status
-timelocker schedule status <schedule-id>
-
-# Enable/disable schedule
-timelocker schedule enable <schedule-id>
-timelocker schedule disable <schedule-id>
-
-# Delete schedule
-timelocker schedule delete <schedule-id>
-
-# Test schedule execution
-timelocker schedule test <schedule-id> --dry-run
+timelocker runs list
+timelocker runs show RUN_ID
 ```
 
-## 11. Design Principles
+These commands cross the protected local backend and are available only to
+current members of the configured operator group.
 
-- **Platform Native**: Leverage native OS scheduling for reliability
-- **Security First**: Secure credential management throughout
-- **Integration Focused**: Deep integration with TimeLocker systems
-- **Audit Compliant**: Comprehensive audit trails
-- **Failure Resilient**: Robust error handling and recovery
-- **Performance Aware**: Minimal overhead and efficient operations
+## Failure Isolation
+
+- Backup failure does not start backup-success retention.
+- Independent retention remains eligible regardless of the most recent backup
+  result.
+- Retention failure does not rewrite a successful backup result.
+- A repository lock conflict skips the later operation.
+- Credentials, repository passwords, raw backend output, protected file paths,
+  and raw journald content are not placed in run records.
+
+## Platform Assets
+
+The Linux package supplies:
+
+- `timelocker-control.socket` and `timelocker-control.service`;
+- `timelocker-retention.service` and `timelocker-retention.timer`;
+- stable launchers under `/usr/local`; and
+- an independent user-session tray launcher.
+
+The generic retention timer uses a daily calendar. Administrators may choose a
+specific local time when installing the deployment, provided backup and
+retention still share the repository lock. The accepted reference deployment
+uses a 03:30 backup and a 00:00 independent retention run; those times are not
+portable defaults.
+
+## Change Rules
+
+Update this document when trigger semantics, locking, durable run states,
+supported protected-host adapters, or the retention safety contract changes.
+Host-specific credentials, repository URIs, and secrets never belong here.
 
 ## References
 
-- [CLI Schedule Commands](../3-implementation/cli-modules.md)
-- [Policy Management](../3-implementation/policy-management.md)
+- [System Operations Requirements](../1-requirements/system-operations.md)
+- [System Architecture](./system-architecture.md)
+- [Scheduling Guide](../guides/developer/scheduling-guide.md)
+- [Backup Operations Troubleshooting](../guides/user/backup-operations-troubleshooting.md)

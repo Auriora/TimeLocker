@@ -1,127 +1,144 @@
 ---
-title: "Developer Guide: Scheduling Backups"
-id: "dev-guide-scheduling"
+title: "Operator Guide: Scheduling Backups And Retention"
+id: "guide-scheduling"
 type: [ guide ]
 status: [ approved ]
-owner: "Operations Team"
-last_reviewed: "01-11-2025"
-tags: [guide, developer, scheduling]
+owner: "Auriora Team"
+last_reviewed: "2026-07-26"
+tags: [guide, developer, operator, scheduling, retention]
 links:
   tooling: []
 ---
 
-# Developer Guide: Scheduling Backups
+# Operator Guide: Scheduling Backups And Retention
 
-- **Owner**: Operations Team
-- **Status**: Approved
-- **Created Date**: 19-12-2024
-- **Last Updated**: 01-11-2025
-- **Audience**: Developers, Operators
+## Purpose
 
-## 1. Purpose
+Configure reviewable user schedules and operate the protected Linux system
+backup and retention schedules without exposing credentials.
 
-Provide actionable steps for scheduling recurring TimeLocker backups using systemd timers or cron, including validation, customization, and troubleshooting guidance.
+## User-Managed Schedules
 
-## 2. Steps
+Create schedules disabled, then generate assets into a staging directory:
 
-### 2.1 Prepare Secrets
-1. Edit the reusable environment file:
-   ```bash
-   nano ~/.config/timelocker/env
-   TIMELOCKER_PASSWORD="your-actual-repository-password"
-   ```
-2. Validate the configuration:
-   ```bash
-   ~/.local/bin/timelocker-test.sh
-   ```
+```bash
+tl schedule create nightly-documents \
+  --repository my-repository \
+  --source "$HOME/Documents" \
+  --cron-expression "30 3 * * *" \
+  --environment-file "$HOME/.config/timelocker/backup.env"
 
-### 2.2 Option A – systemd Timer (Recommended on Linux)
-1. Install service and timer units:
-   ```bash
-   sudo cp ~/.config/timelocker/timelocker-backup.service /etc/systemd/system/
-   sudo cp ~/.config/timelocker/timelocker-backup.timer /etc/systemd/system/
-   ```
-2. Enable and start:
-   ```bash
-   sudo systemctl daemon-reload
-   sudo systemctl enable --now timelocker-backup.timer
-   ```
-3. Monitor runtime:
-   ```bash
-   journalctl -u timelocker-backup.service -f
-   journalctl -u timelocker-backup.timer -f
-   ```
-4. Modify schedule by editing the timer and reloading:
-   ```bash
-   sudo nano /etc/systemd/system/timelocker-backup.timer
-   sudo systemctl daemon-reload
-   sudo systemctl restart timelocker-backup.timer
-   ```
+tl schedule generate-scripts nightly-documents \
+  --platform systemd \
+  --output "$HOME/.local/share/timelocker/staged-schedules"
+```
 
-### 2.3 Option B – Cron Job
-1. Edit crontab (`crontab -e`) and choose a schedule:
-   ```bash
-   # Daily at 2 AM
-   0 2 * * * /home/bcherrington/.local/bin/timelocker-backup.sh
-   # Every 6 hours
-   0 */6 * * * /home/bcherrington/.local/bin/timelocker-backup.sh
-   # Weekly on Sunday at 3 AM
-   0 3 * * 0 /home/bcherrington/.local/bin/timelocker-backup.sh
-   ```
-2. Monitor logs:
-   ```bash
-   tail -f ~/.local/share/timelocker/backup.log
-   grep CRON /var/log/syslog | tail
-   ```
+Review generated commands, absolute executable paths, source and exclusion
+arguments, the configuration directory, environment-file permissions, and
+calendar behavior before installation. Asset generation does not install,
+enable, start, or disable a scheduler.
 
-### 2.4 Customize Backup Script
-1. Adjust target:
-   ```bash
-   python3 -m src.TimeLocker.cli backup run your-backup-target-name
-   ```
-2. Process multiple targets:
-   ```bash
-   for target in target1 target2 target3; do
-       python3 -m src.TimeLocker.cli backup run "$target"
-   done
-   ```
-3. Add health checks:
-   ```bash
-   if python3 -m src.TimeLocker.cli backup run my-target; then
-       curl -fsS https://hc-ping.com/your-uuid
-   else
-       curl -fsS https://hc-ping.com/your-uuid/fail
-       exit 1
-   fi
-   ```
-4. Extend environment variables within `~/.config/timelocker/env` (repository overrides, cache location, bandwidth limits, AWS credentials, etc.).
+Inspect the stored definition with:
 
-## 3. Troubleshooting
+```bash
+tl schedule list
+tl schedule show nightly-documents
+tl schedule test nightly-documents
+```
 
-- **Permission issues**:
-  ```bash
-  chmod +x ~/.local/bin/timelocker-backup.sh
-  chmod 600 ~/.config/timelocker/env
-  ```
-- **Python import errors**:
-  ```bash
-  export PYTHONPATH="/home/bcherrington/Projects/Auriora/TimeLocker:$PYTHONPATH"
-  ```
-- **Repository not found**:
-  ```bash
-  python3 -m src.TimeLocker.cli config repositories show local-test
-  ```
-- **Verify manually**:
-  ```bash
-  ~/.local/bin/timelocker-backup.sh
-  ```
-- **Log locations**:
-  - Backup logs: `~/.local/share/timelocker/backup.log`
-  - systemd logs: `journalctl -u timelocker-backup.service`
-  - Cron logs: `/var/log/syslog` or `/var/log/cron`
+## Protected System Schedule
 
-# References
+The protected Linux deployment is administrator-installed. It uses root-owned
+systemd units, root-owned configuration under `/etc/timelocker`, durable state
+under `/var/lib/timelocker`, and the stable launcher selected under
+`/opt/timelocker`.
 
-- `docs/guides/developer/automation-examples.md`
-- `docs/guides/user/per-repo-credentials.md`
-- `docs/guides/user/installation.md`
+Inspect it without reading secret files:
+
+```bash
+systemctl status timelocker-control.socket
+systemctl status timelocker-npbackup-migration.timer
+systemctl status timelocker-retention.timer
+systemctl list-timers 'timelocker-*'
+```
+
+The backup unit records each scheduled or authorized invocation. On successful
+completion it may request retention as a separate `backup-success` run.
+Retention also has an independent timer and may be requested explicitly by an
+authorized operator. It therefore does not need a separate *dependency* on a
+backup, even when the chosen deployment also runs it after successful backups.
+
+## Retention Safety
+
+The current protected policy is:
+
+```text
+keep daily:   5
+keep weekly:  4
+keep monthly: 12
+keep yearly:  3
+group by:     host,paths
+prune:        disabled
+```
+
+Production mutation requires the root-owned enable marker and an exact approved
+policy fingerprint. Changing any repository reference, credential reference,
+filter, retention count, grouping, or prune setting changes that fingerprint
+and requires an administrator to review and approve the new policy.
+
+Backup and retention share a repository mutation lock. A conflict is recorded
+as skipped; do not bypass the lock by calling Restic directly while an operation
+is active.
+
+## Operator Visibility
+
+Current members of `timelocker-operators` can inspect protected records:
+
+```bash
+timelocker runs list --limit 20
+timelocker runs list --operation backup
+timelocker runs list --operation retention
+timelocker runs show RUN_ID
+timelocker logs view --scope system --lines 100
+```
+
+`timelocker logs view` without `--scope system` reads the invoking user's local
+CLI log and does not contain protected scheduled-run records.
+
+## Cutover From Another Scheduler
+
+1. Reproduce the existing repository, sources, exclusions, tags, traversal
+   behavior, environment reference, and calendar in a disabled TimeLocker
+   schedule.
+2. Dry-run and manually exercise the exact protected target.
+3. Complete a backup and a restore acceptance test.
+4. Approve the retention fingerprint and verify a dry run.
+5. Install and enable TimeLocker timers.
+6. Confirm `runs list` contains successful backup and retention records.
+7. Disable the legacy scheduler only after TimeLocker acceptance succeeds.
+8. Preserve the legacy scheduler configuration and crontab as rollback
+   evidence until the observation window is complete.
+
+## Rollback
+
+If scheduling or the selected release is unhealthy:
+
+1. disable the affected TimeLocker timer;
+2. inspect structured runs and diagnostics;
+3. select the previously validated immutable release with the administrator
+   release tool;
+4. restore the preserved legacy scheduler configuration if service continuity
+   requires it; and
+5. retain TimeLocker run and policy records for diagnosis.
+
+Rollback does not require deleting credentials or state. If automated retention
+is disabled during rollback, resume the previously reviewed manual
+`restic forget` procedure as the authorized restic account. Do not enable prune
+unless it has been separately reviewed.
+
+## References
+
+- [Scheduling Architecture](../../2-architecture/scheduling-system.md)
+- [Installation](../user/installation.md)
+- [Backup Operations Troubleshooting](../user/backup-operations-troubleshooting.md)
+- [Version Management](../../processes/version-management.md)

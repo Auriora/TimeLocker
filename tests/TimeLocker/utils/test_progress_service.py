@@ -7,6 +7,7 @@ This module tests the centralized progress tracking service.
 import pytest
 from io import StringIO
 from rich.console import Console
+from unittest.mock import Mock
 
 from TimeLocker.utils.progress_service import (
     ProgressService,
@@ -71,6 +72,24 @@ class TestProgressService:
             progress.update(advance=10)
             assert progress.completed == 10
         
+        assert not service.has_active_progress()
+
+    @pytest.mark.parametrize("context_name", ["spinner", "bar"])
+    def test_body_exception_remains_primary(self, context_name):
+        """Progress cleanup must not yield twice or replace the body failure."""
+        output = StringIO()
+        service = ProgressService(console=Console(file=output, width=80))
+        context = (
+            service.spinner("Failing operation")
+            if context_name == "spinner"
+            else service.bar("Failing operation", total=1)
+        )
+
+        with pytest.raises(ValueError, match="primary failure"):
+            with context as progress:
+                progress.complete = Mock(side_effect=RuntimeError("cleanup failure"))
+                raise ValueError("primary failure")
+
         assert not service.has_active_progress()
     
     def test_simple_context(self):

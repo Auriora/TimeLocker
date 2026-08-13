@@ -3,213 +3,157 @@ title: Version management and GitHub releases
 doc_type: process
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-18
+last_reviewed: 2026-08-13
 ---
 
 # Version Management And GitHub Releases
 
-This document describes how to manage versions in the TimeLocker project using the automated version bumping system.
+This procedure separates safe release preparation from publication. Running a
+rehearsal does not authorize or create a commit, tag, GitHub release, or PyPI
+distribution. The release maintainer must approve publication separately.
 
-## Overview
+## Release Contract
 
-TimeLocker uses [semantic versioning](https://semver.org/) with the format `MAJOR.MINOR.PATCH`:
+- Versions follow `MAJOR.MINOR.PATCH` semantic versioning.
+- `pyproject.toml`, `src/TimeLocker/__init__.py`, and `.bumpversion.cfg` must
+  agree.
+- A tag has the exact form `vMAJOR.MINOR.PATCH`.
+- The matching `CHANGELOG.md` section is the canonical release-note source.
+- `.github/workflows/release-validation.yml` owns read-only validation.
+- `.github/workflows/release.yml` owns the isolated GitHub release action.
+- TimeLocker is not published to PyPI. Adding registry publication requires a
+  separate scope decision, credentials, process changes, and approval.
 
-- **MAJOR**: Incompatible API changes
-- **MINOR**: New functionality in a backwards compatible manner
-- **PATCH**: Backwards compatible bug fixes
+## Roles And Approval Boundary
 
-## Quick Start
+Contributors may prepare versions and run non-publishing validation. Only the
+release maintainer may approve a release commit and production tag. Pushing the
+tag is the publication boundary: it starts the workflow whose final job creates
+the GitHub release. Never push a release tag as part of preparation or
+rehearsal.
 
-### Show Current Version
+## Prepare A Version Safely
+
+Start from the intended release branch and inspect the tree. Do not hide
+unrelated changes.
 
 ```bash
-# Activate virtual environment first
-source .venv/bin/activate
-
-# Show current version and check consistency
+git status --short --branch
 python scripts/bump_version.py show
-```
-
-### Bump Version (Most Common)
-
-```bash
-# Activate virtual environment first
-source .venv/bin/activate
-
-# Patch version (1.0.0 -> 1.0.1) - for bug fixes
-python scripts/bump_version.py bump patch
-
-# Minor version (1.0.0 -> 1.1.0) - for new features
-python scripts/bump_version.py bump minor
-
-# Major version (1.0.0 -> 2.0.0) - for breaking changes
-python scripts/bump_version.py bump major
-```
-
-### Preview Changes (Dry Run)
-
-```bash
-# See what would happen without making changes
-source .venv/bin/activate
 python scripts/bump_version.py bump patch --dry-run
-python scripts/bump_version.py bump minor --dry-run
-python scripts/bump_version.py bump major --dry-run
 ```
 
-## Detailed Usage
-
-### Using the Python Script Directly
-
-The version management is handled by `scripts/bump_version.py`:
+When a version change is required, disable both automatic side effects:
 
 ```bash
-# Activate virtual environment first
-source .venv/bin/activate
-
-# Show current version and check consistency
-python scripts/bump_version.py show
-
-# Bump versions with various options
-python scripts/bump_version.py bump patch                    # Standard patch bump
-python scripts/bump_version.py bump minor --dry-run          # Preview minor bump
-python scripts/bump_version.py bump major --no-tag           # Bump without git tag
-python scripts/bump_version.py bump patch --no-commit        # Bump without git commit
+python scripts/bump_version.py bump patch --no-commit --no-tag
 ```
 
-### Command Options
+Review the three expected version files, update the matching changelog section,
+and request a separate commit instruction. A dirty tree or disagreement about
+the target version stops preparation.
 
-- `--dry-run`: Preview changes without modifying files
-- `--no-commit`: Don't create a git commit
-- `--no-tag`: Don't create a git tag
+## Run The Non-Publishing Rehearsal
 
-## What Happens During Version Bump
-
-When you bump a version, the system automatically:
-
-1. **Updates version numbers** in:
-    - `pyproject.toml`
-    - `src/TimeLocker/__init__.py`
-
-2. **Creates a git commit** with message: `Bump version: 1.0.0 → 1.0.1`
-
-3. **Creates a git tag** with format: `v1.0.1`
-
-4. **Validates consistency** across all version files
-
-## Configuration
-
-Version management is configured in `.bumpversion.cfg`:
-
-```ini
-[bumpversion]
-current_version = 1.0.0
-commit = True
-tag = True
-tag_name = v{new_version}
-message = Bump version: {current_version} → {new_version}
-
-[bumpversion:file:pyproject.toml]
-search = version = "{current_version}"
-replace = version = "{new_version}"
-
-[bumpversion:file:src/TimeLocker/__init__.py]
-search = __version__ = "{current_version}"
-replace = __version__ = "{new_version}"
-```
-
-## Best Practices
-
-### Before Bumping Version
-
-1. **Ensure clean git state**: Commit or stash all changes
-2. **Run tests**: Make sure all tests pass
-3. **Update CHANGELOG.md**: Document what changed
-4. **Review changes**: Use dry-run to preview
-
-### Version Bump Guidelines
-
-- **Patch (1.0.0 → 1.0.1)**: Bug fixes, documentation updates, minor improvements
-- **Minor (1.0.0 → 1.1.0)**: New features, new CLI commands, backwards-compatible changes
-- **Major (1.0.0 → 2.0.0)**: Breaking API changes, removed features, incompatible changes
-
-### After Version Bump
-
-1. **Push the version commit and tag**: `git push && git push --tags`
-2. **Observe the release workflow**: The tag-triggered workflow verifies the
-   tag against both Python version sources, runs the configured test suite,
-   builds the source and wheel distributions, installs and smokes the wheel,
-   uploads artifacts, and creates the GitHub release.
-3. **Verify release artifacts**: Download the wheel/source distribution from
-   the GitHub release and confirm its version and checksums before announcing it.
-4. **Update documentation**: If needed for new features.
-5. **Notify users**: For major changes.
-
-The workflow does not publish to PyPI. Adding a package-registry publishing
-step requires separate approval, credentials, and release-process updates.
-
-## Troubleshooting
-
-### Git Repository Not Clean
-
-If you see "Git working directory is not clean":
+For `v0.9.1`, run:
 
 ```bash
-# Check what files are modified
-git status
-
-# Either commit the changes
-git add .
-git commit -m "Prepare for version bump"
-
-# Or use --allow-dirty (not recommended for actual releases)
-python scripts/bump_version.py bump patch --dry-run  # This allows dirty for dry-run
+python scripts/validate_release_intent.py --version-ref v0.9.1
+python scripts/validate_release_workflows.py
+python -m pytest -m "not performance and not stress and not minio"
+python -m build
+python scripts/validate_release_artifacts.py --expected-version 0.9.1
+python scripts/smoke_release_artifact.py dist/*.whl --expected-version 0.9.1
+python scripts/smoke_release_artifact.py dist/*.tar.gz --expected-version 0.9.1
+python scripts/extract_release_notes.py --version 0.9.1 --output release-notes.md
 ```
 
-### Version Inconsistency
+The reusable workflow may also be run manually with `version_ref=v0.9.1` after
+the preparation changes are committed. It has `contents: read` permission and
+uploads only validation artifacts and a release-note preview. Confirm the
+commit, local tags, GitHub releases, and tag-triggered release-run inventory are
+unchanged after either rehearsal.
 
-If versions don't match across files:
+The normal suite deliberately excludes performance, stress, and live MinIO
+profiles. Those profiles and their prerequisites are defined in the
+[testing guide](../4-testing/README.md) and must already have current passing
+evidence for the release candidate.
 
-```bash
-# Check current state
-python scripts/bump_version.py show
+## Authorize And Publish
 
-# Fix by doing a version bump (even if just patch)
-python scripts/bump_version.py bump patch
-```
+Publication requires all of the following:
 
-### Permission Issues
+1. The release candidate is committed on the intended protected branch and CI
+   is green.
+2. The release-readiness lifecycle package is closed or ready for closure, and
+   its residual risks have an owner.
+3. The version guard, artifacts, supported OS/Python matrix, changelog preview,
+   and non-publishing rehearsal pass.
+4. The release maintainer explicitly approves the exact commit and version.
+5. The approved release commit replaces the changelog's `Prepared` qualifier
+   with the actual release date without changing its evidence-backed body.
 
-Ensure you have write permissions to:
+The maintainer then creates and pushes the approved signed tag according to the
+repository Git policy. The tag-triggered workflow reruns the read-only contract,
+downloads only those validated artifacts, and grants `contents: write` solely
+to the dependent job that creates the GitHub release. The release body is the
+derived changelog section; it is not generated independently.
 
-- Project files (`pyproject.toml`, `src/TimeLocker/__init__.py`)
-- Git repository (for commits and tags)
+## Verify Publication
 
-## Integration With CI/CD
+After the workflow completes:
 
-`.github/workflows/release.yml` is the durable executable release contract. It
-runs only for semantic version tags matching `v*.*.*` and uses the repository's
-Python metadata and test configuration. It does not move tags or mutate source.
+1. Confirm the release tag and GitHub release point to the approved commit.
+2. Download both distributions and `SHA256SUMS` from the release.
+3. Compare hashes and smoke a clean install through `timelocker`, `tl`,
+   `timelocker-system-control`, `timelocker-tray`, and `timelocker-deploy`,
+   including the packaged control protocol and daemonless protected assets.
+4. Confirm the published body matches the corresponding changelog section.
+5. Announce the release only after these checks pass.
 
-## Manual Version Management
+## Failure And Recovery
 
-If you need to manually set a version:
+- **Version mismatch:** stop before building; reconcile the three version
+  sources and the approved tag intent. Do not move an existing published tag.
+- **Missing Restic, build tool, or artifact:** install the documented
+  prerequisite or correct the build. Do not bypass the failing check.
+- **Permission failure:** keep rehearsal permissions read-only. Check repository
+  Actions policy and the publish job's narrowly scoped `contents: write`
+  permission; do not grant write permission to validation.
+- **Test, artifact, or smoke failure:** retain the failed run as evidence, fix
+  through the normal review path, and rerun the whole validation contract.
+- **Failure after a tag is pushed:** stop announcements and record an issue.
+  Do not overwrite or silently move a public tag. The release maintainer decides
+  whether to remove an unpublished erroneous tag/release or issue a new patch.
 
-1. Edit `.bumpversion.cfg` to set `current_version`
-2. Edit `pyproject.toml` to set `version`
-3. Edit `src/TimeLocker/__init__.py` to set `__version__`
-4. Verify with `python scripts/bump_version.py show`
+The practical rollback before publication is to discard the uncommitted
+preparation changes or revert the reviewed preparation commit. After
+publication, prefer a new corrective patch release so consumers retain an
+immutable history.
 
-## Dependencies
+## Protected Host Activation And Rollback
 
-The version management system requires:
+Publishing a GitHub release and selecting a protected host release are separate
+boundaries. A protected host stages an immutable release under
+`/opt/timelocker/releases/RELEASE_ID/` with a manifest that binds its release
+identity, package version, control protocol version, and entrypoint. Schema 3
+explicitly has no privileged event protocol or status service.
 
-- `bump2version` package (installed automatically)
-- Git repository
-- Python 3.12+
+Before activation, `timelocker-deploy` validates and privately stages the local
+wheel, derives its manifest, and probes the staged CLI, backend, tray, explicit
+control status, and protected timers. Only then may the root-only selector update
+`/opt/timelocker/selected-release.json`, preserving the prior release identifier
+for rollback. Stable launchers resolve that selector and fail closed on missing,
+untrusted, incompatible, recursively invoked, or non-allowlisted state.
 
-Install dependencies:
+Rollback probes a schema-3 previous release, explicit control status, and timer
+states before swapping selected and previous identifiers. It does not delete
+protected configuration, credential references, retention policy, or durable
+run records. Schema-1/2 rollback is rejected because it can re-enable the
+removed resident event service.
 
-```bash
-source .venv/bin/activate
-pip install bump2version
-```
+## Current Deferrals
+
+Version `0.9.1` is distributed through its GitHub release. PyPI distribution
+and the `1.0.0` milestone remain deferred and are not implied by completing
+this procedure.

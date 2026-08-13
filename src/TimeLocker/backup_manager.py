@@ -197,13 +197,14 @@ class BackupManager:
                                  metadata={"max_retries": max_retries, "targets_count": len(targets)})
 
         try:
+            # Invalid target configuration is deterministic and must not enter
+            # the transient retry loop.
+            for target in targets:
+                target.validate()
+
             # Use the centralized retry mechanism
             @with_retry(max_retries=max_retries, delay=retry_delay, backoff_multiplier=backoff_multiplier)
             def _execute_single_backup():
-                # Validate targets before attempting backup
-                for target in targets:
-                    target.validate()
-
                 # Execute backup
                 result = repository.backup_target(targets, tags)
 
@@ -221,6 +222,8 @@ class BackupManager:
 
             # Execute with retries; if all attempts fail, the last exception is re-raised
             return _execute_single_backup()
+        except ValueError as e:
+            raise BackupManagerError(f"Invalid backup target: {e}") from e
         except Exception as e:
             # Wrap in domain-specific error with attempts count, preserve context
             raise BackupManagerError(f"Backup failed after {max_retries + 1} attempts: {e}") from e

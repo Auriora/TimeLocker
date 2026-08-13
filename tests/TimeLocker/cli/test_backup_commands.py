@@ -6,6 +6,7 @@ Tests backup command parsing, parameter validation, help output, and error handl
 
 import pytest
 import tempfile
+from pathlib import Path
 from unittest.mock import AsyncMock, Mock, patch
 
 from TimeLocker.cli import app
@@ -22,6 +23,27 @@ runner = get_cli_runner()
 
 class TestBackupCommands:
     """Test suite for backup command group."""
+
+    @pytest.mark.unit
+    @pytest.mark.parametrize(
+        "repository_uri",
+        [
+            "s3:s3.af-south-1.amazonaws.com/example-restic",
+            "b2:example-bucket:path",
+            "sftp:user@example.test:/srv/restic",
+        ],
+    )
+    def test_cli_service_manager_preserves_restic_native_repository_uri(
+            self, repository_uri: str
+    ) -> None:
+        """A second resolution pass must not reinterpret Restic URIs as paths."""
+        manager = CLIServiceManager.__new__(CLIServiceManager)
+        manager._config_service = Mock()
+        manager._config_module = Mock()
+
+        assert manager.resolve_repository_uri(repository_uri) == repository_uri
+        manager._config_service.get_repositories.assert_not_called()
+        manager._config_module.get_repository.assert_not_called()
 
     @pytest.mark.unit
     def test_selection_handler_prefers_focused_service(self) -> None:
@@ -236,6 +258,59 @@ class TestBackupCommands:
             # Range allowed: mock configuration issues may cause failures (1) despite success=True
             # TODO: Fix mock setup to properly simulate successful backup execution
             assert result.exit_code in [0, 1]
+
+    @pytest.mark.unit
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    def test_backup_create_propagates_execution_options(
+            self, mock_get_manager: Mock
+    ) -> None:
+        """Direct backup requests retain reviewed Restic execution options."""
+        manager = Mock()
+        manager.execute_backup.return_value = Mock(
+            is_successful=True,
+            files_processed=1,
+            bytes_processed=1,
+            duration=0.1,
+            snapshot_id="snapshot123",
+            warnings=[],
+        )
+        mock_get_manager.return_value = manager
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            exclude_file = Path(temp_dir) / "excludes.txt"
+            exclude_file.write_text("*.cache\n")
+            result = runner.invoke(app, [
+                "backup", "create", temp_dir,
+                "--compression", "max",
+                "--one-file-system",
+                "--exclude-file", str(exclude_file),
+                "--exclude-caches",
+                "--backend-option", "s3.storage-class=INTELLIGENT_TIERING",
+                "--dry-run",
+            ])
+
+        assert result.exit_code == 0, (combined_output(result), result.exception)
+        request = manager.execute_backup.call_args.args[0]
+        assert request.compression == "max"
+        assert request.one_file_system is True
+        assert request.exclude_files == [exclude_file]
+        assert request.exclude_caches is True
+        assert request.backend_options == ["s3.storage-class=INTELLIGENT_TIERING"]
+
+    @pytest.mark.unit
+    @patch('TimeLocker.cli_modules.commands.backup._get_service_manager_for_command')
+    def test_backup_create_rejects_invalid_compression_before_services(
+            self, mock_get_manager: Mock
+    ) -> None:
+        """CLI validation prevents invalid compression reaching repositories."""
+        result = runner.invoke(app, [
+            "backup", "create", ".",
+            "--compression", "gzip",
+            "--dry-run",
+        ])
+
+        assert result.exit_code == 2
+        mock_get_manager.assert_not_called()
 
     @pytest.mark.unit
     def test_backup_create_parameter_validation(self) -> None:

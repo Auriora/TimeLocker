@@ -3,7 +3,7 @@ title: TimeLocker documentation
 doc_type: reference
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-18
+last_reviewed: 2026-07-26
 ---
 
 # TimeLocker Documentation
@@ -16,6 +16,8 @@ status snapshots—preserves superseded context.
 
 - [Project charter](../CHARTER.md)
 - [Installation](./guides/user/installation.md)
+- [System operations requirements](./1-requirements/system-operations.md)
+- [Backup operations troubleshooting](./guides/user/backup-operations-troubleshooting.md)
 - [Repository management](./guides/user/repository-management-guide.md)
 - [S3-compatible services](./guides/user/s3-compatible-services.md)
 - [Testing quick start](./4-testing/quickstart-testing.md)
@@ -27,9 +29,11 @@ status snapshots—preserves superseded context.
 
 TimeLocker is a Beta CLI application that wraps Restic for repository,
 snapshot, backup, restore, credential, policy, scheduling, monitoring, and
-integration workflows. The CLI is the supported user interface. There is no
-implemented REST API, database-backed application store, desktop GUI, or
-mobile client.
+integration workflows. Protected Linux deployments add a root-owned local
+backend, immutable release launcher, structured system run/diagnostic views,
+scheduled retention, and an independent optional tray. The CLI remains the
+supported user interface. There is no implemented REST API, database-backed
+application store, full desktop GUI, or mobile client.
 
 The CLI consolidation and stabilization package is complete. Its accepted
 service and ownership boundaries are documented in the
@@ -54,10 +58,10 @@ lists any governed delivery work.
 | Active delivery contracts | `specs/` |
 | Compact lifecycle evidence | `history/` |
 
-`1-requirements/` currently contains the durable-document contract and template
-only; do not treat removed Kiro requirements or historical specs as current
-product requirements. When accepted product requirements need durable coverage,
-add a current-state document there or promote them from an active spec.
+`1-requirements/` contains accepted current-state requirements, including the
+protected [system operations contract](./1-requirements/system-operations.md).
+Do not treat removed Kiro requirements or historical specs as current product
+requirements.
 
 ## Authority Boundaries
 

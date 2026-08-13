@@ -2,12 +2,12 @@
 Performance metrics collection and analysis for TimeLocker
 """
 
-import time
 import threading
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, field
 from datetime import datetime
 import json
+import os
 from pathlib import Path
 
 
@@ -52,7 +52,7 @@ class PerformanceMetrics:
     """Centralized performance metrics collection"""
 
     def __init__(self, metrics_file: Optional[Path] = None):
-        self.metrics_file = metrics_file or Path("performance_metrics.json")
+        self.metrics_file = metrics_file or _default_metrics_file()
         self._operations: Dict[str, OperationMetrics] = {}
         self._completed_operations: List[OperationMetrics] = []
         self._lock = threading.Lock()
@@ -166,10 +166,10 @@ class PerformanceMetrics:
 
     def _load_metrics(self):
         """Load metrics from file"""
-        if not self.metrics_file.exists():
-            return
-
         try:
+            if not self.metrics_file.exists():
+                return
+
             with open(self.metrics_file, 'r') as f:
                 data = json.load(f)
 
@@ -187,23 +187,34 @@ class PerformanceMetrics:
                 )
                 self._completed_operations.append(metrics)
 
-        except Exception as e:
+        except Exception:
             # If we can't load metrics, start fresh
             pass
 
     def _save_metrics(self):
         """Save metrics to file"""
         try:
+            self.metrics_file.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
             data = {
                     'completed_operations': [op.to_dict() for op in self._completed_operations]
             }
 
             with open(self.metrics_file, 'w') as f:
                 json.dump(data, f, indent=2)
+            self.metrics_file.chmod(0o600)
 
-        except Exception as e:
+        except Exception:
             # Fail silently to avoid disrupting operations
             pass
+
+
+def _default_metrics_file() -> Path:
+    """Resolve metrics outside the caller's working directory."""
+    if os.name != "nt" and hasattr(os, "geteuid") and os.geteuid() == 0:
+        return Path("/var/lib/timelocker/performance_metrics.json")
+    cache_home = os.environ.get("XDG_CACHE_HOME")
+    base = Path(cache_home) if cache_home else Path.home() / ".cache"
+    return base / "timelocker" / "performance_metrics.json"
 
 
 # Global metrics instance

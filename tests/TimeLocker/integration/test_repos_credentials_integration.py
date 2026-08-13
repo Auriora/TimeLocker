@@ -46,6 +46,11 @@ fi
 """
 
 
+def _credential_store_path(config_dir: Path) -> Path:
+    """Return encrypted credential store path for the active config directory."""
+    return config_dir / "credentials" / "credentials.enc"
+
+
 @pytest.mark.integration
 def test_backend_credentials_store_and_show_s3() -> None:
     with runner.isolated_filesystem():
@@ -143,5 +148,5 @@ def test_backend_credentials_store_and_show_s3() -> None:
         assert 'no' in combined_show_removed and 'credential' in combined_show_removed
 
         # Sanity check that encrypted credential file was created
-        cred_file = home_dir / '.timelocker' / 'credentials' / 'credentials.enc'
+        cred_file = _credential_store_path(config_dir)
         assert cred_file.exists(), 'Encrypted credential store not created'

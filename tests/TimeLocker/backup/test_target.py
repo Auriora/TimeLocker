@@ -41,6 +41,21 @@ def test_create_backup_target_with_tags(selection):
     target = BackupTarget(selection, tags=tags)
     assert target.tags == tags
 
+
+@pytest.mark.backup
+@pytest.mark.filesystem
+@pytest.mark.unit
+def test_backup_target_carries_restic_execution_options(selection):
+    """Execution options remain typed metadata until the Restic boundary."""
+    target = BackupTarget(
+        selection,
+        compression="max",
+        one_file_system=True,
+    )
+
+    assert target.compression == "max"
+    assert target.one_file_system is True
+
 @pytest.mark.backup
 @pytest.mark.filesystem
 @pytest.mark.unit
@@ -72,20 +87,16 @@ def test_init_with_selection_and_tags():
 @pytest.mark.backup
 @pytest.mark.filesystem
 @pytest.mark.unit
-def test_validate_requires_folder(selection, test_dir, test_file):
-    """Test that validation requires at least one folder"""
+def test_validate_accepts_file_and_requires_path(selection, test_file):
+    """Backup targets accept direct files but reject an empty selection."""
     target = BackupTarget(selection)
 
-    # Should raise error when no folders are included
     selection.add_path(test_file)
-    with pytest.raises(ValueError):
-        target.validate()
-
-    # Should pass when a folder is included
-    selection = FileSelection()  # Reset selection
-    selection.add_path(test_dir)
-    target = BackupTarget(selection)
     assert target.validate()
+
+    empty_target = BackupTarget(FileSelection())
+    with pytest.raises(ValueError, match="At least one path"):
+        empty_target.validate()
 
 @pytest.mark.backup
 @pytest.mark.filesystem
@@ -134,4 +145,3 @@ def test_backup_target_with_pattern_group(selection, test_dir):
     assert target.validate()
     assert "*.doc" in target.selection.include_patterns
     assert "*.pdf" in target.selection.include_patterns
-

@@ -418,8 +418,8 @@ class TestRegressionSuite:
                 tags=["empty_test"]
         )
 
-        # Should fail validation because no folders are included
-        with pytest.raises(ValueError, match="At least one folder must be included"):
+        # Should fail validation because no paths are included
+        with pytest.raises(ValueError, match="At least one path must be included"):
             empty_target.validate()
 
     @pytest.mark.regression

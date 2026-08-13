@@ -16,6 +16,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -67,6 +68,25 @@ def test_restore_rejects_unknown_overwrite_policy():
 
     with pytest.raises(ValueError, match="overwrite must be"):
         repo.restore("snapshot-1", overwrite="if-newer")
+
+
+@pytest.mark.unit
+def test_restore_passes_include_and_exclude_paths():
+    repo = ConcreteResticRepository("test_location")
+    command = MagicMock()
+    command.param.return_value = command
+    repo._command = MagicMock()
+    repo._command.command.return_value = command
+    command.run.return_value = "restore complete"
+
+    repo.restore(
+        "snapshot-1",
+        include_paths=[Path("/etc/hostname")],
+        exclude_paths=[Path("/etc/shadow")],
+    )
+
+    command.param.assert_any_call("include", Path("/etc/hostname"))
+    command.param.assert_any_call("exclude", Path("/etc/shadow"))
 
 
 @pytest.mark.unit

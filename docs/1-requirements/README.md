@@ -5,7 +5,7 @@ id: "RM-003"
 type: [ readme ]
 status: active
 owner: "Auriora Team"
-last_reviewed: 2026-07-18
+last_reviewed: 2026-07-26
 tags: [readme, requirements]
 links:
   tooling: []
@@ -50,6 +50,12 @@ links:
 - Use the central [durable-document template](../templates/durable-document.md)
   for accepted current-state requirements. Use an active spec for proposed
   implementation work.
+
+## 6. Current Requirements
+
+- [System Operations Requirements](./system-operations.md) — protected launcher,
+  authorization, backup/retention, visibility, privacy, tray, and platform
+  invariants.
 
 # References
 

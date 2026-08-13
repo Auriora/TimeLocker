@@ -321,6 +321,42 @@ class ResticRepository(BackupRepository):
         for target in targets:
             target.validate()
 
+        compression_values = {
+            target.compression for target in targets if target.compression is not None
+        }
+        if not compression_values.issubset({'auto', 'off', 'max'}):
+            invalid = sorted(compression_values - {'auto', 'off', 'max'})
+            raise RepositoryError(
+                f"Unsupported Restic compression mode: {', '.join(invalid)}"
+            )
+        if len(compression_values) > 1:
+            raise RepositoryError(
+                "Backup targets specify conflicting Restic compression modes"
+            )
+
+        filesystem_values = {target.one_file_system for target in targets}
+        if len(filesystem_values) > 1:
+            raise RepositoryError(
+                "Backup targets specify conflicting filesystem traversal modes"
+            )
+
+        cache_values = {target.exclude_caches for target in targets}
+        if len(cache_values) > 1:
+            raise RepositoryError("Backup targets specify conflicting cache exclusion modes")
+
+        backend_option_values = {tuple(target.backend_options) for target in targets}
+        if len(backend_option_values) > 1:
+            raise RepositoryError("Backup targets specify conflicting Restic backend options")
+        backend_options = list(next(iter(backend_option_values), ()))
+        allowed_storage_classes = {
+            "STANDARD", "STANDARD_IA", "ONEZONE_IA",
+            "INTELLIGENT_TIERING", "REDUCED_REDUNDANCY",
+        }
+        for option in backend_options:
+            key, separator, value = option.partition("=")
+            if key != "s3.storage-class" or not separator or value not in allowed_storage_classes:
+                raise RepositoryError(f"Unsupported Restic backend option: {option}")
+
         # Collect all paths to backup and build command arguments
         all_paths = []
         all_tags = set(tags or [])
@@ -336,9 +372,22 @@ class ResticRepository(BackupRepository):
 
         # Build backup command using the existing command builder pattern
         backup_command = self._command.command("backup")
+        for option in backend_options:
+            backup_command.param("option", option)
+        if compression_values:
+            backup_command.param("compression", next(iter(compression_values)))
+        if filesystem_values == {True}:
+            backup_command.param("one-file-system")
+        if cache_values == {True}:
+            backup_command.param("exclude-caches")
 
         # Add exclude patterns from all targets
         for target in targets:
+            for exclude_file in target.exclude_files:
+                exclude_path = Path(exclude_file)
+                if not exclude_path.is_file():
+                    raise RepositoryError(f"Restic exclusion file does not exist: {exclude_path}")
+                backup_command.param("exclude-file", str(exclude_path))
             for pattern in target.selection.exclude_patterns:
                 backup_command.param("exclude", pattern)
             for path in target.selection.excludes:
@@ -610,7 +659,7 @@ class ResticRepository(BackupRepository):
 
             snapshot = BackupSnapshot(
                     repo=self,
-                    snapshot_id=s["short_id"],
+                    snapshot_id=s["id"] if "id" in s else s["short_id"],
                     timestamp=timestamp,
                     paths=paths
             )
@@ -618,6 +667,8 @@ class ResticRepository(BackupRepository):
             # Add additional attributes from restic data
             if "hostname" in s:
                 snapshot.hostname = s["hostname"]
+            if "username" in s:
+                snapshot.username = s["username"]
             if "tags" in s:
                 snapshot.tags = s["tags"]
             else:
@@ -633,6 +684,8 @@ class ResticRepository(BackupRepository):
             target_path: Optional[Path] = None,
             *,
             overwrite: str = "never",
+            include_paths: Optional[List[Path]] = None,
+            exclude_paths: Optional[List[Path]] = None,
     ) -> str:
         if overwrite not in {"never", "always"}:
             raise ValueError("overwrite must be 'never' or 'always'")
@@ -642,6 +695,10 @@ class ResticRepository(BackupRepository):
             .param("target", target_path)
             .param("overwrite", overwrite)
         )
+        for path in include_paths or []:
+            restore_command.param("include", path)
+        for path in exclude_paths or []:
+            restore_command.param("exclude", path)
         return restore_command.run(self.to_env(), synopsis_values={"snapshotID": snapshot_id})
 
     def stats(self) -> dict:

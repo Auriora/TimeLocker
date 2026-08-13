@@ -222,6 +222,8 @@ class BackupTargetConfig:
     include_patterns: List[str] = field(default_factory=list)
     exclude_files: List[str] = field(default_factory=list)
     tags: List[str] = field(default_factory=list)
+    compression: Optional[str] = None
+    one_file_system: bool = False
     schedule: Optional[str] = None  # cron expression
     retention_policy: Optional[Dict[str, int]] = None
     pre_backup_script: Optional[str] = None

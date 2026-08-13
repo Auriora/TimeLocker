@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+
+exec /opt/timelocker/launcher/venv/bin/python \
+  -m TimeLocker.system_control.backend_launcher_entry "$@"

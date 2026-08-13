@@ -33,6 +33,7 @@ from .base import (
     _call_service_method,
     _get_service_manager_for_command,
     _create_config_service,
+    _create_repository_resolver,
     VerboseOption,
     JsonOption,
     YesOption,
@@ -185,16 +186,21 @@ def _normalize_repository_list(raw_repositories: object) -> list[object]:
     return []
 
 
+def _credential_directory(config_dir: Optional[Path]) -> Optional[Path]:
+    """Resolve the credential-store directory below an explicit config root."""
+    return config_dir / "credentials" if config_dir is not None else None
+
+
 def _create_credential_manager(config_dir: Optional[Path] = None):
     """Instantiate credential manager respecting configuration directory."""
-    return CredentialManager()
+    return CredentialManager(config_dir=_credential_directory(config_dir))
 
 
 def _create_security_manager(config_dir: Optional[Path] = None):
     """Create security manager with access manager integration."""
     from TimeLocker.security import AccessManager
     
-    credential_manager = CredentialManager(config_dir=config_dir)
+    credential_manager = CredentialManager(config_dir=_credential_directory(config_dir))
     security_service = SecurityService(credential_manager, config_dir=config_dir)
     access_manager = AccessManager(config_dir=config_dir)
     
@@ -1699,16 +1705,19 @@ def repos_init(
                 )
                 raise typer.Exit(1)
         
-        # Prompt for password if not provided and in interactive mode
-        if not password and interactive:
-            from rich.prompt import Prompt
-            password = Prompt.ask("Enter password for repository", password=True)
-            password_confirm = Prompt.ask("Confirm password", password=True)
-            if password != password_confirm:
-                show_error_panel("Password Mismatch", "Passwords do not match.")
-                raise typer.Exit(1)
-        elif not password and not interactive:
-            show_error_panel("Password Required", "Password must be provided with --password in non-interactive mode.")
+        resolver = _create_repository_resolver(config_dir)
+        password = resolver.resolve_credentials(
+            repository_name=name,
+            explicit_password=password,
+            allow_prompt=interactive,
+            repository_uri=repo_uri,
+        )
+        if not password:
+            show_error_panel(
+                "Password Required",
+                "Repository password is required; provide --password, configure "
+                "stored credentials, or set RESTIC_PASSWORD/TIMELOCKER_PASSWORD."
+            )
             raise typer.Exit(1)
 
         init_method = _get_service_method(manager, "initialize_repository")
@@ -1920,6 +1929,7 @@ def repos_forget(
         keep_weekly: Annotated[int, typer.Option("--keep-weekly", help="Number of weekly snapshots to keep")] = 4,
         keep_monthly: Annotated[int, typer.Option("--keep-monthly", help="Number of monthly snapshots to keep")] = 12,
         keep_yearly: Annotated[int, typer.Option("--keep-yearly", help="Number of yearly snapshots to keep")] = 3,
+        group_by: Annotated[str, typer.Option("--group-by", help="Restic grouping fields (host,paths,tags)")] = "host,paths",
         dry_run: DryRunOption = False,
         prune: Annotated[bool, typer.Option("--prune/--no-prune", help="Prune repository after forgetting snapshots", rich_help_panel=None)] = False,
         repository: Annotated[
@@ -1947,6 +1957,7 @@ def repos_forget(
                 keep_weekly=keep_weekly,
                 keep_monthly=keep_monthly,
                 keep_yearly=keep_yearly,
+                group_by=group_by,
                 dry_run=dry_run,
                 password=password
         )

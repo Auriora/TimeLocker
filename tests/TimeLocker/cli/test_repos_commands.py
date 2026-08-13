@@ -326,6 +326,46 @@ class TestReposCommands:
         assert_success(result)
 
     @pytest.mark.unit
+    @patch('TimeLocker.cli_modules.commands.repositories._create_repository_resolver')
+    @patch('TimeLocker.cli_modules.commands.repositories.ConfigurationManager')
+    @patch('TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
+    def test_repos_init_uses_resolved_environment_password(
+        self,
+        mock_service_manager,
+        mock_config_manager_class,
+        mock_create_resolver,
+        tmp_path,
+    ):
+        """Non-interactive init accepts the shared credential resolution chain."""
+        repo_dir = tmp_path / "environment-repo"
+        repo_dir.mkdir()
+        repo_uri = f"file://{repo_dir}"
+
+        manager = Mock()
+        manager.initialize_repository.return_value = {"success": True}
+        mock_service_manager.return_value = manager
+        mock_config_manager_class.return_value.get_repository.return_value = {
+            "name": "environment-repo",
+            "uri": repo_uri,
+        }
+        resolver = mock_create_resolver.return_value
+        resolver.resolve_credentials.return_value = "environment-password"
+
+        result = runner.invoke(app, [
+            "repos", "init", "environment-repo", "--yes",
+            "--repository", repo_uri,
+        ])
+
+        assert_success(result)
+        resolver.resolve_credentials.assert_called_once_with(
+            repository_name="environment-repo",
+            explicit_password=None,
+            allow_prompt=False,
+            repository_uri=repo_uri,
+        )
+        assert manager.initialize_repository.call_args.kwargs["password"] == "environment-password"
+
+    @pytest.mark.unit
     @patch('TimeLocker.cli_modules.commands.repositories.ConfigurationManager')
     @patch('TimeLocker.cli_modules.commands.repositories._get_service_manager_for_command')
     def test_repos_init_with_repository_uri(self, mock_service_manager, mock_config_manager_class, tmp_path):

@@ -1,6 +1,31 @@
-# CLI Extraction Scripts
+# Repository Automation Scripts
 
-This directory contains automation scripts for the CLI refactoring project.
+This directory contains reviewed repository automation and validation scripts.
+
+## T011 Linux Deployment
+
+`deploy_t011_linux.py` is the repository-owned privileged deployment harness
+for Spec 010 T011. It:
+
+- copies the exact wheel and release manifest into root-owned private evidence
+  before validating or installing them;
+- runs candidate CLI, backend, authorized-event, denied-event, systemd, and
+  timer preflights before changing the service unit or release selector;
+- uses inline identity probes, so restrictive umasks cannot make temporary
+  probe files unreadable to their intended identities;
+- selects the candidate with an expected-current compare-and-swap guard; and
+- restores the prior selector and service unit after an exception, interrupt,
+  termination, or failed post-activation check.
+
+The harness does not run backup or retention. Its arguments must identify a
+committed, freshly built release, and protected execution remains explicitly
+approval-gated by the active spec.
+
+Use `python scripts/deploy_t011_linux.py --help` to inspect its required,
+hash-bound inputs. Do not copy it to `/tmp` or replace its inline probes with
+external temporary scripts.
+
+## CLI Extraction
 
 ## extract_cli_commands.py
 

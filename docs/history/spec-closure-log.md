@@ -3,7 +3,7 @@ title: Spec closure log
 doc_type: history
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-18
+last_reviewed: 2026-08-13
 ---
 
 # Spec Closure Log
@@ -15,6 +15,133 @@ final spec commit preserves the complete package.
 
 ## Entries
 
+### 2026-08-12 - 011-protected-system-deployment
+
+- **Spec:** `docs/specs/011-protected-system-deployment/`
+- **Title:** Protected system deployment requirements
+- **Final spec commit:** `b91c0ff7a644aa0d0343b112b17c700bce820952`
+- **Closure cleanup commit:** `b43acc57a00e854cb8b8d328590316c9cb959ba8`
+- **Closure action:** removed
+- **Durable docs updated:**
+  - `CHARTER.md`
+  - `docs/1-requirements/system-operations.md`
+  - `docs/2-architecture/system-architecture.md`
+  - `docs/guides/user/installation.md`
+  - `docs/processes/version-management.md`
+  - `docs/guides/user/backup-operations-troubleshooting.md`
+  - `docs/reference/timelocker-cli-command-hierarchy.md`
+- **Verification summary:** All seven tasks completed; 295 focused tests,
+  package validation, installed-wheel smoke, scoped Ruff, compile, lifecycle,
+  and seven-role review gates passed. The daemonless release was subsequently
+  activated on the protected Linux host and a 90-second observation found no
+  resident privileged TimeLocker helper.
+- **Residual risks:**
+  - none
+- **Follow-up:** none
+### 2026-08-12 - 010-event-driven-tray-status
+
+- **Spec:** `docs/specs/010-event-driven-tray-status/`
+- **Title:** Event-driven tray status requirements
+- **Final spec commit:** `8820e65`
+- **Closure cleanup commit:** `4122746`
+- **Closure action:** removed
+- **Durable docs updated:**
+  - `CHARTER.md`
+  - `docs/1-requirements/system-operations.md`
+  - `docs/2-architecture/system-architecture.md`
+  - `docs/3-implementation/service-layer-integration.md`
+  - `docs/SYSTEM-TRAY-SETUP.md`
+  - `docs/guides/user/backup-operations-troubleshooting.md`
+- **Verification summary:** Closure validation not yet executed.
+- **Residual risks:**
+  - none
+- **Follow-up:** none
+### 2026-07-26 - 009-system-cli-tray-retention
+
+- **Spec:** removed; recover from Git
+- **Title:** System CLI, independent tray, retention, and control
+- **Final spec commit:** `d4ce71dd05cb5d7278bf36a9fc43e557d68e1e31`
+- **Closure cleanup commit:** `aba95875f453dd6abf39a1fdc6af25fd38c62db4`
+- **Closure action:** removed
+- **Durable docs updated:**
+  - `docs/1-requirements/system-operations.md`
+  - `docs/2-architecture/system-architecture.md`
+  - `docs/2-architecture/scheduling-system.md`
+  - `docs/3-implementation/service-layer-integration.md`
+  - `docs/guides/user/installation.md`
+  - `docs/guides/developer/scheduling-guide.md`
+  - `docs/SYSTEM-TRAY-SETUP.md`
+  - `docs/reference/timelocker-cli-command-hierarchy.md`
+  - `docs/guides/user/backup-operations-troubleshooting.md`
+  - `docs/processes/version-management.md`
+  - `docs/README.md`
+  - `docs/DOCUMENTATION-STATUS.md`
+  - `docs/specs/README.md`
+- **Verification summary:** All 12 top-level tasks are complete. Final expert
+  review findings TLR-013 through TLR-018 were corrected; the configured
+  profile passed 2,998 tests with one skip, 57 deselections, and 53.79%
+  coverage against the 50% gate. All 72 lifecycle evidence records were
+  concrete, closure risk was low, and closure readiness had no blockers.
+- **Residual risks:**
+  - Windows has repository adapter coverage but no live deployment acceptance.
+  - The final T012 corrections are repository-complete but are not yet
+    published or deployed to replace the selected Linux release.
+- **Follow-up:** Treat release publication and deployment as separately
+  authorized work; retain user-scoped backup partitions and restores in issue
+  #70, and open a Windows live-acceptance package before claiming support.
+
+### 2026-07-20 - 007-release-readiness-stabilization
+
+- **Spec:** removed; recover from Git
+- **Title:** Release readiness stabilization requirements
+- **Final spec commit:** `7fd11f9aa1cbc670d5e8b429aede4a7c01e185a4`
+- **Closure cleanup commit:** `6334af0690b5b9e8b6575042269e5b73914a9295`
+- **Closure action:** removed
+- **Durable docs updated:**
+  - `README.md`
+  - `CHANGELOG.md`
+  - `.github/workflows/test-suite.yml`
+  - `.github/workflows/artifact-smoke.yml`
+  - `.github/workflows/release-validation.yml`
+  - `.github/workflows/release.yml`
+  - `docs/4-testing/README.md`
+  - `docs/guides/user/installation.md`
+  - `docs/guides/user/recovery-operations-guide.md`
+  - `docs/guides/developer/scheduling-guide.md`
+  - `docs/processes/version-management.md`
+  - `docs/processes/README.md`
+- **Verification summary:** All nine requirements and 53 task records are
+  complete. Lifecycle closure reported no blockers or open decisions; the
+  final normal profile passed 2,787 tests with one skip and 52.38% coverage,
+  and Spec 008 later completed the NPBackup cutover gates.
+- **Residual risks:**
+  - Release publication remains a separate human decision. Intermediate
+    negative-control evidence retains accepted classifier advisories, while
+    terminal validation records contain concrete run IDs, hashes, counts, and
+    coverage.
+- **Follow-up:** Spec 009 owns system-path elevation, independent tray/backend
+  control, durable run visibility, and automatic retention. It remains at the
+  requirements stage pending approval.
+
+### 2026-07-20 - 008-npbackup-migration-parity
+
+- **Spec:** removed; recover from Git
+- **Title:** NPBackup migration parity requirements
+- **Final spec commit:** `5830194`
+- **Closure cleanup commit:** `1bfea08`
+- **Closure action:** removed
+- **Durable docs updated:**
+  - `docs/guides/user/recovery-operations-guide.md`
+  - `docs/guides/developer/scheduling-guide.md`
+- **Verification summary:** Spec lint reported zero diagnostics; closure check
+  was ready; closure risk was low with all 37 evidence records concrete; the
+  cutover left the TimeLocker timer active and preserved a root-only NPBackup
+  crontab rollback artifact.
+- **Residual risks:**
+  - Automatic retention is not configured; keep 5 daily, 4 weekly, 12 monthly,
+    and 3 yearly snapshots without prune remains a manual operation.
+- **Follow-up:** Define system CLI elevation, independent tray/backend control,
+  run visibility, and automatic retention in a separate active specification.
 ### 2026-07-18 - 001-cli-consolidation-stabilization
 
 - **Spec:** removed; recover from Git

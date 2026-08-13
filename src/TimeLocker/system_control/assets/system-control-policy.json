@@ -1,0 +1,19 @@
+{
+  "operator_group": "timelocker-operators",
+  "transport_identifier": "/run/timelocker/control.sock",
+  "protocol_version": 2,
+  "max_request_bytes": 65536,
+  "max_response_records": 100,
+  "retention": {
+    "keep_daily": 5,
+    "keep_weekly": 4,
+    "keep_monthly": 12,
+    "keep_yearly": 3,
+    "group_by": [
+      "host",
+      "paths"
+    ],
+    "prune": false,
+    "approved_fingerprint": null
+  }
+}

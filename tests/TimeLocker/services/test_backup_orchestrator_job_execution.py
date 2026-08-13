@@ -139,6 +139,23 @@ class TestBackupOrchestratorJobExecution:
         
         assert '/tmp/test-data' in backup_job.source_paths
         assert '*.tmp' in backup_job.exclude_patterns
+
+    def test_job_target_carries_selection_cli_execution_options(
+            self, orchestrator, sample_job_config
+    ):
+        """Selection-job metadata reaches the concrete backup target."""
+        sample_job_config.metadata = {
+            'cli_options': {
+                'compression': 'max',
+                'one_file_system': True,
+            }
+        }
+        backup_job = orchestrator.prepare_backup_job(sample_job_config)
+
+        target = orchestrator._create_backup_targets_from_job(backup_job)[0]
+
+        assert target.compression == 'max'
+        assert target.one_file_system is True
     
     def test_queue_backup_job(self, orchestrator, sample_job_config):
         """Test queueing a backup job"""
@@ -196,6 +213,58 @@ class TestBackupOrchestratorJobExecution:
         assert result.snapshot_id is not None
         assert 'dry-run' in result.snapshot_id
         assert result.metadata['dry_run'] is True
+
+    def test_legacy_dry_run_completes_without_undefined_job(
+        self, orchestrator, tmp_path
+    ):
+        """Direct-path CLI dry-run must not reference job-only state."""
+        source_file = tmp_path / "source.txt"
+        source_file.write_text("content")
+        orchestrator._configuration_provider.get_backup_targets.return_value = [{
+            "name": "test-target",
+            "paths": [str(source_file)],
+            "exclude_patterns": [],
+            "include_patterns": [],
+        }]
+        result = BackupResult(
+            status=BackupStatus.PENDING,
+            repository_name="test-repo",
+            target_names=["test-target"],
+        )
+
+        completed = orchestrator._execute_dry_run(result)
+
+        assert completed.status == BackupStatus.COMPLETED
+        assert completed.files_processed == 1
+
+    def test_actual_backup_maps_restic_summary_and_does_not_persist_password(
+        self, orchestrator, mock_repository_factory
+    ):
+        """Restic summary fields drive truthful CLI counts without secret metadata."""
+        repository = mock_repository_factory.create_repository.return_value
+        repository.backup_target.return_value = {
+            "snapshot_id": "snapshot-summary",
+            "files_new": 2,
+            "files_changed": 3,
+            "files_unmodified": 5,
+            "data_added": 4096,
+        }
+        result = BackupResult(
+            status=BackupStatus.PENDING,
+            repository_name="test-repo",
+            target_names=["test-target"],
+            metadata={"tags": []},
+        )
+
+        completed = orchestrator._execute_actual_backup(
+            result, password="runtime-only-password"
+        )
+
+        assert completed.status == BackupStatus.COMPLETED
+        assert completed.snapshot_id == "snapshot-summary"
+        assert completed.files_processed == 10
+        assert completed.bytes_processed == 4096
+        assert "password" not in completed.metadata
     
     def test_execute_backup_job_success(self, orchestrator, sample_job_config):
         """Test successful backup job execution"""

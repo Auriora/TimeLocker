@@ -1,10 +1,11 @@
 ---
 title: "User Guide: Installation"
 id: "user-guide-installation"
+doc_type: guide
 type: [ guide ]
 status: [ approved ]
 owner: "Documentation Team"
-last_reviewed: "18-07-2026"
+last_reviewed: "2026-07-27"
 tags: [guide, user, installation]
 links:
   tooling: []
@@ -15,12 +16,13 @@ links:
 - **Owner**: Documentation Team
 - **Status**: Approved
 - **Created Date**: 19-12-2024
-- **Last Updated**: 18-07-2026
+- **Last Updated**: 2026-07-26
 - **Audience**: End Users, Administrators
 
 ## 1. Purpose
 
-Provide comprehensive steps for installing TimeLocker, its dependencies, and verifying the setup across Linux, macOS, and Windows.
+Provide steps for a user/source installation across supported Python platforms
+and explain the separately administered protected Linux deployment.
 
 ## 2. Goal
 
@@ -28,7 +30,9 @@ After completing this guide you will have TimeLocker installed, dependencies con
 
 ## 3. Prerequisites
 
-- Supported operating system (Linux, macOS, or Windows).
+- Supported operating system: Linux, macOS, or Windows.
+- Python 3.12 or 3.13. TimeLocker declares `>=3.12,<3.14`.
+- Restic 0.18.0 or later available on `PATH`.
 - Internet access to install Python and Restic.
 - Git if cloning from source.
 - Optional: AWS/B2 credentials for cloud backends.
@@ -37,9 +41,9 @@ After completing this guide you will have TimeLocker installed, dependencies con
 
 ### 4.1 Review Release Status
 
-- **Current status**: Beta, version 0.9.0.
-- **Distribution**: Source checkout only; TimeLocker is not currently published
-  to PyPI.
+- **Current status**: version 0.9.1 is distributed through GitHub Releases.
+- **Distribution**: GitHub Release wheel and source archive; TimeLocker is not
+  published to PyPI.
 - **Quality gate**: The configured test suite enforces at least 50% coverage.
 
 ### 4.2 Understand TimeLocker
@@ -53,20 +57,34 @@ multi-backend support.
 
 ```bash
 sudo apt update
-sudo apt install python3.12 python3-pip git  # Ubuntu/Debian
-# sudo dnf install python3.12 python3-pip git  # Fedora
+sudo apt install python3.12 python3-pip git  # Ubuntu/Debian; Python 3.13 is also supported
+# sudo dnf install python3.12 python3-pip git  # Fedora; use python3.13 if preferred
 # sudo pacman -S python python-pip git         # Arch
 ```
+
+The independent system tray is optional and does not affect backup, restore, or
+other CLI commands. On Linux Mint/Ubuntu, install GTK 3, PyGObject, and the Ayatana
+AppIndicator typelib when you want tray support:
+
+```bash
+sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-ayatanaappindicator3-0.1
+```
+
+TimeLocker prefers `AyatanaAppIndicator3` and retains the legacy
+`AppIndicator3` fallback. A pyenv-managed Python does not normally see
+distribution `python3-gi`; use the supported system Python in a virtual
+environment created with `--system-site-packages`, or install the build
+prerequisites needed for `python -m pip install '.[gui]'`.
 
 #### macOS
 
 ```bash
-brew install python@3.12 git
+brew install python@3.12 git  # python@3.13 is also supported
 ```
 
 #### Windows
 
-1. Download Python 3.12 from [python.org](https://www.python.org/downloads/).
+1. Download Python 3.12 or 3.13 from [python.org](https://www.python.org/downloads/).
 2. Run the installer and select "Add Python to PATH".
 3. Install Git from [git-scm.com](https://git-scm.com/download/win).
 
@@ -113,20 +131,116 @@ python -m pip install -e '.[dev]'
 timelocker --help
 tl --help
 python -c "from TimeLocker.backup_manager import BackupManager; print('TimeLocker installed successfully')"
-python -m pytest -m "not performance and not stress"
+python -m pytest -m "not performance and not stress and not minio"
 ```
 
 Expected results: both CLI commands display help. For contributor installs, the
-configured suite passes and enforces coverage of at least 50%.
+normal suite passes and enforces coverage of at least 50%. Live MinIO tests are
+owned by the separately provisioned profile documented in
+[`docs/4-testing/README.md`](../../4-testing/README.md).
 
-### 4.7 Understand Modern Packaging Features
+### 4.7 Protected Linux Deployment
+
+Host-level backup and retention use an administrator-installed deployment that
+is distinct from a user/source installation. It provides:
+
+```text
+/usr/local/bin/timelocker
+/usr/local/bin/tl
+/usr/local/bin/timelocker-tray
+/usr/local/sbin/timelocker-deploy
+/usr/local/libexec/timelocker-system-control
+/usr/local/share/icons/hicolor/1024x1024/apps/timelocker.png
+/opt/timelocker/releases/RELEASE_ID/
+/opt/timelocker/selected-release.json
+/etc/timelocker/
+/var/lib/timelocker/
+```
+
+The stable launchers ignore the caller's pyenv, checkout, home directory, and
+current working directory. A staged release is selected only after its CLI,
+backend, and tray entrypoints pass compatibility probes. System control is
+exposed through `/run/timelocker/control.sock`.
+
+Build or obtain the approved local wheel, then use the supported administrator
+entrypoint. It derives the artifact digest, release ID, schema-3 daemonless
+manifest, and private staging paths; do not create a manifest or deployment
+script manually.
+
+```bash
+python -m build --wheel
+sudo "$(pwd)/.venv/bin/timelocker-deploy" install \
+  dist/timelocker-0.9.1-py3-none-any.whl --operator-user "$USER"
+
+sudo /usr/local/sbin/timelocker-deploy upgrade \
+  /absolute/path/to/timelocker-NEW-py3-none-any.whl \
+  --operator-user "$USER"
+/usr/local/sbin/timelocker-deploy status
+sudo /usr/local/sbin/timelocker-deploy rollback
+```
+
+Each command returns one JSON object and a stable exit status. Install/upgrade
+creates or reuses `timelocker-operators`, privately snapshots the wheel,
+validates its filename, package metadata, digest, and complete protected asset
+set, then activates it transactionally. It stops/disables the legacy event
+socket and never starts backup or retention. A rollback to a schema-1/2 release
+is rejected because those releases can require the removed resident service.
+An offline upgrade seeds dependencies from the currently selected immutable
+release, excludes the old TimeLocker package, installs the candidate wheel, and
+then runs the normal staged compatibility probes before activation.
+
+Verify an installed host without reading secrets:
+
+```bash
+/usr/local/bin/timelocker version --short
+/usr/local/bin/timelocker runs list --limit 5
+/usr/local/bin/timelocker logs view --scope system --lines 20
+/usr/local/bin/timelocker system backup --help
+/usr/local/bin/timelocker system retention --help
+systemctl status timelocker-control.socket
+systemctl status timelocker-retention.timer
+/usr/local/bin/timelocker-tray status --once
+```
+
+Protected reads and `system backup`/`system retention` requests require current
+membership in `timelocker-operators`. These commands activate one privileged
+helper for one request without elevating the caller process. The helper exits
+after its response.
+Installation, group changes, policy approval, service changes, release
+selection, and rollback require root.
+
+### 4.8 Validated Platform Matrix
+
+The `0.9.1` wheel and source distribution are clean-install tested on every
+combination below. Each test runs `version --short` and root help through both
+the `timelocker` and `tl` entry points.
+
+| Operating system | Python 3.12 | Python 3.13 |
+|------------------|-------------|-------------|
+| Linux | wheel and sdist | wheel and sdist |
+| macOS | wheel and sdist | wheel and sdist |
+| Windows | wheel and sdist | wheel and sdist |
+
+This validates wheel/source installation and safe CLI startup. Backup and restore operations
+still require a compatible Restic executable and any backend-specific
+credentials. No PyPI distribution is currently published; use the source path
+above until an authorized release provides downloadable artifacts.
+
+The daemonless immutable-release, systemd scheduling, and independent-tray
+implementation has automated acceptance. Live protected-host mutation and the
+90-second idle residency observation require separate operational approval.
+The portable architecture includes a Windows adapter, but a protected Windows
+deployment is not yet claimed as live-accepted.
+
+### 4.9 Understand Modern Packaging Features
 
 - `pyproject.toml` for modern builds (PEP 517/518).
 - Optional dependency groups (`dev`, `gui`). S3 and B2 runtime dependencies are
   included in the base installation.
-- Entry points install both `timelocker` and `tl` commands.
+- Entry points install `timelocker`, `tl`, `timelocker-tray`,
+  `timelocker-system-control`, and `timelocker-deploy`.
 
-### 4.8 Configure Environment
+### 4.10 Configure Environment
 
 Basic configuration focuses on setting up repositories and targets. For cloud backends, export credentials:
 
@@ -141,10 +255,6 @@ export B2_ACCOUNT_ID=your_account_id
 export B2_ACCOUNT_KEY=your_account_key
 ```
 
-### 4.9 Optional: Manual Vacuum / Additional Sections
-
-(If applicable, include other configuration tasks; original document contains extended instructions you may retain here.)
-
 ## 5. Troubleshooting
 
 - **CLI command not found**: Ensure the Python scripts directory is on `PATH` or reinstall with pip.
@@ -152,6 +262,11 @@ export B2_ACCOUNT_KEY=your_account_key
   contributor dependencies with `python -m pip install -e '.[dev]'`.
 - **`pip install timelocker` fails**: No PyPI distribution is currently
   supported; install from a source checkout as shown above.
+- **Protected CLI uses the wrong checkout or pyenv**: use
+  `/usr/local/bin/timelocker`. A protected deployment must fail closed rather
+  than fall back to user state.
+- **System runs are not visible**: confirm the backend socket is active and the
+  user has current `timelocker-operators` membership.
 
 ## 6. Frequently Asked Questions (FAQ)
 
@@ -163,3 +278,6 @@ export B2_ACCOUNT_KEY=your_account_key
 - Restic installation docs: <https://restic.readthedocs.io>
 - Python downloads: <https://www.python.org/downloads/>
 - TimeLocker repository: <https://github.com/Auriora/TimeLocker>
+- [Independent tray setup](../../SYSTEM-TRAY-SETUP.md)
+- [Scheduling guide](../developer/scheduling-guide.md)
+- [Backup operations troubleshooting](./backup-operations-troubleshooting.md)

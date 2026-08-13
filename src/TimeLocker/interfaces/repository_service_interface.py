@@ -85,7 +85,8 @@ class IRepositoryService(ABC):
     def apply_retention_policy(self, repository: BackupRepository,
                                keep_daily: int = 7, keep_weekly: int = 4,
                                keep_monthly: int = 12, keep_yearly: int = 3,
-                               dry_run: bool = False) -> Dict[str, Any]:
+                               dry_run: bool = False,
+                               group_by: str = "host,paths") -> Dict[str, Any]:
         """
         Apply retention policy to repository
         
@@ -96,6 +97,7 @@ class IRepositoryService(ABC):
             keep_monthly: Number of monthly snapshots to keep
             keep_yearly: Number of yearly snapshots to keep
             dry_run: If True, only show what would be removed
+            group_by: Explicit Restic snapshot grouping fields
             
         Returns:
             Dictionary with policy application results
