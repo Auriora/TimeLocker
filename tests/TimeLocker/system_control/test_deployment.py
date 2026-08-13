@@ -186,7 +186,7 @@ def test_linux_asset_set_covers_launchers_backend_tray_and_schedules(
         target for target in targets if target.source_name == "timelocker-deploy-launcher"
     )
     assert deploy.destination == tmp_path / "sbin" / "timelocker-deploy"
-    assert deploy.mode == 0o750
+    assert deploy.mode == 0o755
     assert "timelocker-status-events.socket" not in sources
     policy = next(
         target

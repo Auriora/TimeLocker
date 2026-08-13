@@ -287,7 +287,7 @@ def linux_asset_targets(
         AssetTarget(
             "timelocker-deploy-launcher",
             admin_bin_root / "timelocker-deploy",
-            0o750,
+            0o755,
         ),
         AssetTarget(
             "timelocker-system-control-launcher",
