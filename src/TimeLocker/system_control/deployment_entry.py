@@ -63,6 +63,10 @@ REQUIRED_ACTIVE_UNITS = (
     "timelocker-npbackup-migration.timer",
     "timelocker-retention.timer",
 )
+PRE_ACTIVATION_ACTIVE_UNITS = (
+    "timelocker-npbackup-migration.timer",
+    "timelocker-retention.timer",
+)
 REQUIRED_ENABLED_UNITS = (
     "timelocker-control.socket",
     "timelocker-npbackup-migration.timer",
@@ -269,7 +273,7 @@ class T011LinuxDeployer:
         if _selected_release_optional(self.paths.selector) != self.request.expected_current:
             raise DeploymentFailure("selected release changed before deployment")
         if self.request.expected_current is not None:
-            for unit in REQUIRED_ACTIVE_UNITS:
+            for unit in PRE_ACTIVATION_ACTIVE_UNITS:
                 self._systemctl_gate("is-active", unit)
             for unit in REQUIRED_ENABLED_UNITS:
                 self._systemctl_gate("is-enabled", unit)
@@ -500,7 +504,7 @@ class T011LinuxDeployer:
         if _selected_release_optional(self.paths.selector) != self.request.expected_current:
             raise DeploymentFailure("selector changed during staged preflight")
         if self.request.expected_current is not None:
-            for unit in REQUIRED_ACTIVE_UNITS:
+            for unit in PRE_ACTIVATION_ACTIVE_UNITS:
                 self._systemctl_gate("is-active", unit)
             for unit in REQUIRED_ENABLED_UNITS:
                 self._systemctl_gate("is-enabled", unit)

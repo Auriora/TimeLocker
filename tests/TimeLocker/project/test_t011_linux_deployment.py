@@ -192,6 +192,60 @@ def test_initial_install_validation_does_not_require_running_units(
 
 
 @pytest.mark.unit
+def test_upgrade_validation_allows_stopped_legacy_control_socket(
+    tmp_path: Path,
+) -> None:
+    paths = _paths(tmp_path)
+    _prepare_roots(paths)
+    paths.launcher_venv.mkdir(parents=True)
+    paths.launcher_venv.chmod(0o755)
+    launcher_python = paths.launcher_venv / "bin/python"
+    launcher_python.parent.mkdir()
+    launcher_python.parent.chmod(0o755)
+    launcher_python.write_text("#!/bin/sh\n")
+    launcher_python.chmod(0o755)
+    paths.selector.write_text(
+        json.dumps(
+            {"schema_version": 1, "selected": RELEASE_A, "previous": None}
+        )
+    )
+    paths.selector.chmod(0o644)
+    wheel = tmp_path / "timelocker-0.9.1-py3-none-any.whl"
+    wheel.write_bytes(b"wheel")
+    manifest = tmp_path / "release.json"
+    manifest.write_text("{}")
+    commands: list[list[str]] = []
+
+    class Executor:
+        def run(self, arguments, **_kwargs):
+            commands.append([str(value) for value in arguments])
+            return ""
+
+    deployer = entry.T011LinuxDeployer(
+        entry.DeploymentRequest(
+            release_id="b" * 40,
+            expected_current=RELEASE_A,
+            wheel=wheel,
+            wheel_sha256=entry._sha256(wheel),
+            manifest=manifest,
+            operator_user=getpass.getuser(),
+        ),
+        paths=paths,
+        executor=Executor(),
+        owner_uid=os.getuid(),
+        owner_gid=os.getgid(),
+    )
+
+    deployer.validate_request()
+
+    assert ["systemctl", "is-active", "--quiet", "timelocker-control.socket"] not in commands
+    for unit in entry.PRE_ACTIVATION_ACTIVE_UNITS:
+        assert ["systemctl", "is-active", "--quiet", unit] in commands
+    for unit in entry.REQUIRED_ENABLED_UNITS:
+        assert ["systemctl", "is-enabled", "--quiet", unit] in commands
+
+
+@pytest.mark.unit
 def test_status_reports_zero_resident_service_contract(tmp_path: Path) -> None:
     paths = _paths(tmp_path)
     paths.selector.parent.mkdir(parents=True)
