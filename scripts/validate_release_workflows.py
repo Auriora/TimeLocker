@@ -42,6 +42,9 @@ def validate(rehearsal_path: Path, release_path: Path) -> None:
     ), "only the publication job may request contents: write"
     assert release.count("contents: write") == 1
     assert release.count("gh release create") == 1
+    assert "GH_REPO: ${{ github.repository }}" in release, (
+        "checkout-free publication must provide explicit GitHub repository context"
+    )
 
 
 def main() -> None:
