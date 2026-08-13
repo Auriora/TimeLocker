@@ -360,6 +360,14 @@ class T011LinuxDeployer:
             timeout=120,
             output=self.evidence / "venv-create.txt",
         )
+        pip_arguments: list[str | Path] = []
+        if self.request.expected_current is not None:
+            _seed_dependencies_from_release(
+                self.paths.releases_root / self.request.expected_current / "venv",
+                self.release / "venv",
+                expected_owner_uid=self.owner_uid,
+            )
+            pip_arguments.append("--no-deps")
         python = self.release / "venv/bin/python"
         self.executor.run(
             [
@@ -369,6 +377,7 @@ class T011LinuxDeployer:
                 "install",
                 "--disable-pip-version-check",
                 "--no-index",
+                *pip_arguments,
                 self.staged_wheel,
             ],
             timeout=600,
@@ -945,6 +954,44 @@ def _make_tree_immutable(
         os.chmod(path, mode)
         if uid is not None and gid is not None:
             os.chown(path, uid, gid)
+
+
+def _seed_dependencies_from_release(
+    source_venv: Path,
+    destination_venv: Path,
+    *,
+    expected_owner_uid: int | None,
+) -> None:
+    """Copy trusted dependencies, but not TimeLocker, into an upgrade candidate."""
+    _require_trusted_directory(source_venv, expected_owner_uid=expected_owner_uid)
+    source_matches = tuple(source_venv.glob("lib/python3.*/site-packages"))
+    destination_matches = tuple(destination_venv.glob("lib/python3.*/site-packages"))
+    if len(source_matches) != 1 or len(destination_matches) != 1:
+        raise DeploymentFailure("release dependency environment is ambiguous")
+    source = source_matches[0]
+    destination = destination_matches[0]
+    _require_trusted_directory(source, expected_owner_uid=expected_owner_uid)
+    for item in source.iterdir():
+        normalized = item.name.lower().replace("_", "-")
+        if normalized == "timelocker" or (
+            normalized.startswith("timelocker-")
+            and normalized.endswith((".dist-info", ".egg-info"))
+        ):
+            continue
+        if item.is_symlink():
+            raise DeploymentFailure("selected release dependency is a symlink")
+        target = destination / item.name
+        if item.is_dir():
+            shutil.copytree(
+                item,
+                target,
+                copy_function=shutil.copy2,
+                dirs_exist_ok=True,
+            )
+        elif item.is_file():
+            shutil.copy2(item, target)
+        else:
+            raise DeploymentFailure("selected release dependency is not a regular file")
 
 
 def _write_private_text(path: Path, content: str) -> None:

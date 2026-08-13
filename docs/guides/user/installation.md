@@ -185,6 +185,9 @@ validates its filename, package metadata, digest, and complete protected asset
 set, then activates it transactionally. It stops/disables the legacy event
 socket and never starts backup or retention. A rollback to a schema-1/2 release
 is rejected because those releases can require the removed resident service.
+An offline upgrade seeds dependencies from the currently selected immutable
+release, excludes the old TimeLocker package, installs the candidate wheel, and
+then runs the normal staged compatibility probes before activation.
 
 Verify an installed host without reading secrets:
 

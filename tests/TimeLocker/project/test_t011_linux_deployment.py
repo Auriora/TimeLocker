@@ -246,6 +246,34 @@ def test_upgrade_validation_allows_stopped_legacy_control_socket(
 
 
 @pytest.mark.unit
+def test_upgrade_seeds_only_dependencies_from_selected_release(tmp_path: Path) -> None:
+    source_venv = tmp_path / "selected/venv"
+    destination_venv = tmp_path / "candidate/venv"
+    source = source_venv / "lib/python3.12/site-packages"
+    destination = destination_venv / "lib/python3.12/site-packages"
+    source.mkdir(parents=True)
+    destination.mkdir(parents=True)
+    source.chmod(0o755)
+    source_venv.chmod(0o755)
+    (source / "dependency.py").write_text("VALUE = 1\n")
+    (source / "dependency-1.0.dist-info").mkdir()
+    (source / "TimeLocker").mkdir()
+    (source / "TimeLocker/old.py").write_text("OLD = True\n")
+    (source / "timelocker-0.9.0.dist-info").mkdir()
+
+    entry._seed_dependencies_from_release(
+        source_venv,
+        destination_venv,
+        expected_owner_uid=os.getuid(),
+    )
+
+    assert (destination / "dependency.py").read_text() == "VALUE = 1\n"
+    assert (destination / "dependency-1.0.dist-info").is_dir()
+    assert not (destination / "TimeLocker").exists()
+    assert not (destination / "timelocker-0.9.0.dist-info").exists()
+
+
+@pytest.mark.unit
 def test_status_reports_zero_resident_service_contract(tmp_path: Path) -> None:
     paths = _paths(tmp_path)
     paths.selector.parent.mkdir(parents=True)
