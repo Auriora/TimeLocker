@@ -4,15 +4,14 @@ All notable changes to TimeLocker are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-A version section records release contents, not proof that publication occurred.
-The `Prepared` qualifier on `0.9.1` marks it as a Beta release candidate until
-the release maintainer approves and finalizes the production tag.
+A version section records the evidence-backed contents of a release. GitHub is
+the authority for whether its corresponding tag and release were published.
 
 ## [Unreleased]
 
-No changes have been assigned beyond the `0.9.1` release candidate.
+No changes have been assigned beyond `0.9.1`.
 
-## [0.9.1] - Prepared 2026-07-19
+## [0.9.1] - 2026-08-13
 
 ### Added
 
@@ -24,6 +23,14 @@ No changes have been assigned beyond the `0.9.1` release candidate.
   macOS, and Windows with Python 3.12 and 3.13.
 - A reusable, read-only release rehearsal that derives its release-body preview
   from this changelog section.
+- NPBackup-compatible selection, exclusion, scheduling, and recovery migration
+  with a retained rollback path.
+- Protected system backup, run-status, retention, and tray workflows with
+  authenticated local requests and sanitized durable status.
+- Transactional local-wheel install, upgrade, status, and rollback through
+  `timelocker-deploy`, including immutable release selection and evidence.
+- Branded tray states for connecting, idle, running, success, warning, and
+  failure conditions.
 
 ### Changed
 
@@ -33,22 +40,33 @@ No changes have been assigned beyond the `0.9.1` release candidate.
   calibrated correctness and timing contract.
 - Isolated GitHub release creation behind successful validation and a single
   job-scoped `contents: write` permission.
+- Replaced the resident privileged event backend with socket-activated,
+  one-request execution that exits after each explicit request.
+- Preserved independent backup and retention timers while making tray status
+  observation daemonless and filesystem-based.
 
 ### Fixed
 
 - Prevented normal CI from contacting an unprovisioned MinIO service.
 - Made root CLI help safe for the Windows default `cp1252` encoding.
 - Aligned package, source, and version-bump metadata at `0.9.1`.
+- Preserved native Restic repository URIs and selective recovery paths during
+  migration.
+- Prevented headless commands from initializing the system tray and prevented
+  schedule installation from immediately starting its backup service.
+- Hardened protected release staging, protocol upgrades, rollback, offline
+  dependency installation, and unprivileged read-only deployment status.
+- Made the Linux-only system-control entry point importable for `--help` and
+  package smoke validation on Windows.
 
 ### Known Limitations
 
-- This is a Beta release candidate. A production tag and GitHub release still
-  require separate maintainer approval.
-- TimeLocker is not published to PyPI; install from source until an authorized
-  GitHub release provides downloadable artifacts.
-- The first production tag will exercise GitHub release creation in the live
-  repository for the first time. The non-publishing rehearsal cannot reproduce
-  that final external write.
+- TimeLocker is distributed through GitHub Releases and is not published to
+  PyPI.
+- Protected system deployment is accepted on Linux Mint/systemd. Windows has
+  package and adapter coverage but no live protected-service acceptance.
+- Optional tray presentation remains a user-session process by operator choice;
+  no continuously resident privileged TimeLocker backend is required.
 - GitHub Actions currently reports a non-blocking upstream Node.js runtime
   deprecation advisory for pinned actions.
 

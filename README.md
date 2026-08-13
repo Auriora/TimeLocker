@@ -394,7 +394,7 @@ This is particularly suitable for libraries and applications that you want to re
 
 ## Document Information
 
-- Version: 0.9.1 (prepared, not published)
-- Last Updated: 2026-07-19
+- Version: 0.9.1
+- Last Updated: 2026-08-13
 - Author: Bruce Cherrington
 - Copyright © Bruce Cherrington

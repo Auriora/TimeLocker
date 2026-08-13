@@ -14,7 +14,7 @@ import socket
 import stat
 from threading import Event
 from types import FrameType
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 from uuid import UUID, uuid4
 
 try:
@@ -24,10 +24,8 @@ except ImportError:  # pragma: no cover - Linux-only backend runtime.
 
 from .dispatcher import AuditEvent, AuditSink, LocalControlDispatcher
 from .interfaces import GroupMembershipResolver
-from .linux_adapter import (
-    LinuxNssGroupMembershipResolver,
-    LinuxUnixSocketTransport,
-)
+if TYPE_CHECKING:
+    from .linux_adapter import LinuxUnixSocketTransport
 from .models import (
     ActionReceipt,
     BackupActionRequest,
@@ -367,6 +365,8 @@ def build_linux_backend(
     status_snapshot_store: AtomicStatusSnapshotStore | None = None,
 ) -> LinuxBackendService:
     """Compose the Linux backend from strict local components."""
+    from .linux_adapter import LinuxNssGroupMembershipResolver
+
     if type(max_diagnostics) is not int or not 1 <= max_diagnostics <= 100_000:
         raise ValueError("max_diagnostics must be between 1 and 100000")
     if socket_mode not in {"systemd", "listener"}:
@@ -756,6 +756,8 @@ def _build_transport(
     request_timeout_seconds: float,
     stop_event: Event,
 ) -> LinuxUnixSocketTransport:
+    from .linux_adapter import LinuxUnixSocketTransport
+
     if socket_mode == "listener":
         assert listener is not None
         return LinuxUnixSocketTransport(

@@ -3,7 +3,7 @@ title: "Active Specification Packages"
 doc_type: reference
 status: active
 owner: "Auriora Team"
-last_reviewed: 2026-08-12
+last_reviewed: 2026-08-13
 ---
 
 # Active Specification Packages
@@ -15,25 +15,16 @@ accepted content has been promoted and the package is closed.
 
 ## Current Packages
 
-- [`011-protected-system-deployment`](./011-protected-system-deployment/README.md) -
-  active package for replacing acceptance-specific deployment commands and the
-  resident control backend with a daemonless transactional install, upgrade,
-  status, rollback, query, and action workflow.
+There are no active specification packages.
 
 ## Active-Package Sequencing
 
-Spec 010 is closed. Its accepted status semantics are promoted to durable docs,
-and its rejected resident-runtime work is routed to Spec 011. The user approved
-Spec 011 implementation on 2026-08-12; live protected-host mutation, backup or
-retention execution, publication, and rollback remain separate operational
-approval boundaries.
-
-Specs 007, 008, 009, and 010 are closed. Their final package commits, cleanup
-commits, verification summaries, and residual follow-up are recorded in
-`docs/history/`. Closed packages remain recoverable from Git rather than kept
-in this active path. Spec 010 may rely on the durable behavior promoted by Spec
-009, but not on its removed package as current authority. Repository
-implementation approval does not authorize release publication or deployment.
+Specs 007 through 011 are closed. Their final package commits, cleanup commits,
+verification summaries, and residual follow-up are recorded in `docs/history/`.
+Closed packages remain recoverable from Git rather than kept in this active
+path. Repository implementation approval does not authorize release
+publication or protected-host deployment; those remain separately approved
+operational boundaries.
 
 ## When a Spec Is Needed
 

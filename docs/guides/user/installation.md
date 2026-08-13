@@ -41,9 +41,9 @@ After completing this guide you will have TimeLocker installed, dependencies con
 
 ### 4.1 Review Release Status
 
-- **Current status**: Beta, version 0.9.1 is prepared but not published.
-- **Distribution**: Source checkout only; TimeLocker is not currently published
-  to PyPI.
+- **Current status**: version 0.9.1 is distributed through GitHub Releases.
+- **Distribution**: GitHub Release wheel and source archive; TimeLocker is not
+  published to PyPI.
 - **Quality gate**: The configured test suite enforces at least 50% coverage.
 
 ### 4.2 Understand TimeLocker

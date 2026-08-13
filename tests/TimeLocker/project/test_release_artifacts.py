@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import subprocess
 import sys
 import tomllib
@@ -98,6 +99,27 @@ def test_root_help_is_compatible_with_windows_default_encoding():
     result = CliRunner().invoke(app, ["--help"])
     assert result.exit_code == 0
     result.output.encode("cp1252")
+
+
+@pytest.mark.platform
+@pytest.mark.unit
+def test_system_control_help_does_not_require_posix_account_modules():
+    script = """
+import sys
+sys.modules["grp"] = None
+sys.modules["pwd"] = None
+from TimeLocker.system_control import backend_entry
+backend_entry.main(["--help"])
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=ROOT,
+        env={**os.environ, "PYTHONPATH": str(ROOT / "src")},
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "usage:" in result.stdout
 
 
 @pytest.mark.config

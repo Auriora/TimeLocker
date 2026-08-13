@@ -3,7 +3,7 @@ title: Version management and GitHub releases
 doc_type: process
 status: active
 owner: Auriora Team
-last_reviewed: 2026-07-26
+last_reviewed: 2026-08-13
 ---
 
 # Version Management And GitHub Releases
@@ -85,8 +85,8 @@ Publication requires all of the following:
 
 1. The release candidate is committed on the intended protected branch and CI
    is green.
-2. The active release-readiness spec is ready for closure and its residual
-   risks have an owner.
+2. The release-readiness lifecycle package is closed or ready for closure, and
+   its residual risks have an owner.
 3. The version guard, artifacts, supported OS/Python matrix, changelog preview,
    and non-publishing rehearsal pass.
 4. The release maintainer explicitly approves the exact commit and version.
@@ -154,6 +154,6 @@ removed resident event service.
 
 ## Current Deferrals
 
-Version `0.9.1` remains a Beta GitHub release candidate until separately
-approved. PyPI distribution and the `1.0.0` milestone remain deferred and are
-not implied by completing this procedure.
+Version `0.9.1` is distributed through its GitHub release. PyPI distribution
+and the `1.0.0` milestone remain deferred and are not implied by completing
+this procedure.
